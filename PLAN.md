@@ -149,7 +149,7 @@ anything to lose.
 plumbing, nothing visible. No Edge Function: OSRM needs no key, and sends
 `Access-Control-Allow-Origin: *`, so the browser calls it directly.
 
-**M2 — Drawing.** Click to place control points, snap each new segment, render
+**M2 — Drawing. Built; rendering verified 2026-09-07.** Click to place control points, snap each new segment, render
 points and line as separate layers, undo.
 
 **M3 — Editing.** Drag to move, insert mid-segment, delete, per-segment freehand
@@ -169,6 +169,20 @@ Vite's pre-bundler relocates the library without that file, the worker 404s
 silently, and the map never fires `load` — a white page with no error. The
 dev server log does say so ("does not exist at .../.vite/deps/
 maplibre-gl-worker.mjs"); read it first next time. Production is unaffected.
+
+Why the map was white until 2026-09-07 (all three were real, stacked):
+
+1. Container height 0. MapLibre adds `maplibregl-map` to its container and
+   its unlayered `position: relative` beats Tailwind v4's layered
+   `absolute inset-0`. Size a wrapper; give MapLibre a plain child.
+2. Dev: Vite pre-bundling relocated the library away from its worker file
+   (`optimizeDeps.exclude`).
+3. Prod: the build emitted no worker at all; MapLibre computes the worker URL
+   at runtime from `import.meta.url`. Fixed with `?worker&url` + `setWorkerUrl`.
+
+Verification tool: `node scripts/realshot.mjs <url> out.png` — real-clock
+headless Chrome screenshot plus an in-page probe. Use it before asking a
+human to look.
 
 **M5 — Export + tidy.** GeoJSON export, keyboard shortcuts, rough edges.
 
@@ -258,5 +272,7 @@ Worth doing before M2:
       returned 9.21 km / 378 points along General Araneta → Aurora →
       E. Rodriguez Sr. → Quezon Ave → España → Lerma → Quezon Blvd.
       Metro Manila OSM road data is good enough to draw against.
-- [ ] Spike: OpenFreeMap detail at street zoom in the target area
+- [x] Spike: OpenFreeMap detail — z11 over Metro Manila verified by real-clock
+      headless screenshot (scripts/realshot.mjs): roads, water, district labels,
+      expressway shields all present. Street-zoom feel: judge while drawing.
 - [ ] Decide the mode enum (jeepney / e-jeepney / UV Express / bus / P2P / …)
