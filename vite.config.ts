@@ -4,13 +4,14 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // MapLibre spawns its worker with { type: 'module' }; emit it as an ES chunk.
+  worker: { format: 'es' },
   optimizeDeps: {
     // MapLibre 6 spawns its tile worker from a sibling file resolved via
     // import.meta.url. Vite's dev pre-bundler relocates the library into
     // node_modules/.vite/deps/ without that file, so the worker 404s
     // silently, tiles never parse and the map never fires 'load'.
-    // Serving it un-bundled keeps the worker next to the code that spawns it.
-    // Production builds are unaffected either way.
+    // MapView also sets the worker URL explicitly; this stays as a belt.
     exclude: ['maplibre-gl'],
   },
 })

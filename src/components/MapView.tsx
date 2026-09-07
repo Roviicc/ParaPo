@@ -5,7 +5,18 @@ import {
   MapLibreMap,
   NavigationControl,
   ScaleControl,
+  setWorkerUrl,
 } from 'maplibre-gl'
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+
+/**
+ * MapLibre 6 spawns its tile-parsing worker from a sibling file whose URL it
+ * computes at runtime, so no bundler can see it: the production build shipped
+ * no worker, the URL 404'd silently, tiles never parsed and the map never
+ * fired 'load'. `?worker&url` makes Vite bundle the worker (and the shared
+ * chunk it imports) and hand back its real URL, in dev and in production.
+ */
+setWorkerUrl(maplibreWorkerUrl)
 
 /** OpenFreeMap: OSM-derived vector tiles, no API key, no usage limits. */
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
