@@ -3,7 +3,7 @@ import type { MapLibreMap } from 'maplibre-gl'
 import { DrawToolbar } from './components/DrawToolbar'
 import { MapView } from './components/MapView'
 import { SignIn } from './components/SignIn'
-import { supabase } from './lib/supabase'
+import { supabase, supabaseConfigError } from './lib/supabase'
 import { useDrawing } from './lib/useDrawing'
 import { useSession } from './lib/useSession'
 
@@ -20,6 +20,16 @@ export default function App() {
     <div className="relative h-full w-full overflow-hidden">
       <MapView onReady={setMap} />
 
+      {/* A config problem is a banner, never a blank page. */}
+      {supabaseConfigError && (
+        <div
+          className="absolute left-1/2 top-4 z-20 max-w-xl -translate-x-1/2 rounded-lg bg-amber-50
+                     px-4 py-2 text-xs text-amber-900 shadow ring-1 ring-amber-200"
+        >
+          {supabaseConfigError} Drawing works; saving does not.
+        </div>
+      )}
+
       {/* Only visible once signed in, and only so auth state is legible while
           building. Folds into the corner menu with Export at M5. */}
       {signedIn && !draw.drawing && (
@@ -30,7 +40,7 @@ export default function App() {
           <span className="max-w-[16ch] truncate">{session.user.email}</span>
           <button
             type="button"
-            onClick={() => supabase.auth.signOut()}
+            onClick={() => supabase?.auth.signOut()}
             className="font-medium text-neutral-900 underline underline-offset-2"
           >
             Sign out

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseConfigError } from '../lib/supabase'
 
 /**
  * Magic-link sign-in. Appears only when a signed-out user reaches for the one
@@ -14,6 +14,12 @@ export function SignIn({ onDismiss }: { onDismiss: () => void }) {
     e.preventDefault()
     setState('sending')
     setError(null)
+
+    if (!supabase) {
+      setError(supabaseConfigError)
+      setState('idle')
+      return
+    }
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
