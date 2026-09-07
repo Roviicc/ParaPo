@@ -116,6 +116,14 @@ responsiveness and to stay inside the ORS rate limit.
 GTFS-shaped names throughout, even though nothing emits GTFS yet. This is the
 only path to A-to-B directions later without a schema rewrite.
 
+Geometry is stored as JSONB GeoJSON, not PostGIS geometry — PostgREST returns
+PostGIS columns as WKB hex, which costs encoding on every read and write for
+no benefit at eight routes. Spatial queries are Phase 3; add a generated
+geography column then. Deviates from the Supabase/PostGIS line above on
+purpose.
+
+Modes: `jeepney` · `e_jeepney` · `uv_express` · `bus` · `p2p` · `tricycle`
+
 - **route** — `route_id`, signboard text, short name, long name, mode, fare note
 - **route_variant** — one per direction. `control_points`, `shape`, per-segment
   `snap_mode`, `confidence`, terminal names
