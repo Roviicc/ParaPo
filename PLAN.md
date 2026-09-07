@@ -274,8 +274,11 @@ Three sources, of very different quality:
 2. **DOTC GTFS (~2013–2015)** — the only machine-readable dataset. Released for
    the Philippine Transit App Challenge; preserved in
    https://github.com/sakayph/gtfs on the `dotc` branch (branches: dotc, master).
-   License as detected by GitHub: NOASSERTION. Last commit: 2015-03-24T06:16:49Z.
-   `dotc` routes.txt: 1715 routes across jeepney, bus and rail. Stale, but
+   Licence: a DOTC "Developer License Agreement and Terms of Use" (LICENSE.md;
+   not an open licence — read it before any use). Last commit 2015-03-24.
+   `dotc` routes.txt: 1,715 routes — 1,711 LTFRB road routes (jeepney, UV
+   Express and bus, unlabelled; GTFS route_type 3) plus LRT-1, LRT-2, MRT-3
+   and PNR. Names are terminal pairs ("Baclaran - Roosevelt"). Stale, but
    the natural reference layer / seed and a sanity check for drawn routes.
 3. **LPTRP route rationalisation** — the future official map. Per DOTr
    (Jan 2025): ~15% of routes rationalised, target 50% by end-2025 and 100%
