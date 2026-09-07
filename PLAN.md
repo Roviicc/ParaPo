@@ -262,6 +262,33 @@ from complete.
 Tag completeness among what is mapped is good: 741 of 831 carry a `ref`, 792
 carry `from` and `to`. Worth mirroring, and the schema already does.
 
+## Existing government route data (checked 2026-09-07)
+
+Three sources, of very different quality:
+
+1. **LTFRB memorandum circulars** — the closest thing to an official current
+   list. Routes carry rationalised codes (T181, T3189…; "Route 23", "411X" in
+   OSM). Published as PDFs on ltfrb.gov.ph, mostly during the 2020–2022
+   reopening (MC 2020-058: 44 routes/4,820 units; MC 2020-073; MC 2021-058;
+   MC 2022-084 reinstated pre-pandemic routes). Not machine-readable.
+2. **DOTC GTFS (~2013–2015)** — the only machine-readable dataset. Released for
+   the Philippine Transit App Challenge; preserved in
+   https://github.com/sakayph/gtfs on the `dotc` branch (branches: dotc, master).
+   License as detected by GitHub: NOASSERTION. Last commit: 2015-03-24T06:16:49Z.
+   `dotc` routes.txt: 1715 routes across jeepney, bus and rail. Stale, but
+   the natural reference layer / seed and a sanity check for drawn routes.
+3. **LPTRP route rationalisation** — the future official map. Per DOTr
+   (Jan 2025): ~15% of routes rationalised, target 50% by end-2025 and 100%
+   by end-2026. When published, LGU LPTRPs supersede the GTFS.
+
+Also: an FOI request "public transport route dataset" exists on foi.gov.ph
+under DOTr (page blocked to bots; read it in a browser).
+
+Use for ParaPo: overlay the `dotc` GTFS as a dim reference layer (Phase 2+),
+never copy its geometry into ParaPo's routes. Government works are not
+copyrighted under the Philippine IP Code (Sec. 176) but for-profit use needs
+agency approval — verify before any commercial use of the GTFS itself.
+
 ## Licensing
 
 Snapped geometry derives from OpenStreetMap via OSRM, so ODbL
