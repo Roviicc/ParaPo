@@ -30,6 +30,7 @@ is ugly and produces correct geometry, it worked.
 | Auth | Magic link, single user |
 | Write access | Public read, writes locked to one uid via RLS |
 | Repo | github.com/Roviicc/ParaPo |
+| Live | https://parapo.villaralvorovic2.workers.dev |
 
 ---
 
@@ -132,7 +133,7 @@ this?" later, and the distinction cannot be reconstructed after the fact.
 
 ## Milestones
 
-**M0 — Scaffold + deploy.** Vite/React/TS/Tailwind, MapLibre rendering
+**M0 — Scaffold + deploy. ✅ Done.** Vite/React/TS/Tailwind, MapLibre rendering
 OpenFreeMap over Metro Manila, live on Cloudflare Pages. Deploy before there is
 anything to lose.
 
@@ -148,6 +149,11 @@ toggle, adjacent-only re-snap.
 
 **M4 — Persistence.** Save panel, click-to-edit on the map, delete, return-trip
 prompt.
+
+Deploy note: there is no `wrangler.jsonc` in the repo — Cloudflare Workers
+Builds handles a plain static `dist` without one. Add one when client-side
+routing lands, or deep links will 404 without
+`assets.not_found_handling: "single-page-application"`.
 
 **M5 — Export + tidy.** GeoJSON export, keyboard shortcuts, rough edges.
 
@@ -192,7 +198,7 @@ Blocking M1, not M0:
 
 - [x] Supabase project — `smzwbqxttdyvohuizynl` · anon key still needed in `.env.local`
 - [ ] OpenRouteService API key
-- [ ] Cloudflare account connected to the repo
+- [x] Cloudflare deploying from `main` (Workers Builds, `npx wrangler deploy`)
 
 Worth doing before M2:
 
