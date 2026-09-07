@@ -145,7 +145,7 @@ this?" later, and the distinction cannot be reconstructed after the fact.
 OpenFreeMap over Metro Manila, live on Cloudflare Pages. Deploy before there is
 anything to lose.
 
-**M1 — Supabase.** Schema, RLS keyed to one uid, magic-link login. All
+**M1 — Supabase. ✅ Done.** Schema, RLS keyed to one uid, magic-link login. All
 plumbing, nothing visible. No Edge Function: OSRM needs no key, and sends
 `Access-Control-Allow-Origin: *`, so the browser calls it directly.
 
