@@ -1,0 +1,34 @@
+{
+  "name": "parapo",
+  "version": "0.0.0",
+  "description": "Ground-truthed jeepney route data for Metro Manila",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Roviicc/ParaPo.git"
+  },
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/Roviicc/ParaPo/issues"
+  },
+  "homepage": "https://github.com/Roviicc/ParaPo#readme",
+  "dependencies": {
+    "maplibre-gl": "^6.7.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2"
+  },
+  "private": true
+}
