@@ -145,7 +145,20 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
 
   return (
     <>
-      <div ref={containerRef} className="absolute inset-0 bg-neutral-100" />
+      {/*
+        MapLibre adds `maplibregl-map` to its container, and its stylesheet
+        sets `position: relative` on that class. Tailwind v4 emits utilities
+        inside a cascade layer, and unlayered CSS beats layered CSS regardless
+        of import order -- so `absolute inset-0` on the container itself
+        silently lost: the div became a relative block with height 0, and the
+        300px default canvas was clipped by MapLibre's own `overflow: hidden`.
+        A white page, no errors, `load` firing normally.
+
+        So: size the WRAPPER, and hand MapLibre a plain child to restyle.
+      */}
+      <div className="absolute inset-0 bg-neutral-100">
+        <div ref={containerRef} className="h-full w-full" />
+      </div>
 
       {!loaded && !error && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
