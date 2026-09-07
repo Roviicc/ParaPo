@@ -39,6 +39,9 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
   const [error, setError] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [diag, setDiag] = useState<Diagnosis | null>(null)
+  const [trace, setTrace] = useState<string[]>([])
+  const [dom, setDom] = useState<string | null>(null)
+  const eventsRef = useRef<string[]>([])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -73,6 +76,23 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
         return
       }
 
+      // Record how far MapLibre gets, so a silent failure at least says
+      // which stage it died in.
+      const t0 = performance.now()
+      const LIFECYCLE = [
+        'styledataloading', 'styledata', 'sourcedataloading', 'sourcedata',
+        'dataloading', 'data', 'render', 'idle', 'load', 'error',
+        'webglcontextlost',
+      ] as const
+      for (const evt of LIFECYCLE) {
+        map.on(evt, () => {
+          const stamp = `${evt}@${Math.round(performance.now() - t0)}ms`
+          if (!eventsRef.current.some((e) => e.startsWith(evt + '@'))) {
+            eventsRef.current.push(stamp)
+          }
+        })
+      }
+
       map.addControl(new NavigationControl(), 'top-right')
       map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-left')
       map.addControl(
@@ -98,6 +118,17 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
           if (!isLoaded) {
             setError(`The map did not finish loading within ${LOAD_TIMEOUT_MS / 1000}s.`)
             void diagnose(STYLE_URL).then(setDiag)
+            setTrace([...eventsRef.current])
+            const el = containerRef.current
+            const canvas = el?.querySelector('canvas')
+            setDom(
+              el
+                ? `container ${el.clientWidth}×${el.clientHeight}px, ` +
+                  (canvas
+                    ? `canvas ${canvas.width}×${canvas.height} (css ${canvas.clientWidth}×${canvas.clientHeight})`
+                    : 'NO canvas element')
+                : 'container missing',
+            )
           }
           return isLoaded
         })
@@ -135,6 +166,10 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
               <dd className="break-words">{diag.renderer ?? "(hidden)"}</dd>
               <dt className="font-medium">Style fetch</dt>
               <dd className="break-words">{diag.styleFetch}</dd>
+              <dt className="font-medium">DOM</dt>
+              <dd className="break-words">{dom ?? '—'}</dd>
+              <dt className="font-medium">Events</dt>
+              <dd className="break-words">{trace.length ? trace.join(' → ') : '(none fired)'}</dd>
             </dl>
           )}
           <p className="mt-2 text-red-700">

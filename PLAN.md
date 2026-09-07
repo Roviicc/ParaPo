@@ -163,6 +163,13 @@ Builds handles a plain static `dist` without one. Add one when client-side
 routing lands, or deep links will 404 without
 `assets.not_found_handling: "single-page-application"`.
 
+Local dev note: `vite.config.ts` excludes `maplibre-gl` from `optimizeDeps`.
+MapLibre 6 spawns its tile worker from a sibling file via `import.meta.url`;
+Vite's pre-bundler relocates the library without that file, the worker 404s
+silently, and the map never fires `load` — a white page with no error. The
+dev server log does say so ("does not exist at .../.vite/deps/
+maplibre-gl-worker.mjs"); read it first next time. Production is unaffected.
+
 **M5 — Export + tidy.** GeoJSON export, keyboard shortcuts, rough edges.
 
 ---
