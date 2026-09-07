@@ -31,6 +31,7 @@ is ugly and produces correct geometry, it worked.
 | Write access | Public read, writes locked to one uid via RLS |
 | Repo | github.com/Roviicc/ParaPo |
 | Live | https://parapo.villaralvorovic2.workers.dev |
+| Verified | 2026-09-07: local and live both render Metro Manila (real-clock headless screenshot, 718 KB, no error box) |
 
 ---
 
