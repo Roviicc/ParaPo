@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { diagnose, type Diagnosis } from '../lib/diagnose'
 import {
   AttributionControl,
   MapLibreMap,
@@ -37,61 +38,77 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
   // surface whatever went wrong rather than rendering nothing.
   const [error, setError] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
+  const [diag, setDiag] = useState<Diagnosis | null>(null)
 
   useEffect(() => {
     if (!containerRef.current) return
 
-    let map: MapLibreMap
-    try {
-      map = new MapLibreMap({
-        container: containerRef.current,
-        style: STYLE_URL,
-        center: CENTER,
-        zoom: ZOOM,
-        attributionControl: false,
-      })
-    } catch (err) {
-      setError(
-        `MapLibre could not start: ${err instanceof Error ? err.message : String(err)}. ` +
-          'This usually means WebGL is unavailable or disabled.',
+    // React StrictMode mounts, unmounts and remounts effects in development.
+    // Constructing a MapLibre map and immediately calling remove() on it tears
+    // down workers the next instance depends on, and the second map then never
+    // fires 'load' — a white page with no error at all.
+    //
+    // Deferring construction by a tick means StrictMode's throwaway cleanup
+    // cancels before any map exists, so only the surviving mount builds one.
+    let cancelled = false
+    let map: MapLibreMap | null = null
+    let timer = 0
+
+    const startId = window.setTimeout(() => {
+      if (cancelled || !containerRef.current) return
+
+      try {
+        map = new MapLibreMap({
+          container: containerRef.current,
+          style: STYLE_URL,
+          center: CENTER,
+          zoom: ZOOM,
+          attributionControl: false,
+        })
+      } catch (err) {
+        setError(
+          `MapLibre could not start: ${err instanceof Error ? err.message : String(err)}.`,
+        )
+        void diagnose(STYLE_URL).then(setDiag)
+        return
+      }
+
+      map.addControl(new NavigationControl(), 'top-right')
+      map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-left')
+      map.addControl(
+        new AttributionControl({ compact: true, customAttribution: ATTRIBUTION }),
+        'bottom-right',
       )
-      return
-    }
 
-    map.addControl(new NavigationControl(), 'top-right')
-    map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-left')
-    map.addControl(
-      new AttributionControl({ compact: true, customAttribution: ATTRIBUTION }),
-      'bottom-right',
-    )
-
-    map.on('load', () => {
-      setLoaded(true)
-      onReadyRef.current?.(map)
-    })
-
-    map.on('error', (e) => {
-      const message = e.error?.message ?? 'unknown map error'
-      console.error('[map]', message, e)
-      setError(message)
-    })
-
-    const timer = window.setTimeout(() => {
-      setLoaded((isLoaded) => {
-        if (!isLoaded) {
-          setError(
-            `The map style did not load within ${LOAD_TIMEOUT_MS / 1000}s. ` +
-              'Something is blocking the tile requests — an ad blocker or ' +
-              'browser shield is the usual cause.',
-          )
-        }
-        return isLoaded
+      map.on('load', () => {
+        setLoaded(true)
+        setError(null)
+        onReadyRef.current?.(map!)
       })
-    }, LOAD_TIMEOUT_MS)
+
+      map.on('error', (e) => {
+        const message = e.error?.message ?? 'unknown map error'
+        console.error('[map]', message, e)
+        setError(message)
+        void diagnose(STYLE_URL).then(setDiag)
+      })
+
+      timer = window.setTimeout(() => {
+        setLoaded((isLoaded) => {
+          if (!isLoaded) {
+            setError(`The map did not finish loading within ${LOAD_TIMEOUT_MS / 1000}s.`)
+            void diagnose(STYLE_URL).then(setDiag)
+          }
+          return isLoaded
+        })
+      }, LOAD_TIMEOUT_MS)
+    }, 0)
 
     return () => {
+      cancelled = true
+      window.clearTimeout(startId)
       window.clearTimeout(timer)
-      map.remove()
+      map?.remove()
     }
   }, [])
 
@@ -110,6 +127,16 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
                         text-sm text-red-900 shadow ring-1 ring-red-200">
           <p className="font-medium">The map failed to load.</p>
           <p className="mt-1 break-words">{error}</p>
+          {diag && (
+            <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-red-800">
+              <dt className="font-medium">WebGL</dt>
+              <dd>{diag.webgl}</dd>
+              <dt className="font-medium">Renderer</dt>
+              <dd className="break-words">{diag.renderer ?? "(hidden)"}</dd>
+              <dt className="font-medium">Style fetch</dt>
+              <dd className="break-words">{diag.styleFetch}</dd>
+            </dl>
+          )}
           <p className="mt-2 text-red-700">
             Tile source: <code className="break-all">{STYLE_URL}</code>
           </p>
