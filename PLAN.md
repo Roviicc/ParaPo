@@ -204,6 +204,24 @@ V2 2000/day at 40/min, Snap V2 2000/day at 100/min, Matrix V2 500/day at
 ORS Snap V2 is worth remembering for Phase 2: it snaps loose points onto the
 road network, which is exactly what cleaning a raw GPS trace needs.
 
+## What OSM already covers
+
+Overpass query over the Metro Manila bbox (2026-09-07) returned 831 route
+relations:
+
+- 805 `route=bus` — provincial and city buses, plus 51 P2P. Well mapped.
+- 26 `route=share_taxi` — mostly UV Express on Cavite and Laguna corridors.
+- ~23 named "jeepney". Essentially nothing.
+
+Operators are bus companies and transport cooperatives. Buses and P2P are
+covered; traditional jeepneys are not. Some numbered relations follow LTFRB
+rationalised numbering and may be modern PUV routes indistinguishable from
+tags alone, so the real jeepney figure is somewhat higher than 25 — but far
+from complete.
+
+Tag completeness among what is mapped is good: 741 of 831 carry a `ref`, 792
+carry `from` and `to`. Worth mirroring, and the schema already does.
+
 ## Licensing
 
 Snapped geometry derives from OpenStreetMap via OSRM, so ODbL
