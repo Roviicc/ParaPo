@@ -189,6 +189,24 @@ human to look.
 
 ---
 
+## Next session (handoff, 2026-09-07 night)
+
+State: M0–M2 done. Local and live both render; drawing + road snapping
+confirmed working by the user. Tree clean, everything pushed.
+
+Start with: `npm run dev` (the dev server is not left running), then
+`node scripts/realshot.mjs http://localhost:5173/ out.png` if anything looks
+off before asking a human.
+
+Then M3 — editing: drag a control point (re-snap only its two adjacent
+segments), insert mid-segment, delete, per-segment freehand toggle. OSRM
+round-trips for click-sized segments from this machine are well under a
+second, so re-snapping on drag-end without a debounce is fine; throttle
+only if the router starts answering slowly.
+
+Reminder: nothing drawn is saved until M4 lands (✓ Done is disabled). Do not
+draw eight routes yet.
+
 ## Definition of done
 
 - Deployed Cloudflare Pages URL
