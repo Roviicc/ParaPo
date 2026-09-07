@@ -150,7 +150,7 @@ anything to lose.
 plumbing, nothing visible. No Edge Function: OSRM needs no key, and sends
 `Access-Control-Allow-Origin: *`, so the browser calls it directly.
 
-**M2 — Drawing. Built; rendering verified 2026-09-07.** Click to place control points, snap each new segment, render
+**M2 — Drawing. ✅ Done — confirmed working by the user, 2026-09-07.** Click to place control points, snap each new segment, render
 points and line as separate layers, undo.
 
 **M3 — Editing.** Drag to move, insert mid-segment, delete, per-segment freehand

@@ -1,0 +1,7 @@
+# Normalise line endings in the repository to LF.
+#
+# core.autocrlf=true on the Windows checkout was converting files to CRLF on
+# touch, so multi-line template literals carried a stray \r and local builds
+# differed from Cloudflare (Linux) builds by a few bytes. Index already held
+# LF; this makes the working tree agree on next checkout.
+* text=auto eol=lf
