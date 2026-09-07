@@ -25,7 +25,7 @@ is ugly and produces correct geometry, it worked.
 | Map | MapLibre GL JS |
 | Basemap | OpenFreeMap (no key, no bill) |
 | Primary input | Draw with snap-to-road |
-| Snapping | OpenRouteService |
+| Snapping | FOSSGIS public OSRM — no API key |
 | Backend | Supabase — Postgres + PostGIS |
 | Auth | Magic link, single user |
 | Write access | Public read, writes locked to one uid via RLS |
@@ -107,7 +107,7 @@ segment. If only the snapped output is kept, editing a route later means
 redrawing it. Cheap now, impossible to retrofit.
 
 When a control point moves, re-snap **only the two adjacent segments** — for
-responsiveness and to stay inside the ORS rate limit.
+responsiveness and to stay polite to a shared public router.
 
 ---
 
@@ -145,9 +145,9 @@ this?" later, and the distinction cannot be reconstructed after the fact.
 OpenFreeMap over Metro Manila, live on Cloudflare Pages. Deploy before there is
 anything to lose.
 
-**M1 — Supabase.** Schema, RLS keyed to one uid, magic-link login, ORS proxied
-through an Edge Function so the API key stays server-side. All plumbing,
-nothing visible.
+**M1 — Supabase.** Schema, RLS keyed to one uid, magic-link login. All
+plumbing, nothing visible. No Edge Function: OSRM needs no key, and sends
+`Access-Control-Allow-Origin: *`, so the browser calls it directly.
 
 **M2 — Drawing.** Click to place control points, snap each new segment, render
 points and line as separate layers, undo.
@@ -184,9 +184,17 @@ subscriptions · logo · domain
 
 ---
 
+### Router choice
+
+The FOSSGIS demo OSRM instance has no SLA and is meant for light use. That is
+exactly what a single person drawing a handful of routes is. If ParaPo ever
+serves real traffic, the upgrade path is OpenRouteService with a key, or
+self-hosted OSRM on a small VPS. Neither changes the client contract: both
+return road-following geometry between two points.
+
 ## Licensing
 
-Snapped geometry derives from OpenStreetMap via OpenRouteService, so ODbL
+Snapped geometry derives from OpenStreetMap via OSRM, so ODbL
 share-alike plausibly attaches to the route database. Fine for a civic project;
 incompatible with exclusive data licensing later.
 
@@ -205,11 +213,13 @@ Also worth checking once: whether "ParaPo" is taken on IPOPHL or the app stores.
 Blocking M1, not M0:
 
 - [x] Supabase project — `smzwbqxttdyvohuizynl` · anon key still needed in `.env.local`
-- [ ] OpenRouteService API key
 - [x] Cloudflare deploying from `main` (Workers Builds, `npx wrangler deploy`)
 
 Worth doing before M2:
 
-- [ ] Spike: ORS snapping quality on one known jeepney route
+- [x] Spike: snapping quality — PASSED. Cubao→Quiapo via public OSRM
+      returned 9.21 km / 378 points along General Araneta → Aurora →
+      E. Rodriguez Sr. → Quezon Ave → España → Lerma → Quezon Blvd.
+      Metro Manila OSM road data is good enough to draw against.
 - [ ] Spike: OpenFreeMap detail at street zoom in the target area
 - [ ] Decide the mode enum (jeepney / e-jeepney / UV Express / bus / P2P / …)
