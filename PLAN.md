@@ -192,6 +192,18 @@ serves real traffic, the upgrade path is OpenRouteService with a key, or
 self-hosted OSRM on a small VPS. Neither changes the client contract: both
 return road-following geometry between two points.
 
+An ORS free-tier key already exists if it is ever needed. Quotas: Directions
+V2 2000/day at 40/min, Snap V2 2000/day at 100/min, Matrix V2 500/day at
+40/min. Two caveats when switching:
+
+- The host is `api.heigit.org`. `api.openrouteservice.org` is deprecated.
+- The key cannot ship in the browser bundle, so switching means reinstating
+  the Supabase Edge Function proxy and a secret. That cost is the reason
+  OSRM stays the default.
+
+ORS Snap V2 is worth remembering for Phase 2: it snaps loose points onto the
+road network, which is exactly what cleaning a raw GPS trace needs.
+
 ## Licensing
 
 Snapped geometry derives from OpenStreetMap via OSRM, so ODbL
