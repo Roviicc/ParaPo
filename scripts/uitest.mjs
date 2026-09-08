@@ -119,8 +119,20 @@ try {
   check('map loads and + New Route becomes enabled', ready)
   if (!ready) throw new Error('map never became ready: ' + (await text()))
 
-  // 1b. the public side: saved routes render and can be tapped
+  // 1b. the public side: saved routes render and can be tapped.
+  // Fit the view to whatever is saved first: a route can be anywhere in the
+  // metro, and querySourceFeatures only sees loaded tiles.
   await sleep(1500)
+  const fitted = await evaluate(`(async () => {
+    const m = window.__map; const src = m && m.getSource('saved-routes'); if (!src) return 'no source';
+    const fc = await src.getData(); const cs = fc.features.flatMap(f => f.geometry.coordinates);
+    if (!cs.length) return 'no features';
+    const xs = cs.map(c => c[0]), ys = cs.map(c => c[1]);
+    m.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: 100, duration: 0, maxZoom: 13 });
+    return 'fitted ' + fc.features.length;
+  })()`)
+  check('view fitted to the saved routes', typeof fitted === 'string' && fitted.startsWith('fitted'), String(fitted))
+  for (let i = 0; i < 30; i++) { if (await evaluate('!!(window.__map && window.__map.areTilesLoaded())')) break; await sleep(300) }
   const t1 = (await text()) ?? ''
   check('pill shows the saved route count', /\d+ routes?/.test(t1), (t1.match(/\d+ routes?/) ?? ['-'])[0])
   const savedPt = await evaluate(`(() => {
