@@ -318,6 +318,16 @@ Also worth checking once: whether "ParaPo" is taken on IPOPHL or the app stores.
 
 ---
 
+## Migrations applied to the live project
+
+Applied by hand (SQL editor or the Supabase MCP); there is no migration
+tracking table. Do not re-apply.
+
+- [x] 0001_init — 2026-09-07
+- [x] 0002_pin_function_search_path — 2026-09-08
+- [x] 0003_rls_performance — 2026-09-08 (write path probed as the owner under
+      RLS, rolled back; advisor clean afterwards)
+
 ## Open items
 
 Blocking M1, not M0:
