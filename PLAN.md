@@ -160,7 +160,11 @@ points and line as separate layers, undo.
 **M3 — Editing. Built 2026-09-08; verified by scripts/uitest.mjs.** Drag to move, insert mid-segment, delete, per-segment freehand
 toggle, adjacent-only re-snap.
 
-**M4 — Persistence, and the public map. Built 2026-09-08; 22/22 headless checks pass; the first real save (needs the owner signed in) is the remaining check.** Save panel (sign-in required here,
+**M4 — Persistence, and the public map. ✅ Verified on real data 2026-09-08.**
+First route saved by the owner: "Tala" (Tala – SM Fairview, to SM Fairview,
+jeepney, ₱28): 5 clicks → 654 road-snapped coordinates, 17.41 km. Edit
+loaded it back, a change (5 → 6 points) was written in place. 23 headless
+checks pass against it. Delete is untested by choice. Save panel (sign-in required here,
 not before), then load and draw every saved route for every visitor — that
 is the platform's first real version, not a later phase. Click-to-edit on
 the map, delete, return-trip prompt.
@@ -209,6 +213,11 @@ the signed-in owner, and the edit/delete/return-trip flows that follow it —
 those need a real session, so the owner does the first one.
 
 Start with: `npm run dev`, then `node scripts/uitest.mjs` if anything looks off.
+
+First, one change the first real route exposed: the public map must open
+fitted to the saved routes (padding, maxZoom ~13, once, never while drawing).
+Tala lies north of the default Metro Manila view, so a visitor currently
+sees an empty map and has to know to scroll up.
 
 Then M5 — Export + tidy: GeoJSON export of all routes (the public read means
 this can be a plain fetch + download), keyboard shortcuts (Esc cancels,
