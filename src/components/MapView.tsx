@@ -114,6 +114,9 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
       map.on('load', () => {
         setLoaded(true)
         setError(null)
+        // Dev builds expose the map so scripts/uitest.mjs can read real
+        // screen positions from the drawn geometry instead of guessing.
+        if (import.meta.env.DEV) (window as unknown as { __map?: MapLibreMap }).__map = map!
         onReadyRef.current?.(map!)
       })
 

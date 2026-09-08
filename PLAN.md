@@ -9,8 +9,12 @@ premise is a current, hand-verified map of how the city actually moves.
 
 ## MVP goal
 
-**Get 5–8 real jeepney routes drawn and stored, by one person, on a laptop.**
+**Get 5–8 real jeepney routes drawn and stored, by one person, on a laptop —
+and visible to anyone who opens the site.**
 
+ParaPo is two things sharing one map: an editor only the owner can use, and a
+public page where everyone sees what has been drawn. The database has been
+shaped that way since M1 (public read, owner-only write).
 Success is measured in routes in the database — not in how the app looks. If it
 is ugly and produces correct geometry, it worked.
 
@@ -153,11 +157,13 @@ plumbing, nothing visible. No Edge Function: OSRM needs no key, and sends
 **M2 — Drawing. ✅ Done — confirmed working by the user, 2026-09-07.** Click to place control points, snap each new segment, render
 points and line as separate layers, undo.
 
-**M3 — Editing.** Drag to move, insert mid-segment, delete, per-segment freehand
+**M3 — Editing. Built 2026-09-08; verified by scripts/uitest.mjs.** Drag to move, insert mid-segment, delete, per-segment freehand
 toggle, adjacent-only re-snap.
 
-**M4 — Persistence.** Save panel, click-to-edit on the map, delete, return-trip
-prompt.
+**M4 — Persistence, and the public map.** Save panel (sign-in required here,
+not before), then load and draw every saved route for every visitor — that
+is the platform's first real version, not a later phase. Click-to-edit on
+the map, delete, return-trip prompt.
 
 Deploy note: there is no `wrangler.jsonc` in the repo — Cloudflare Workers
 Builds handles a plain static `dist` without one. Add one when client-side

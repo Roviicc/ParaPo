@@ -13,7 +13,6 @@ export default function App() {
   const [signingIn, setSigningIn] = useState(false)
   const draw = useDrawing(map)
 
-  const loading = session === undefined
   const signedIn = !!session
 
   return (
@@ -30,38 +29,54 @@ export default function App() {
         </div>
       )}
 
-      {/* Only visible once signed in, and only so auth state is legible while
-          building. Folds into the corner menu with Export at M5. */}
-      {signedIn && !draw.drawing && (
+      {/* The only standing chrome besides the button. Hidden while drawing so
+          nothing competes with the map. */}
+      {!draw.drawing && (
         <div
           className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-full bg-white/90
                      px-3 py-1.5 text-xs text-neutral-600 shadow ring-1 ring-black/5 backdrop-blur"
         >
-          <span className="max-w-[16ch] truncate">{session.user.email}</span>
-          <button
-            type="button"
-            onClick={() => supabase?.auth.signOut()}
-            className="font-medium text-neutral-900 underline underline-offset-2"
-          >
-            Sign out
-          </button>
+          {signedIn ? (
+            <>
+              <span className="max-w-[16ch] truncate">{session.user.email}</span>
+              <button
+                type="button"
+                onClick={() => supabase?.auth.signOut()}
+                className="font-medium text-neutral-900 underline underline-offset-2"
+              >
+                Sign out
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSigningIn(true)}
+              className="font-medium text-neutral-900 underline underline-offset-2"
+            >
+              Sign in
+            </button>
+          )}
         </div>
       )}
 
       {draw.drawing ? (
         <DrawToolbar draw={draw} />
       ) : (
-        /* The only persistent chrome. */
+        /*
+          Drawing needs no account — only saving will, at M4. Gating the
+          drawing itself bought nothing and put a login in front of the one
+          thing the app is for.
+        */
         <button
           type="button"
-          disabled={loading || !map}
-          onClick={() => (signedIn ? draw.start() : setSigningIn(true))}
-          title={signedIn ? 'Draw a route' : 'Sign in to draw'}
+          disabled={!map}
+          onClick={() => draw.start()}
+          title="Draw a route"
           className="absolute bottom-6 right-6 z-10 rounded-full bg-white px-5 py-3
                      text-sm font-medium text-neutral-800 shadow-lg ring-1 ring-black/10
                      disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? '…' : '+ New Route'}
+          + New Route
         </button>
       )}
 
