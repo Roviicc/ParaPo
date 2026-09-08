@@ -54,7 +54,7 @@ try {
   await sleep(waitMs)
 
   const expr = [
-    '(() => {',
+    '(async () => {',
     '  const c = document.querySelector("canvas");',
     '  const txt = document.body.innerText;',
     '  const after = txt.split("Events")[1] || "-";',
@@ -65,10 +65,14 @@ try {
     '    supabaseBanner: txt.indexOf("not configured") !== -1,',
     '    newRoute: txt.indexOf("New Route") !== -1,',
     '    mlControls: document.querySelectorAll(".maplibregl-ctrl").length,',
+    '    view: await (async () => { const m = window.__map; if (!m) return "no __map (prod build?)"; const b = m.getBounds();',
+    '      const s = m.getSource("saved-routes"); const d = s ? await s.getData() : null; const cs = d ? d.features.flatMap(f => f.geometry.coordinates) : [];',
+    '      const inside = cs.filter(([x, y]) => b.contains([x, y])).length; const c = m.getCenter();',
+    '      return c.lng.toFixed(4) + "," + c.lat.toFixed(4) + " z" + m.getZoom().toFixed(2) + " " + inside + "/" + cs.length + " route coords in view"; })(),',
     '  });',
     '})()',
   ].join(NL)
-  const probe = await send('Runtime.evaluate', { returnByValue: true, expression: expr })
+  const probe = await send('Runtime.evaluate', { returnByValue: true, awaitPromise: true, expression: expr })
   log('probe:', probe.result?.result?.value ?? JSON.stringify(probe).slice(0, 300))
 
   const shot = await send('Page.captureScreenshot', { format: 'png' })

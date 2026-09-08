@@ -88,6 +88,24 @@ export function useSavedRoutes(
     )
   }, [map])
 
+  // Open on the routes, not on a fixed centre. Once, on first load, and never
+  // while drawing: a draft already has a view the user chose.
+  const fittedRef = useRef(false)
+  useEffect(() => {
+    if (!map || fittedRef.current || drawingRef.current) return
+    const coords = variants.flatMap(variantLine)
+    if (coords.length < 2) return
+    fittedRef.current = true
+    let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity]
+    for (const [x, y] of coords) {
+      if (x < w) w = x
+      if (x > e) e = x
+      if (y < s) s = y
+      if (y > n) n = y
+    }
+    map.fitBounds([[w, s], [e, n]], { padding: 100, maxZoom: 13, duration: 0 })
+  }, [map, variants])
+
   useEffect(() => {
     if (!map) return
     const src = map.getSource(SRC) as GeoJSONSource | undefined
