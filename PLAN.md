@@ -207,19 +207,16 @@ at Done), edit a saved direction, delete one, and is prompted to draw the
 return trip after each save. An unsaved drawing survives a reload (and the
 magic-link redirect) via localStorage.
 
-Verified headlessly by `node scripts/uitest.mjs` (22 checks) against a seeded
-row; the seed was removed. Not yet verified: an actual save through the UI as
-the signed-in owner, and the edit/delete/return-trip flows that follow it —
-those need a real session, so the owner does the first one.
+Verified headlessly by `node scripts/uitest.mjs` (23 checks, against the real
+Tala route) and by the owner's own first save and edit through the UI.
 
 Start with: `npm run dev`, then `node scripts/uitest.mjs` if anything looks off.
 
-First, one change the first real route exposed: the public map must open
-fitted to the saved routes (padding, maxZoom ~13, once, never while drawing).
-Tala lies north of the default Metro Manila view, so a visitor currently
-sees an empty map and has to know to scroll up.
+Done 2026-09-08: the public map opens fitted to the saved routes (padding
+100, maxZoom 13, once, never while drawing); verified on the live site by
+`node scripts/realshot.mjs <url> <out.png>`, whose probe now prints the view.
 
-Then M5 — Export + tidy: GeoJSON export of all routes (the public read means
+Next is M5 — Export + tidy: GeoJSON export of all routes (the public read means
 this can be a plain fetch + download), keyboard shortcuts (Esc cancels,
 Ctrl+Z undoes, Enter = Done), and whatever the first real routes reveal.
 
