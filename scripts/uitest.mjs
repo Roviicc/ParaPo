@@ -119,6 +119,25 @@ try {
   check('map loads and + New Route becomes enabled', ready)
   if (!ready) throw new Error('map never became ready: ' + (await text()))
 
+  // 1b. the public side: saved routes render and can be tapped
+  await sleep(1500)
+  const t1 = (await text()) ?? ''
+  check('pill shows the saved route count', /\d+ routes?/.test(t1), (t1.match(/\d+ routes?/) ?? ['-'])[0])
+  const savedPt = await evaluate(`(() => {
+    const m = window.__map; if (!m) return null;
+    const f = m.querySourceFeatures('saved-routes').find(f => f.geometry.coordinates.length > 1);
+    if (!f) return null; const c = f.geometry.coordinates; const p = m.project(c[Math.floor(c.length / 2)]);
+    return { x: p.x, y: p.y, signboard: f.properties.signboard };
+  })()`)
+  check('a saved route is on the map', !!savedPt, savedPt ? savedPt.signboard : 'none')
+  if (savedPt) { await click(savedPt.x, savedPt.y); await sleep(400) }
+  const tCard = (await text()) ?? ''
+  check('tapping it opens the route card', !!savedPt && tCard.includes(savedPt.signboard) && tCard.includes('Direction'),
+    tCard.includes('drawn, not yet ridden') ? 'status badge present' : '')
+  const closeBtn = await evaluate(`(() => { const b = document.querySelector('button[aria-label="Close"]'); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.x + r.width/2, y: r.y + r.height/2 } })()`)
+  if (closeBtn) await click(closeBtn.x, closeBtn.y)
+  check('closing the card brings the pill back', ((await text()) ?? '').includes('Sign in'))
+
   // 2. enter drawing
   const newRoute = await buttonRect('New Route')
   await click(newRoute.x, newRoute.y)
@@ -200,6 +219,25 @@ try {
   if (undo) { await click(undo.x, undo.y); await settle() }
   const afterUndo = await points()
   check('undo removes the last point', afterUndo === afterDelete - 1, 'got ' + afterUndo)
+
+  // 8. Done asks for sign-in (we are signed out)
+  const done = await buttonRect('Done')
+  check('Done is enabled with a route drawn', !!done && !done.disabled)
+  if (done) { await click(done.x, done.y); await sleep(400) }
+  const t8 = (await text()) ?? ''
+  check('Done while signed out opens the sign-in dialog', t8.includes('Sign in to save'))
+  const cancel = await buttonRect('Cancel')
+  if (cancel) await click(cancel.x, cancel.y)
+
+  // 9. a reload restores the unsaved drawing
+  const before = await points()
+  await send('Page.reload')
+  let restored = -1
+  for (let i = 0; i < 40; i++) { await sleep(500); restored = await points(); if (restored > 0) break }
+  check('reloading the page restores the draft', restored === before, `before ${before}, after ${restored}`)
+
+  // Let tiles land so the screenshot is a map, not a placeholder.
+  for (let i = 0; i < 40; i++) { if (await evaluate('!!(window.__map && window.__map.loaded() && window.__map.areTilesLoaded())')) break; await sleep(500) }
 
   const shot = await send('Page.captureScreenshot', { format: 'png' })
   if (shot.result?.data) {

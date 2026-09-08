@@ -53,9 +53,9 @@ export function SignIn({ onDismiss }: { onDismiss: () => void }) {
           </>
         ) : (
           <form onSubmit={send}>
-            <h2 className="text-base font-medium text-neutral-900">Sign in to draw</h2>
+            <h2 className="text-base font-medium text-neutral-900">Sign in to save</h2>
             <p className="mt-2 text-sm text-neutral-600">
-              Routes are public to read. Only you can edit them.
+              Anyone can see the routes. Only you can save or change them. Your drawing is kept on this device while you sign in.
             </p>
             <input
               type="email"

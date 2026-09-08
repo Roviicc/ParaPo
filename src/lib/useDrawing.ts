@@ -8,8 +8,30 @@ import {
   type SnapMode,
 } from './geo'
 import { snapSegment, straightSegment } from './snap'
+import type { VariantRow } from './routes'
 
 const EMPTY = { type: 'FeatureCollection', features: [] } as const
+
+/**
+ * An in-progress drawing lives here until it is saved or discarded. Signing in
+ * via magic link reloads the page, and a refresh is one keystroke away; either
+ * would otherwise throw away twenty minutes of clicking.
+ */
+const DRAFT_KEY = 'parapo.draft.v1'
+
+type Target = { routeId: string | null; variantId: string | null }
+type Draft = { controlPoints: LngLat[]; segments: Segment[]; target: Target }
+
+function readDraft(): Draft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY)
+    if (!raw) return null
+    const d = JSON.parse(raw) as Draft
+    return Array.isArray(d.controlPoints) && d.controlPoints.length > 0 ? d : null
+  } catch {
+    return null
+  }
+}
 
 const LINE_SRC = 'draw-line'
 const POINT_SRC = 'draw-points'
@@ -26,6 +48,12 @@ export function useDrawing(map: MapLibreMap | null) {
   const [segments, setSegments] = useState<Segment[]>([])
   const [snapping, setSnapping] = useState(0)
   const [freehand, setFreehand] = useState(false)
+  /** What a save will write to: an existing direction, a new direction on an
+   *  existing route, or (both null) a brand-new route. */
+  const [target, setTarget] = useState<Target>({
+    routeId: null,
+    variantId: null,
+  })
 
   // Map event handlers are registered once and must always see current state,
   // so every mutator updates these refs synchronously.
@@ -173,16 +201,61 @@ export function useDrawing(map: MapLibreMap | null) {
     epochRef.current = []
   }, [writePoints])
 
-  const start = useCallback(() => {
-    reset()
-    setFreehand(false)
-    setDrawing(true)
-  }, [reset])
+  /** Begin a new direction — of an existing route when routeId is given. */
+  const start = useCallback(
+    (routeId?: string | null) => {
+      reset()
+      setFreehand(false)
+      setTarget({ routeId: typeof routeId === 'string' ? routeId : null, variantId: null })
+      setDrawing(true)
+    },
+    [reset],
+  )
+
+  /** Open a saved direction for editing. */
+  const load = useCallback(
+    (v: VariantRow) => {
+      reset()
+      writePoints(v.control_points ?? [])
+      const segs = v.segments ?? []
+      segRef.current = segs
+      setSegments(segs)
+      setFreehand(false)
+      setTarget({ routeId: v.route_id, variantId: v.id })
+      setDrawing(true)
+    },
+    [reset, writePoints],
+  )
 
   const cancel = useCallback(() => {
     setDrawing(false)
     reset()
+    setTarget({ routeId: null, variantId: null })
   }, [reset])
+
+  // ------------------------------------------------------------------ draft
+
+  useEffect(() => {
+    const d = readDraft()
+    if (!d) return
+    writePoints(d.controlPoints)
+    segRef.current = d.segments ?? []
+    setSegments(d.segments ?? [])
+    setTarget(d.target ?? { routeId: null, variantId: null })
+    setDrawing(true)
+  }, [writePoints])
+
+  useEffect(() => {
+    try {
+      if (drawing && controlPoints.length > 0) {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ controlPoints, segments, target }))
+      } else if (!drawing) {
+        localStorage.removeItem(DRAFT_KEY)
+      }
+    } catch {
+      /* storage unavailable: drafts simply do not persist */
+    }
+  }, [drawing, controlPoints, segments, target])
 
   // ----------------------------------------------------------------- layers
 
@@ -427,6 +500,8 @@ export function useDrawing(map: MapLibreMap | null) {
     snapping,
     freehand,
     setFreehand,
+    target,
+    load,
     metres: useMemo(() => lineLength(line), [line]),
     start,
     cancel,

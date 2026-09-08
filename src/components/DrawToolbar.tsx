@@ -8,7 +8,7 @@ function formatDistance(metres: number) {
  * Replaces the single idle button while drawing. Deliberately small: the map
  * is the document, and this is the only chrome allowed to compete with it.
  */
-export function DrawToolbar({ draw }: { draw: Drawing }) {
+export function DrawToolbar({ draw, onDone }: { draw: Drawing; onDone: () => void }) {
   const points = draw.controlPoints.length
   const freehandCount = draw.segments.filter((s) => s?.snap === 'freehand').length
 
@@ -64,8 +64,15 @@ export function DrawToolbar({ draw }: { draw: Drawing }) {
 
         <button
           type="button"
-          disabled
-          title="Saving lands in M4"
+          onClick={onDone}
+          disabled={points < 2 || draw.snapping > 0}
+          title={
+            points < 2
+              ? 'Add at least two points'
+              : draw.snapping > 0
+                ? 'Waiting for the router'
+                : 'Save this route'
+          }
           className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white
                      disabled:cursor-not-allowed disabled:opacity-40"
         >

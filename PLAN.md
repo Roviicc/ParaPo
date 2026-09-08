@@ -160,7 +160,7 @@ points and line as separate layers, undo.
 **M3 — Editing. Built 2026-09-08; verified by scripts/uitest.mjs.** Drag to move, insert mid-segment, delete, per-segment freehand
 toggle, adjacent-only re-snap.
 
-**M4 — Persistence, and the public map.** Save panel (sign-in required here,
+**M4 — Persistence, and the public map. Built 2026-09-08; 22/22 headless checks pass; the first real save (needs the owner signed in) is the remaining check.** Save panel (sign-in required here,
 not before), then load and draw every saved route for every visitor — that
 is the platform's first real version, not a later phase. Click-to-edit on
 the map, delete, return-trip prompt.
@@ -195,23 +195,27 @@ human to look.
 
 ---
 
-## Next session (handoff, 2026-09-07 night)
+## Next session (handoff, 2026-09-08)
 
-State: M0–M2 done. Local and live both render; drawing + road snapping
-confirmed working by the user. Tree clean, everything pushed.
+State: M0–M4 built. Anyone opening the site sees every saved route as a blue
+line; tapping one opens a card. The owner can draw, save (sign-in is asked for
+at Done), edit a saved direction, delete one, and is prompted to draw the
+return trip after each save. An unsaved drawing survives a reload (and the
+magic-link redirect) via localStorage.
 
-Start with: `npm run dev` (the dev server is not left running), then
-`node scripts/realshot.mjs http://localhost:5173/ out.png` if anything looks
-off before asking a human.
+Verified headlessly by `node scripts/uitest.mjs` (22 checks) against a seeded
+row; the seed was removed. Not yet verified: an actual save through the UI as
+the signed-in owner, and the edit/delete/return-trip flows that follow it —
+those need a real session, so the owner does the first one.
 
-Then M3 — editing: drag a control point (re-snap only its two adjacent
-segments), insert mid-segment, delete, per-segment freehand toggle. OSRM
-round-trips for click-sized segments from this machine are well under a
-second, so re-snapping on drag-end without a debounce is fine; throttle
-only if the router starts answering slowly.
+Start with: `npm run dev`, then `node scripts/uitest.mjs` if anything looks off.
 
-Reminder: nothing drawn is saved until M4 lands (✓ Done is disabled). Do not
-draw eight routes yet.
+Then M5 — Export + tidy: GeoJSON export of all routes (the public read means
+this can be a plain fetch + download), keyboard shortcuts (Esc cancels,
+Ctrl+Z undoes, Enter = Done), and whatever the first real routes reveal.
+
+Security advisor is clean except "leaked password protection" (dashboard
+setting; irrelevant while sign-in is magic-link only).
 
 ## Definition of done
 
