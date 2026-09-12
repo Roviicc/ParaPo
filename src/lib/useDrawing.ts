@@ -20,7 +20,24 @@ const EMPTY = { type: 'FeatureCollection', features: [] } as const
 const DRAFT_KEY = 'parapo.draft.v1'
 
 type Target = { routeId: string | null; variantId: string | null }
-type Draft = { controlPoints: LngLat[]; segments: Segment[]; target: Target }
+
+/** Which kind of hotspot an area trace will become. */
+export type HotspotKind = 'terminal' | 'hintuan'
+
+/**
+ * Set while tracing a hotspot instead of a route. The same click / drag /
+ * insert / delete / undo machinery runs; the differences are that every edge
+ * is a straight line (no router), the ring closes itself, and a fill is drawn.
+ * `stopId` is the saved hotspot being edited, or null for a new one.
+ */
+export type AreaTarget = { kind: HotspotKind; stopId: string | null }
+
+type Draft = {
+  controlPoints: LngLat[]
+  segments: Segment[]
+  target: Target
+  area?: AreaTarget | null
+}
 
 function readDraft(): Draft | null {
   try {
@@ -35,8 +52,20 @@ function readDraft(): Draft | null {
 
 const LINE_SRC = 'draw-line'
 const POINT_SRC = 'draw-points'
+const AREA_SRC = 'draw-area'
 const POINT_LAYER = 'draw-point-dots'
 const HIT_LAYER = 'draw-line-hit'
+const AREA_FILL_LAYER = 'draw-area-fill'
+
+export const HOTSPOT_COLOUR: Record<HotspotKind, string> = {
+  // Plain blue is the saved-route colour; sky keeps "blue" without clashing.
+  terminal: '#0ea5e9',
+  hintuan: '#f97316',
+}
+const ROUTE_COLOUR = '#e11d48'
+
+/** The closing edge of an area is a feature in the line source with this index. */
+const CLOSING = -1
 
 type IndexedFeature = { properties?: { index?: number } }
 
@@ -54,6 +83,8 @@ export function useDrawing(map: MapLibreMap | null) {
     routeId: null,
     variantId: null,
   })
+  /** Non-null while tracing a hotspot rather than a route. */
+  const [area, setArea] = useState<AreaTarget | null>(null)
 
   // Map event handlers are registered once and must always see current state,
   // so every mutator updates these refs synchronously.
@@ -61,6 +92,8 @@ export function useDrawing(map: MapLibreMap | null) {
   const segRef = useRef<Segment[]>([])
   const freehandRef = useRef(false)
   freehandRef.current = freehand
+  const areaRef = useRef<AreaTarget | null>(null)
+  areaRef.current = area
 
   // A drag can start before an earlier re-snap has answered. Each gap carries a
   // counter, and a reply whose counter is stale is discarded rather than
@@ -90,7 +123,8 @@ export function useDrawing(map: MapLibreMap | null) {
 
       const epoch = (epochRef.current[i] = (epochRef.current[i] ?? 0) + 1)
 
-      if (mode === 'freehand') {
+      // A hotspot's edges are never routed: it is an outline, not a path.
+      if (mode === 'freehand' || areaRef.current) {
         writeSegment(i, straightSegment(from, to))
         return
       }
@@ -206,6 +240,8 @@ export function useDrawing(map: MapLibreMap | null) {
     (routeId?: string | null) => {
       reset()
       setFreehand(false)
+      setArea(null)
+      areaRef.current = null
       setTarget({ routeId: typeof routeId === 'string' ? routeId : null, variantId: null })
       setDrawing(true)
     },
@@ -221,7 +257,42 @@ export function useDrawing(map: MapLibreMap | null) {
       segRef.current = segs
       setSegments(segs)
       setFreehand(false)
+      setArea(null)
+      areaRef.current = null
       setTarget({ routeId: v.route_id, variantId: v.id })
+      setDrawing(true)
+    },
+    [reset, writePoints],
+  )
+
+  /** Begin tracing a hotspot outline. */
+  const startArea = useCallback(
+    (kind: HotspotKind) => {
+      reset()
+      setFreehand(false)
+      const a = { kind, stopId: null }
+      setArea(a)
+      areaRef.current = a
+      setTarget({ routeId: null, variantId: null })
+      setDrawing(true)
+    },
+    [reset],
+  )
+
+  /** Open a saved hotspot's outline for editing. */
+  const loadArea = useCallback(
+    (kind: HotspotKind, stopId: string, ring: LngLat[]) => {
+      reset()
+      const a = { kind, stopId }
+      setArea(a)
+      areaRef.current = a
+      writePoints(ring)
+      const segs: Segment[] = []
+      for (let i = 1; i < ring.length; i++) segs.push(straightSegment(ring[i - 1], ring[i]))
+      segRef.current = segs
+      setSegments(segs)
+      setFreehand(false)
+      setTarget({ routeId: null, variantId: null })
       setDrawing(true)
     },
     [reset, writePoints],
@@ -231,6 +302,8 @@ export function useDrawing(map: MapLibreMap | null) {
     setDrawing(false)
     reset()
     setTarget({ routeId: null, variantId: null })
+    setArea(null)
+    areaRef.current = null
   }, [reset])
 
   // ------------------------------------------------------------------ draft
@@ -242,20 +315,26 @@ export function useDrawing(map: MapLibreMap | null) {
     segRef.current = d.segments ?? []
     setSegments(d.segments ?? [])
     setTarget(d.target ?? { routeId: null, variantId: null })
+    const a = d.area ?? null
+    setArea(a)
+    areaRef.current = a
     setDrawing(true)
   }, [writePoints])
 
   useEffect(() => {
     try {
       if (drawing && controlPoints.length > 0) {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify({ controlPoints, segments, target }))
+        localStorage.setItem(
+          DRAFT_KEY,
+          JSON.stringify({ controlPoints, segments, target, area }),
+        )
       } else if (!drawing) {
         localStorage.removeItem(DRAFT_KEY)
       }
     } catch {
       /* storage unavailable: drafts simply do not persist */
     }
-  }, [drawing, controlPoints, segments, target])
+  }, [drawing, controlPoints, segments, target, area])
 
   // ----------------------------------------------------------------- layers
 
@@ -264,7 +343,15 @@ export function useDrawing(map: MapLibreMap | null) {
 
     map.addSource(LINE_SRC, { type: 'geojson', data: EMPTY })
     map.addSource(POINT_SRC, { type: 'geojson', data: EMPTY })
+    map.addSource(AREA_SRC, { type: 'geojson', data: EMPTY })
 
+    // The hotspot fill sits under its own outline and under the route layers.
+    map.addLayer({
+      id: AREA_FILL_LAYER,
+      type: 'fill',
+      source: AREA_SRC,
+      paint: { 'fill-color': ROUTE_COLOUR, 'fill-opacity': 0.18 },
+    })
     map.addLayer({
       id: 'draw-line-casing',
       type: 'line',
@@ -342,8 +429,16 @@ export function useDrawing(map: MapLibreMap | null) {
     const onLineClick = (e: MapMouseEvent & { features?: IndexedFeature[] }) => {
       const gap = e.features?.[0]?.properties?.index
       if (typeof gap !== 'number') return
-      if (e.originalEvent.shiftKey) void toggleSegment(gap)
-      else void insertPoint(gap, [e.lngLat.lng, e.lngLat.lat])
+      // Clicking the closing edge of a hotspot appends a corner: the ring
+      // re-closes through the new point, which is what "insert here" means
+      // on that edge. Nothing to straighten — area edges are already straight.
+      if (gap === CLOSING) {
+        if (!e.originalEvent.shiftKey) void addPoint([e.lngLat.lng, e.lngLat.lat])
+        return
+      }
+      if (e.originalEvent.shiftKey) {
+        if (!areaRef.current) void toggleSegment(gap)
+      } else void insertPoint(gap, [e.lngLat.lng, e.lngLat.lat])
     }
 
     const onPointContext = (e: MapMouseEvent & { features?: IndexedFeature[] }) => {
@@ -468,19 +563,32 @@ export function useDrawing(map: MapLibreMap | null) {
     const pointSrc = map.getSource(POINT_SRC) as GeoJSONSource | undefined
     if (!lineSrc || !pointSrc) return
 
-    lineSrc.setData({
-      type: 'FeatureCollection',
-      // Index before filtering: the feature's `index` must stay the segment's
-      // real position, or editing one segment would edit another.
-      features: segments
-        .map((s, i) => ({ s, i }))
-        .filter(({ s }) => (s?.coordinates?.length ?? 0) > 1)
-        .map(({ s, i }) => ({
-          type: 'Feature' as const,
-          properties: { index: i, snap: s.snap },
-          geometry: { type: 'LineString' as const, coordinates: s.coordinates },
-        })),
-    })
+    // Index before filtering: the feature's `index` must stay the segment's
+    // real position, or editing one segment would edit another.
+    const lineFeatures = segments
+      .map((s, i) => ({ s, i }))
+      .filter(({ s }) => (s?.coordinates?.length ?? 0) > 1)
+      .map(({ s, i }) => ({
+        type: 'Feature' as const,
+        properties: { index: i, snap: s.snap },
+        geometry: { type: 'LineString' as const, coordinates: s.coordinates },
+      }))
+
+    // A hotspot closes itself once it has three corners. The closing edge is a
+    // real, clickable feature so a corner can be inserted on it; it carries a
+    // sentinel index because no segment backs it.
+    if (area && controlPoints.length >= 3) {
+      lineFeatures.push({
+        type: 'Feature' as const,
+        properties: { index: CLOSING, snap: 'freehand' as const },
+        geometry: {
+          type: 'LineString' as const,
+          coordinates: [controlPoints[controlPoints.length - 1], controlPoints[0]],
+        },
+      })
+    }
+
+    lineSrc.setData({ type: 'FeatureCollection', features: lineFeatures })
 
     pointSrc.setData({
       type: 'FeatureCollection',
@@ -490,7 +598,38 @@ export function useDrawing(map: MapLibreMap | null) {
         geometry: { type: 'Point' as const, coordinates: c },
       })),
     })
-  }, [map, segments, controlPoints])
+
+    const areaSrc = map.getSource(AREA_SRC) as GeoJSONSource | undefined
+    areaSrc?.setData(
+      area && controlPoints.length >= 3
+        ? {
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: {},
+                geometry: {
+                  type: 'Polygon',
+                  coordinates: [[...controlPoints, controlPoints[0]]],
+                },
+              },
+            ],
+          }
+        : EMPTY,
+    )
+  }, [map, segments, controlPoints, area])
+
+  // Route traces are rose; a hotspot trace takes its kind's colour, and its
+  // straight edges are drawn solid rather than in the freehand dash.
+  useEffect(() => {
+    if (!map || !map.getLayer(AREA_FILL_LAYER)) return
+    const colour = area ? HOTSPOT_COLOUR[area.kind] : ROUTE_COLOUR
+    map.setPaintProperty('draw-line-snapped', 'line-color', colour)
+    map.setPaintProperty('draw-line-freehand', 'line-color', colour)
+    map.setPaintProperty('draw-line-freehand', 'line-dasharray', area ? [1, 0] : [2, 1.5])
+    map.setPaintProperty(POINT_LAYER, 'circle-stroke-color', colour)
+    map.setPaintProperty(AREA_FILL_LAYER, 'fill-color', colour)
+  }, [map, area])
 
   return {
     drawing,
@@ -501,9 +640,13 @@ export function useDrawing(map: MapLibreMap | null) {
     freehand,
     setFreehand,
     target,
+    /** Non-null while tracing a hotspot; null while drawing a route. */
+    area,
     load,
     metres: useMemo(() => lineLength(line), [line]),
     start,
+    startArea,
+    loadArea,
     cancel,
     undo,
     addPoint,

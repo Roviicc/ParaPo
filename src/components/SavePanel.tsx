@@ -7,6 +7,7 @@ import {
   type TransportMode,
   type VariantRow,
 } from '../lib/routes'
+import { syncHintuanLinks } from '../lib/stops'
 
 type Props = {
   draw: Drawing
@@ -58,6 +59,10 @@ export function SavePanel({ draw, existing, route, onSaved, onCancel }: Props) {
         control_points: draw.controlPoints,
         segments: draw.segments,
       })
+      // Every hintuan's route list is a fact about geometry, so a changed
+      // line re-checks itself against all of them. Terminal links are the
+      // owner's and are left alone.
+      await syncHintuanLinks(saved)
       onSaved(saved)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))

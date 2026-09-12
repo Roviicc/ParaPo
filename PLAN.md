@@ -31,7 +31,7 @@ is ugly and produces correct geometry, it worked.
 | Primary input | Draw with snap-to-road |
 | Snapping | FOSSGIS public OSRM — no API key |
 | Backend | Supabase — Postgres + PostGIS |
-| Auth | Magic link, single user |
+| Auth | Email + password, single user (was magic link until 2026-09-12; owner did not want sign-in routed through Gmail). Forgot-password is the one flow that still sends mail. Change-password lives in the account pill. |
 | Write access | Public read, writes locked to one uid via RLS |
 | Repo | github.com/Roviicc/ParaPo |
 | Live | https://parapo.villaralvorovic2.workers.dev |
@@ -98,7 +98,8 @@ places like Cubao become unclickable. Correct for MVP; revisit when it hurts.
 
 ### Elsewhere
 
-- Login is a one-time magic link, then invisible. No header, no avatar.
+- Login is email + password, asked for at Done, then invisible. No header, no
+  avatar — just the account pill (email · Password · Sign out).
 - Export lives in a single small corner menu. Not worth hiding for purity.
 
 ---
@@ -197,6 +198,95 @@ human to look.
 
 **M5 — Export + tidy.** GeoJSON export, keyboard shortcuts, rough edges.
 
+**M6 — Hotspots. ✅ Built and verified 2026-09-12.** First real data: terminal
+"Tala Novaliches Jeep Terminal" and hintuan "Malaria", both linked to
+Tala → to SM Fairview (sequence 2 and 132). The hintuan is the interesting
+case: no route vertex lies inside it — the line crosses its edge between
+vertices 132 and 133 — so the "crossing between vertices" logic was needed on
+the very first hotspot. Links were recomputed independently from the stored
+polygons and matched.
+
+Verified by `scripts/pw/*.mjs` (67 headless checks: route gestures ported from
+uitest.mjs, hotspot tracing, visitor view, sign-in gating) plus 49 unit checks
+on the geometry and link math. See `scripts/pw/README.md`.
+
+Changed during the build, from what was planned:
+
+- Terminal pre-tick is "the route enters the outline within its first 100 m",
+  not "first vertex inside": the first real terminal had the route start
+  **20 cm** outside its hand-traced outline. Measured to the exact entry point
+  (`entryDistance` in geo.ts).
+- `stop_sequence` for a crossing with no vertex inside is the index of the
+  vertex *before* the crossing (`firstTouchIndex`), never -1.
+
+Known, not fixed: a draft (route or hotspot) does not save the map view, so
+after a reload the trace can be off-screen. Pre-existing; a small follow-up.
+
+A hotspot is a named polygon where people gather to ride or wait. Two kinds,
+and the kind decides how its route list is filled:
+
+| | Terminal | Hintuan |
+|---|---|---|
+| Meaning | Where a route originates and stages | Where people wait and board along the way |
+| Colour | Light blue fill, darker outline (plain blue clashes with route lines) | Orange |
+| Route list | **Hand-picked.** Save panel shows a checklist of every route; routes whose first point falls inside the polygon are pre-ticked | **Computed.** Every route direction whose line passes under the polygon. No manual override — the polygon is the truth |
+| Kept fresh | By the owner | Automatically: every route-direction save re-checks that direction against every hintuan |
+
+Both lists are stored in `route_stop`, so the tap card, export, and any later
+"next stop" logic read one table. `stop_sequence` is the index of the first
+route vertex inside the polygon — enough to order stops along a route later
+without another migration.
+
+Entry point: a **+ New hotspot** button under **+ New Route**, opening a
+two-item menu (Terminal / Hintuan). Tracing reuses the route drawing hook in
+an `area` mode: no snapping, straight edges, the ring closes itself, Done needs
+three points. Click to add, drag, insert on an edge, right-click to delete,
+undo. The localStorage draft records the kind.
+
+Visitors see every hotspot as a shaded shape drawn *below* the route lines, so
+a route crossing a hotspot still gets the click; empty interior selects the
+hotspot. Tap → card: name, kind badge, note, routes grouped by signboard with
+their directions (each row selects that route). Owner sees Edit and Delete.
+
+Schema — `0004_stop_hotspot.sql`:
+
+```sql
+create type stop_kind as enum ('terminal', 'hintuan');
+alter table stop
+  add column kind stop_kind not null default 'hintuan',
+  add column area jsonb,          -- GeoJSON Polygon
+  add column note text;
+alter table stop drop column is_terminal;
+```
+
+`point` stays as the polygon centroid. RLS for `stop` and `route_stop` already
+exists from 0003; nothing new.
+
+Files — new: `supabase/migrations/0004_stop_hotspot.sql`, `lib/stops.ts`,
+`lib/useSavedStops.ts`, `components/HotspotPanel.tsx`,
+`components/HotspotCard.tsx`. Changed: `lib/geo.ts` (point-in-polygon, segment
+intersection, centroid), `lib/useDrawing.ts` (`kind`), `lib/routes.ts`
+(hintuan re-check in `saveVariant`), `DrawToolbar.tsx`, `App.tsx`.
+
+Build order — each step ended in a check and a test, and a failed test stopped
+the line before the next step started. All five done 2026-09-12:
+
+1. ✅ Migration 0004 (applied on the owner's yes; columns and advisor verified)
+   + geometry helpers, 40 unit checks.
+2. ✅ Area drawing mode + menu button. Diff review: no original `useDrawing`
+   line removed, only widened with an `area` guard. 21 headless checks.
+3. ✅ Save panel, `route_stop` writes, hintuan re-check on route save. 9 unit
+   checks; the owner saved one hotspot of each kind and the rows were
+   confirmed by SQL and recomputed independently.
+4. ✅ Saved-hotspots layer + tap card. 17 headless checks incl. layer order
+   and click priority (route line inside a hotspot selects the route).
+5. ✅ Full regression (27 gesture checks, route + hotspot), this file, push.
+
+Headless note for CI-like sandboxes: this Chromium build did not deliver the
+Shift modifier on synthesized mouse input, so `regression-gestures.mjs`
+dispatches shift-click as DOM events. `PARAPO_NODE_FETCH=1` serves https
+through Node fetch where the browser itself has no network.
+
 ---
 
 ## Next session (handoff, 2026-09-08)
@@ -221,7 +311,26 @@ this can be a plain fetch + download), keyboard shortcuts (Esc cancels,
 Ctrl+Z undoes, Enter = Done), and whatever the first real routes reveal.
 
 Security advisor is clean except "leaked password protection" (dashboard
-setting; irrelevant while sign-in is magic-link only).
+setting). Now that sign-in is password-based it is worth turning on.
+
+2026-09-12: auth moved to email + password (SignIn, ResetPassword,
+ChangePassword, usePasswordRecovery); Vite pinned to port 5173 with
+`strictPort` because the Supabase redirect allow-list names that port exactly.
+M6 (hotspots) built and verified the same day; see its section above.
+
+## Next session (handoff, 2026-09-12)
+
+State: M0–M4 and M6 built. Two hotspots exist on the live map. Owner can
+trace, save, edit and delete both kinds; visitors see them and tap for the
+route list. Not yet exercised by a human: **Edit** and **Delete** on a saved
+hotspot (wired, type-checked, headless-tested for the read path only — writes
+need the owner's sign-in).
+
+Start with: `npm run dev`, then `node scripts/pw/regression-gestures.mjs` if
+anything looks off (needs `npm i -D playwright` once).
+
+Next is M5 — Export + tidy — plus two small follow-ups from M6: save the map
+view in the draft; and turn on leaked-password protection in the dashboard.
 
 ## Definition of done
 
@@ -333,6 +442,9 @@ tracking table. Do not re-apply.
 - [x] 0002_pin_function_search_path — 2026-09-08
 - [x] 0003_rls_performance — 2026-09-08 (write path probed as the owner under
       RLS, rolled back; advisor clean afterwards)
+- [x] 0004_stop_hotspot — 2026-09-12 (stop table was empty; columns and enum
+      verified after apply; advisor unchanged — only the pre-existing
+      leaked-password warning)
 
 ## Open items
 

@@ -14,3 +14,6 @@ npm-debug.log*
 # local build/test artefacts
 tsconfig.tsbuildinfo
 uitest.png
+
+# Screenshots the Claude desktop app saves alongside the repo
+Claude outputs/
