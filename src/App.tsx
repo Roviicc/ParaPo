@@ -1,20 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
+import { ChangePassword } from './components/ChangePassword'
 import { DrawToolbar } from './components/DrawToolbar'
 import { MapView } from './components/MapView'
+import { ResetPassword } from './components/ResetPassword'
 import { RouteCard } from './components/RouteCard'
 import { SavePanel } from './components/SavePanel'
 import { SignIn } from './components/SignIn'
 import { deleteVariant, type VariantRow } from './lib/routes'
 import { supabase, supabaseConfigError } from './lib/supabase'
 import { useDrawing } from './lib/useDrawing'
+import { usePasswordRecovery } from './lib/usePasswordRecovery'
 import { useSavedRoutes } from './lib/useSavedRoutes'
 import { useSession } from './lib/useSession'
 
 export default function App() {
   const session = useSession()
+  const recovery = usePasswordRecovery()
   const [map, setMap] = useState<MapLibreMap | null>(null)
   const [signingIn, setSigningIn] = useState(false)
+  const [changingPassword, setChangingPassword] = useState(false)
   const [saving, setSaving] = useState(false)
   const [justSaved, setJustSaved] = useState<VariantRow | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -27,6 +32,15 @@ export default function App() {
 
   const signedIn = !!session
   const userId = session?.user.id ?? null
+
+  // Back from a valid reset link: the link gave us a session, now set the password.
+  const resetting = recovery.recovering && signedIn
+
+  // A rejected reset link (expired, already used) is just a notice; the user
+  // is plainly signed out and can ask for another.
+  useEffect(() => {
+    if (recovery.error) setNotice(`Reset link problem: ${recovery.error}`)
+  }, [recovery.error])
 
   // What the save panel is saving into.
   const editing = draw.target.variantId
@@ -104,6 +118,13 @@ export default function App() {
           {signedIn ? (
             <>
               <span className="max-w-[16ch] truncate">{session.user.email}</span>
+              <button
+                type="button"
+                onClick={() => setChangingPassword(true)}
+                className="font-medium text-neutral-900 underline underline-offset-2"
+              >
+                Password
+              </button>
               <button
                 type="button"
                 onClick={() => supabase?.auth.signOut()}
@@ -185,6 +206,12 @@ export default function App() {
       )}
 
       {signingIn && !signedIn && <SignIn onDismiss={() => setSigningIn(false)} />}
+
+      {resetting && <ResetPassword onDone={recovery.done} />}
+
+      {changingPassword && session?.user.email && !resetting && (
+        <ChangePassword email={session.user.email} onDone={() => setChangingPassword(false)} />
+      )}
 
       {saving && draw.drawing && (
         <SavePanel
