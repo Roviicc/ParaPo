@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { Session } from '@supabase/supabase-js'
 import type { MapLibreMap } from 'maplibre-gl'
 import { HotspotCard } from '../shared/HotspotCard'
 import { MapView } from '../shared/MapView'
@@ -17,13 +18,52 @@ import { SavePanel } from './SavePanel'
 import { SignIn } from './SignIn'
 import { deleteVariant } from './routesWrite'
 import { deleteStop } from './stopsWrite'
+import { skipSignInForTests } from './testBypass'
 import { useDrawing } from './useDrawing'
 import { usePasswordRecovery } from './usePasswordRecovery'
 import { useSession } from './useSession'
 
+/**
+ * The editor at /studio/. Signed out, the page is only its front door: the
+ * map, the drawing tools and everything that writes appear once an editor
+ * signs in. A drawing in progress survives on this device either way.
+ */
 export default function StudioApp() {
   const session = useSession()
+  // Read on the very first render, before supabase-js consumes the reset link.
   const recovery = usePasswordRecovery()
+
+  // Still restoring a saved session: show nothing rather than flash the door.
+  if (session === undefined) {
+    return (
+      <div className="grid h-full place-items-center bg-neutral-100">
+        <p className="text-sm text-neutral-500">Loading…</p>
+      </div>
+    )
+  }
+
+  if (!session && !skipSignInForTests()) {
+    return (
+      <div className="relative h-full w-full bg-neutral-100">
+        <SignIn
+          title="Sign in to ParaPo Studio"
+          notice={recovery.error ? `Reset link problem: ${recovery.error}` : null}
+        />
+      </div>
+    )
+  }
+
+  return <Workshop session={session} recovery={recovery} />
+}
+
+/** The map and every editing tool, for a signed-in editor or a test session. */
+function Workshop({
+  session,
+  recovery,
+}: {
+  session: Session | null
+  recovery: ReturnType<typeof usePasswordRecovery>
+}) {
   const [map, setMap] = useState<MapLibreMap | null>(null)
   const [signingIn, setSigningIn] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)

@@ -3,24 +3,38 @@ import { getSupabase, supabaseConfigError } from '../shared/supabase'
 
 type Mode = 'signin' | 'forgot'
 
+type Props = {
+  /** Heading while signing in. */
+  title?: string
+  /** A message to open with, such as why a reset link was refused. */
+  notice?: string | null
+  /**
+   * Closes the panel. Without it the panel is the studio's front door: there
+   * is nothing behind it to go back to, so Cancel becomes a link to the public
+   * map.
+   */
+  onDismiss?: () => void
+}
+
 /**
- * Email + password sign-in. Appears only when a signed-out user reaches for the
- * one button; there is no persistent auth chrome.
+ * Email + password sign-in: the studio's front door, and the dialog that opens
+ * at Done in a test session.
  *
  * There is no sign-up. Only accounts on the editor list may write (migration
  * 0005), and sign-ups are off in the Supabase dashboard.
  *
  * "Forgot password?" is the one path that must send mail: the reset link is
- * how ownership of the account is proved. Landing back from that link is
- * handled by usePasswordRecovery + ResetPassword, not here.
+ * how ownership of the account is proved. It leads to /studio/, the only page
+ * that can finish it; landing there is handled by usePasswordRecovery and
+ * ResetPassword, not here.
  */
-export function SignIn({ onDismiss }: { onDismiss: () => void }) {
+export function SignIn({ title = 'Sign in to save', notice = null, onDismiss }: Props) {
   const [mode, setMode] = useState<Mode>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(notice)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -44,12 +58,13 @@ export function SignIn({ onDismiss }: { onDismiss: () => void }) {
         )
         setBusy(false)
       }
-      // On success the auth listener in useSession closes this panel.
+      // On success the auth listener in useSession replaces this panel.
       return
     }
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
+      // Only the studio has the form that sets the new password.
+      redirectTo: `${window.location.origin}/studio/`,
     })
     if (error) {
       setError(error.message)
@@ -66,7 +81,17 @@ export function SignIn({ onDismiss }: { onDismiss: () => void }) {
     setPassword('')
   }
 
-  const heading = mode === 'signin' ? 'Sign in to save' : 'Reset your password'
+  // After "Check your email": a dialog closes; the front door goes back to sign-in.
+  function afterSent() {
+    if (onDismiss) {
+      onDismiss()
+      return
+    }
+    setSent(false)
+    switchMode('signin')
+  }
+
+  const heading = mode === 'signin' ? title : 'Reset your password'
 
   const submitLabel = busy
     ? mode === 'signin'
@@ -87,7 +112,7 @@ export function SignIn({ onDismiss }: { onDismiss: () => void }) {
             </p>
             <button
               type="button"
-              onClick={onDismiss}
+              onClick={afterSent}
               className="mt-5 w-full rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white"
             >
               Done
@@ -142,14 +167,24 @@ export function SignIn({ onDismiss }: { onDismiss: () => void }) {
             {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
             <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={onDismiss}
-                className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium text-neutral-600
-                           ring-1 ring-neutral-300"
-              >
-                Cancel
-              </button>
+              {onDismiss ? (
+                <button
+                  type="button"
+                  onClick={onDismiss}
+                  className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium text-neutral-600
+                             ring-1 ring-neutral-300"
+                >
+                  Cancel
+                </button>
+              ) : (
+                <a
+                  href="/"
+                  className="flex-1 rounded-lg px-4 py-2.5 text-center text-sm font-medium
+                             text-neutral-600 ring-1 ring-neutral-300"
+                >
+                  Public map
+                </a>
+              )}
               <button
                 type="submit"
                 disabled={busy}
