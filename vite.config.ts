@@ -11,6 +11,19 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
+  build: {
+    // Two front doors, one build: the public map at / and the editor at
+    // /studio/. Each HTML file is its own entry point with its own <head>.
+    rolldownOptions: {
+      input: {
+        commuter: 'index.html',
+        studio: 'studio/index.html',
+      },
+    },
+    // .vite/manifest.json records which chunks each page loads, so
+    // scripts/check-build.mjs can prove the public page carries no editor.
+    manifest: true,
+  },
   // MapLibre spawns its worker with { type: 'module' }; emit it as an ES chunk.
   worker: { format: 'es' },
   optimizeDeps: {

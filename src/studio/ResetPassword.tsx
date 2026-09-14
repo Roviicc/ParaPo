@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { getSupabase, supabaseConfigError } from '../lib/supabase'
+import { getSupabase, supabaseConfigError } from '../shared/supabase'
 
 /**
  * Shown after the user lands from a password-reset link, once supabase-js has

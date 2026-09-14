@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getSupabase } from './supabase'
+import { getSupabase } from '../shared/supabase'
 
 type RecoveryUrl = { recovering: boolean; error: string | null }
 

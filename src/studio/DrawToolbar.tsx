@@ -1,4 +1,4 @@
-import type { Drawing } from '../lib/useDrawing'
+import type { Drawing } from './useDrawing'
 
 function formatDistance(metres: number) {
   return metres < 1000 ? `${Math.round(metres)} m` : `${(metres / 1000).toFixed(2)} km`

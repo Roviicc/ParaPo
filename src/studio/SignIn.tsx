@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { getSupabase, supabaseConfigError } from '../lib/supabase'
+import { getSupabase, supabaseConfigError } from '../shared/supabase'
 
 type Mode = 'signin' | 'forgot'
 

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
-import type { VariantRow } from '../lib/routes'
-import type { StopRow } from '../lib/stops'
-import { linksThrough, saveStop, variantsStartingIn } from '../lib/stopsWrite'
-import type { Drawing } from '../lib/useDrawing'
+import type { VariantRow } from '../shared/routes'
+import type { StopRow } from '../shared/stops'
+import { linksThrough, saveStop, variantsStartingIn } from './stopsWrite'
+import type { Drawing } from './useDrawing'
 
 type Props = {
   draw: Drawing

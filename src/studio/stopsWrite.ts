@@ -4,16 +4,16 @@ import {
   ringCentroid,
   ringToPolygon,
   type Ring,
-} from './geo'
-import { variantLine, type VariantRow } from './routes'
+} from '../shared/geo'
+import { variantLine, type VariantRow } from '../shared/routes'
 import {
   stopRing,
   type PointGeoJSON,
   type StopKind,
   type StopLink,
   type StopRow,
-} from './stops'
-import { requireSupabase } from './supabase'
+} from '../shared/stops'
+import { requireSupabase } from '../shared/supabase'
 
 const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim())
 

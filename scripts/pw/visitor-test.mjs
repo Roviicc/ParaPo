@@ -9,7 +9,7 @@ await page.route(/^https:\/\//, async (route) => { const req = route.request(); 
 }
 await page.addInitScript(() => { window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null } })
 const errors = []; page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.type()==='error') errors.push(m.text().slice(0,160)) })
-await page.goto('http://127.0.0.1:5173/', { waitUntil: 'load' })
+await page.goto((process.env.PARAPO_URL ?? 'http://127.0.0.1:5173/'), { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
 await page.waitForFunction(async () => ((await window.__src('saved-stops'))?.features?.length ?? 0) > 0, null, { timeout: 20000 }).catch(()=>{})
 await page.waitForTimeout(1200)

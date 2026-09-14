@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { getSupabase } from './supabase'
+import { getSupabase } from '../shared/supabase'
 
 /** `undefined` while the initial session is still being restored. */
 export function useSession(): Session | null | undefined {

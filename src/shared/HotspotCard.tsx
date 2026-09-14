@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import type { VariantRow } from '../lib/routes'
-import type { StopRow } from '../lib/stops'
+import type { VariantRow } from './routes'
+import type { StopRow } from './stops'
 
 type Props = {
   stop: StopRow

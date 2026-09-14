@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { lineLength } from '../lib/geo'
-import { MODES, variantLine, type VariantRow } from '../lib/routes'
+import { lineLength } from './geo'
+import { MODES, variantLine, type VariantRow } from './routes'
 
 type Props = {
   variant: VariantRow

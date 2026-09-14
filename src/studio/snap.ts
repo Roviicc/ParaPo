@@ -1,4 +1,4 @@
-import type { LngLat, Segment } from './geo'
+import type { LngLat, Segment } from '../shared/geo'
 
 /**
  * FOSSGIS public OSRM. No API key, and it sends

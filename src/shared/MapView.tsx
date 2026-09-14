@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { diagnose, type Diagnosis } from '../lib/diagnose'
+import { diagnose, type Diagnosis } from './diagnose'
 import {
   AttributionControl,
   MapLibreMap,

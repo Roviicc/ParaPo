@@ -6,7 +6,7 @@ if (process.env.PARAPO_NODE_FETCH) {
 await page.route(/^https:\/\//, async (route) => { const req = route.request(); try { const h={...req.headers()}; delete h['accept-encoding']; const r = await fetch(req.url(), { method: req.method(), headers: h, body: ['GET','HEAD'].includes(req.method())?undefined:req.postDataBuffer() }); const body=Buffer.from(await r.arrayBuffer()); const hh={}; r.headers.forEach((v,k)=>{ if(!['content-encoding','content-length','transfer-encoding'].includes(k)) hh[k]=v }); await route.fulfill({status:r.status,headers:hh,body}) } catch { await route.abort() } })
 }
 const errors = []; page.on('pageerror', e => errors.push(String(e)))
-await page.goto('http://127.0.0.1:5173/', { waitUntil: 'load' })
+await page.goto((process.env.PARAPO_URL ?? 'http://127.0.0.1:5173/'), { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
 await page.waitForTimeout(800)
 await page.getByRole('button', { name: '+ New hotspot' }).click()

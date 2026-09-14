@@ -6,10 +6,10 @@ import {
   type LngLat,
   type Segment,
   type SnapMode,
-} from './geo'
-import { HOTSPOT_COLOUR } from './colours'
+} from '../shared/geo'
+import { HOTSPOT_COLOUR } from '../shared/colours'
 import { snapSegment, straightSegment } from './snap'
-import type { VariantRow } from './routes'
+import type { VariantRow } from '../shared/routes'
 
 const EMPTY = { type: 'FeatureCollection', features: [] } as const
 

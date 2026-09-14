@@ -34,7 +34,7 @@ await page.addInitScript(() => {
   // MapLibre 6: GeoJSONSource data is behind an async getter.
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
 })
-await page.goto('http://127.0.0.1:5173/', { waitUntil: 'load' })
+await page.goto((process.env.PARAPO_URL ?? 'http://127.0.0.1:5173/'), { waitUntil: 'load' })
 // wait for the map to exist and be loaded
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
 check('map loaded', true)

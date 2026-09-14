@@ -18,7 +18,7 @@ const idle = async () => page.waitForFunction(() => !document.body.innerText.inc
 const box0 = { x: 0, y: 0 }
 const renderedAt = async (px, layer='draw-point-dots') => page.waitForFunction(([x, y, l]) => window.__map.queryRenderedFeatures([x, y], { layers: [l] }).length > 0, [px[0], px[1], layer], { timeout: 5000 }).then(() => true).catch(() => false)
 
-await page.goto('http://127.0.0.1:5173/', { waitUntil: 'load' })
+await page.goto((process.env.PARAPO_URL ?? 'http://127.0.0.1:5173/'), { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
 await page.waitForFunction(async () => ((await window.__src('saved-routes'))?.features?.length ?? 0) > 0, null, { timeout: 20000 })
 await page.waitForTimeout(800)
