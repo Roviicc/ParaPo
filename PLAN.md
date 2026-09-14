@@ -345,6 +345,7 @@ project has exactly one account, created 2026-09-07, and it owns all 2 routes,
 The owner, in the Supabase dashboard:
 
 - Authentication → turn off new user sign-ups. This alone closes the gap today.
+  *Done by the owner, 2026-09-14.*
 - First change the owner's own password to a long, unique one (a password
   manager's), using Password in the account pill. Then, Authentication → Email
   provider settings: minimum length 12, and require digits, lower- and uppercase
@@ -924,6 +925,47 @@ Found this session, not yet fixed:
   `/` is the visitor map — step 2.
 - `useSavedStops.ts` imports its colours from `useDrawing.ts`, the one place the
   read side reaches into the editor — step 2.
+
+Prep before step 1, done 2026-09-14:
+
+- The owner, as the owner reports: 2-step verification on GitHub, Supabase and
+  Cloudflare; a strong, unique ParaPo password; "Allow new users to sign up"
+  switched off.
+- A backup of the public map tables on the owner's machine:
+  `Documents/ParaPo-backups/parapo-map-2026-09-14.json` — 2 routes, 2
+  directions, 4 hotspots, 4 links; 234,619 bytes; sha256 begins
+  `9ca0b5607caff575`. Accounts are not in it.
+- Work happens on the branch `build-order`; nothing is pushed. `main` is what
+  deploys.
+- Playwright 1.63.0 is now a dev dependency. Its Chromium (1243) was already
+  installed on this machine.
+- Untracked and left alone: `public/branding/para-po-logo.png`, the owner's,
+  added the same day — the likely icon source for step 6. Anything in `public/`
+  deploys as-is once committed.
+
+Baseline the same day, before any step-1 change:
+
+| Check | Result |
+|---|---|
+| `npm run build` (tsc + vite) | Passes; 1,426 kB / 384 kB gzipped, unchanged |
+| `gate-test` | 2 / 2 |
+| `hotspot-test` | 21 / 21 |
+| `regression-gestures` | 27 / 27 |
+| `visitor-test` | 5 pass, 4 fail, then aborts — all risk #1 |
+
+The visitor-test failures come from the data it was written against, not from
+the app. It expects 1 route and 2 hotspots (there are now 2 and 4), and it
+assumes every hotspot's card lists "Tala → to SM Fairview". The hintuan
+"Phase 1", added since, opens its card correctly but does not list Tala, so the
+chip click times out and the rest of the test never runs. Step 2 rewrites the
+test to read what exists first.
+
+**Local dev note.** On this machine Vite listens only on `[::1]:5173`, because
+`localhost` resolves to IPv6, while every `scripts/pw` test opens
+`http://127.0.0.1:5173/`. The baseline ran with
+`npm run dev -- --host 127.0.0.1`. Step 2's test rewrite should open
+`localhost`, or `vite.config.ts` should set `server.host` — keeping
+`localhost` itself working, because Supabase's redirect allow-list names it.
 
 ## Known risks (reviewed 2026-09-12, after M6)
 
