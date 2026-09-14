@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
 import { lineLength } from './geo'
-import { MODES, variantLine, type VariantRow } from './routes'
+import { MODES, variantLine, type VariantSummary } from './routes'
 
 type Props = {
-  variant: VariantRow
+  variant: VariantSummary
   /** Buttons along the bottom. The editor passes Edit and Delete; the public map passes nothing. */
   actions?: ReactNode
   onClose: () => void

@@ -1,24 +1,24 @@
 import { useEffect, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
+import { HotspotCard } from '../shared/HotspotCard'
+import { MapView } from '../shared/MapView'
+import { RouteCard } from '../shared/RouteCard'
+import { listVariants, type VariantRow } from '../shared/routes'
+import { stopRing, type StopRow } from '../shared/stops'
+import { getSupabase, supabaseConfigError } from '../shared/supabase'
+import { useSavedRoutes } from '../shared/useSavedRoutes'
+import { useSavedStops } from '../shared/useSavedStops'
 import { CardActions } from './CardActions'
 import { ChangePassword } from './ChangePassword'
 import { DrawToolbar } from './DrawToolbar'
-import { HotspotCard } from '../shared/HotspotCard'
 import { HotspotPanel } from './HotspotPanel'
-import { MapView } from '../shared/MapView'
 import { ResetPassword } from './ResetPassword'
-import { RouteCard } from '../shared/RouteCard'
 import { SavePanel } from './SavePanel'
 import { SignIn } from './SignIn'
-import type { VariantRow } from '../shared/routes'
 import { deleteVariant } from './routesWrite'
-import { stopRing, type StopRow } from '../shared/stops'
 import { deleteStop } from './stopsWrite'
-import { getSupabase, supabaseConfigError } from '../shared/supabase'
 import { useDrawing } from './useDrawing'
 import { usePasswordRecovery } from './usePasswordRecovery'
-import { useSavedRoutes } from '../shared/useSavedRoutes'
-import { useSavedStops } from '../shared/useSavedStops'
 import { useSession } from './useSession'
 
 export default function StudioApp() {
@@ -34,7 +34,8 @@ export default function StudioApp() {
   const [notice, setNotice] = useState<string | null>(null)
 
   const draw = useDrawing(map)
-  const saved = useSavedRoutes(map, {
+  // Full rows: the editor reopens a direction from its control points.
+  const saved = useSavedRoutes(map, listVariants, {
     drawing: draw.drawing,
     hiddenVariantId: draw.target.variantId,
   })

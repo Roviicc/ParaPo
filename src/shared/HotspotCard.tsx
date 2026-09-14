@@ -1,13 +1,13 @@
 import type { ReactNode } from 'react'
-import type { VariantRow } from './routes'
+import type { VariantSummary } from './routes'
 import type { StopRow } from './stops'
 
 type Props = {
   stop: StopRow
   /** Directions linked to this hotspot, in stop_sequence order. */
   linkedVariantIds: string[]
-  variants: VariantRow[]
-  onSelectVariant: (v: VariantRow) => void
+  variants: VariantSummary[]
+  onSelectVariant: (v: VariantSummary) => void
   /** Buttons along the bottom. The editor passes Edit and Delete; the public map passes nothing. */
   actions?: ReactNode
   onClose: () => void
@@ -27,10 +27,12 @@ export function HotspotCard({
 }: Props) {
   const isTerminal = stop.kind === 'terminal'
   const byId = new Map(variants.map((v) => [v.id, v]))
-  const linked = linkedVariantIds.map((id) => byId.get(id)).filter((v): v is VariantRow => !!v)
+  const linked = linkedVariantIds
+    .map((id) => byId.get(id))
+    .filter((v): v is VariantSummary => !!v)
 
   // Group by route so both directions of one signboard read as one entry.
-  const groups = new Map<string, { signboard: string; directions: VariantRow[] }>()
+  const groups = new Map<string, { signboard: string; directions: VariantSummary[] }>()
   for (const v of linked) {
     const g = groups.get(v.route_id) ?? { signboard: v.route?.signboard ?? '(unnamed)', directions: [] }
     g.directions.push(v)

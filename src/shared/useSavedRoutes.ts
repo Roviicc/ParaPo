@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
-import { listVariants, variantLine, type VariantRow } from './routes'
+import { variantLine, type VariantSummary } from './routes'
 import { getSupabase } from './supabase'
 
 const SRC = 'saved-routes'
@@ -17,14 +17,19 @@ type IdFeature = { properties?: { id?: string } }
  * Every saved route direction, drawn for everyone. This is the public half of
  * ParaPo: no sign-in, no editor, just the map with what has been recorded.
  *
- * The editor passes `drawing` and `hiddenVariantId`; the public map passes
- * neither, and both default to off.
+ * `load` decides how much of each direction to fetch: the public map asks for
+ * summaries, the editor for full rows it can reopen. Pass a function defined
+ * once at module level, not a new one per render, or it reloads every render.
+ *
+ * The editor also passes `drawing` and `hiddenVariantId`; the public map
+ * passes neither, and both default to off.
  */
-export function useSavedRoutes(
+export function useSavedRoutes<T extends VariantSummary>(
   map: MapLibreMap | null,
+  load: () => Promise<T[]>,
   opts: { drawing?: boolean; hiddenVariantId?: string | null } = {},
 ) {
-  const [variants, setVariants] = useState<VariantRow[]>([])
+  const [variants, setVariants] = useState<T[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -36,14 +41,14 @@ export function useSavedRoutes(
     if (!getSupabase()) return
     setLoading(true)
     try {
-      setVariants(await listVariants())
+      setVariants(await load())
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [load])
 
   useEffect(() => {
     void reload()
