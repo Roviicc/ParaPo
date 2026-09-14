@@ -32,7 +32,7 @@ is ugly and produces correct geometry, it worked.
 | Snapping | FOSSGIS public OSRM — no API key |
 | Backend | Supabase — Postgres + PostGIS |
 | Auth | Email + password, single user (was magic link until 2026-09-12; owner did not want sign-in routed through Gmail). Forgot-password is the one flow that still sends mail. Change-password lives in the account pill. Visitors have no accounts (decided 2026-09-14); from step 2 only the owner signs in, at `/studio/`, with no sign-up. |
-| Write access | Public read. Writes were meant to be locked to one uid; the live RLS lets any signed-in account write rows it owns (found 2026-09-14, when one account existed). Step 1 of the build order locks writes to an editor list with one member |
+| Write access | Public read. Writes only by accounts on the editor list, and only to rows they own (migration 0005, build-order step 1, applied 2026-09-15). The list has one member: the owner. Until then any signed-in account could write rows it owned (found 2026-09-14) |
 | Repo | github.com/Roviicc/ParaPo |
 | Live | https://parapo.villaralvorovic2.workers.dev |
 | Verified | 2026-09-07: local and live both render Metro Manila (real-clock headless screenshot, 718 KB, no error box) |
@@ -358,22 +358,51 @@ The owner, in the Supabase dashboard:
 
 Code and database:
 
-- Migration `0005_editor_role.sql`: an `editor` table (`user_id` referencing
-  `auth.users`) with RLS on and no policies, so the API can neither read nor
-  change it; and `is_editor()` — `security definer`, `stable`, `search_path`
-  pinned — true when the caller's uid is listed. Every insert, update and
-  delete policy on `route`, `route_variant`, `stop`, `route_stop` and
-  `gps_session` gains `and (select public.is_editor())`. The owner checks stay.
-- The owner's uid is inserted when the migration is applied, not written into
-  the file: the repo is public, and the migration should stay reusable.
+- Migration `0005_editor_role.sql`: a `private.editor` table (`user_id`
+  referencing `auth.users`) and `private.is_editor()` — `security definer`,
+  `stable`, `search_path` pinned — true when the caller's uid is listed. Every
+  insert, update and delete policy on `route`, `route_variant`, `stop`,
+  `route_stop` and `gps_session` gains `(select private.is_editor())`. The
+  owner checks stay.
+- **In `private`, not `public` as first planned.** A security definer function
+  in an exposed schema is callable by anyone through `/rest/v1/rpc`, which the
+  advisor flags (lints 0028 and 0029), and Supabase's RLS guide says never to
+  put one there. `private` is not exposed: the API answers PGRST106, "only
+  public, graphql_public". The table has RLS on, no policies and no grants.
+  `authenticated` gets only USAGE on the schema and EXECUTE on the function,
+  because policies run as the caller.
+- TRUNCATE, TRIGGER and REFERENCES are revoked from `anon` and `authenticated`
+  on every public table, and from the schema's defaults for new tables.
+  TRUNCATE ignores RLS; no API route sends it, and now none can. Found by the
+  independent review.
+- The owner's uid is inserted straight after applying, not written into the
+  file: the repo is public, and the migration should stay reusable. Until that
+  insert nobody can write, the owner included (it fails closed).
 - A list rather than a hard-coded uid, so future accounts (see "Accounts,
   later") can exist without edit rights.
-- `SignIn.tsx` loses its sign-up mode.
+- `SignIn.tsx` loses its sign-up mode. The change- and reset-password forms ask
+  for at least 12 characters, to match the password rule above.
 
 *Checks:* inside a transaction that is rolled back, an authenticated uid that is
 not an editor is refused an insert on `route` and the owner is allowed one; the
 security advisor is clean; all headless checks pass; the owner saves one real
 edit on the live site.
+
+**Applied 2026-09-15** (Manila time; the migration `editor_role` is version
+20260914172324, in UTC).
+
+| Check | Result |
+|---|---|
+| Dry run before applying: the migration plus a throwaway second account with rows of its own, all rolled back | 57 / 57. Before the change the second account could write. After it, every insert on the five tables is refused (42501), every update and delete of its own rows touches 0 rows, and TRUNCATE is refused; it can neither read nor join the list; visitors cannot call `is_editor()`; both still read the map; the owner inserts, updates and deletes on all five tables. With an empty list the owner is refused too |
+| Independent review, by a separate read-only agent | No way found for a non-editor to write. Led to the TRUNCATE revoke and to `create schema` without `if not exists`. Its other findings are under Known risks #3 and #5 |
+| Live check after applying: the same tests, rolled back | 53 / 53. The list holds exactly the owner |
+| Public API, as a visitor | Read routes: 200. Insert a route: 401, 42501. `rpc/is_editor`: 404. The `private` schema: PGRST106 |
+| Security advisor | Leaked-password protection (Pro plan only, accepted), plus one new INFO, `rls_enabled_no_policy` on `private.editor`. Intended: only `is_editor()` ever reads the list |
+| Data afterwards | 1 account, 2 routes, 2 directions, 4 hotspots, 4 links — unchanged |
+| `npm run build` | Passes; 1,426 kB / 384 kB gzipped, unchanged |
+| Headless checks | gate-test 2/2, hotspot-test 21/21, regression-gestures 27/27. visitor-test 5 pass, 4 fail, exactly as in the baseline (Known risks #1) |
+| The owner saves real edits on the live site | Done 2026-09-15, 01:39–01:40 Manila, through the lock: a new route, signboard "asd", a test (inserts on `route` and `route_variant`), and an edit to Tala → to SM Fairview (an update). Both rows belong to the owner's account; still one account |
+| The owner's password rule | Set 2026-09-15: at least 12 characters, with lowercase and uppercase letters, digits and symbols. Leaked-password protection stays off (Pro plan only). The owner signed in again afterwards with no weak-password error |
 
 ### Step 2 — Two front doors
 
@@ -683,7 +712,7 @@ options become optional and default to off.
 
 **Auth moves with the studio.**
 
-- `SignIn.tsx:53` sends reset links to `window.location.origin`. After the split
+- `SignIn.tsx:51` sends reset links to `window.location.origin`. After the split
   that is the commuter page, which has no reset form — recovery would break
   silently. It becomes `${origin}/studio/`.
 - **Owner action:** Supabase dashboard → Authentication → URL Configuration —
@@ -907,11 +936,12 @@ view in the draft; and turn on leaked-password protection in the dashboard.
 
 ## Next session (handoff, 2026-09-14)
 
-State: no code changed since 2026-09-12. A planning session produced Phase 2
-(M7–M15) and the **Build order — agreed 2026-09-14**, which is what comes next.
-Live data: 2 routes, 2 directions, 4 hotspots; one account.
+State: a planning session on 2026-09-14 produced Phase 2 (M7–M15) and the
+**Build order — agreed 2026-09-14**, which is what comes next. Live data:
+3 routes, 3 directions, 4 hotspots — one route, "asd", is the owner's test from
+step 1; one account, the only editor.
 
-**Waiting for the owner's go on step 1.** Nothing has been started.
+**Step 1 done 2026-09-15** (see its section). Step 2 waits for the owner's go.
 
 Owner actions already known: a strong password, then sign-ups off and a
 stronger password rule (step 1 — leaked-password protection is Pro plan only);
@@ -920,8 +950,8 @@ before the next route is drawn".
 
 Found this session, not yet fixed:
 
-- Writes are not locked to the owner — step 1.
-- `SignIn.tsx:53` sends reset links to the site root, which breaks recovery once
+- Writes were not locked to the owner — fixed by step 1, 2026-09-15.
+- `SignIn.tsx:51` sends reset links to the site root, which breaks recovery once
   `/` is the visitor map — step 2.
 - `useSavedStops.ts` imports its colours from `useDrawing.ts`, the one place the
   read side reaches into the editor — step 2.
@@ -935,8 +965,8 @@ Prep before step 1, done 2026-09-14:
   `Documents/ParaPo-backups/parapo-map-2026-09-14.json` — 2 routes, 2
   directions, 4 hotspots, 4 links; 234,619 bytes; sha256 begins
   `9ca0b5607caff575`. Accounts are not in it.
-- Work happens on the branch `build-order`; nothing is pushed. `main` is what
-  deploys.
+- Work happens on the branch `build-order`, pushed to GitHub. `main` is what
+  deploys, and stays untouched until a step is merged.
 - Playwright 1.63.0 is now a dev dependency. Its Chromium (1243) was already
   installed on this machine.
 - Untracked and left alone: `public/branding/para-po-logo.png`, the owner's,
@@ -971,9 +1001,10 @@ test to read what exists first.
 
 Ranked by how soon each is likely to bite. Fix #1 before the next feature.
 
-**Found 2026-09-14, ahead of all of these:** writes are not locked to the owner.
-Any signed-in account may write rows it owns, and sign-up is open through the
-public API. Build-order step 1 fixes it.
+**Found 2026-09-14, ahead of all of these:** writes were not locked to the
+owner. Any signed-in account could write rows it owned, and sign-up was open
+through the public API. *Fixed 2026-09-15 by build-order step 1:* sign-ups off,
+and migration 0005.
 
 Soon — as data grows:
 
@@ -993,8 +1024,12 @@ Soon — as data grows:
 3. **Saves are not transactional.** `saveStop` = row, delete links, insert
    links — three requests; a failure after the second leaves a hotspot with
    no links. Route save + hintuan sync has the same shape, and a retry then
-   trips the unique-direction constraint.
-   *Fix:* one Postgres function per save, called via RPC.
+   trips the unique-direction constraint. Deletes never check how many rows
+   went, either: one that RLS refuses (from an account not on the editor list)
+   reports success having deleted nothing (review, 2026-09-15).
+   *Fix:* one Postgres function per save, called via RPC — `security invoker`,
+   so the editor rules still apply. Deletes ask for a count, and treat 0 as an
+   error.
 4. **`strictPort`** makes `npm run dev` refuse to start when 5173 is busy.
    Intentional (the Supabase allow-list names that port). Free the port.
 
@@ -1004,6 +1039,11 @@ When a second editor arrives:
    owner. A hintuan drawn by user B over user A's route saves with an empty
    list. *Fix:* loosen the policy to any authenticated editor, or one shared
    owner. Interacts with #3.
+   The opposite gap too (review, 2026-09-15): `route_variant` never checks its
+   route's owner, and `route_stop` never checks the stop's owner, so editor B
+   could add a direction to A's route or link A's hotspot. *Fix:* settle one
+   ownership model — shared editing, or parent-owner checks in the policies —
+   before a second account joins the editor list.
 6. **Password-reset mail** only reaches the project's team addresses, a few
    per hour (Supabase built-in mailer). *Fix:* custom SMTP (Resend, Postmark…)
    before there are real users.

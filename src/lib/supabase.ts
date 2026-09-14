@@ -19,7 +19,8 @@ export const supabaseConfigError: string | null =
 
 /**
  * The publishable key is public by design — it ships in this bundle. RLS is
- * what protects the data: public read, writes only for the owning user.
+ * what protects the data: public read; writes only by accounts on the editor
+ * list (migration 0005), and only to rows they own.
  */
 export const supabase: SupabaseClient | null = supabaseConfigError
   ? null

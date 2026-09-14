@@ -93,7 +93,7 @@ export function ChangePassword({ email, onDone }: { email: string; onDone: () =>
             <input
               type="password"
               required
-              minLength={6}
+              minLength={12}
               autoComplete="new-password"
               value={next}
               onChange={(e) => setNext(e.target.value)}
@@ -104,7 +104,7 @@ export function ChangePassword({ email, onDone }: { email: string; onDone: () =>
             <input
               type="password"
               required
-              minLength={6}
+              minLength={12}
               autoComplete="new-password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
@@ -112,7 +112,7 @@ export function ChangePassword({ email, onDone }: { email: string; onDone: () =>
               className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5
                          text-sm outline-none focus:border-neutral-900"
             />
-            <p className="mt-2 text-xs text-neutral-500">At least 6 characters.</p>
+            <p className="mt-2 text-xs text-neutral-500">At least 12 characters, with upper- and lowercase letters, a number and a symbol.</p>
 
             {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
