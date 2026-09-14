@@ -94,6 +94,9 @@ check(
 await page.goto(`${BASE}/`, { waitUntil: 'load' })
 await page.waitForTimeout(500)
 check('a plain / stays on the public map', new URL(page.url()).pathname === '/', page.url())
+await page.goto(`${BASE}/?code=T123&error=nope`, { waitUntil: 'load' })
+await page.waitForTimeout(800)
+check('a bare ?code= or ?error= is not an auth result: / stays put', new URL(page.url()).pathname === '/', page.url())
 
 check('no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
 await page.screenshot({ path: 'studio-gate.png' })

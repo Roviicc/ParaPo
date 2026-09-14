@@ -1,4 +1,6 @@
-// Drive the ParaPo editor in headless Chrome and assert it behaves.
+// Drive the ParaPo editor at /studio/?e2e=1 in headless Chrome and assert it
+// behaves. Needs the dev server running (npm run dev); in development only,
+// ?e2e=1 skips the sign-in door so the test can draw while signed out.
 //
 //   node scripts/uitest.mjs [url] [out.png]
 //
@@ -13,7 +15,8 @@ import { writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe'
-const url = process.argv[2] ?? 'http://localhost:5173/'
+const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
+const url = process.argv[2] ?? `${BASE}/studio/?e2e=1`
 const out = process.argv[3] ?? 'uitest.png'
 const port = 9335
 const profile = join(process.env.TEMP ?? '.', 'parapo-uitest-profile')
@@ -150,13 +153,33 @@ try {
   if (closeBtn) await click(closeBtn.x, closeBtn.y)
   check('closing the card brings the pill back', ((await text()) ?? '').includes('Sign in'))
 
+  // 1c. Jump to a street-level view, independent of what happens to be saved
+  // today: the middle vertex of an existing saved route, or the Cubao
+  // fallback if there are none. Fixed pixels on a bounds-fit view can land on
+  // water or inside a block, where OSRM can't snap.
+  const jumpTarget = await evaluate(`(async () => {
+    const m = window.__map; const src = m && m.getSource('saved-routes');
+    const fc = src ? await src.getData() : null;
+    const f = fc && fc.features.find((f) => f.geometry.coordinates.length > 1);
+    if (f) { const c = f.geometry.coordinates; return c[Math.floor(c.length / 2)]; }
+    return [121.0527, 14.6187];
+  })()`)
+  await evaluate(`(() => { window.__map.jumpTo({ center: ${JSON.stringify(jumpTarget)}, zoom: 15 }); return true })()`)
+  for (let i = 0; i < 30; i++) { if (await evaluate('!!(window.__map && window.__map.areTilesLoaded())')) break; await sleep(300) }
+  const canvasBox = await evaluate(`(() => {
+    const el = document.querySelector('canvas.maplibregl-canvas'); if (!el) return null;
+    const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height };
+  })()`)
+  check('view jumped to a street-level point', !!canvasBox, JSON.stringify(jumpTarget))
+  const centerX = canvasBox ? canvasBox.x + canvasBox.width / 2 : 640
+  const centerY = canvasBox ? canvasBox.y + canvasBox.height / 2 : 400
+
   // 2. enter drawing
   const newRoute = await buttonRect('New Route')
   await click(newRoute.x, newRoute.y)
   await sleep(400)
   const t2 = (await text()) ?? ''
-  check('clicking + New Route enters drawing mode', t2.includes('Undo'),
-    t2.includes('Sign in to draw') || t2.includes('Send link') ? 'a sign-in dialog opened instead' : '')
+  check('clicking + New Route enters drawing mode', t2.includes('Undo'))
 
   // Read positions from the map itself (dev builds expose window.__map).
   const cps = () => evaluate(`(() => {
@@ -173,8 +196,9 @@ try {
     const p = m.project(mid); return { x: p.x, y: p.y, n: c.length };
   })()`)
 
-  // 3. add four points along a corridor
-  const pts = [[420, 300], [520, 340], [620, 380], [720, 420]]
+  // 3. add four points along a short corridor around the viewport centre,
+  // spaced the same as before ([100, 40] steps between points).
+  const pts = [[-150, -60], [-50, -20], [50, 20], [150, 60]].map(([dx, dy]) => [centerX + dx, centerY + dy])
   for (const [x, y] of pts) await click(x, y)
   await settle()
   const afterAdd = await points()

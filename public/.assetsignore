@@ -1,0 +1,4 @@
+# Files in the built site that Cloudflare should not serve (.gitignore syntax).
+# Vite writes its build manifests to .vite/ for scripts/check-build.mjs;
+# visitors have no use for them.
+.vite

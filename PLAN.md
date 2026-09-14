@@ -415,6 +415,23 @@ Sign-in at the door, with no sign-up.
 check); `/studio/` asks for sign-in; a reset email completes end to end; the
 headless checks pass against both pages.
 
+**Built 2026-09-15**, following M13's build order, one commit per part on
+`build-order`.
+
+| Part and check | Result |
+|---|---|
+| 1 — untangle, still one page | Build passes; headless checks unchanged: gate 2/2, hotspot 21/21, gestures 27/27, visitor as in the baseline |
+| 2 — folders and `/studio/` | Both pages build; the same checks pass against `/studio/`. hotspot-test passed on its third run: the first hit a network error, the second a 20 s load timeout, while Supabase answered in 0.3 s and the page drew its routes in 1.1 s |
+| 3 — the public page at `/` | `check-boundaries`: every import holds. `check-build`: the public page's chunks carry no editor-only string, and the studio's carry all six. The public page draws 3 routes and 4 hotspots with no buttons, no `draw-` layers and nothing in localStorage, and loads no studio module |
+| 4 — the studio door | gate-test 14/14. On `/studio/?e2e=1`: hotspot 21/21, gestures 27/27. The production build, in a local preview: `/studio/?e2e=1` still shows only the door, `window.__map` is absent, `/` draws the routes with no buttons and stores nothing, and `/?type=recovery` is forwarded to `/studio/` intact — 8/8 |
+| What a visit downloads, 3 directions | 71.3 → 34.3 kB raw, 9.3 → 7.5 kB gzipped. The halving holds before compression only. `segments` mostly repeats `shape`, and gzip already folds repeats away, so on the wire the saving is 20%. The 17.2 → 8.4 kB estimate above did not hold when re-measured |
+| Bundle | The public page's own chunk 1.7 kB, the studio's own 41 kB, shared 1,386 kB (MapLibre, supabase-js, shared code). As M13 predicted, the split does not make the public download smaller |
+| 5 — tests retargeted | Four helper agents, one per test file, working in parallel; each file was reviewed before it was kept. Every test opens its new page and reads today's data before asserting, and the drawing tests first move the map onto a saved route so their clicks land on streets (known risk #1, fixed). With a plain `npm run dev` and no settings: gate-test 15/15, visitor-test 35/35 (five more per hotspot as data grows), hotspot-test 21/21, regression-gestures 27/27, uitest 24/24 |
+| Independent review, by a separate read-only agent | Nothing critical or high: no editor code reaches the public page. Acted on: the leak checks now run inside `npm run build`, so a leaking deploy fails; the build check now also proves by module that no `src/studio/` file reaches the public page, because the string markers came from only four editor files; the door guards the first entry only, so a session that ends mid-edit no longer throws away a half-filled save panel; the forwarder matches only `type=recovery`, `error_code` or `error_description`, and never on `/studio`; `public/.assetsignore` keeps `.vite/` off the live site. Noted, not changed: a direction with no stored `shape` would be missing from `/`, because summaries carry no segments. All 3 have one, and `saveVariant` always writes it |
+| The module check catches a leak | Probed on purpose: `src/studio/CardActions.tsx`, which contains none of the marker words, imported into the public page. `check-boundaries` failed on the import. With the build forced through anyway, `check-build`'s module check failed and named that file, while its string check alone still passed — the gap the review found. Restored and rebuilt: every check passes |
+| realshot on both live URLs, and the deploy | *Pending — needs the owner's go to merge into `main`* |
+| A real reset email, end to end, on the live site | *Pending — needs the deploy* |
+
 ### Step 3 — Snapping quality
 
 As **M7**: `radiuses`, joins re-routed together with both neighbours, and
@@ -673,10 +690,20 @@ src/commuter/   imports shared/ only
 src/studio/     imports shared/ only
 ```
 
-Checked twice: `scripts/check-boundaries.mjs` reads every import, and a build
-check walks Vite's build manifest from `index.html` and fails if any commuter
-chunk contains `router.project-osrm.org`, `signInWithPassword` or
-`parapo.draft`.
+Checked twice: `scripts/check-boundaries.mjs` reads every import, and
+`scripts/check-build.mjs` walks Vite's build manifest from `index.html` and
+fails if any commuter chunk contains `router.project-osrm.org`, `parapo.draft`,
+or words only the editor shows: "Sign in to save", "Forgot password?",
+"+ New Route", "Draw the return trip". It also reads which source files went
+into each public chunk (`.vite/modules.json`, written by a small plugin in
+`vite.config.ts`) and fails on any from `src/studio/`, whatever it contains.
+Both checks run inside `npm run build`, so a deploy that would leak fails.
+
+*Changed when built:* `signInWithPassword` is not a marker. supabase-js defines
+that method itself, so any page that talks to Supabase carries the word while
+signing no one in; it appeared 3 times in the one-page build. And the studio's
+chunks must contain every marker, or the search itself is broken and a pass
+would mean nothing.
 
 **Each entry point wires its own Supabase client.** `commuter/main.tsx` creates
 one with `persistSession`, `autoRefreshToken` and `detectSessionInUrl` all off;
@@ -720,11 +747,15 @@ options become optional and default to off.
   `https://parapo.villaralvorovic2.workers.dev/studio/` to the redirect
   allow-list. Code cannot reach this setting.
 - A reset email sent *before* the deploy still points at `/`. The commuter
-  forwards any arriving `type=recovery`, `code=` or `error=` parameters to
-  `/studio/` untouched; with `detectSessionInUrl` off it never consumes the
-  token itself.
+  forwards any arriving `type=recovery`, `error_code` or `error_description`
+  to `/studio/` untouched; with `detectSessionInUrl` off it never consumes the
+  token itself. *Narrowed when built:* not on a bare `code=` or `error=`,
+  which a share link could one day carry (the studio's implicit flow never
+  sends `code`), and never on a `/studio` path.
 - The studio with no session shows the sign-in panel instead of the map tools.
   The localStorage draft stays: a reload mid-drawing still keeps the work.
+  *When built:* the door guards the first entry only. A session that ends
+  later leaves the workshop on screen, and the next save asks for sign-in.
 
 **Tests.** All four `scripts/pw` files open `/`, and three draw while signed out.
 
@@ -941,20 +972,22 @@ State: a planning session on 2026-09-14 produced Phase 2 (M7–M15) and the
 3 routes, 3 directions, 4 hotspots — one route, "asd", is the owner's test from
 step 1; one account, the only editor.
 
-**Step 1 done 2026-09-15** (see its section). Step 2 waits for the owner's go.
+**Step 1 done 2026-09-15.** **Step 2 built 2026-09-15** on `build-order` (see
+its section): waiting on the owner's go to merge into `main`, then realshot on
+the live site and one real reset email. Step 3 waits for the owner's go.
 
 Owner actions already known: a strong password, then sign-ups off and a
-stronger password rule (step 1 — leaked-password protection is Pro plan only);
-add the `/studio/` redirect URLs (step 2); the free decisions under "Decide
-before the next route is drawn".
+stronger password rule (step 1, done); the `/studio/` redirect URLs (step 2,
+done by the owner 2026-09-15); the free decisions under "Decide before the
+next route is drawn".
 
-Found this session, not yet fixed:
+Found this session:
 
 - Writes were not locked to the owner — fixed by step 1, 2026-09-15.
-- `SignIn.tsx:51` sends reset links to the site root, which breaks recovery once
-  `/` is the visitor map — step 2.
-- `useSavedStops.ts` imports its colours from `useDrawing.ts`, the one place the
-  read side reaches into the editor — step 2.
+- `SignIn.tsx` sent reset links to the site root — fixed by step 2: they go to
+  `/studio/`.
+- `useSavedStops.ts` imported its colours from `useDrawing.ts` — fixed by step
+  2: `shared/colours.ts`.
 
 Prep before step 1, done 2026-09-14:
 
@@ -991,11 +1024,9 @@ chip click times out and the rest of the test never runs. Step 2 rewrites the
 test to read what exists first.
 
 **Local dev note.** On this machine Vite listens only on `[::1]:5173`, because
-`localhost` resolves to IPv6, while every `scripts/pw` test opens
-`http://127.0.0.1:5173/`. The baseline ran with
-`npm run dev -- --host 127.0.0.1`. Step 2's test rewrite should open
-`localhost`, or `vite.config.ts` should set `server.host` — keeping
-`localhost` itself working, because Supabase's redirect allow-list names it.
+`localhost` resolves to IPv6. *Resolved in step 2:* every test now opens
+`localhost` (override with `PARAPO_BASE`), and all five pass against a plain
+`npm run dev`.
 
 ## Known risks (reviewed 2026-09-12, after M6)
 
@@ -1008,11 +1039,9 @@ and migration 0005.
 
 Soon — as data grows:
 
-1. **`scripts/pw/*` tests are tied to today's data.** `visitor-test` expects
-   "1 route · 2 hotspots" and a card naming Tala → to SM Fairview; the drawing
-   tests click at the centre of a view fitted to the saved routes, which moves
-   as routes are added (and may land on water, where OSRM cannot snap).
-   *Fix:* query what exists, then assert on that. ~1 hour.
+1. ~~**`scripts/pw/*` tests are tied to today's data.**~~ *Fixed 2026-09-15 in
+   step 2:* the tests read what the map holds before asserting, and the
+   drawing tests move onto a saved route before clicking.
 2. **Terminal `stop_sequence` drifts.** It is a vertex index; re-snapping a
    route renumbers vertices. Hintuan links are recomputed on route save,
    terminal links are not.

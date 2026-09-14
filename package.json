@@ -4,8 +4,8 @@
   "description": "Ground-truthed jeepney route data for Metro Manila",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "check": "node scripts/check-boundaries.mjs && npm run build && node scripts/check-build.mjs",
+    "build": "node scripts/check-boundaries.mjs && tsc --noEmit && vite build && node scripts/check-build.mjs",
+    "check": "npm run build",
     "preview": "vite preview"
   },
   "repository": {

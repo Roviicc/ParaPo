@@ -1,6 +1,22 @@
+// Route and hotspot drawing gestures in the studio editor.
+//
+//   npm run dev                                (in another terminal)
+//   node scripts/pw/regression-gestures.mjs
+//
+// Opens /studio/?e2e=1, which in development skips the sign-in door so
+// drawing can be exercised while signed out (Done still asks to sign in
+// before saving). Before each drawing section the map is jumped to a
+// street-level view centred on the middle vertex of an existing saved route,
+// or a fixed Metro Manila point when the database has none, so the clicks
+// below land on routable roads and on land no matter what is saved today.
+// Point counts asserted throughout come from this script's own clicks, not
+// from saved data.
 import { chromium } from 'playwright'
+
+const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
 const results = []
 const check = (name, ok, detail = '') => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  [' + detail + ']' : ''}`) }
+const skip = (name, reason) => console.log(`SKIP  ${name}${reason ? '  [' + reason + ']' : ''}`)
 const b = await chromium.launch(); const page = await b.newPage({ viewport: { width: 1280, height: 800 } })
 let routerCalls = 0
 // PARAPO_NODE_FETCH=1: serve every https request through Node fetch. Needed only
@@ -18,10 +34,24 @@ const idle = async () => page.waitForFunction(() => !document.body.innerText.inc
 const box0 = { x: 0, y: 0 }
 const renderedAt = async (px, layer='draw-point-dots') => page.waitForFunction(([x, y, l]) => window.__map.queryRenderedFeatures([x, y], { layers: [l] }).length > 0, [px[0], px[1], layer], { timeout: 5000 }).then(() => true).catch(() => false)
 
-await page.goto((process.env.PARAPO_URL ?? 'http://127.0.0.1:5173/'), { waitUntil: 'load' })
+// Known risk: clicks used to land at the centre of a view fitted to whatever
+// routes happen to be saved, which drifts as routes are added and can fall on
+// water or a block the public OSRM router can't snap to. Recentre on real
+// ground before drawing instead.
+const CUBAO = [121.0527, 14.6187] // Metro Manila land fallback, used when there are no saved routes yet
+const centerOnLand = async () => {
+  await page.waitForFunction(async () => ((await window.__src('saved-routes'))?.features?.length ?? 0) > 0, null, { timeout: 6000 }).catch(() => {})
+  const feats = await page.evaluate(async () => (await window.__src('saved-routes'))?.features ?? [])
+  const coords = feats[0]?.geometry?.coordinates
+  const center = coords && coords.length > 0 ? coords[Math.floor(coords.length / 2)] : CUBAO
+  await page.evaluate(c => window.__map.jumpTo({ center: c, zoom: 15 }), center)
+  await page.waitForTimeout(300)
+}
+
+await page.goto(`${BASE}/studio/?e2e=1`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
-await page.waitForFunction(async () => ((await window.__src('saved-routes'))?.features?.length ?? 0) > 0, null, { timeout: 20000 })
 await page.waitForTimeout(800)
+await centerOnLand()
 const box = await page.locator('canvas.maplibregl-canvas').boundingBox(); box0.x = box.x; box0.y = box.y
 const click = (x, y, o) => page.mouse.click(box0.x + x, box0.y + y, o)
 
@@ -45,8 +75,21 @@ let c2 = await cp()
 check('dragging a point moves it (not the map)', Math.abs(c2[1][1] - c[1][1]) > 1e-4 && c2[0][0] === c[0][0], `dy=${(c2[1][1]-c[1][1]).toFixed(5)}`)
 check('dragging keeps the point count', await pts() === 4)
 // shift-click segment 0 midpoint to straighten
-s = await segs(); const seg0 = s.find(f => f.properties.index === 0).geometry.coordinates; const mid = seg0[Math.floor(seg0.length/2)]
-let pm = await proj(mid)
+s = await segs(); const seg0 = s.find(f => f.properties.index === 0).geometry.coordinates
+// A routed segment's own vertices can run close to a neighbour's route near
+// their shared, just-dragged point (how close depends on the real streets
+// under today's fallback centre), so the invisible 22px hit corridor can
+// overlap two segments at once. Probe outward from the array midpoint for a
+// vertex map.queryRenderedFeatures actually attributes to gap 0, instead of
+// assuming the midpoint vertex always does.
+const order = [...seg0.keys()].filter(i => i > 0 && i < seg0.length - 1)
+  .sort((a, b) => Math.abs(a - seg0.length / 2) - Math.abs(b - seg0.length / 2))
+let mid = seg0[Math.floor(seg0.length / 2)], pm = await proj(mid)
+for (const i of order) {
+  const cand = seg0[i]; const candPx = await proj(cand)
+  const gap = await page.evaluate(([x, y]) => window.__map.queryRenderedFeatures([x, y], { layers: ['draw-line-hit'] })[0]?.properties?.index, candPx)
+  if (gap === 0) { mid = cand; pm = candPx; break }
+}
 // This headless Chromium drops the Shift modifier on synthesized mouse input
 // (verified: map.on('click') saw shiftKey=false), so shift-click is dispatched
 // as DOM events directly, which is what a real browser hands MapLibre.
@@ -76,6 +119,10 @@ await page.reload({ waitUntil: 'load' }); await page.waitForFunction(() => windo
 check('reloading the page restores the route draft', await pts() === 3 && await page.getByRole('button', { name: /Done/ }).count() === 1)
 await page.getByRole('button', { name: '✕' }).click(); await page.waitForTimeout(200)
 check('cancel returns to idle', await page.getByRole('button', { name: '+ New Route' }).count() === 1)
+
+// The reload above re-fit the map to saved routes (or a default view), so
+// recentre before the next drawing section too.
+await centerOnLand()
 
 console.log('== Hotspot gestures')
 const before = routerCalls

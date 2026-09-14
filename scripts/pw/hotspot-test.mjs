@@ -1,7 +1,22 @@
+// The studio's hotspot & route drawing tools, in a development build.
+//
+//   npm run dev                          (in another terminal)
+//   node scripts/pw/hotspot-test.mjs
+//
+// Opens /studio/?e2e=1 (the development-only sign-in bypass) and traces a
+// Hintuan hotspot (4 corners -> polygon + edges + points), undoes back down
+// to 2 corners, checks the draft survives a reload, then traces a 2-point
+// route and checks it snaps to roads via the public OSRM router. To stay
+// independent of whatever is saved today, the map is recentred on the middle
+// vertex of an existing saved route (or a fixed Metro Manila fallback when
+// there are none) before drawing, so clicks land on real streets instead of
+// wherever the saved-routes bounding box happens to fit right now.
 import { chromium } from 'playwright'
 
+const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
 const results = []
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  ' + detail : ''}`) }
+const skip = (name, reason) => { console.log(`SKIP  ${name}  ${reason}`) }
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
@@ -34,15 +49,38 @@ await page.addInitScript(() => {
   // MapLibre 6: GeoJSONSource data is behind an async getter.
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
 })
-await page.goto((process.env.PARAPO_URL ?? 'http://127.0.0.1:5173/'), { waitUntil: 'load' })
+await page.goto(`${BASE}/studio/?e2e=1`, { waitUntil: 'load' })
 // wait for the map to exist and be loaded
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
 check('map loaded', true)
 
-// saved routes fetched (public read) — proves Supabase config is live
-await page.waitForFunction(async () => ((await window.__src('saved-routes'))?.features?.length ?? 0) > 0, null, { timeout: 20000 }).catch(() => {})
-const savedCount = await page.evaluate(async () => (await window.__src('saved-routes'))?.features?.length ?? 0)
-check('saved routes loaded from Supabase', savedCount > 0, `${savedCount} direction(s)`)
+// saved routes fetched (public read) — proves Supabase config is live.
+// The page normally has them in about a second; give a slow network up to
+// 20s before calling it a failure, and say plainly when that's what happened.
+let savedRoutesTimedOut = false
+await page.waitForFunction(async () => ((await window.__src('saved-routes'))?.features?.length ?? 0) > 0, null, { timeout: 20000 }).catch(() => { savedRoutesTimedOut = true })
+const savedRoutes = await page.evaluate(async () => (await window.__src('saved-routes'))?.features ?? [])
+const savedCount = savedRoutes.length
+if (savedCount > 0) {
+  check('saved routes loaded from Supabase', true, `${savedCount} direction(s)`)
+} else if (savedRoutesTimedOut) {
+  check('saved routes loaded from Supabase', false, 'timed out after 20s waiting for saved-routes to load (normally ~1s)')
+} else {
+  skip('saved routes loaded from Supabase', 'no saved routes in the database yet')
+}
+
+// Known risk: the map's opening view fits the saved-routes bounds, which
+// drifts as routes are added and can leave the centre over water or inside a
+// block, where the public OSRM router can't snap. Recentre on solid ground
+// before drawing: the middle vertex of an existing saved route, or a fixed
+// Metro Manila fallback (Cubao) when the database has none yet. Do this both
+// now and again after the reload below, since a reload resets the camera.
+const FALLBACK_CENTER = [121.0527, 14.6187] // Cubao, Metro Manila
+const savedLine = savedRoutes.find(f => f.geometry?.type === 'LineString' && (f.geometry.coordinates?.length ?? 0) > 0)
+const center = savedLine ? savedLine.geometry.coordinates[Math.floor(savedLine.geometry.coordinates.length / 2)] : FALLBACK_CENTER
+const recentre = () => page.evaluate(([lng, lat]) => window.__map.jumpTo({ center: [lng, lat], zoom: 15 }), center)
+await recentre()
+await page.waitForTimeout(300)
 
 // ---- Hotspot: open menu, choose Hintuan
 await page.getByRole('button', { name: '+ New hotspot' }).click()
@@ -98,6 +136,7 @@ check('Done disabled below 3 corners', !(await page.getByRole('button', { name: 
 await page.mouse.click(cx + 80, cy + 60); await page.waitForTimeout(200)
 await page.reload({ waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
+await recentre()
 await page.waitForTimeout(500)
 const afterReload = await page.evaluate(async () => ({
   toolbarHintuan: !!document.body.innerText.match(/Hintuan ·/),

@@ -1,16 +1,36 @@
 # Headless checks (Playwright)
 
-Drive the dev server in headless Chromium and assert routes and hotspots behave.
-Complements `scripts/uitest.mjs` (raw DevTools, Windows Chrome) with the M6 hotspot
-checks, and runs anywhere Playwright's Chromium does.
+Drive the dev server in headless Chromium and check that both pages behave: the
+public map at `/` and the editor at `/studio/`. Complements `scripts/uitest.mjs`
+(raw DevTools, Windows Chrome), and runs anywhere Playwright's Chromium does.
 
     npm i -D playwright && npx playwright install chromium   # once
     npm run dev                                              # in another terminal, on :5173
-    node scripts/pw/regression-gestures.mjs   # 27: route gestures (ported from uitest.mjs) + hotspot gestures
-    node scripts/pw/hotspot-test.mjs          # 21: hotspot tracing, draft reload, route regression
-    node scripts/pw/visitor-test.mjs          # 17: saved hotspots visible, tap cards, chips, click priority
-    node scripts/pw/gate-test.mjs             #  2: signed-out Done asks to sign in
+    node scripts/pw/gate-test.mjs             # 15: the studio's sign-in door, ?e2e=1, the reset-link forwarder
+    node scripts/pw/visitor-test.mjs          # 35 today: the public map — no editor, cards, chips, click priority
+    node scripts/pw/regression-gestures.mjs   # 27: route and hotspot gestures on /studio/?e2e=1
+    node scripts/pw/hotspot-test.mjs          # 21: hotspot tracing, draft reload, a routed segment on /studio/?e2e=1
+    node scripts/uitest.mjs                   # 24: route gestures through Windows Chrome's DevTools protocol
 
-Each prints PASS/FAIL lines and exits non-zero on any failure. Screenshots land
-in the current directory. `PARAPO_NODE_FETCH=1` routes the browser's https
-traffic through Node — only for sandboxes where the browser has no network.
+    npm run build                             # also checks import boundaries, and that no editor code reaches /
+
+The tests read what the database holds today and assert on that, so adding
+routes and hotspots does not break them. visitor-test's count grows with the
+data (five checks per hotspot); a check the data cannot support prints `SKIP`.
+The drawing tests first move the map onto a saved route, so their clicks land on
+streets the router can snap to.
+
+`/studio/?e2e=1` skips the sign-in door, in development builds only. Saving still
+needs an account, and the database refuses writes from anyone not on the editor
+list. Production builds drop the switch; `npm run build` fails if it survives.
+
+Each test prints PASS/FAIL (and SKIP) lines and exits non-zero on any failure.
+Screenshots land in the current directory.
+
+- `PARAPO_BASE` — the dev server's address. Default `http://localhost:5173`.
+- `PARAPO_NODE_FETCH=1` routes the browser's https traffic through Node — only
+  for sandboxes where the browser has no network.
+
+The drawing tests call the public OSRM router, a shared demo server that allows
+about one request a second. If routing checks fail while other tests are running,
+wait a minute and run one test at a time.
