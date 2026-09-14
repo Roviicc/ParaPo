@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from './supabase'
+import { getSupabase } from './supabase'
 
 type RecoveryUrl = { recovering: boolean; error: string | null }
 
@@ -24,6 +24,7 @@ export function usePasswordRecovery(): RecoveryUrl & { done: () => void } {
   const [state, setState] = useState<RecoveryUrl>(() => readRecoveryUrl())
 
   useEffect(() => {
+    const supabase = getSupabase()
     if (!supabase) return
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') setState({ recovering: true, error: null })

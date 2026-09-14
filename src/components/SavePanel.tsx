@@ -1,13 +1,8 @@
 import { useState } from 'react'
 import type { Drawing } from '../lib/useDrawing'
-import {
-  MODES,
-  saveVariant,
-  type RouteRow,
-  type TransportMode,
-  type VariantRow,
-} from '../lib/routes'
-import { syncHintuanLinks } from '../lib/stops'
+import { MODES, type RouteRow, type TransportMode, type VariantRow } from '../lib/routes'
+import { saveVariant } from '../lib/routesWrite'
+import { syncHintuanLinks } from '../lib/stopsWrite'
 
 type Props = {
   draw: Drawing

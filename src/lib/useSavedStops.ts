@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
+import { HOTSPOT_COLOUR } from './colours'
 import { listStopLinks, listStops, stopRing, type StopLink, type StopRow } from './stops'
-import { supabase } from './supabase'
-import { HOTSPOT_COLOUR } from './useDrawing'
+import { getSupabase } from './supabase'
 
 const SRC = 'saved-stops'
 const FILL = 'saved-stops-fill'
@@ -19,21 +19,24 @@ type IdFeature = { properties?: { id?: string } }
 /**
  * Every saved hotspot, drawn for everyone as a shaded outline in its kind's
  * colour, with its route links alongside so the tap card can list them.
+ *
+ * The editor passes `drawing` and `hiddenStopId`; the public map passes
+ * neither, and both default to off.
  */
 export function useSavedStops(
   map: MapLibreMap | null,
-  opts: { drawing: boolean; hiddenStopId: string | null },
+  opts: { drawing?: boolean; hiddenStopId?: string | null } = {},
 ) {
   const [stops, setStops] = useState<StopRow[]>([])
   const [links, setLinks] = useState<StopLink[]>([])
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const drawingRef = useRef(opts.drawing)
-  drawingRef.current = opts.drawing
+  const drawingRef = useRef(opts.drawing ?? false)
+  drawingRef.current = opts.drawing ?? false
 
   const reload = useCallback(async () => {
-    if (!supabase) return
+    if (!getSupabase()) return
     try {
       const [s, l] = await Promise.all([listStops(), listStopLinks()])
       setStops(s)

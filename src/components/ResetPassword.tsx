@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase, supabaseConfigError } from '../lib/supabase'
+import { getSupabase, supabaseConfigError } from '../lib/supabase'
 
 /**
  * Shown after the user lands from a password-reset link, once supabase-js has
@@ -20,6 +20,7 @@ export function ResetPassword({ onDone }: { onDone: () => void }) {
       return
     }
 
+    const supabase = getSupabase()
     if (!supabase) {
       setError(supabaseConfigError)
       return

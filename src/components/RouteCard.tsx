@@ -1,16 +1,19 @@
+import type { ReactNode } from 'react'
 import { lineLength } from '../lib/geo'
 import { MODES, variantLine, type VariantRow } from '../lib/routes'
 
 type Props = {
   variant: VariantRow
-  isOwner: boolean
-  onEdit: () => void
-  onDelete: () => void
+  /** Buttons along the bottom. The editor passes Edit and Delete; the public map passes nothing. */
+  actions?: ReactNode
   onClose: () => void
 }
 
-/** What a visitor sees when they tap a route. Owners also get edit and delete. */
-export function RouteCard({ variant, isOwner, onEdit, onDelete, onClose }: Props) {
+/**
+ * What anyone sees when they tap a route. The card does not know who is
+ * looking: whoever renders it decides which actions to offer.
+ */
+export function RouteCard({ variant, actions, onClose }: Props) {
   const r = variant.route
   const km = (lineLength(variantLine(variant)) / 1000).toFixed(1)
   const mode = MODES.find((m) => m.value === r?.mode)?.label ?? r?.mode ?? ''
@@ -70,24 +73,7 @@ export function RouteCard({ variant, isOwner, onEdit, onDelete, onClose }: Props
         </dd>
       </dl>
 
-      {isOwner && (
-        <div className="mt-4 flex gap-2">
-          <button
-            type="button"
-            onClick={onEdit}
-            className="flex-1 rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white"
-          >
-            Edit route
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="rounded-lg px-3 py-2 text-sm text-red-600 ring-1 ring-red-200 hover:bg-red-50"
-          >
-            Delete
-          </button>
-        </div>
-      )}
+      {actions && <div className="mt-4 flex gap-2">{actions}</div>}
     </div>
   )
 }

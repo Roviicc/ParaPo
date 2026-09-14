@@ -1,7 +1,10 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
+
+/** The project's address and publishable key, or null when the build has none. */
+export const supabaseConfig: { url: string; key: string } | null = url && key ? { url, key } : null
 
 /**
  * Set when the build had no Supabase config. The map still renders and
@@ -11,17 +14,38 @@ const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
  * minifier removes every module after an unconditional throw, and the result
  * is a white page with no explanation. Production shipped exactly that.
  */
-export const supabaseConfigError: string | null =
-  url && key
-    ? null
-    : 'Supabase is not configured — set VITE_SUPABASE_URL and ' +
-      'VITE_SUPABASE_PUBLISHABLE_KEY (.env.local for dev, .env.production for builds).'
+export const supabaseConfigError: string | null = supabaseConfig
+  ? null
+  : 'Supabase is not configured — set VITE_SUPABASE_URL and ' +
+    'VITE_SUPABASE_PUBLISHABLE_KEY (.env.local for dev, .env.production for builds).'
 
 /**
+ * The client this page talks to Supabase with. The entry point creates it and
+ * hands it over before the first render, because each page wants different
+ * auth settings: the editor keeps a session, the public map never signs anyone
+ * in. Everything else only reads it from here.
+ *
  * The publishable key is public by design — it ships in this bundle. RLS is
  * what protects the data: public read; writes only by accounts on the editor
  * list (migration 0005), and only to rows they own.
  */
-export const supabase: SupabaseClient | null = supabaseConfigError
-  ? null
-  : createClient(url, key)
+let client: SupabaseClient | null = null
+
+export function setSupabase(next: SupabaseClient): void {
+  client = next
+}
+
+/** This page's client, or null when the build has no Supabase config. */
+export function getSupabase(): SupabaseClient | null {
+  return client
+}
+
+/** This page's client, or a readable error for code that cannot go on without one. */
+export function requireSupabase(): SupabaseClient {
+  if (!client) {
+    throw new Error(
+      supabaseConfigError ?? 'No Supabase client: the entry point must call setSupabase() first',
+    )
+  }
+  return client
+}

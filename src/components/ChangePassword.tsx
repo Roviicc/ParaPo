@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase, supabaseConfigError } from '../lib/supabase'
+import { getSupabase, supabaseConfigError } from '../lib/supabase'
 
 /**
  * Change password for a signed-in user. No email involved.
@@ -29,6 +29,7 @@ export function ChangePassword({ email, onDone }: { email: string; onDone: () =>
       setError('The new password is the same as the current one.')
       return
     }
+    const supabase = getSupabase()
     if (!supabase) {
       setError(supabaseConfigError)
       return

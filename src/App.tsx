@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
+import { CardActions } from './components/CardActions'
 import { ChangePassword } from './components/ChangePassword'
 import { DrawToolbar } from './components/DrawToolbar'
 import { HotspotCard } from './components/HotspotCard'
@@ -9,9 +10,11 @@ import { ResetPassword } from './components/ResetPassword'
 import { RouteCard } from './components/RouteCard'
 import { SavePanel } from './components/SavePanel'
 import { SignIn } from './components/SignIn'
-import { deleteVariant, type VariantRow } from './lib/routes'
-import { deleteStop, stopRing, type StopRow } from './lib/stops'
-import { supabase, supabaseConfigError } from './lib/supabase'
+import type { VariantRow } from './lib/routes'
+import { deleteVariant } from './lib/routesWrite'
+import { stopRing, type StopRow } from './lib/stops'
+import { deleteStop } from './lib/stopsWrite'
+import { getSupabase, supabaseConfigError } from './lib/supabase'
 import { useDrawing } from './lib/useDrawing'
 import { usePasswordRecovery } from './lib/usePasswordRecovery'
 import { useSavedRoutes } from './lib/useSavedRoutes'
@@ -127,16 +130,23 @@ export default function App() {
       {!draw.drawing && saved.selected && (
         <RouteCard
           variant={saved.selected}
-          isOwner={userId !== null && userId === saved.selected.owner_id}
-          onEdit={() => {
-            const v = saved.selected
-            if (!v) return
-            saved.select(null)
-            draw.load(v)
-          }}
-          onDelete={() => {
-            if (saved.selected) void onDelete(saved.selected)
-          }}
+          actions={
+            userId !== null &&
+            userId === saved.selected.owner_id && (
+              <CardActions
+                editLabel="Edit route"
+                onEdit={() => {
+                  const v = saved.selected
+                  if (!v) return
+                  saved.select(null)
+                  draw.load(v)
+                }}
+                onDelete={() => {
+                  if (saved.selected) void onDelete(saved.selected)
+                }}
+              />
+            )
+          }
           onClose={() => saved.select(null)}
         />
       )}
@@ -145,20 +155,27 @@ export default function App() {
           stop={stops.selected}
           linkedVariantIds={stops.linkedVariantIds(stops.selected.id)}
           variants={saved.variants}
-          isOwner={userId !== null && userId === stops.selected.owner_id}
           onSelectVariant={(v) => {
             stops.select(null)
             saved.select(v.id)
           }}
-          onEdit={() => {
-            const s = stops.selected
-            if (!s) return
-            stops.select(null)
-            draw.loadArea(s.kind, s.id, stopRing(s))
-          }}
-          onDelete={() => {
-            if (stops.selected) void onDeleteStop(stops.selected)
-          }}
+          actions={
+            userId !== null &&
+            userId === stops.selected.owner_id && (
+              <CardActions
+                editLabel={stops.selected.kind === 'terminal' ? 'Edit terminal' : 'Edit hintuan'}
+                onEdit={() => {
+                  const s = stops.selected
+                  if (!s) return
+                  stops.select(null)
+                  draw.loadArea(s.kind, s.id, stopRing(s))
+                }}
+                onDelete={() => {
+                  if (stops.selected) void onDeleteStop(stops.selected)
+                }}
+              />
+            )
+          }
           onClose={() => stops.select(null)}
         />
       )}
@@ -188,7 +205,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                onClick={() => supabase?.auth.signOut()}
+                onClick={() => getSupabase()?.auth.signOut()}
                 className="font-medium text-neutral-900 underline underline-offset-2"
               >
                 Sign out

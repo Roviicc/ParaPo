@@ -7,6 +7,7 @@ import {
   type Segment,
   type SnapMode,
 } from './geo'
+import { HOTSPOT_COLOUR } from './colours'
 import { snapSegment, straightSegment } from './snap'
 import type { VariantRow } from './routes'
 
@@ -57,11 +58,6 @@ const POINT_LAYER = 'draw-point-dots'
 const HIT_LAYER = 'draw-line-hit'
 const AREA_FILL_LAYER = 'draw-area-fill'
 
-export const HOTSPOT_COLOUR: Record<HotspotKind, string> = {
-  // Plain blue is the saved-route colour; sky keeps "blue" without clashing.
-  terminal: '#0ea5e9',
-  hintuan: '#f97316',
-}
 const ROUTE_COLOUR = '#e11d48'
 
 /** The closing edge of an area is a feature in the line source with this index. */

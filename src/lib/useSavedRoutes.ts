@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { listVariants, variantLine, type VariantRow } from './routes'
-import { supabase } from './supabase'
+import { getSupabase } from './supabase'
 
 const SRC = 'saved-routes'
 const CASING = 'saved-routes-casing'
@@ -16,21 +16,24 @@ type IdFeature = { properties?: { id?: string } }
 /**
  * Every saved route direction, drawn for everyone. This is the public half of
  * ParaPo: no sign-in, no editor, just the map with what has been recorded.
+ *
+ * The editor passes `drawing` and `hiddenVariantId`; the public map passes
+ * neither, and both default to off.
  */
 export function useSavedRoutes(
   map: MapLibreMap | null,
-  opts: { drawing: boolean; hiddenVariantId: string | null },
+  opts: { drawing?: boolean; hiddenVariantId?: string | null } = {},
 ) {
   const [variants, setVariants] = useState<VariantRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const drawingRef = useRef(opts.drawing)
-  drawingRef.current = opts.drawing
+  const drawingRef = useRef(opts.drawing ?? false)
+  drawingRef.current = opts.drawing ?? false
 
   const reload = useCallback(async () => {
-    if (!supabase) return
+    if (!getSupabase()) return
     setLoading(true)
     try {
       setVariants(await listVariants())

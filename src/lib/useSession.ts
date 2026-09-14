@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabase } from './supabase'
+import { getSupabase } from './supabase'
 
 /** `undefined` while the initial session is still being restored. */
 export function useSession(): Session | null | undefined {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
 
   useEffect(() => {
+    const supabase = getSupabase()
     if (!supabase) {
       setSession(null)
       return

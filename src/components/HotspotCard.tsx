@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { VariantRow } from '../lib/routes'
 import type { StopRow } from '../lib/stops'
 
@@ -6,22 +7,22 @@ type Props = {
   /** Directions linked to this hotspot, in stop_sequence order. */
   linkedVariantIds: string[]
   variants: VariantRow[]
-  isOwner: boolean
   onSelectVariant: (v: VariantRow) => void
-  onEdit: () => void
-  onDelete: () => void
+  /** Buttons along the bottom. The editor passes Edit and Delete; the public map passes nothing. */
+  actions?: ReactNode
   onClose: () => void
 }
 
-/** What a visitor sees when they tap a hotspot. Owners also get edit and delete. */
+/**
+ * What anyone sees when they tap a hotspot. The card does not know who is
+ * looking: whoever renders it decides which actions to offer.
+ */
 export function HotspotCard({
   stop,
   linkedVariantIds,
   variants,
-  isOwner,
   onSelectVariant,
-  onEdit,
-  onDelete,
+  actions,
   onClose,
 }: Props) {
   const isTerminal = stop.kind === 'terminal'
@@ -97,24 +98,7 @@ export function HotspotCard({
         </ul>
       )}
 
-      {isOwner && (
-        <div className="mt-4 flex gap-2">
-          <button
-            type="button"
-            onClick={onEdit}
-            className="flex-1 rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white"
-          >
-            Edit {isTerminal ? 'terminal' : 'hintuan'}
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="rounded-lg px-3 py-2 text-sm text-red-600 ring-1 ring-red-200 hover:bg-red-50"
-          >
-            Delete
-          </button>
-        </div>
-      )}
+      {actions && <div className="mt-4 flex gap-2">{actions}</div>}
     </div>
   )
 }

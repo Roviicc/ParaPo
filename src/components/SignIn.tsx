@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase, supabaseConfigError } from '../lib/supabase'
+import { getSupabase, supabaseConfigError } from '../lib/supabase'
 
 type Mode = 'signin' | 'forgot'
 
@@ -27,6 +27,7 @@ export function SignIn({ onDismiss }: { onDismiss: () => void }) {
     setBusy(true)
     setError(null)
 
+    const supabase = getSupabase()
     if (!supabase) {
       setError(supabaseConfigError)
       setBusy(false)
