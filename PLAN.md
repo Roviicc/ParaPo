@@ -547,6 +547,23 @@ second run with no data change makes no commit; the live visitor map draws from
 the file; the visitor bundle contains no Supabase client; data per visit is
 measured and recorded here.
 
+**Built 2026-09-15** on `build-order`, with the owner's go. Nothing was needed
+from the owner first: the publishable key is already committed, a workflow can
+ask for write access itself, and Actions are on.
+
+| Part and check | Result |
+|---|---|
+| `scripts/publish-map.mjs` | Reads the public tables over Supabase's REST API with the publishable key from `.env.production` (or the environment), page by page (PostgREST answers 1,000 rows at a time), with a 30 s timeout and one retry: the columns the public map shows and nothing else — no owner ids, no control points, no segments. Douglas–Peucker at 4.2 m, then 5 decimals, and the script checks its own work: every original point within 5 m of the simplified line or it fails. Fixed key order, rows by id (so re-saving a direction unchanged does not reorder the file), and `published_at` is carried over when nothing else changed, so unchanged data gives a byte-identical file; a second run printed "Unchanged". It refuses to publish a collection that lost more than 30% of its rows since the last file, because a table that answers with no rows is a normal HTTP 200 and a policy slip would otherwise blank the live map; `--force` is for a deliberate clear-out. Measured: Bagong Silang 5 675 → 110 points (within 4.5 m), Tala 656 → 109 (within 4.2 m); the whole map 7,831 bytes, 2,199 gzipped. (The plan's "655 → 99" was measured with a different tolerance.) |
+| `.github/workflows/publish-map.yml` | Daily at 20:00 UTC (04:00 Manila) and on "Run workflow"; `permissions: contents: write` raises the token above the repo's read-only default; one at a time; always from and to `main`. `git add` then `git diff --cached`, because plain `git diff` cannot see a file git does not track yet and would say "unchanged" forever. Commits as github-actions[bot] with the date and time, rebases once behind anything the owner pushed meanwhile, and the push deploys as any other. A push made with the workflow's token starts no other GitHub Actions workflow, so a CI workflow added later would skip these commits; the file says so |
+| The visitor app | `src/shared/mapFile.ts` fetches `/data/map.json` once per page (`cache: 'no-cache'`, so a cheap 304 when unchanged; Cloudflare already serves unhashed files as must-revalidate) and both hooks share it; `useSavedStops` now takes a `load` function like `useSavedRoutes`. `commuter/main.tsx` creates no Supabase client. A load failure shows "The routes could not be loaded. Check your connection and try again." with a Try again button. The live-table readers moved to `src/studio/live.ts`: first to `shared/live.ts`, because `routes.ts` and `stops.ts` importing `supabase.ts` put the database's address in a chunk both pages share (`check-build` caught that on the first build), then into `studio/` on the reviewer's point that the import-boundary check is the strongest guarantee and only applies there |
+| `check-build.mjs` | Two new checks with studio-side controls: no `@supabase/*` module in the public chunks, and no `.supabase.co` string |
+| Data per visit | Before: 18.2 kB gzipped from Supabase per visit at 2 directions, growing with each. After: one 2.2 kB gzipped file, or a 304 when unchanged, from Cloudflare, free. The shared JS chunk fell 1,390 → 1,179 kB (375 → 321 kB gzipped) with supabase-js gone; the public page's own chunk is 4.6 kB. The "Measured 2026-09-14" table below keeps the before figures |
+| The first file | Published from this machine and committed with this step, so the merged site works before the workflow's first run; the owner's "Run workflow" then finds it unchanged, which is the "no commit on no change" check on GitHub itself |
+| Suites | visitor-test gains two checks (no request to `*.supabase.co`; `/data/map.json` served exactly once): 37/37. phone-test 42/42, gate-test 15/15, regression-gestures 29/29, hotspot-test 22/22, snap-test 20/20, uitest 26/26, on the owner's dev server, after the review's fixes. Two lessons about running them: one visitor-test run alongside the studio suites saw the file fetched three times and a click land on nothing, because the dev server had reloaded its pages to re-optimise dependencies after an edit; and five suites started at once crash on launch on this machine. Run them two at a time at most, and not right after a code change |
+| Independent review, by a separate read-only agent | 17 findings and 9 small ones. Acted on: the workflow's change test could not see an uncommitted file and would have reported "unchanged" daily with a green tick (the file is committed with this step, and the test is `git add` + `git diff --cached`); an empty or truncated answer was publishable truth (the shrink guard, and paging past 1,000 rows); `live.ts` into `studio/`; a rebase before the push; a note that the token's push starts no other workflow; the deviation check's early break could abort a good publish on a route that doubles back (gone); a null route embed, a hung request (timeout and retry), `.env` quoting and trailing comments; rows by id; `published_at` validated on load; visitor-test counts responses that were served, not requests; visitor-facing error copy with a retry; the studio banner shows `stops.error` too; the dates and numbers in this plan. Left: `loading` is returned by `useSavedRoutes` and read by nobody |
+| Two things step 5 makes true | **Published data is permanent.** Every publish is a commit in a public repo: a hotspot note that should not have been written (a name, a phone number) stays in git history after it is deleted from the database. Write notes as if they were already public, because from the next publish they are. And **a quiet map disables its own schedule**: the workflow commits only on change, GitHub disables schedules after 60 days without commits, and with the schedule goes the daily database activity that keeps the Free project from pausing. GitHub emails first; one click re-enables, and the map keeps working from the file throughout |
+| The owner presses "Run workflow" once | *Pending, after the merge* |
+
 ### Step 6 — Installable PWA
 
 As **M15**, with the file from step 5 in place of database caching:
@@ -1048,6 +1065,11 @@ horizontal scroll, and a tap on the fitted view opened a chooser; the studio
 still shows its door. **Step 4 done.** The owner deferred the naming
 conventions ("Decide before the next route is drawn") until after step 6, with
 the note that they hold at 1–3 routes; ideas for standardising are wanted then.
+**Step 5 built 2026-09-15** on `build-order` (see its section): the map as a
+file, the daily workflow, the visitor page off the database. One independent
+review acted on. Waiting on the owner's go to merge into `main`, then the
+owner pressing "Run workflow" once (Actions → Publish map), which should find
+the map unchanged.
 
 **Storybook added 2026-09-15**, before step 3, on the owner's ask: Storybook
 10.6.0 (`@storybook/react-vite`, `@storybook/addon-docs`), telemetry off.

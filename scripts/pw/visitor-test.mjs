@@ -1,4 +1,7 @@
-// The public map at /, in whatever state the database happens to be in today.
+// The public map at /, on whatever the published file (public/data/map.json)
+// holds today. The dev server serves that file straight from the working
+// tree, committed or not — so a passing run here says nothing about whether
+// the file was committed; `git status` does.
 //
 //   npm run dev                          (in another terminal)
 //   node scripts/pw/visitor-test.mjs
@@ -11,9 +14,10 @@
 // today (e.g. a route line passing through a hotspot) SKIPs instead of
 // failing. Covers: the read-only public page carries none of the studio's
 // buttons or sign-in text, ships no draw-* (editor) layers, writes nothing
-// to localStorage, never calls the OSRM route snapper, and tapping a route
-// vs. a hotspot — including one hotspot with a route drawn through it —
-// opens the right card with the right content.
+// to localStorage, never calls the OSRM route snapper or the database (it
+// reads the published /data/map.json, once), and tapping a route vs. a
+// hotspot — including one hotspot with a route drawn through it — opens the
+// right card with the right content.
 import { chromium } from 'playwright'
 
 const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
@@ -82,7 +86,16 @@ const errors = []
 page.on('pageerror', (e) => errors.push(String(e)))
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 160)) })
 let osrmHit = false
-page.on('request', (req) => { if (/router\.project-osrm\.org/.test(req.url())) osrmHit = true })
+let supabaseHit = false
+const mapFileStatuses = []
+page.on('request', (req) => {
+  if (/router\.project-osrm\.org/.test(req.url())) osrmHit = true
+  if (/\.supabase\.co/.test(req.url())) supabaseHit = true
+})
+// Responses, not requests: a 404 is a request too, and would count as a load.
+page.on('response', (res) => {
+  if (/\/data\/map\.json/.test(res.url())) mapFileStatuses.push(res.status())
+})
 
 const closeCard = () => page.getByRole('button', { name: 'Close' }).first().click().catch(() => {})
 const cardKind = async () => {
@@ -241,6 +254,13 @@ if (!hit) {
 const lsCount = await page.evaluate(() => Object.keys(localStorage).length)
 check('localStorage stays empty', lsCount === 0, lsCount ? `${lsCount} key(s)` : '')
 check('no request to router.project-osrm.org', !osrmHit)
+// Since step 5 the public map is one published file; the database is never asked.
+check('no request to the database (*.supabase.co)', !supabaseHit)
+check(
+  'the map came from /data/map.json, fetched once and served',
+  mapFileStatuses.length === 1 && (mapFileStatuses[0] === 200 || mapFileStatuses[0] === 304),
+  `${mapFileStatuses.length} response(s): ${mapFileStatuses.join(', ') || 'none'}`,
+)
 check('no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
 
 await b.close()

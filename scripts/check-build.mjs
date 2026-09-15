@@ -12,14 +12,20 @@
 //      router.project-osrm.org   the route snapper
 //      parapo.draft              the drawing-draft key
 //      Sign in to save, Forgot password?, + New Route, Draw the return trip
-//    Not `signInWithPassword`: supabase-js itself defines that method, so any
-//    page that talks to Supabase carries the word whether or not it signs
-//    anyone in.
+//      .supabase.co              the database's address: visitors read the
+//                                published file and never call it
+//
+// 3. No Supabase client: since step 5 the public page reads /data/map.json, so
+//    no module from @supabase may reach it — 54 kB gzipped a visitor does not
+//    download (the shared chunk went 375 → 321 kB), and a database the public
+//    never touches. The live-table readers live in src/studio/live.ts, which
+//    check-boundaries.mjs keeps out of commuter/ by construction; these two
+//    checks are the backstop.
 //
 // Each check has a positive control on the studio side — its chunks must hold
-// studio modules and every marker — or the search itself is broken and a pass
-// would mean nothing. Finally, no built file may mention the `e2e` test
-// switch, which exists only in development builds.
+// studio modules, every marker and the Supabase client — or the search itself
+// is broken and a pass would mean nothing. Finally, no built file may mention
+// the `e2e` test switch, which exists only in development builds.
 //
 //   npm run build        (runs this at the end)
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
@@ -38,6 +44,7 @@ const EDITOR_ONLY = [
   'Forgot password?',
   '+ New Route',
   'Draw the return trip',
+  '.supabase.co',
 ]
 
 let failed = 0
@@ -100,6 +107,24 @@ check(
 check(
   'studio chunks hold src/studio/ modules — the module search works',
   studioModules.some((m) => m.startsWith('src/studio/')),
+)
+
+/** Package modules (under node_modules/) inside the given chunks. */
+function packageModules(files) {
+  const out = new Set()
+  for (const file of files) {
+    for (const id of modules[file] ?? []) {
+      const m = /\/node_modules\/((?:@[^/]+\/)?[^/]+)/.exec(id)
+      if (m) out.add(m[1])
+    }
+  }
+  return [...out].sort()
+}
+const supabaseInCommuter = packageModules(commuterFiles).filter((p) => p.startsWith('@supabase/'))
+check('public page carries no Supabase client', supabaseInCommuter.length === 0, supabaseInCommuter.join(', '))
+check(
+  'studio chunks carry the Supabase client — the package search works',
+  packageModules(studioFiles).some((p) => p.startsWith('@supabase/')),
 )
 
 // ------------------------------------------------------------------ strings

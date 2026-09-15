@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { Chooser } from '../shared/Chooser'
 import { HotspotCard } from '../shared/HotspotCard'
+import { loadStopsFromFile, loadVariantsFromFile } from '../shared/mapFile'
 import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
-import { listVariantSummaries, variantLine, type VariantSummary } from '../shared/routes'
-import { supabaseConfigError } from '../shared/supabase'
+import { variantLine, type VariantSummary } from '../shared/routes'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
 import { useSavedStops } from '../shared/useSavedStops'
 
@@ -13,19 +13,19 @@ import { useSavedStops } from '../shared/useSavedStops'
 const SHARE_KEY = 'r'
 
 /**
- * The public map at /. Everything drawn so far and a card for whatever is
- * tapped — nothing else. No sign-in, no drawing, and no editor code in this
- * page's bundle (scripts/check-build.mjs proves it).
+ * The public map at /. Everything published so far and a card for whatever is
+ * tapped — nothing else. No sign-in, no drawing, no database: the map comes
+ * from one published file, and this page's bundle carries neither editor code
+ * nor a Supabase client (scripts/check-build.mjs proves both).
  *
  * On a phone the tap is the whole interface: the cards are bottom sheets, a
  * tap near a line counts, and a tap where routes share a road offers a choice.
  */
 export default function CommuterApp() {
   const [map, setMap] = useState<MapLibreMap | null>(null)
-  // Only the columns the map draws and the cards show: no control points or
-  // segments, which roughly halves what a visit downloads.
-  const saved = useSavedRoutes(map, listVariantSummaries)
-  const stops = useSavedStops(map)
+  // One file, fetched once, shared by both hooks.
+  const saved = useSavedRoutes(map, loadVariantsFromFile)
+  const stops = useSavedStops(map, loadStopsFromFile)
 
   useShareLink(map, saved)
 
@@ -47,14 +47,24 @@ export default function CommuterApp() {
         sits below the attribution, which moved to the top right there and must
         stay visible.
       */}
-      {(supabaseConfigError || saved.error) && (
+      {(saved.error || stops.error) && (
         <div
-          className="absolute left-1/2 top-[calc(3.5rem+env(safe-area-inset-top))] z-20
-                     max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-lg bg-amber-50 px-4 py-2 text-xs
-                     text-amber-900 shadow ring-1 ring-amber-200 @wide:top-[calc(1rem+env(safe-area-inset-top))]
-                     @wide:max-w-xl"
+          className="absolute left-1/2 top-[calc(3.5rem+env(safe-area-inset-top))] z-20 flex
+                     max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-3 rounded-lg bg-amber-50
+                     px-4 py-2 text-xs text-amber-900 shadow ring-1 ring-amber-200
+                     @wide:top-[calc(1rem+env(safe-area-inset-top))] @wide:max-w-xl"
         >
-          {supabaseConfigError ?? `Couldn't load saved routes: ${saved.error}`}
+          <span>The routes could not be loaded. Check your connection and try again.</span>
+          <button
+            type="button"
+            onClick={() => {
+              void saved.reload()
+              void stops.reload()
+            }}
+            className="rounded-full bg-amber-900 px-3 py-1 text-xs font-medium text-white"
+          >
+            Try again
+          </button>
         </div>
       )}
 

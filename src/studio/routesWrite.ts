@@ -1,11 +1,7 @@
 import type { LngLat, Segment } from '../shared/geo'
 import { joinSegments } from '../shared/geo'
-import {
-  VARIANT_SELECT,
-  type LineStringGeoJSON,
-  type TransportMode,
-  type VariantRow,
-} from '../shared/routes'
+import { VARIANT_SELECT } from './live'
+import type { LineStringGeoJSON, TransportMode, VariantRow } from '../shared/routes'
 import { requireSupabase } from '../shared/supabase'
 
 /** What the save panel collects. Route fields are ignored when routeId is set. */

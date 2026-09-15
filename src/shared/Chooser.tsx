@@ -1,12 +1,12 @@
 import type { VariantSummary } from './routes'
 import { Sheet } from './Sheet'
-import type { StopRow } from './stops'
+import type { StopSummary } from './stops'
 
 type Props = {
   routes?: VariantSummary[]
-  stops?: StopRow[]
+  stops?: StopSummary[]
   onRoute: (v: VariantSummary) => void
-  onStop: (s: StopRow) => void
+  onStop: (s: StopSummary) => void
   onClose: () => void
 }
 

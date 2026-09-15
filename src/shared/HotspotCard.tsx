@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
 import type { VariantSummary } from './routes'
 import { Sheet } from './Sheet'
-import type { StopRow } from './stops'
+import type { StopSummary } from './stops'
 
 type Props = {
-  stop: StopRow
+  stop: StopSummary
   /** Directions linked to this hotspot, in stop_sequence order. */
   linkedVariantIds: string[]
   variants: VariantSummary[]

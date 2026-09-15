@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { HOTSPOT_COLOUR } from './colours'
-import { listStopLinks, listStops, stopRing, type StopLink, type StopRow } from './stops'
-import { getSupabase } from './supabase'
+import { stopRing, type StopLink, type StopSummary } from './stops'
 import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, tapTargets } from './tap'
 
 const SRC = 'saved-stops'
@@ -22,14 +21,19 @@ const ROUTES_HIT = ROUTES_HIT_LAYER
  * Every saved hotspot, drawn for everyone as a shaded outline in its kind's
  * colour, with its route links alongside so the tap card can list them.
  *
- * The editor passes `drawing` and `hiddenStopId`; the public map passes
+ * `load` decides where the hotspots come from: the public map reads the
+ * published file, the editor the live tables. Pass a function defined once at
+ * module level, not a new one per render, or it reloads every render.
+ *
+ * The editor also passes `drawing` and `hiddenStopId`; the public map passes
  * neither, and both default to off.
  */
-export function useSavedStops(
+export function useSavedStops<S extends StopSummary>(
   map: MapLibreMap | null,
+  load: () => Promise<{ stops: S[]; links: StopLink[] }>,
   opts: { drawing?: boolean; hiddenStopId?: string | null } = {},
 ) {
-  const [stops, setStops] = useState<StopRow[]>([])
+  const [stops, setStops] = useState<S[]>([])
   const [links, setLinks] = useState<StopLink[]>([])
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -38,7 +42,7 @@ export function useSavedStops(
    * or both), for a chooser. Empty otherwise. The routes hook keeps the route
    * half of the same tap.
    */
-  const [candidates, setCandidates] = useState<StopRow[]>([])
+  const [candidates, setCandidates] = useState<S[]>([])
 
   /** Choosing one hotspot answers the question the chooser was asking. */
   const select = useCallback((id: string | null) => {
@@ -54,22 +58,21 @@ export function useSavedStops(
   }, [opts.drawing])
 
   // The click handler is bound once; this is how it reads today's hotspots.
-  const byId = useRef(new Map<string, StopRow>())
+  const byId = useRef(new Map<string, S>())
   useEffect(() => {
     byId.current = new Map(stops.map((s) => [s.id, s]))
   }, [stops])
 
   const reload = useCallback(async () => {
-    if (!getSupabase()) return
     try {
-      const [s, l] = await Promise.all([listStops(), listStopLinks()])
-      setStops(s)
-      setLinks(l)
+      const loaded = await load()
+      setStops(loaded.stops)
+      setLinks(loaded.links)
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     }
-  }, [])
+  }, [load])
 
   useEffect(() => {
     void reload()

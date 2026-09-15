@@ -7,7 +7,7 @@ public map at `/` and the editor at `/studio/`. Complements `scripts/uitest.mjs`
     npm i -D playwright && npx playwright install chromium   # once
     npm run dev                                              # in another terminal, on :5173
     node scripts/pw/gate-test.mjs             # 15: the studio's sign-in door, ?e2e=1, the reset-link forwarder
-    node scripts/pw/visitor-test.mjs          # 35 today: the public map — no editor, cards, chips, click priority
+    node scripts/pw/visitor-test.mjs          # 37 today: the public map — no editor, no database, cards, chips, click priority
     node scripts/pw/phone-test.mjs            # 43 (42 run, 1 SKIP today): / at 390×844 — the bottom sheet, the ±20 px tap, the chooser, ?r=
     node scripts/pw/regression-gestures.mjs   # 29: route and hotspot gestures on /studio/?e2e=1
     node scripts/pw/hotspot-test.mjs          # 22: hotspot tracing, draft reload, a routed segment on /studio/?e2e=1
@@ -16,7 +16,7 @@ public map at `/` and the editor at `/studio/`. Complements `scripts/uitest.mjs`
 
     npm run build                             # also checks import boundaries, and that no editor code reaches /
 
-The tests read what the database holds today and assert on that, so adding
+The tests read what the map holds today (the published file for `/`, the live tables for the studio) and assert on that, so adding
 routes and hotspots does not break them. visitor-test's count grows with the
 data (five checks per hotspot); a check the data cannot support prints `SKIP`.
 The drawing tests first move the map onto a saved route, so their clicks land on

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { variantLine, type VariantSummary } from './routes'
-import { getSupabase } from './supabase'
 import { ROUTES_HIT_LAYER, tapTargets } from './tap'
 
 const SRC = 'saved-routes'
@@ -19,9 +18,10 @@ const DRAW_ABOVE = 'draw-line-casing'
  * Every saved route direction, drawn for everyone. This is the public half of
  * ParaPo: no sign-in, no editor, just the map with what has been recorded.
  *
- * `load` decides how much of each direction to fetch: the public map asks for
- * summaries, the editor for full rows it can reopen. Pass a function defined
- * once at module level, not a new one per render, or it reloads every render.
+ * `load` decides where the directions come from: the public map reads the
+ * published file (summaries, simplified lines), the editor the live tables
+ * (full rows it can reopen). Pass a function defined once at module level,
+ * not a new one per render, or it reloads every render.
  *
  * The editor also passes `drawing` and `hiddenVariantId`; the public map
  * passes neither, and both default to off.
@@ -62,7 +62,6 @@ export function useSavedRoutes<T extends VariantSummary>(
   }, [variants])
 
   const reload = useCallback(async () => {
-    if (!getSupabase()) return
     setLoading(true)
     try {
       setVariants(await load())

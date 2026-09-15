@@ -1,0 +1,65 @@
+# Publishes the public map as a file, daily and on demand.
+#
+# Runs scripts/publish-map.mjs, which reads the public tables with the
+# publishable key committed in .env.production and writes public/data/map.json.
+# If the file changed, the change is committed to main and the push deploys
+# as any other: Cloudflare's GitHub App gets the push like any other. (A push
+# made with GITHUB_TOKEN starts no other GitHub Actions workflow, by design —
+# should this repo ever gain a CI workflow, it will not run on these commits.)
+# If nothing changed, nothing is committed: the script writes a byte-identical
+# file for unchanged data.
+#
+# The daily run also counts as database activity, so the Free project is not
+# paused for idleness. GitHub disables schedules in a public repo after 60 days
+# without commits; it emails first, and one click re-enables. A quiet map
+# makes no commits, so that email will come.
+name: Publish map
+
+on:
+  schedule:
+    # 04:00 in Manila (UTC+8), when nobody is editing.
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+
+# The default token is read-only; committing the file needs write.
+permissions:
+  contents: write
+
+# Never two publishes at once.
+concurrency:
+  group: publish-map
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      # Always main, whatever branch "Run workflow" was pressed on: the file
+      # is published from, and to, what is live.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The script has no dependencies, so there is no `npm ci`.
+      - name: Publish the map
+        run: node scripts/publish-map.mjs
+
+      # `git add` first: `git diff` alone cannot see a file git does not track
+      # yet, and would report "unchanged" for a brand-new one forever.
+      - name: Commit if the map changed
+        run: |
+          git add public/data/map.json
+          if git diff --cached --quiet; then
+            echo "The map is unchanged; nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Publish map $(date -u '+%Y-%m-%d %H:%M UTC')"
+          # The owner may have pushed while this ran; go once more behind it.
+          git pull --rebase origin main || { git rebase --abort; exit 1; }
+          git push origin HEAD:main

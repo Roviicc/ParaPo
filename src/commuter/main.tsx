@@ -1,10 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createClient } from '@supabase/supabase-js'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '../shared/index.css'
 import CommuterApp from './CommuterApp.tsx'
-import { setSupabase, supabaseConfig } from '../shared/supabase'
 
 /**
  * Where to send an auth result that arrived here, or null.
@@ -35,17 +33,9 @@ const forwardTo = studioAddressForAuthResult()
 if (forwardTo) {
   window.location.replace(forwardTo)
 } else {
-  // Visitors never sign in, so this client is a plain reader: it keeps no
-  // session in localStorage, runs no refresh timer, and never reads a token
-  // out of the address bar.
-  if (supabaseConfig) {
-    setSupabase(
-      createClient(supabaseConfig.url, supabaseConfig.key, {
-        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-      }),
-    )
-  }
-
+  // No Supabase client here: visitors read the published map file
+  // (src/shared/mapFile.ts) and never talk to the database. That keeps
+  // supabase-js out of this page's bundle, which scripts/check-build.mjs proves.
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <CommuterApp />

@@ -5,7 +5,8 @@ import { Chooser } from '../shared/Chooser'
 import { HotspotCard } from '../shared/HotspotCard'
 import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
-import { listVariants, type VariantRow } from '../shared/routes'
+import { listVariants, loadStopsFromSupabase } from './live'
+import type { VariantRow } from '../shared/routes'
 import { stopRing, type StopRow } from '../shared/stops'
 import { getSupabase, supabaseConfigError } from '../shared/supabase'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
@@ -90,7 +91,7 @@ function Workshop({
     drawing: draw.drawing,
     hiddenVariantId: draw.target.variantId,
   })
-  const stops = useSavedStops(map, {
+  const stops = useSavedStops(map, loadStopsFromSupabase, {
     drawing: draw.drawing,
     hiddenStopId: draw.area?.stopId ?? null,
   })
@@ -173,12 +174,12 @@ function Workshop({
       <MapView onReady={setMap} />
 
       {/* A config or load problem is a banner, never a blank page. */}
-      {(supabaseConfigError || saved.error) && (
+      {(supabaseConfigError || saved.error || stops.error) && (
         <div
           className="absolute left-1/2 top-4 z-20 max-w-xl -translate-x-1/2 rounded-lg bg-amber-50
                      px-4 py-2 text-xs text-amber-900 shadow ring-1 ring-amber-200"
         >
-          {supabaseConfigError ?? `Couldn't load saved routes: ${saved.error}`}
+          {supabaseConfigError ?? `Couldn't load saved routes: ${saved.error ?? stops.error}`}
         </div>
       )}
 
