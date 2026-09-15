@@ -563,7 +563,7 @@ ask for write access itself, and Actions are on.
 | Independent review, by a separate read-only agent | 17 findings and 9 small ones. Acted on: the workflow's change test could not see an uncommitted file and would have reported "unchanged" daily with a green tick (the file is committed with this step, and the test is `git add` + `git diff --cached`); an empty or truncated answer was publishable truth (the shrink guard, and paging past 1,000 rows); `live.ts` into `studio/`; a rebase before the push; a note that the token's push starts no other workflow; the deviation check's early break could abort a good publish on a route that doubles back (gone); a null route embed, a hung request (timeout and retry), `.env` quoting and trailing comments; rows by id; `published_at` validated on load; visitor-test counts responses that were served, not requests; visitor-facing error copy with a retry; the studio banner shows `stops.error` too; the dates and numbers in this plan. Left: `loading` is returned by `useSavedRoutes` and read by nobody |
 | Two things step 5 makes true | **Published data is permanent.** Every publish is a commit in a public repo: a hotspot note that should not have been written (a name, a phone number) stays in git history after it is deleted from the database. Write notes as if they were already public, because from the next publish they are. And **a quiet map disables its own schedule**: the workflow commits only on change, GitHub disables schedules after 60 days without commits, and with the schedule goes the daily database activity that keeps the Free project from pausing. GitHub emails first; one click re-enables, and the map keeps working from the file throughout |
 | Merged and deployed | 2026-09-15, `0583051`. The live page's asset names match a build of the committed tree; `/data/map.json` is served with `public, max-age=0, must-revalidate` and an ETag, as expected of an unhashed file; a visit makes one request for it (200) and none to `*.supabase.co` or the router; the pill reads "2 routes · 4 hotspots", a tap opens a card, the studio still shows its door |
-| The owner presses "Run workflow" once | *Pending* |
+| The owner presses "Run workflow" once | Done 2026-09-15: run 34953042104 on `0583051`, success in 16 s. Its log: "Unchanged public/data/map.json: 2 direction(s), 4 hotspot(s), 4 link(s); 7831 bytes, 2199 gzipped" then "The map is unchanged; nothing to commit." — GitHub's machine read the database with the publishable key, produced the same file, committed nothing. One warning: `actions/checkout@v4` and `setup-node@v4` target Node 20, which GitHub is retiring on its runners; both moved to `@v5` on `build-order`, to reach `main` with the next merge. **Step 5 done** |
 
 ### Step 6 — Installable PWA
 
@@ -1069,10 +1069,13 @@ the note that they hold at 1–3 routes; ideas for standardising are wanted then
 **Step 5 built 2026-09-15** on `build-order` (see its section): the map as a
 file, the daily workflow, the visitor page off the database. One independent
 review acted on. **Merged into `main` and deployed 2026-09-15** (`0583051`);
-the live map loads from the file and never calls the database. Waiting on the
-owner pressing "Run workflow" once (Actions → Publish map), which should find
-the map unchanged; then step 5 is done and step 6 (the PWA) is next, on the
-owner's go.
+the live map loads from the file and never calls the database. The owner ran
+the workflow once by hand: unchanged, nothing committed. **Step 5 done.**
+Next is step 6, the installable PWA, on the owner's go; it needs an icon (the
+logo in `public/branding/` is the likely source), a theme colour and the app's
+short name from the owner. The workflow's two actions were moved to `@v5` on
+`build-order` after a Node 20 deprecation warning; that reaches `main` with
+step 6's merge.
 
 **Storybook added 2026-09-15**, before step 3, on the owner's ask: Storybook
 10.6.0 (`@storybook/react-vite`, `@storybook/addon-docs`), telemetry off.

@@ -36,11 +36,11 @@ jobs:
     steps:
       # Always main, whatever branch "Run workflow" was pressed on: the file
       # is published from, and to, what is live.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: main
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
 
