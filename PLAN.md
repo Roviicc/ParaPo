@@ -429,8 +429,8 @@ headless checks pass against both pages.
 | 5 — tests retargeted | Four helper agents, one per test file, working in parallel; each file was reviewed before it was kept. Every test opens its new page and reads today's data before asserting, and the drawing tests first move the map onto a saved route so their clicks land on streets (known risk #1, fixed). With a plain `npm run dev` and no settings: gate-test 15/15, visitor-test 35/35 (five more per hotspot as data grows), hotspot-test 21/21, regression-gestures 27/27, uitest 24/24 |
 | Independent review, by a separate read-only agent | Nothing critical or high: no editor code reaches the public page. Acted on: the leak checks now run inside `npm run build`, so a leaking deploy fails; the build check now also proves by module that no `src/studio/` file reaches the public page, because the string markers came from only four editor files; the door guards the first entry only, so a session that ends mid-edit no longer throws away a half-filled save panel; the forwarder matches only `type=recovery`, `error_code` or `error_description`, and never on `/studio`; `public/.assetsignore` keeps `.vite/` off the live site. Noted, not changed: a direction with no stored `shape` would be missing from `/`, because summaries carry no segments. All 3 have one, and `saveVariant` always writes it |
 | The module check catches a leak | Probed on purpose: `src/studio/CardActions.tsx`, which contains none of the marker words, imported into the public page. `check-boundaries` failed on the import. With the build forced through anyway, `check-build`'s module check failed and named that file, while its string check alone still passed — the gap the review found. Restored and rebuilt: every check passes |
-| realshot on both live URLs, and the deploy | *Pending — needs the owner's go to merge into `main`* |
-| A real reset email, end to end, on the live site | *Pending — needs the deploy* |
+| realshot on both live URLs, and the deploy | Done 2026-09-15 on the owner's go: `main` fast-forwarded to `c53562a` and pushed; the live site served the new build about 50 s later, with the same asset hashes as the local build. `npm run check` passed first. `/`: "3 routes · 4 hotspots", no buttons, no `window.__map`. `/studio/`: the sign-in door only, no map canvas. `/.vite/manifest.json`, `/.vite/modules.json` and `/.assetsignore` return the page fallback, not the files |
+| A real reset email, end to end, on the live site | *Pending — the owner, now that it is deployed* |
 
 ### Step 3 — Snapping quality
 
@@ -972,9 +972,10 @@ State: a planning session on 2026-09-14 produced Phase 2 (M7–M15) and the
 3 routes, 3 directions, 4 hotspots — one route, "asd", is the owner's test from
 step 1; one account, the only editor.
 
-**Step 1 done 2026-09-15.** **Step 2 built 2026-09-15** on `build-order` (see
-its section): waiting on the owner's go to merge into `main`, then realshot on
-the live site and one real reset email. Step 3 waits for the owner's go.
+**Step 1 done 2026-09-15.** **Step 2 built, merged into `main` and deployed
+2026-09-15** (see its section); realshot on both live URLs passed. Left: one
+real reset email on the live site, by the owner. Step 3 waits for the owner's
+go.
 
 Owner actions already known: a strong password, then sign-ups off and a
 stronger password rule (step 1, done); the `/studio/` redirect URLs (step 2,
