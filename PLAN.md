@@ -653,6 +653,192 @@ Not planned. Recorded so that nothing above blocks it.
 
 ---
 
+## Ideas — dropped by the owner, 2026-09-15, after step 6
+
+A running list, in the order they came. Nothing here is decided or scheduled;
+each is written down so it is not lost, with a note on what it touches. They
+feed the next phase: the owner's editor use cases and edge cases, then the
+visitor interface planned together with the route cases and hotspot cases.
+
+The owner's framing: ideas 3–6 are not Tala's quirks but how jeepney routes
+work across the Philippines — directions that share road with different
+partners, shortcuts, descriptive signboards, informal stops held in common.
+Tala–Fairview is the worked example; the model has to hold for the rest. The
+ideas get unpacked together, one at a time, into cases before anything is built.
+
+**1. Use cases and edge cases for the editor, before the visitor interface.**
+The editor is where the complexity lives ("it's complex the way I see it");
+every hard case it absorbs is one the visitor never meets. Shape agreed for
+writing them: the situation on the ground · what the editor must let the owner
+say · what the visitor sees, in one sentence · what can go wrong. If the third
+line cannot be written simply, the case is not finished. Owner writes them in
+his own words; they get sorted into route, hotspot and interface cases, marked
+by whether today's tables hold them or M8's metres are needed first, and the
+visitor screens are sketched from them.
+
+**2. Show the direction that starts near the person.** Near SM Fairview the
+card says "SM Fairview to Tala"; near Tala, the other way. Touches two
+decisions: no location permission (step 4, APK checklist) and no tracking.
+Permission-free sources of "where they are", weakest to strongest: the centre
+of the map as panned; the tap itself; GPS behind a "Near me" button the person
+presses, never a prompt on open — its own decision, later. Whatever the source,
+the direction is a suggestion with a one-tap flip (⇄), because a person
+mid-route wants the direction of where they are *going*, which no location
+knows. Edge cases: both ends near (show both); a shared link `/?r=` names a
+direction on purpose and is never flipped; a loop (M9) has no other direction,
+only "which way round is shorter"; a short turn (M10) makes it a chooser, not a
+flip; "near" is metres along the road (M8), not straight-line — straight-line
+to the terminal is fine for a suggestion until then. Pushed one step this
+becomes journey planning ("I'm here, I want to go there, which jeep?"), which
+the plan holds back until the data is richer; this is its right first slice.
+
+**3. Puntahan and balikan are not mirrors.** Tala to Fairview and Tala to
+Novaliches go the same way out; Fairview to Tala and Novaliches to Tala come
+back by different roads. So the two directions of one route share road with
+*different* partners, and "the return trip" of a route is its own line, never
+the outbound reversed. Touches: the direction naming convention (a direction is
+the unit, not the route); corridor overlap (M12), which must be found per
+direction; the editor's "Draw the return trip" prompt, which is right to draw
+it separately.
+
+**4. Shortcuts.** On the same route some jeepneys take a shortcut and some do
+not. Touches: a sub-route that diverges with its own geometry (M10, the
+"genuinely diverges" case) or an annotation on the stretch — "some drivers cut
+through X" (M11); and confidence, since which drivers do it is a driver's-word
+fact. A visitor should see one route with a note, not two routes.
+
+**5. Signboards list the places along the way.** Every jeepney carries a
+descriptive signboard — the string of places it passes — and those places are
+the same thing as hotspots. Touches: the `signboard` field (today free text)
+could be generated from, or checked against, the hotspots the direction passes,
+in order; naming conventions (signboard casing was already on the list); the
+visitor card, where the signboard is the first thing shown.
+
+**6. Hotspots are the informal stops, and routes that share road share them.**
+Tala to Fairview, in the owner's words: Barracks, Malaria, Pangarap, Amparo,
+Dela Costa, Fatima, Lagro, "SM Terraccess" (SM Terraces?), SM Fairview Front,
+"SM Fairview side Landers", SM Fairview Main. Fairview to Tala meets all of them
+too. Fairview to Bigte uses part of Tala to Fairview's road, so its hotspots are
+the same hotspots — consistent across routes, not copied per route. This is how
+M6 already stores them: a hotspot is one shape on the map, linked to every
+direction that passes through it. What is still missing is the *order* along
+each direction, which M8's metres give, and a pass count for a direction that
+meets the same hotspot twice (M9). Note for the cases: "meets" is decided by
+the line crossing the shape, so a hotspot on the northbound side of a divided
+road is a convention to settle (side-of-road, already under "Decide before the
+next route is drawn").
+
+**7. What idea 3 means for the editor — branching.** Asked by the owner:
+"if I write Tala to SM Fairview, then I write SM Fairview to Tala again, so we
+are branching each route?" Yes: each direction is its own drawn line, which is
+already the model (route → directions → one line each; "Draw the return trip"
+draws, never mirrors). The open question is Tala to Novaliches, which shares
+the road out of Tala with Tala to SM Fairview. Two ways: **A**, two routes and
+four lines, the shared stretch drawn twice, M12 detecting the overlap and the
+hotspots on it shared by construction; **B**, one trunk with branches, drawn
+once but a tree editor with every case harder. Recommendation A until the data
+hurts; at 30 routes, if fixing one road in five lines is real pain, M12's
+overlap is enough to add a "reuse this stretch" tool without changing what
+visitors see. Short turns are not branches: M10's window. For the naming
+session: is "Tala – Novaliches" its own route (a terminal pair with its own
+signboard — my view) or a third direction under "Tala"?
+
+**8. The editor should show trunk and branches.** Even if lines are stored
+separately (idea 7, option A), the owner wants to *see* the sharing: Bagong
+Silang has "kanan" and "kaliwa" variants, and Bagong Silang is also the end of
+routes to Philcoa, Quiapo, T. Sora, Commonwealth and sometimes MRT (highway) —
+a hub with many lines fanning out over the same first kilometres. Touches: M12
+corridor overlap (the data behind the picture); the studio's map, which could
+dim every other line and thicken the shared stretch when one is selected;
+naming ("kanan"/"kaliwa" as direction or route names — for the conventions
+session). The picture can exist without a tree in the database.
+
+**9. Snap to lines already drawn.** When drawing a new direction — the return
+trip, or a route that shares road with an earlier one — the snapper should
+grab the earlier line, so the shared kilometres are not redrawn point by point.
+Today it snaps to OSRM's roads only. Touches: M7 (`snap.ts`); this is the
+"reuse this stretch" tool from idea 7 expressed as a magnet rather than a
+command, which is the better form. Two cautions: the return trip is a different
+road (idea 3), so the magnet must be a suggestion the owner can leave, never
+automatic; and a stretch copied from another line stays a separate line — the
+copy is a convenience at drawing time, not a shared trunk (idea 7, A).
+
+**10. Arrows moving along the line.** On the visitor map a line should show
+which way the jeep goes — an animated arrow flow along the direction. Touches:
+the map layers (a symbol layer with `symbol-placement: line` and an arrow
+icon, offset stepped each frame, or an animated dash), the editor too. Caution
+for phones: animate only the selected direction, and static arrows at intervals
+for the rest; MapLibre repaints the whole canvas per frame, so a permanent
+animation on every line costs battery.
+
+**11. Visitors confirm a route, without an account.** A one-tap "is this
+route right?" on the card, for analytics on how true the routes are. Touches
+two decisions: visitors are view-only with no contributions and no tracking
+(build order), and visitors never write to the database (step 5). It would be
+the first write from the public. Shape that keeps both mostly intact: one tap
+per direction, "Tama" / "Mali" (or "Sakay ko na 'to"), counted per direction
+per day, nothing personal stored — no account, no IP, at most a random
+per-device token in the phone's storage to dampen repeats; a Cloudflare Worker
+endpoint with Turnstile (free bot check) writing to D1 or KV, so the
+publishable database key never gains an insert right; counts shown to the
+owner in the studio, not to visitors at first. What it buys: a weak but real
+second signal next to `confidence` and M11's provenance — which directions to
+re-ride. What it cannot do: tell a rider's "yes" from a guess; resist a
+determined spammer beyond the bot check. Recommendation: worth doing, as its
+own late step after the hotspot lists exist (Phase 3 step 4), because a
+"wrong" tap is only useful when the card shows enough to be wrong *about*.
+Needs the owner to narrow the "no contributions" decision to "no free-text
+contributions".
+
+## Phase 3 — the plan from the ideas. Drafted 2026-09-15, awaiting the owner's go
+
+Consolidates ideas 1–10 and M8–M12 into one order. Same rules as the build
+order: **no step starts without the owner's go, one at a time**; each part ends
+in a check; a failed check stops the line.
+
+### The model, in four sentences
+
+1. **The direction is the unit.** "Tala to SM Fairview" and "SM Fairview to
+   Tala" are two lines, two signboards, two hotspot lists. A route is a name
+   over its directions.
+2. **Hotspots are the shared vocabulary.** One shape per place, linked to every
+   direction that crosses it; never copied per route.
+3. **The editor absorbs the complexity.** Every case is written for the editor
+   first; the visitor gets one sentence per case, or the case is not done.
+4. **Lines stay separate; sharing is a picture and a magnet, not a tree.**
+
+### The steps
+
+| # | Step | What it is | Needs | The owner does |
+|---|---|---|---|---|
+| 0 | Naming conventions | The decisions under "Decide before the next route is drawn", now with the ideas' questions added: a route is a terminal pair with its signboard (so "Tala – Novaliches" is its own route); how directions are named; "kanan"/"kaliwa"; hotspot names and spellings ("SM Terraces"?); side of road for a hintuan; the field method behind `confidence`; the mode list. I propose, the owner decides. A short migration if a decision needs a constraint | Nothing | Decide. Then draw again |
+| 1 | Cases | The owner's use cases and edge cases for the editor, in the four-line shape (situation · what the editor must let you say · what the visitor sees · what can go wrong). Sorted into route, hotspot and interface cases; each marked "today's tables" / "needs M8" / "needs a decision". The visitor screens sketched from them | Step 0 | Write them, rough is fine |
+| 2 | Snap to earlier lines (idea 9) | The magnet grabs a line already drawn before OSRM's roads, shown clearly, always leavable. Borrowed points are identical, which makes overlap exact later. *Check:* draw Tala to Novaliches borrowing the first kilometres of Tala to SM Fairview without placing a point on them; the return trip is not grabbed where it takes another road | Nothing; best done while routes are few | Draw the next route with it |
+| 3 | M8 — metres along the line | Every hotspot link gets `dist_m`; `allTouches` for a line that meets a shape twice; migration 0006. The foundation for order, short turns, loops and "near" | Step 0 (names settle before positions are stored) | — |
+| 4 | Hotspots in order, and the signboard (ideas 5, 6) | Each direction lists its hotspots in order of metres; the signboard is generated from that list, or checked against it, so it cannot drift. The visitor card shows the string of places. *Check:* Tala to SM Fairview reads Barracks … SM Fairview Main in order; Fairview to Tala reads it back; Fairview to Bigte shares the same hotspot shapes | Step 3 | Confirm the lists against the signboards |
+| 5 | Short turns and loops (M10, M9), as the cases demand | "Tala to Malaria only" as a window onto its parent, no drawing; a loop as one direction with pass numbers, and no "Draw the return trip" for it. Only the shapes the cases actually contain | Steps 1, 3 | Name the real short turns and loops |
+| 6 | The visitor: direction near the person, and arrows (ideas 2, 10) | The card suggests the direction whose start is nearer the map's centre or the tap, with a one-tap flip; a shared link is never flipped; no location permission — "Near me" is a later, separate decision. Static arrows along every line, flowing arrows on the selected one only. *Check:* on the real phone, at SM Fairview's end of the map the card offers "to Tala" first; battery and frame rate acceptable | Step 4 for a good "near"; arrows need nothing | Try it on the phone, both ends |
+| 7 | M12 overlap, then the trunk picture and shortcut notes (ideas 8, 4) | Corridor overlap found per direction and stored as spans; the studio shows the shared stretch thick and the rest faded when a line is selected — Bagong Silang's fan-out as the test; shortcuts recorded as an M11 annotation on the stretch with a confidence, not as geometry, until a screen needs the other road | Steps 2, 3 | Check the picture against what drivers say |
+| 8 | Visitors confirm a route (idea 11) | One tap, "Tama" / "Mali", per direction per day, nothing personal; a Worker endpoint with Turnstile writing to D1/KV; counts in the studio. *Check:* a tap from the phone counts once; a script without the bot token is refused; the database key still cannot insert | Step 4, and the owner narrowing "no contributions" to "no free-text contributions" | Decide; then tap a route you know |
+| — | Later, not planned | Journey planning ("I'm here, I want to go there"); a real trunk-and-branch structure, only if editing the same road in many lines becomes real pain at ~30 routes; GPS "Near me"; M5 export and tidy whenever convenient | | |
+
+Why this order: decisions before positions (0 before 3), because a stored
+metre is tied to a named direction; the magnet early (2), because it pays off
+on every route drawn after it and nothing depends on it; metres (3) before
+anything that lists, orders or windows; the visitor changes (6) after the data
+they read exists; the picture (7) last, because it is a view over everything
+before it.
+
+**Alongside, at any time, the owner:** draws routes once step 0 is settled;
+keeps banking ideas in the list above; takes the monthly backup (mid-October);
+designs in Figma — the visitor screens from step 1 and a design system. The
+code side is ready for it: the theme lives in `src/shared/index.css`
+(`@theme`, Tailwind v4 tokens), Storybook is the catalogue of the components
+as built, and a Figma file can be read directly here (frames, variables) to
+turn a design into code or check code against it.
+
+---
+
 ## Phase 2 — the linear reference, and two front doors
 
 Planned 2026-09-14 against the code as it stands. M0–M4 and M6 are built; M5 is
