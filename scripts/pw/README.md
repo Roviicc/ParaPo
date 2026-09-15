@@ -8,6 +8,7 @@ public map at `/` and the editor at `/studio/`. Complements `scripts/uitest.mjs`
     npm run dev                                              # in another terminal, on :5173
     node scripts/pw/gate-test.mjs             # 15: the studio's sign-in door, ?e2e=1, the reset-link forwarder
     node scripts/pw/visitor-test.mjs          # 35 today: the public map — no editor, cards, chips, click priority
+    node scripts/pw/phone-test.mjs            # 43 (42 run, 1 SKIP today): / at 390×844 — the bottom sheet, the ±20 px tap, the chooser, ?r=
     node scripts/pw/regression-gestures.mjs   # 29: route and hotspot gestures on /studio/?e2e=1
     node scripts/pw/hotspot-test.mjs          # 22: hotspot tracing, draft reload, a routed segment on /studio/?e2e=1
     node scripts/pw/snap-test.mjs             # 20: far clicks go freehand, U-turns at joins shown not changed, street names

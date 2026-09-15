@@ -487,6 +487,27 @@ out, until it is restarted.
 
 As **M14**, unchanged.
 
+**Built 2026-09-15** on `build-order`, with the owner's go and the test route
+"asd" deleted first (it lay on top of Tala, so every tap there would have
+offered a chooser with a route called "asd" in it).
+
+| Part and check | Result |
+|---|---|
+| A forgiving tap | `src/shared/tap.ts`: the map is asked what lies in a box around the tap, ±20 px for a finger, ±5 px for a mouse, read off the tap's own `pointerType` so a touched laptop screen counts as a finger and a phone's mouse as a mouse. A route drawn right under the tapped pixel wins outright, as it always has; otherwise everything in the box is offered |
+| Several hits open a chooser | Two or more things in the box, routes, hotspots or both, select nothing and hand the app `candidates` from each hook; `Chooser` lists them under "2 routes here" or "1 route · 1 hotspot here" with signboard and direction, in a sheet. A terminal with its own route running through it is the normal case, and this is how it stays tappable. Both pages render it, the studio too, because its ±5 px box can still land on a shared road |
+| The chosen route stands out | Drawn again on top in `saved-routes-selected(-casing)`, thick, while the others dim to 0.35 (casing 0.5). The old width switch is gone. The editor's hidden copy stays hidden across all five layers |
+| Cards become a bottom sheet | `src/shared/Sheet.tsx` wraps RouteCard, HotspotCard and Chooser. Under a 40 rem container width it is a bottom sheet: peek (signboard and direction; name and kind), a handle to tap or drag, open shows the rest, pulled down at peek it closes. At 40 rem and up it is the floating card exactly as before. A container query, not a viewport one, so Storybook's phone frames show it |
+| Chrome | No zoom buttons on a coarse pointer (pinch does it); attribution moves to the top right there so an open sheet never covers it; MapLibre's corners and the pill sit inside the safe areas; `viewport-fit=cover` on both pages |
+| Share a route | `/?r=<direction id>`: opening it selects the direction and fits the view to it; selecting writes `?r=` to the address bar, closing clears it, a link to a deleted direction is cleared too. A Share button uses the phone's share sheet, else copies the link, else (a plain-http address, such as a build served on the home network, where browsers allow neither) shows the link to copy by hand: the owner's first phone try found the button doing nothing there |
+| No "where am I" dot | Not built, as decided: it needs the location permission, and deserves its own decision |
+| Found by the phone test | After tapping the handle to collapse the sheet, the browser's follow-up `click` landed on the map where the sheet had been, the map read it as a tap on nothing, and the card vanished. `Sheet` now swallows that one click (capture phase on the document, forgotten after 500 ms if none comes). A real finger would have done the same |
+| `scripts/pw/phone-test.mjs` | New, 43 checks at 390×844 with touch emulation, positions computed from the map's own data: chrome, the ±20 px tap with a negative control 40 px out, the sheet's tap and drag gestures and a ✕ pressed right after a handle tap, the chooser on the road Tala and Bagong Silang 5 share, a tap inside the hintuan "Phase 1" beside its route ("1 route · 1 hotspot here", then its card), a tap 15 px outside a hotspot, the share link and its copy button, a desktop control (±5 px, buttons back), housekeeping. Today 42 pass and 1 SKIP for a shape the data lacks (two overlapping hotspots). Its "N px beside the line" steps measure the true pixel distance to the whole line and step to the far side, because at a bend the route's next stretch can lie 10 px off one side; the hotspot steps run at zoom 18, where a person tapping a terminal would be |
+| The other suites | visitor-test's card selector is `[data-testid="card"]` now that the card is not always 20 rem wide. After the review's fixes: gate-test 15/15, visitor-test 35/35, regression-gestures 29/29, hotspot-test 22/22, snap-test 20/20, uitest 26/26; `npm run check` passes |
+| Stories | `Chooser.stories.tsx` (two routes, three, two hotspots) and a `Phone` story on RouteCard, HotspotCard and Chooser, in a 390 px container. `npm run build-storybook` passes and the phone stories were screenshotted |
+| Visitors' download | The public page's own chunk is 3.65 kB; the shared CSS 104.42 → 106.86 kB with the sheet, chooser and container-query classes |
+| Second independent review, by a separate read-only agent | 11 findings. Acted on: the "routes win" rule had been widened to the finger box, which made a terminal untappable anywhere near its own route (now: under the pixel wins, in the box shares a chooser); the swallowed click was armed after drags too and caught the ✕ pressed within half a second (now armed only after a tap, only for clicks outside the sheet, for 300 ms); a chooser left open when drawing started came back stale after it; a chooser reopened at peek from the second tap on (keyed on what it lists now); the count pill drew over the chooser's title on a wide screen; a tap on two routes one of which had not loaded yet cleared the selection and showed nothing; a share link to a deleted direction stayed in the address; the error banner covered the attribution on a phone; `pointer: coarse` was read per tap but cannot change per tap, so the tap's own `pointerType` is used; three sheet checks passed when their starting state had not been reached; Escape closes a sheet and it is a `dialog`. Left: `max-h-[60vh]` is viewport-based inside a container-based layout (harmless on a phone); no focus move into the sheet; hover and click disagree by up to 5 px on a mouse |
+| The owner tries it on a real phone | Done 2026-09-15 on a build served over the home network (`npx vite preview --host`). The first report was that Share did nothing there, which found the plain-http case above; after the review's fixes: "it's working now!" |
+
 ### Step 5 — Publish the map as a file
 
 Visitors stop asking the database anything.
@@ -1017,7 +1038,13 @@ owner completed a real reset email on the live site. **Step 2 done.**
 **Step 3 built 2026-09-15** on `build-order` (see its section), with the
 owner's decision that U-turns are shown, never changed. Two independent
 reviews acted on; the owner edited a real route ("snapping is good") and gave
-the go to merge into `main`.
+the go to merge into `main`. **Step 3 done.**
+**Step 4 built 2026-09-15** on `build-order` (see its section): the phone
+tap, the chooser, the bottom sheet, phone chrome, share links. One independent
+review acted on; the owner tried it on a real phone over the home network.
+Waiting on the owner's go to merge into `main`. The owner deferred the naming
+conventions ("Decide before the next route is drawn") until after step 6, with
+the note that they hold at 1–3 routes; ideas for standardising are wanted then.
 
 **Storybook added 2026-09-15**, before step 3, on the owner's ask: Storybook
 10.6.0 (`@storybook/react-vite`, `@storybook/addon-docs`), telemetry off.

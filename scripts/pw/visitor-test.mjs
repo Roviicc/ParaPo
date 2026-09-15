@@ -86,7 +86,7 @@ page.on('request', (req) => { if (/router\.project-osrm\.org/.test(req.url())) o
 
 const closeCard = () => page.getByRole('button', { name: 'Close' }).first().click().catch(() => {})
 const cardKind = async () => {
-  const el = page.locator('.w-80')
+  const el = page.locator('[data-testid="card"]')
   if ((await el.count()) === 0) return { kind: 'none', text: '' }
   const text = await el.first().innerText()
   if (text.includes('Routes that')) return { kind: 'hotspot', text }
@@ -202,10 +202,10 @@ for (const [i, p] of snapshot.polys.entries()) {
   check(
     '  no Edit/Delete for a visitor',
     // The studio's buttons read "Edit route", "Edit terminal", "Edit hintuan" and "Delete".
-    (await page.locator('.w-80').getByRole('button', { name: /^(Edit\b.*|Delete)$/ }).count()) === 0,
+    (await page.locator('[data-testid="card"]').getByRole('button', { name: /^(Edit\b.*|Delete)$/ }).count()) === 0,
   )
 
-  const chips = page.locator('.w-80').locator('button[title="Show this direction on the map"]')
+  const chips = page.locator('[data-testid="card"]').locator('button[title="Show this direction on the map"]')
   const chipCount = await chips.count()
   if (chipCount > 0) {
     const label = await chips.first().innerText()

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { VariantSummary } from './routes'
+import { Sheet } from './Sheet'
 import type { StopRow } from './stops'
 
 type Props = {
@@ -16,6 +17,9 @@ type Props = {
 /**
  * What anyone sees when they tap a hotspot. The card does not know who is
  * looking: whoever renders it decides which actions to offer.
+ *
+ * `Sheet` decides the shape. The peek is the name and what kind of place it
+ * is; the list of routes through it is what the sheet is pulled up for.
  */
 export function HotspotCard({
   stop,
@@ -40,12 +44,10 @@ export function HotspotCard({
   }
 
   return (
-    <div
-      className="absolute left-4 top-4 z-10 w-80 max-w-[calc(100vw-2rem)] rounded-xl bg-white p-4
-                 shadow-xl ring-1 ring-black/10"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+    <Sheet
+      onClose={onClose}
+      peek={
+        <>
           <p className="truncate text-base font-semibold text-neutral-900">{stop.name}</p>
           <span
             className={
@@ -55,17 +57,9 @@ export function HotspotCard({
           >
             {isTerminal ? 'Terminal · routes start here' : 'Hintuan · wait and board here'}
           </span>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="rounded-full px-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
-        >
-          ✕
-        </button>
-      </div>
-
+        </>
+      }
+    >
       {stop.note && <p className="mt-3 text-sm text-neutral-700">{stop.note}</p>}
 
       <p className="mt-3 text-xs font-medium text-neutral-500">
@@ -101,6 +95,6 @@ export function HotspotCard({
       )}
 
       {actions && <div className="mt-4 flex gap-2">{actions}</div>}
-    </div>
+    </Sheet>
   )
 }

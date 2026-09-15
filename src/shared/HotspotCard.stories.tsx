@@ -41,9 +41,17 @@ const meta = {
   title: 'Shared/HotspotCard',
   component: HotspotCard,
   // The card is placed against the map, so give it a map-sized box to sit in.
+  // `@container` is what the card's `@wide:` classes measure, and the `phone`
+  // parameter shrinks that box to a handset so the bottom sheet shows instead.
   decorators: [
-    (Story) => (
-      <div className="relative h-[28rem] bg-neutral-200">
+    (Story, ctx) => (
+      <div
+        className={
+          ctx.parameters.phone
+            ? 'relative h-[700px] w-[390px] overflow-hidden bg-neutral-200 @container'
+            : 'relative h-[28rem] bg-neutral-200 @container'
+        }
+      >
         <Story />
       </div>
     ),
@@ -74,5 +82,13 @@ export const EmptyHintuan: Story = {
       note: 'Wait under the waiting shed across from the chapel.',
     },
     linkedVariantIds: [],
+  },
+}
+
+/** A handset-sized box, so the card becomes a bottom sheet. */
+export const Phone: Story = {
+  parameters: { phone: true },
+  args: {
+    stop: { ...terminal, note: 'Jeeps queue along the kanto by the covered court.' },
   },
 }

@@ -32,6 +32,15 @@ const ATTRIBUTION = [
   '<a href="http://project-osrm.org/" target="_blank" rel="noreferrer">OSRM</a>',
 ].join(' · ')
 
+/**
+ * A coarse pointer means a finger: pinch already zooms, so the zoom buttons
+ * are dead weight sitting on top of the map. And the bottom sheet a phone gets
+ * would cover a bottom-right attribution, which the OpenStreetMap licence
+ * requires to stay visible -- so on touch the attribution moves to the top.
+ */
+const coarse =
+  typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
+
 /** Metro Manila. */
 const CENTER: [number, number] = [121.0244, 14.5995]
 const ZOOM = 11
@@ -104,11 +113,11 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
         })
       }
 
-      map.addControl(new NavigationControl(), 'top-right')
+      if (!coarse) map.addControl(new NavigationControl(), 'top-right')
       map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-left')
       map.addControl(
         new AttributionControl({ compact: true, customAttribution: ATTRIBUTION }),
-        'bottom-right',
+        coarse ? 'top-right' : 'bottom-right',
       )
 
       map.on('load', () => {

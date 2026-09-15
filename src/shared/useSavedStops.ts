@@ -3,18 +3,20 @@ import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { HOTSPOT_COLOUR } from './colours'
 import { listStopLinks, listStops, stopRing, type StopLink, type StopRow } from './stops'
 import { getSupabase } from './supabase'
+import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, tapTargets } from './tap'
 
 const SRC = 'saved-stops'
-const FILL = 'saved-stops-fill'
+const FILL = STOPS_FILL_LAYER
 const OUTLINE = 'saved-stops-outline'
 const LABEL = 'saved-stops-label'
 
-/** Hotspots sit under the route lines; a route crossing one must still win the click. */
+/**
+ * Hotspots sit under the route lines; a route drawn right under the tapped
+ * pixel still wins the click, and one merely near it shares a chooser.
+ */
 const ROUTES_ABOVE = 'saved-routes-casing'
 const DRAW_ABOVE = 'draw-line-casing'
-const ROUTES_HIT = 'saved-routes-hit'
-
-type IdFeature = { properties?: { id?: string } }
+const ROUTES_HIT = ROUTES_HIT_LAYER
 
 /**
  * Every saved hotspot, drawn for everyone as a shaded outline in its kind's
@@ -31,9 +33,31 @@ export function useSavedStops(
   const [links, setLinks] = useState<StopLink[]>([])
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  /**
+   * The hotspots under a tap that landed on several things (hotspots, routes
+   * or both), for a chooser. Empty otherwise. The routes hook keeps the route
+   * half of the same tap.
+   */
+  const [candidates, setCandidates] = useState<StopRow[]>([])
+
+  /** Choosing one hotspot answers the question the chooser was asking. */
+  const select = useCallback((id: string | null) => {
+    setSelectedId(id)
+    setCandidates([])
+  }, [])
 
   const drawingRef = useRef(opts.drawing ?? false)
   drawingRef.current = opts.drawing ?? false
+  // A chooser left open when drawing starts would come back, stale, after it.
+  useEffect(() => {
+    if (opts.drawing) setCandidates([])
+  }, [opts.drawing])
+
+  // The click handler is bound once; this is how it reads today's hotspots.
+  const byId = useRef(new Map<string, StopRow>())
+  useEffect(() => {
+    byId.current = new Map(stops.map((s) => [s.id, s]))
+  }, [stops])
 
   const reload = useCallback(async () => {
     if (!getSupabase()) return
@@ -166,15 +190,20 @@ export function useSavedStops(
       map.getLayer(ROUTES_HIT) &&
       map.queryRenderedFeatures(e.point, { layers: [ROUTES_HIT] }).length > 0
 
-    const onFillClick = (e: MapMouseEvent & { features?: IdFeature[] }) => {
-      if (drawingRef.current || routeUnder(e)) return
-      const id = e.features?.[0]?.properties?.id
-      if (typeof id === 'string') setSelectedId(id)
-    }
+    // One handler, one box, sized for the finger: nothing deselects, one thing
+    // selects it, several — hotspots, routes or both — open a chooser. The
+    // routes hook reads the same tap and keeps its own half.
     const onMapClick = (e: MapMouseEvent) => {
       if (drawingRef.current) return
-      const hits = map.queryRenderedFeatures(e.point, { layers: [FILL] })
-      if (hits.length === 0 || routeUnder(e)) setSelectedId(null)
+      const { routeIds, stopIds } = tapTargets(map, e.point, e.originalEvent)
+      const here = stopIds.map((id) => byId.current.get(id)).filter((s) => !!s)
+      if (here.length === 1 && routeIds.length === 0) {
+        setSelectedId(here[0]!.id)
+        setCandidates([])
+      } else {
+        setSelectedId(null)
+        setCandidates(here.length + routeIds.length > 1 ? here : [])
+      }
     }
     const enter = (e: MapMouseEvent) => {
       if (!drawingRef.current && !routeUnder(e)) canvas.style.cursor = 'pointer'
@@ -183,12 +212,10 @@ export function useSavedStops(
       if (!drawingRef.current) canvas.style.cursor = ''
     }
 
-    map.on('click', FILL, onFillClick)
     map.on('click', onMapClick)
     map.on('mouseenter', FILL, enter)
     map.on('mouseleave', FILL, leave)
     return () => {
-      map.off('click', FILL, onFillClick)
       map.off('click', onMapClick)
       map.off('mouseenter', FILL, enter)
       map.off('mouseleave', FILL, leave)
@@ -207,5 +234,5 @@ export function useSavedStops(
     [links],
   )
 
-  return { stops, links, error, reload, selected, select: setSelectedId, linkedVariantIds }
+  return { stops, links, error, reload, selected, select, candidates, linkedVariantIds }
 }

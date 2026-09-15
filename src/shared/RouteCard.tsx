@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { lineLength } from './geo'
 import { MODES, variantLine, type VariantSummary } from './routes'
+import { Sheet } from './Sheet'
 
 type Props = {
   variant: VariantSummary
@@ -12,6 +13,10 @@ type Props = {
 /**
  * What anyone sees when they tap a route. The card does not know who is
  * looking: whoever renders it decides which actions to offer.
+ *
+ * `Sheet` decides the shape — a floating card on a wide screen, a bottom sheet
+ * on a phone. The peek is the signboard and the direction, which is the least
+ * a commuter needs to know whether this is the right jeep.
  */
 export function RouteCard({ variant, actions, onClose }: Props) {
   const r = variant.route
@@ -20,28 +25,26 @@ export function RouteCard({ variant, actions, onClose }: Props) {
   const ends = [variant.origin_terminal, variant.destination_terminal].filter(Boolean).join(' → ')
 
   return (
-    <div
-      className="absolute left-4 top-4 z-10 w-80 max-w-[calc(100vw-2rem)] rounded-xl bg-white p-4
-                 shadow-xl ring-1 ring-black/10"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+    <Sheet
+      onClose={onClose}
+      peek={
+        <>
           <p className="truncate text-base font-semibold text-neutral-900">{r?.signboard}</p>
           {r?.long_name && <p className="truncate text-xs text-neutral-500">{r.long_name}</p>}
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="rounded-full px-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
-        >
-          ✕
-        </button>
-      </div>
-
+          {/*
+            Phone only. On a wide screen this row keeps its place in the single
+            <dl> below, so the value column lines up with every other row.
+          */}
+          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 text-sm @wide:hidden">
+            <dt className="text-neutral-500">Direction</dt>
+            <dd className="truncate text-neutral-900">{variant.direction_name}</dd>
+          </dl>
+        </>
+      }
+    >
       <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-        <dt className="text-neutral-500">Direction</dt>
-        <dd className="text-neutral-900">{variant.direction_name}</dd>
+        <dt className="hidden text-neutral-500 @wide:block">Direction</dt>
+        <dd className="hidden text-neutral-900 @wide:block">{variant.direction_name}</dd>
         {ends && (
           <>
             <dt className="text-neutral-500">Terminals</dt>
@@ -74,6 +77,6 @@ export function RouteCard({ variant, actions, onClose }: Props) {
       </dl>
 
       {actions && <div className="mt-4 flex gap-2">{actions}</div>}
-    </div>
+    </Sheet>
   )
 }

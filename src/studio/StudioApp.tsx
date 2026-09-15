@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { MapLibreMap } from 'maplibre-gl'
+import { Chooser } from '../shared/Chooser'
 import { HotspotCard } from '../shared/HotspotCard'
 import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
@@ -152,6 +153,10 @@ function Workshop({
     }
   }
 
+  // One click, several saved things: the chooser lists them all.
+  const choice = [...saved.candidates, ...stops.candidates]
+  const choosing = choice.length > 1
+
   const onDelete = async (v: VariantRow) => {
     if (!window.confirm(`Delete "${v.route?.signboard}" — ${v.direction_name}?`)) return
     try {
@@ -164,7 +169,7 @@ function Workshop({
   }
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div className="@container relative h-full w-full overflow-hidden">
       <MapView onReady={setMap} />
 
       {/* A config or load problem is a banner, never a blank page. */}
@@ -175,6 +180,27 @@ function Workshop({
         >
           {supabaseConfigError ?? `Couldn't load saved routes: ${saved.error}`}
         </div>
+      )}
+
+      {/* Several saved things under one click: the same chooser the public map has. */}
+      {!draw.drawing && choosing && (
+        <Chooser
+          key={choice.map((c) => c.id).join()}
+          routes={saved.candidates}
+          stops={stops.candidates}
+          onRoute={(v) => {
+            stops.select(null)
+            saved.select(v.id)
+          }}
+          onStop={(s) => {
+            saved.select(null)
+            stops.select(s.id)
+          }}
+          onClose={() => {
+            saved.select(null)
+            stops.select(null)
+          }}
+        />
       )}
 
       {/* Top-left: the card for a tapped route, or the account pill. */}
@@ -230,7 +256,7 @@ function Workshop({
           onClose={() => stops.select(null)}
         />
       )}
-      {!draw.drawing && !saved.selected && !stops.selected && (
+      {!draw.drawing && !saved.selected && !stops.selected && !choosing && (
         <div
           className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-full bg-white/90
                      px-3 py-1.5 text-xs text-neutral-600 shadow ring-1 ring-black/5 backdrop-blur"

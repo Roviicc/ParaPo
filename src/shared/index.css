@@ -2,9 +2,43 @@
 /* Stories are Storybook-only: their classes stay out of the site's CSS. .storybook/preview.css adds them back. */
 @source not "../**/*.stories.tsx";
 
+/*
+ * The card layout switches on the width of the MAP, not of the window: both
+ * apps mark their root `@container`, so `@wide:` reads that box and a card
+ * looks right inside a Storybook frame too. 40rem is roughly where a floating
+ * card stops covering the thing it describes.
+ */
+@theme {
+  --container-wide: 40rem;
+}
+
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
+}
+
+/*
+ * `viewport-fit=cover` lets the page paint under a notch and under the home
+ * indicator, so MapLibre's own corners have to be pushed back inside the safe
+ * area. Otherwise the zoom buttons hide behind the notch and the OpenStreetMap
+ * attribution — which the licence requires to stay visible — sits under the
+ * home indicator. On a desktop every inset is 0, so nothing moves.
+ */
+.maplibregl-ctrl-top-left {
+  top: env(safe-area-inset-top);
+  left: env(safe-area-inset-left);
+}
+.maplibregl-ctrl-top-right {
+  top: env(safe-area-inset-top);
+  right: env(safe-area-inset-right);
+}
+.maplibregl-ctrl-bottom-left {
+  bottom: env(safe-area-inset-bottom);
+  left: env(safe-area-inset-left);
+}
+.maplibregl-ctrl-bottom-right {
+  bottom: env(safe-area-inset-bottom);
+  right: env(safe-area-inset-right);
 }
