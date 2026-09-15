@@ -1042,7 +1042,10 @@ the go to merge into `main`. **Step 3 done.**
 **Step 4 built 2026-09-15** on `build-order` (see its section): the phone
 tap, the chooser, the bottom sheet, phone chrome, share links. One independent
 review acted on; the owner tried it on a real phone over the home network.
-Waiting on the owner's go to merge into `main`. The owner deferred the naming
+**Merged into `main` and deployed 2026-09-15** (`a3e04b0`): the live public
+page at phone size has no zoom buttons, the attribution top right, no
+horizontal scroll, and a tap on the fitted view opened a chooser; the studio
+still shows its door. **Step 4 done.** The owner deferred the naming
 conventions ("Decide before the next route is drawn") until after step 6, with
 the note that they hold at 1–3 routes; ideas for standardising are wanted then.
 
