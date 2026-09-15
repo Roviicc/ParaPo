@@ -54,6 +54,12 @@ const MAX_SHRINK = 0.3
 const PAGE = 1000
 const TIMEOUT_MS = 30_000
 
+/** The data's licence, written into the file itself. See README.md, "Data and licence". */
+const LICENSE = 'ODbL-1.0'
+const ATTRIBUTION =
+  'Route data © ParaPo contributors, ODbL (https://opendatacommons.org/licenses/odbl/1-0/). ' +
+  'Derived from OpenStreetMap, © OpenStreetMap contributors.'
+
 // ------------------------------------------------------------------ config
 
 /** KEY=value lines; a quoted value keeps what is inside the quotes; # starts a comment. */
@@ -236,8 +242,10 @@ const links = linkRows.map((l) => ({
 // map is a byte-identical file and the daily workflow has nothing to commit.
 const body = { variants, stops, links }
 let previous = null
+let previousText = null
 try {
-  previous = JSON.parse(readFileSync(OUT, 'utf8'))
+  previousText = readFileSync(OUT, 'utf8')
+  previous = JSON.parse(previousText)
 } catch {}
 
 // A map that shrank suddenly is far more likely a read that went wrong (a
@@ -259,7 +267,8 @@ const same =
   previous && JSON.stringify({ variants: previous.variants, stops: previous.stops, links: previous.links }) === JSON.stringify(body)
 const published_at = same ? previous.published_at : new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
 
-const file = JSON.stringify({ published_at, ...body }) + '\n'
+// The terms travel inside the file, so no copy can arrive without them.
+const file = JSON.stringify({ published_at, license: LICENSE, attribution: ATTRIBUTION, ...body }) + '\n'
 mkdirSync(dirname(OUT), { recursive: true })
 writeFileSync(OUT, file)
 
@@ -268,6 +277,7 @@ writeFileSync(OUT, file)
 for (const s of stats) console.log(`  ${s.name}: ${s.before} → ${s.after} points, within ${s.dev.toFixed(1)} m`)
 const gz = gzipSync(Buffer.from(file)).length
 console.log(
-  `${same ? 'Unchanged' : 'Wrote'} public/data/map.json: ${variants.length} direction(s), ${stops.length} hotspot(s), ` +
+  // By the bytes, not the map content: new terms in an unchanged map are still a change to commit.
+  `${previousText === file ? 'Unchanged' : 'Wrote'} public/data/map.json: ${variants.length} direction(s), ${stops.length} hotspot(s), ` +
     `${links.length} link(s); ${file.length} bytes, ${gz} gzipped; published_at ${published_at}`,
 )

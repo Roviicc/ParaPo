@@ -27,6 +27,8 @@ const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
  * declare it ourselves.
  */
 const ATTRIBUTION = [
+  // Our own data, under the ODbL: the credit every copy has to keep.
+  '<a href="https://github.com/Roviicc/ParaPo#data-and-licence" target="_blank" rel="noreferrer">Route data © ParaPo contributors, ODbL</a>',
   '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a> contributors',
   '<a href="https://openfreemap.org" target="_blank" rel="noreferrer">OpenFreeMap</a>',
   '<a href="http://project-osrm.org/" target="_blank" rel="noreferrer">OSRM</a>',

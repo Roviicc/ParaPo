@@ -2,6 +2,7 @@
   "name": "parapo",
   "version": "0.0.0",
   "description": "Ground-truthed jeepney route data for Metro Manila",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "node scripts/check-boundaries.mjs && tsc --noEmit && vite build && node scripts/check-build.mjs",

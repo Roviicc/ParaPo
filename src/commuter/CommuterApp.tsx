@@ -43,16 +43,17 @@ export default function CommuterApp() {
       <MapView onReady={setMap} />
 
       {/*
-        A config or load problem is a banner, never a blank page. On a phone it
-        sits below the attribution, which moved to the top right there and must
-        stay visible.
+        A load problem is a banner, never a blank page. On a phone it sits at
+        the bottom: the attribution moved to the top right there, opens to three
+        lines, and must stay visible. With no map loaded there is no card to
+        share the bottom with.
       */}
       {(saved.error || stops.error) && (
         <div
-          className="absolute left-1/2 top-[calc(3.5rem+env(safe-area-inset-top))] z-20 flex
-                     max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-3 rounded-lg bg-amber-50
-                     px-4 py-2 text-xs text-amber-900 shadow ring-1 ring-amber-200
-                     @wide:top-[calc(1rem+env(safe-area-inset-top))] @wide:max-w-xl"
+          className="absolute bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-20 flex
+                     w-max max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-3 rounded-lg
+                     bg-amber-50 px-4 py-2 text-xs text-amber-900 shadow ring-1 ring-amber-200
+                     @wide:bottom-auto @wide:top-[calc(1rem+env(safe-area-inset-top))] @wide:max-w-xl"
         >
           <span>The routes could not be loaded. Check your connection and try again.</span>
           <button
@@ -108,9 +109,12 @@ export default function CommuterApp() {
 
       {!saved.selected && !stops.selected && !choosing && saved.variants.length > 0 && (
         <div
-          className="absolute left-[calc(1rem+env(safe-area-inset-left))]
-                     top-[calc(1rem+env(safe-area-inset-top))] z-10 rounded-full bg-white/90 px-3
-                     py-1.5 text-xs text-neutral-500 shadow ring-1 ring-black/5 backdrop-blur"
+          // On a phone, bottom left above the scale: the credit line opens to
+          // three lines across the top there, and the pill would cover it.
+          className="absolute bottom-[calc(2.5rem+env(safe-area-inset-bottom))]
+                     left-[calc(1rem+env(safe-area-inset-left))] z-10 rounded-full bg-white/90 px-3
+                     py-1.5 text-xs text-neutral-500 shadow ring-1 ring-black/5 backdrop-blur
+                     @wide:bottom-auto @wide:top-[calc(1rem+env(safe-area-inset-top))]"
         >
           {saved.variants.length} {saved.variants.length === 1 ? 'route' : 'routes'}
           {stops.stops.length > 0 && (

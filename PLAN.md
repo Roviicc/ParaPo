@@ -1318,6 +1318,22 @@ agency approval — verify before any commercial use of the GTFS itself.
 
 ## Licensing
 
+**Decided by the owner, 2026-09-15:** the route and hotspot data is under the
+**ODbL 1.0**, credited "Route data © ParaPo contributors, ODbL"; the code is
+under **MIT**, copyright "ParaPo contributors". Recorded in `LICENSE` (code)
+and `README.md` (both, in plain words); `publish-map.mjs` writes `license` and
+`attribution` into `map.json` itself, so every copy of the file carries the
+terms; the map's credit line shows "Route data © ParaPo contributors, ODbL"
+before the OpenStreetMap credit, on both pages. On a phone the credit opens to
+three lines at the top right, and two things sat on it: the route count pill
+(top left, since step 4) and the load-failure banner. Both moved to the bottom
+on narrow screens; on a wide screen nothing moved. Checked with the file
+answered by a 404: the banner shows at the bottom on a phone and at the top on
+a desktop, clear of the credit, and "Try again" loads the map. Why: a public map cannot be
+locked, so the aim is that every copy keeps the credit and stays open.
+ParaPo's advantage is routes verified by riding and kept current, which a
+copy of one day's file does not have.
+
 Snapped geometry derives from OpenStreetMap via OSRM, so ODbL
 share-alike plausibly attaches to the route database. Fine for a civic project;
 incompatible with exclusive data licensing later.

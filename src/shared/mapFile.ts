@@ -10,6 +10,10 @@ import type { StopLink, StopSummary } from './stops'
 export type MapFile = {
   /** When this content was published. Step 6's offline notice reads it. */
   published_at: string
+  /** The data's licence, `ODbL-1.0`. Carried in the file so every copy has it. */
+  license?: string
+  /** The credit a reuser has to keep. */
+  attribution?: string
   variants: VariantSummary[]
   stops: StopSummary[]
   links: StopLink[]
