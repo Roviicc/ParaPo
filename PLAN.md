@@ -1073,9 +1073,18 @@ the live map loads from the file and never calls the database. The owner ran
 the workflow once by hand: unchanged, nothing committed. **Step 5 done.**
 Next is step 6, the installable PWA, on the owner's go; it needs an icon (the
 logo in `public/branding/` is the likely source), a theme colour and the app's
-short name from the owner. The workflow's two actions were moved to `@v5` on
-`build-order` after a Node 20 deprecation warning; that reaches `main` with
-step 6's merge.
+short name from the owner. The workflow's two actions were moved to `@v5`
+after a Node 20 deprecation warning.
+**Licences added 2026-09-15**, before step 6, on the owner's decision (see
+"Licensing"): MIT for the code, ODbL 1.0 for the data. Merged and deployed
+(`dce3f63`, which also took the `@v5` actions to `main`): the live
+`/data/map.json` carries `license: ODbL-1.0` and its attribution; the live
+credit line reads "Route data © ParaPo contributors, ODbL" on a phone (top
+right) and a desktop (bottom right), linking to the README's licence section;
+still no request to the database. GitHub first detected the licence as
+"Other", because `LICENSE` had a note appended below the MIT text; the note
+lives in the README instead, and `LICENSE` is the plain MIT text GitHub
+recognises.
 
 **Storybook added 2026-09-15**, before step 3, on the owner's ask: Storybook
 10.6.0 (`@storybook/react-vite`, `@storybook/addon-docs`), telemetry off.
