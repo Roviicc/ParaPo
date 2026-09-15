@@ -2,6 +2,9 @@ export type LngLat = [number, number]
 
 export type SnapMode = 'snapped' | 'freehand'
 
+/** One stretch of a single road along a routed segment. `name` is '' for an unnamed way. */
+export type StreetRun = { name: string; metres: number }
+
 /**
  * The geometry between two consecutive control points. One per gap, so a route
  * with N control points has N-1 segments.
@@ -9,6 +12,12 @@ export type SnapMode = 'snapped' | 'freehand'
 export type Segment = {
   snap: SnapMode
   coordinates: LngLat[]
+  /**
+   * The roads a routed segment follows, in order, with how far along each.
+   * Absent on straight segments, and on routed ones saved before streets were
+   * recorded.
+   */
+  streets?: StreetRun[]
 }
 
 /**

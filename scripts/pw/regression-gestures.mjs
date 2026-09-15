@@ -7,10 +7,12 @@
 // drawing can be exercised while signed out (Done still asks to sign in
 // before saving). Before each drawing section the map is jumped to a
 // street-level view centred on the middle vertex of an existing saved route,
-// or a fixed Metro Manila point when the database has none, so the clicks
-// below land on routable roads and on land no matter what is saved today.
-// Point counts asserted throughout come from this script's own clicks, not
-// from saved data.
+// or a fixed Metro Manila point when the database has none. Route clicks and
+// drags land on that saved route's own vertices, or along a segment's own
+// road: the router refuses a click more than 25 m from a road, and a refused
+// gap is drawn freehand, which would let the freehand checks below pass for
+// the wrong reason. Point counts asserted throughout come from this script's
+// own clicks, not from saved data.
 import { chromium } from 'playwright'
 
 const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
@@ -48,6 +50,24 @@ const centerOnLand = async () => {
   await page.waitForTimeout(300)
 }
 
+// Canvas pixels of the centred saved route's own vertices in the current view,
+// in order along it, at least `gap` px apart and clear of the cards and the
+// toolbar. They are on a road, so the router routes a gap between any two.
+const roadPixels = async (n, gap) => page.evaluate(async ([n, gap]) => {
+  const f = ((await window.__src('saved-routes'))?.features ?? [])[0]
+  if (!f) return []
+  const m = window.__map, { clientWidth: w, clientHeight: h } = m.getCanvas()
+  const picked = []
+  for (const c of f.geometry.coordinates) {
+    const p = m.project(c)
+    if (p.x < 80 || p.x > w - 80 || p.y < 80 || p.y > h - 140) continue
+    const last = picked[picked.length - 1]
+    if (!last || Math.hypot(p.x - last[0], p.y - last[1]) >= gap) picked.push([p.x, p.y])
+    if (picked.length === n) break
+  }
+  return picked
+}, [n, gap])
+
 await page.goto(`${BASE}/studio/?e2e=1`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
 await page.waitForTimeout(800)
@@ -61,21 +81,30 @@ check('pill shows the saved route count', /\d+ routes?/.test(await page.locator(
 await page.getByRole('button', { name: '+ New Route' }).click(); await page.waitForTimeout(200)
 check('clicking + New Route enters drawing mode', await page.getByRole('button', { name: /Done/ }).count() === 1)
 const cx = box.width/2, cy = box.height/2
-for (const [dx,dy] of [[-150,0],[-50,0],[50,0],[150,0]]) { await click(cx+dx, cy+dy); await page.waitForTimeout(120) }
+const road = await roadPixels(4, 70)
+check('four on-road click positions found on a saved route', road.length === 4, `${road.length} found`)
+for (const [x, y] of road) { await click(x, y); await page.waitForTimeout(120) }
 await idle()
 check('four clicks add four control points', await pts() === 4, String(await pts()))
 let s = await segs()
 check('segments routed without error', s.length === 3 && s.every(f => f.properties.snap === 'snapped'), `${s.length} segs`)
-// drag point 1
+// drag point 1 along its own road, to the middle of segment 1, so both its
+// segments can still be routed
 let c = await cp(); let p1 = await proj(c[1])
+const seg1 = s.find(f => f.properties.index === 1).geometry.coordinates
+const along = seg1.length > 2 ? seg1[Math.floor(seg1.length / 2)] : [(seg1[0][0] + seg1[1][0]) / 2, (seg1[0][1] + seg1[1][1]) / 2]
+const to = await proj(along)
 await page.mouse.move(box0.x+p1[0], box0.y+p1[1]); await page.mouse.down()
-for (let i=1;i<=6;i++) await page.mouse.move(box0.x+p1[0], box0.y+p1[1]-60*i/6)
+for (let i=1;i<=6;i++) await page.mouse.move(box0.x+p1[0]+(to[0]-p1[0])*i/6, box0.y+p1[1]+(to[1]-p1[1])*i/6)
 await page.mouse.up(); await idle(); await page.waitForTimeout(200)
 let c2 = await cp()
-check('dragging a point moves it (not the map)', Math.abs(c2[1][1] - c[1][1]) > 1e-4 && c2[0][0] === c[0][0], `dy=${(c2[1][1]-c[1][1]).toFixed(5)}`)
+const dragged = Math.hypot(c2[1][0] - c[1][0], c2[1][1] - c[1][1])
+check('dragging a point moves it (not the map)', dragged > 1e-4 && c2[0][0] === c[0][0], `moved ${(dragged * 1e5).toFixed(0)}e-5°`)
 check('dragging keeps the point count', await pts() === 4)
+s = await segs()
+check('both segments of the dragged point are routed again (control for the shift-click)', s.length === 3 && s.every(f => f.properties.snap === 'snapped'), s.map(f => f.properties.snap).join(','))
 // shift-click segment 0 midpoint to straighten
-s = await segs(); const seg0 = s.find(f => f.properties.index === 0).geometry.coordinates
+const seg0 = s.find(f => f.properties.index === 0).geometry.coordinates
 // A routed segment's own vertices can run close to a neighbour's route near
 // their shared, just-dragged point (how close depends on the real streets
 // under today's fallback centre), so the invisible 22px hit corridor can

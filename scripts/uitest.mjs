@@ -192,40 +192,67 @@ try {
     const m = window.__map; if (!m) return null;
     const f = m.querySourceFeatures('draw-line').find(f => f.properties.index === ${gap} && f.geometry.coordinates.length > 1);
     if (!f) return null;
-    const c = f.geometry.coordinates; const mid = c[Math.floor(c.length / 2)];
+    // The middle vertex, or halfway along a two-vertex segment, whose vertices are its control points.
+    const c = f.geometry.coordinates;
+    const mid = c.length > 2 ? c[Math.floor(c.length / 2)] : [(c[0][0] + c[1][0]) / 2, (c[0][1] + c[1][1]) / 2];
     const p = m.project(mid); return { x: p.x, y: p.y, n: c.length };
   })()`)
+  const freehandCount = async () => Number(/(\d+) freehand/.exec((await text()) ?? '')?.[1] ?? 0)
 
-  // 3. add four points along a short corridor around the viewport centre,
-  // spaced the same as before ([100, 40] steps between points).
-  const pts = [[-150, -60], [-50, -20], [50, 20], [150, 60]].map(([dx, dy]) => [centerX + dx, centerY + dy])
-  for (const [x, y] of pts) await click(x, y)
+  // 3. add four points on the saved route's own vertices, at least 90 px apart
+  // and clear of the cards and the toolbar. They are on roads, so the router
+  // (which refuses a click more than 25 m from one) routes every gap; fixed
+  // pixel offsets from the centre can land inside a block, and a refused gap is
+  // drawn freehand, which would let the freehand check below pass for the
+  // wrong reason.
+  const roadPts = await evaluate(`(async () => {
+    const m = window.__map; const src = m && m.getSource('saved-routes');
+    const fc = src ? await src.getData() : null;
+    const f = fc && fc.features.find((f) => f.geometry.coordinates.length > 1);
+    if (!f) return [];
+    const r = m.getCanvas().getBoundingClientRect();
+    const picked = [];
+    for (const c of f.geometry.coordinates) {
+      const p = m.project(c);
+      if (p.x < 80 || p.x > r.width - 80 || p.y < 80 || p.y > r.height - 140) continue;
+      const last = picked[picked.length - 1];
+      if (!last || Math.hypot(p.x - last[0], p.y - last[1]) >= 90) picked.push([p.x, p.y]);
+      if (picked.length === 4) break;
+    }
+    return picked.map(([x, y]) => [r.x + x, r.y + y]);
+  })()`)
+  check('four on-road click positions found on a saved route', roadPts?.length === 4, `${roadPts?.length ?? 0} found`)
+  for (const [x, y] of roadPts ?? []) await click(x, y)
   await settle()
   const afterAdd = await points()
   check('four clicks add four control points', afterAdd === 4, 'got ' + afterAdd)
-  check('segments routed without error', !((await text()) ?? '').includes('failed to load'))
+  check('every segment routed, none freehand', !((await text()) ?? '').includes('failed to load') && (await freehandCount()) === 0,
+    `${await freehandCount()} freehand`)
   check('dev build exposes window.__map for tests', await evaluate('!!window.__map'))
 
-  // 4. drag the third point by its real screen position
+  // 4. drag the third point along its own road, onto the middle of segment 2,
+  // so the router still has a road to snap it to
   let cp = await cps()
   const p2 = cp?.find((p) => p.i === 2)
   check('control points are queryable from the map', !!p2,
     JSON.stringify(cp?.map((p) => [p.i, Math.round(p.x), Math.round(p.y)])))
-  if (p2) await drag(p2.x, p2.y, p2.x - 20, p2.y + 80)
+  const seg2 = await onSegment(2)
+  if (p2 && seg2) await drag(p2.x, p2.y, seg2.x, seg2.y)
   await settle()
   cp = await cps()
   const p2b = cp?.find((p) => p.i === 2)
   const movedPx = p2 && p2b ? Math.hypot(p2b.x - p2.x, p2b.y - p2.y) : 0
-  check('dragging a point moves it (not the map)', movedPx > 40, `moved ${Math.round(movedPx)}px`)
+  check('dragging a point moves it (not the map)', movedPx > 15, `moved ${Math.round(movedPx)}px`)
   check('dragging keeps the point count', (await points()) === 4, 'got ' + (await points()))
+  check('still none freehand after the drag (control for the shift-click)', (await freehandCount()) === 0,
+    `${await freehandCount()} freehand`)
 
   // 5. shift-click ON the routed line of segment 0 to straighten it
   const seg0 = await onSegment(0)
   check('segment 0 geometry is queryable', !!seg0, seg0 ? `${seg0.n} coords` : 'none')
   if (seg0) await click(seg0.x, seg0.y, { modifiers: 8 })
   await settle()
-  const freehandShown = /\d+ freehand/.test((await text()) ?? '')
-  check('shift-clicking a segment marks it freehand', freehandShown,
+  check('shift-clicking a segment marks it freehand', (await freehandCount()) === 1,
     ((await text()) ?? '').split('\n').find((l) => l.includes('points')) ?? '')
   check('shift-click did not add a point', (await points()) === 4, 'got ' + (await points()))
 

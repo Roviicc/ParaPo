@@ -8,7 +8,7 @@ import {
   type SnapMode,
 } from '../shared/geo'
 import { HOTSPOT_COLOUR } from '../shared/colours'
-import { snapSegment, straightSegment } from './snap'
+import { findUTurns, snapSegments, straightSegment } from './snap'
 import type { VariantRow } from '../shared/routes'
 
 const EMPTY = { type: 'FeatureCollection', features: [] } as const
@@ -54,11 +54,13 @@ function readDraft(): Draft | null {
 const LINE_SRC = 'draw-line'
 const POINT_SRC = 'draw-points'
 const AREA_SRC = 'draw-area'
+const UTURN_SRC = 'draw-uturns'
 const POINT_LAYER = 'draw-point-dots'
 const HIT_LAYER = 'draw-line-hit'
 const AREA_FILL_LAYER = 'draw-area-fill'
 
 const ROUTE_COLOUR = '#e11d48'
+const UTURN_COLOUR = '#f59e0b'
 
 /** The closing edge of an area is a feature in the line source with this index. */
 const CLOSING = -1
@@ -91,52 +93,86 @@ export function useDrawing(map: MapLibreMap | null) {
   const areaRef = useRef<AreaTarget | null>(null)
   areaRef.current = area
 
-  // A drag can start before an earlier re-snap has answered. Each gap carries a
-  // counter, and a reply whose counter is stale is discarded rather than
-  // painting geometry for a control point that has since moved.
-  const epochRef = useRef<number[]>([])
+  /**
+   * Straight stand-ins: drawn while the router is asked, and while a point is
+   * dragged. A router answer is written only where its stand-in still is, and
+   * no U-turn is ever reported against one.
+   */
+  const standInRef = useRef(new WeakSet<Segment>())
 
-  const writeSegment = useCallback((i: number, seg: Segment) => {
-    setSegments((ss) => {
-      const next = [...ss]
-      next[i] = seg
-      segRef.current = next
-      return next
-    })
+  const writeSegments = useCallback((next: Segment[]) => {
+    segRef.current = next
+    setSegments(next)
   }, [])
+
+  const writeSegment = useCallback(
+    (i: number, seg: Segment) => {
+      const next = [...segRef.current]
+      next[i] = seg
+      writeSegments(next)
+    },
+    [writeSegments],
+  )
 
   const writePoints = useCallback((pts: LngLat[]) => {
     cpRef.current = pts
     setControlPoints(pts)
   }, [])
 
-  /** Resolve the gap between control points i and i+1 in the given mode. */
-  const resolveGap = useCallback(
-    async (i: number, mode: SnapMode) => {
-      const from = cpRef.current[i]
-      const to = cpRef.current[i + 1]
-      if (!from || !to) return
-
-      const epoch = (epochRef.current[i] = (epochRef.current[i] ?? 0) + 1)
+  /**
+   * Resolve the gaps that start at control point `first`, one per mode given.
+   *
+   * Adjacent routed gaps go to the router as one request. Until it answers,
+   * each shows a straight stand-in, and the answer is written wherever that
+   * stand-in is by then: moved along if a point was inserted or deleted before
+   * it, dropped if it is gone (the point dragged again, the stretch
+   * straightened, the point undone, another route opened).
+   */
+  const resolveGaps = useCallback(
+    async (first: number, modes: SnapMode[]) => {
+      const pts = cpRef.current.slice(first, first + modes.length + 1)
+      if (modes.length === 0 || pts.length < modes.length + 1) return
 
       // A hotspot's edges are never routed: it is an outline, not a path.
-      if (mode === 'freehand' || areaRef.current) {
-        writeSegment(i, straightSegment(from, to))
-        return
-      }
+      const routed = modes.map((mode) => mode === 'snapped' && !areaRef.current)
+      const next = [...segRef.current]
+      const standIns = modes.map((_, k) => {
+        if (!routed[k]) {
+          next[first + k] = straightSegment(pts[k], pts[k + 1])
+          return null
+        }
+        const seg: Segment = { snap: 'snapped', coordinates: [pts[k], pts[k + 1]] }
+        standInRef.current.add(seg)
+        next[first + k] = seg
+        return seg
+      })
+      writeSegments(next)
 
-      // Straight placeholder so the line tracks the click immediately; routed
-      // geometry replaces it when the router answers.
-      writeSegment(i, { snap: 'snapped', coordinates: [from, to] })
-      setSnapping((n) => n + 1)
-      try {
-        const seg = await snapSegment(from, to)
-        if (epochRef.current[i] === epoch) writeSegment(i, seg)
-      } finally {
-        setSnapping((n) => n - 1)
-      }
+      // Runs of adjacent routed gaps, as [from, to] offsets from `first`.
+      const runs: [number, number][] = []
+      routed.forEach((r, k) => {
+        if (!r) return
+        const last = runs[runs.length - 1]
+        if (last && last[1] === k - 1) last[1] = k
+        else runs.push([k, k])
+      })
+
+      await Promise.all(
+        runs.map(async ([a, b]) => {
+          setSnapping((n) => n + 1)
+          try {
+            const answer = await snapSegments(pts.slice(a, b + 2))
+            answer.forEach((seg, j) => {
+              const at = segRef.current.indexOf(standIns[a + j] as Segment)
+              if (at !== -1) writeSegment(at, seg)
+            })
+          } finally {
+            setSnapping((n) => n - 1)
+          }
+        }),
+      )
     },
-    [writeSegment],
+    [writeSegment, writeSegments],
   )
 
   const addPoint = useCallback(
@@ -144,9 +180,9 @@ export function useDrawing(map: MapLibreMap | null) {
       const prevLen = cpRef.current.length
       writePoints([...cpRef.current, point])
       if (prevLen === 0) return
-      await resolveGap(prevLen - 1, freehandRef.current ? 'freehand' : 'snapped')
+      await resolveGaps(prevLen - 1, [freehandRef.current ? 'freehand' : 'snapped'])
     },
-    [resolveGap, writePoints],
+    [resolveGaps, writePoints],
   )
 
   /** Split a segment by dropping a new control point into it. */
@@ -157,22 +193,13 @@ export function useDrawing(map: MapLibreMap | null) {
       pts.splice(gap + 1, 0, point)
       writePoints(pts)
 
-      setSegments((ss) => {
-        const next = [...ss]
-        next.splice(
-          gap,
-          1,
-          straightSegment(pts[gap], point),
-          straightSegment(point, pts[gap + 2]),
-        )
-        segRef.current = next
-        return next
-      })
+      const segs = [...segRef.current]
+      segs.splice(gap, 1, straightSegment(pts[gap], point), straightSegment(point, pts[gap + 2]))
+      writeSegments(segs)
 
-      epochRef.current.splice(gap, 0, 0)
-      await Promise.all([resolveGap(gap, mode), resolveGap(gap + 1, mode)])
+      await resolveGaps(gap, [mode, mode])
     },
-    [resolveGap, writePoints],
+    [resolveGaps, writePoints, writeSegments],
   )
 
   /** Remove a control point, healing the two segments around it into one. */
@@ -186,21 +213,17 @@ export function useDrawing(map: MapLibreMap | null) {
       pts.splice(idx, 1)
       writePoints(pts)
 
-      setSegments((ss) => {
-        const next = [...ss]
-        if (idx === 0) next.splice(0, 1)
-        else if (idx === origLen - 1) next.splice(next.length - 1, 1)
-        else next.splice(idx - 1, 2, straightSegment(pts[idx - 1], pts[idx]))
-        segRef.current = next
-        return next
-      })
+      const segs = [...segRef.current]
+      if (idx === 0) segs.splice(0, 1)
+      else if (idx === origLen - 1) segs.splice(segs.length - 1, 1)
+      else segs.splice(idx - 1, 2, straightSegment(pts[idx - 1], pts[idx]))
+      writeSegments(segs)
 
       if (idx > 0 && idx < pts.length) {
-        epochRef.current.splice(idx, 1)
-        await resolveGap(idx - 1, modeBefore ?? modeAfter ?? 'snapped')
+        await resolveGaps(idx - 1, [modeBefore ?? modeAfter ?? 'snapped'])
       }
     },
-    [resolveGap, writePoints],
+    [resolveGaps, writePoints, writeSegments],
   )
 
   /**
@@ -210,26 +233,20 @@ export function useDrawing(map: MapLibreMap | null) {
   const toggleSegment = useCallback(
     async (gap: number) => {
       const current: SnapMode = segRef.current[gap]?.snap ?? 'snapped'
-      await resolveGap(gap, current === 'snapped' ? 'freehand' : 'snapped')
+      await resolveGaps(gap, [current === 'snapped' ? 'freehand' : 'snapped'])
     },
-    [resolveGap],
+    [resolveGaps],
   )
 
   const undo = useCallback(() => {
     writePoints(cpRef.current.slice(0, -1))
-    setSegments((ss) => {
-      const next = ss.slice(0, -1)
-      segRef.current = next
-      return next
-    })
-  }, [writePoints])
+    writeSegments(segRef.current.slice(0, -1))
+  }, [writePoints, writeSegments])
 
   const reset = useCallback(() => {
     writePoints([])
-    setSegments([])
-    segRef.current = []
-    epochRef.current = []
-  }, [writePoints])
+    writeSegments([])
+  }, [writePoints, writeSegments])
 
   /** Begin a new direction — of an existing route when routeId is given. */
   const start = useCallback(
@@ -249,16 +266,14 @@ export function useDrawing(map: MapLibreMap | null) {
     (v: VariantRow) => {
       reset()
       writePoints(v.control_points ?? [])
-      const segs = v.segments ?? []
-      segRef.current = segs
-      setSegments(segs)
+      writeSegments(v.segments ?? [])
       setFreehand(false)
       setArea(null)
       areaRef.current = null
       setTarget({ routeId: v.route_id, variantId: v.id })
       setDrawing(true)
     },
-    [reset, writePoints],
+    [reset, writePoints, writeSegments],
   )
 
   /** Begin tracing a hotspot outline. */
@@ -285,13 +300,12 @@ export function useDrawing(map: MapLibreMap | null) {
       writePoints(ring)
       const segs: Segment[] = []
       for (let i = 1; i < ring.length; i++) segs.push(straightSegment(ring[i - 1], ring[i]))
-      segRef.current = segs
-      setSegments(segs)
+      writeSegments(segs)
       setFreehand(false)
       setTarget({ routeId: null, variantId: null })
       setDrawing(true)
     },
-    [reset, writePoints],
+    [reset, writePoints, writeSegments],
   )
 
   const cancel = useCallback(() => {
@@ -307,15 +321,24 @@ export function useDrawing(map: MapLibreMap | null) {
   useEffect(() => {
     const d = readDraft()
     if (!d) return
-    writePoints(d.controlPoints)
-    segRef.current = d.segments ?? []
-    setSegments(d.segments ?? [])
-    setTarget(d.target ?? { routeId: null, variantId: null })
     const a = d.area ?? null
     setArea(a)
     areaRef.current = a
+    writePoints(d.controlPoints)
+    writeSegments(d.segments ?? [])
+    setTarget(d.target ?? { routeId: null, variantId: null })
     setDrawing(true)
-  }, [writePoints])
+
+    // A draft saved while the router was being asked holds stand-ins: straight,
+    // two points, no streets, yet marked routed. Their answers died with the
+    // page, so ask again.
+    if (a) return
+    ;(d.segments ?? []).forEach((s, i) => {
+      if (s?.snap === 'snapped' && s.coordinates?.length === 2 && !s.streets) {
+        void resolveGaps(i, ['snapped'])
+      }
+    })
+  }, [writePoints, writeSegments, resolveGaps])
 
   useEffect(() => {
     try {
@@ -340,6 +363,7 @@ export function useDrawing(map: MapLibreMap | null) {
     map.addSource(LINE_SRC, { type: 'geojson', data: EMPTY })
     map.addSource(POINT_SRC, { type: 'geojson', data: EMPTY })
     map.addSource(AREA_SRC, { type: 'geojson', data: EMPTY })
+    map.addSource(UTURN_SRC, { type: 'geojson', data: EMPTY })
 
     // The hotspot fill sits under its own outline and under the route layers.
     map.addLayer({
@@ -377,6 +401,16 @@ export function useDrawing(map: MapLibreMap | null) {
         'line-dasharray': [2, 1.5],
       },
     })
+    // Where the route turns back on itself, the doubled-back stretch overlaps
+    // the line and would be invisible. Paint it amber over the line.
+    map.addLayer({
+      id: 'draw-uturn-stub',
+      type: 'line',
+      source: UTURN_SRC,
+      filter: ['==', ['geometry-type'], 'LineString'],
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': UTURN_COLOUR, 'line-width': 5 },
+    })
     // A 4px line is far too thin to hit reliably; this invisible one is not.
     map.addLayer({
       id: HIT_LAYER,
@@ -384,6 +418,19 @@ export function useDrawing(map: MapLibreMap | null) {
       source: LINE_SRC,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-color': '#000000', 'line-width': 22, 'line-opacity': 0 },
+    })
+    // …and ring the control point it turns at.
+    map.addLayer({
+      id: 'draw-uturn-ring',
+      type: 'circle',
+      source: UTURN_SRC,
+      filter: ['==', ['geometry-type'], 'Point'],
+      paint: {
+        'circle-radius': 12,
+        'circle-opacity': 0,
+        'circle-stroke-color': UTURN_COLOUR,
+        'circle-stroke-width': 3,
+      },
     })
     map.addLayer({
       id: POINT_LAYER,
@@ -458,23 +505,16 @@ export function useDrawing(map: MapLibreMap | null) {
       writePoints(pts)
 
       // Rubber-band the two neighbours while dragging; they re-route on release.
-      setSegments((ss) => {
-        const next = [...ss]
-        if (i > 0 && pts[i - 1]) {
-          next[i - 1] = {
-            snap: dragModes[0] ?? 'snapped',
-            coordinates: [pts[i - 1], point],
-          }
-        }
-        if (i < pts.length - 1 && pts[i + 1]) {
-          next[i] = {
-            snap: dragModes[1] ?? 'snapped',
-            coordinates: [point, pts[i + 1]],
-          }
-        }
-        segRef.current = next
-        return next
-      })
+      const next = [...segRef.current]
+      if (i > 0 && pts[i - 1]) {
+        next[i - 1] = { snap: dragModes[0] ?? 'snapped', coordinates: [pts[i - 1], point] }
+        standInRef.current.add(next[i - 1])
+      }
+      if (i < pts.length - 1 && pts[i + 1]) {
+        next[i] = { snap: dragModes[1] ?? 'snapped', coordinates: [point, pts[i + 1]] }
+        standInRef.current.add(next[i])
+      }
+      writeSegments(next)
     }
 
     const onDragEnd = () => {
@@ -484,9 +524,14 @@ export function useDrawing(map: MapLibreMap | null) {
       canvas.style.cursor = 'crosshair'
       map.dragPan.enable()
       if (i === null) return
-      // Only the two segments touching the moved point are stale.
-      if (i > 0) void resolveGap(i - 1, dragModes[0] ?? 'snapped')
-      if (i < cpRef.current.length - 1) void resolveGap(i, dragModes[1] ?? 'snapped')
+      // Only the two segments touching the moved point are stale, and they go
+      // to the router together, as one request.
+      const before = dragModes[0] ?? 'snapped'
+      const after = dragModes[1] ?? 'snapped'
+      const last = cpRef.current.length - 1
+      if (i > 0 && i < last) void resolveGaps(i - 1, [before, after])
+      else if (i > 0) void resolveGaps(i - 1, [before])
+      else if (i < last) void resolveGaps(i, [after])
     }
 
     const onPointDown = (e: MapMouseEvent & { features?: IndexedFeature[] }) => {
@@ -545,13 +590,20 @@ export function useDrawing(map: MapLibreMap | null) {
     insertPoint,
     deletePoint,
     toggleSegment,
-    resolveGap,
+    resolveGaps,
     writePoints,
+    writeSegments,
   ])
 
   // -------------------------------------------------------------- rendering
 
   const line = useMemo(() => joinSegments(segments), [segments])
+
+  /** Control points where the route turns back on itself. Shown, never changed. */
+  const uTurns = useMemo(
+    () => (area ? [] : findUTurns(segments, (s) => standInRef.current.has(s))),
+    [segments, area],
+  )
 
   useEffect(() => {
     if (!map) return
@@ -613,7 +665,22 @@ export function useDrawing(map: MapLibreMap | null) {
           }
         : EMPTY,
     )
-  }, [map, segments, controlPoints, area])
+
+    const uturnSrc = map.getSource(UTURN_SRC) as GeoJSONSource | undefined
+    const stubs = uTurns.map((u) => ({
+      type: 'Feature' as const,
+      properties: { point: u.point, metres: Math.round(u.metres) },
+      geometry: { type: 'LineString' as const, coordinates: u.stub },
+    }))
+    const rings = uTurns
+      .filter((u) => controlPoints[u.point])
+      .map((u) => ({
+        type: 'Feature' as const,
+        properties: { point: u.point, metres: Math.round(u.metres) },
+        geometry: { type: 'Point' as const, coordinates: controlPoints[u.point] },
+      }))
+    uturnSrc?.setData({ type: 'FeatureCollection', features: [...stubs, ...rings] })
+  }, [map, segments, controlPoints, area, uTurns])
 
   // Route traces are rose; a hotspot trace takes its kind's colour, and its
   // straight edges are drawn solid rather than in the freehand dash.
@@ -638,6 +705,8 @@ export function useDrawing(map: MapLibreMap | null) {
     target,
     /** Non-null while tracing a hotspot; null while drawing a route. */
     area,
+    /** Control points where the route turns back on itself (see findUTurns). */
+    uTurns,
     load,
     metres: useMemo(() => lineLength(line), [line]),
     start,

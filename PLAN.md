@@ -444,6 +444,44 @@ is made.
 U-turn spur at either join; all gesture checks pass; the owner edits one real
 route and confirms.
 
+**Built 2026-09-15** on `build-order`.
+
+**Owner's decision, 2026-09-15: U-turns are shown, never changed.** Where the
+route turns back on itself at a control point — a click a little past a
+corner, or a jeepney that really turns there — the line stays as the router
+drew it. The doubled-back stretch is painted amber, the point is ringed, the
+toolbar counts "⚠ N U-turns" and the save panel warns before saving. The check
+"no U-turn spur at either join" becomes "no hidden U-turn at any join". What
+was weighed, measured on real Novaliches streets: forcing the route forward
+(M7's three-waypoint request with `continue_straight=true`, plus start
+bearings) removed spurs by driving round the block, +532 m, +619 m and
++1,060 m in three layouts, each a plausible-looking route that is easy to miss
+before saving; an arrival bearing made the router drive past and U-turn
+anyway; cutting short stubs off automatically would also cut a detour the
+owner had just dragged onto a side street.
+
+| Part and check | Result |
+|---|---|
+| `radiuses=25` | A click in the La Mesa watershed that snapped to Quirino Highway 1,213 m away now draws a dashed segment. A refused point makes only the gaps touching it straight; the others are routed on their own |
+| A moved or inserted point | Its two segments go to the router in one request (`continue_straight=false`). Only the two adjacent segments are re-snapped, as the core design rule says |
+| U-turns shown | `findUTurns`: the two segments pass the same road nodes in opposite order, or the edge in and the edge out are more than 150° apart. snap-test: append rings B; drag rings B and C, not D; insert rings P, not B — exactly where the line turns back. A straight-on join rings nothing |
+| Street names | `steps=true`; each segment stores its street runs with lengths. The save panel lists "via Sinai Street → Assyria Street", counts straight stretches, and says when older segments have no names yet. A `?e2e=1` session cannot open the panel, so it is seen in the Studio/SavePanel story; snap-test reads the names from the draft |
+| Router etiquette | One request a second, page-wide; one retry after a 429; a 10 s timeout that starts when a request's turn comes. Back-to-back requests are what the public router refuses, and a refusal draws a good stretch dashed |
+| Replies written by identity | A reply is written where its straight stand-in still is, and dropped if the stand-in is gone. This replaced per-position counters, which the review traced writing road geometry into the wrong gap after an insert and leaving a fake routed segment behind. A draft reloaded mid-request routes its stand-ins again |
+| First independent review, by a separate read-only agent | 10 findings on the first version (bearings plus a repair re-route). Acted on: rate limits, reply placement, stand-ins after a reload, the save panel hint, a timeout, gesture tests passing for the wrong reason. The heading and forced-forward findings went with the owner's decision |
+| `scripts/pw/snap-test.mjs` | New, written by a helper agent and run against the old code first: it failed there on the far click, the spurs and the street names, which is the proof it can see them. Then rewritten for the owner's decision |
+| The existing gesture tests | They clicked fixed pixel offsets. With the radius, regression-gestures' drag landed off-road, and "shift-clicking marks it freehand" passed because the segment was already dashed; uitest showed "2 freehand" after one shift-click. They now click a saved route's own vertices, drag along a segment's own road, and check the segment is routed before the shift-click |
+| Checks | `npm run check` passes. Offline, snap.ts against scripted router answers: 28/28. Headless on a dev server: snap-test 20/20, regression-gestures 29/29, hotspot-test 22/22, uitest 26/26, gate-test 15/15, visitor-test 35/35 |
+| Visitors | Nothing they run changed. The shared CSS file grew 104.33 → 104.69 kB with the editor's amber classes, because Tailwind writes one file for both pages |
+| Second independent review | *Pending at the time of writing* |
+| The owner edits one real route | *Pending* |
+
+Found while testing: starting `npm run dev` while another dev server is
+running fails on the port, but first rebuilds the shared `node_modules/.vite`
+cache. The server already running then answers "504 Outdated Optimize Dep" for
+React and supabase-js, the studio never loads, and every headless test times
+out, until it is restarted.
+
 ### Step 4 — Visitor map on a phone
 
 As **M14**, unchanged.
@@ -974,8 +1012,11 @@ step 1; one account, the only editor.
 
 **Step 1 done 2026-09-15.** **Step 2 built, merged into `main` and deployed
 2026-09-15** (see its section); realshot on both live URLs passed, and the
-owner completed a real reset email on the live site. **Step 2 done.** Step 3
-started 2026-09-15 on the owner's go.
+owner completed a real reset email on the live site. **Step 2 done.**
+**Step 3 built 2026-09-15** on `build-order` (see its section), with the
+owner's decision that U-turns are shown, never changed. Waiting on: the second
+independent review, the owner editing one real route, then the owner's go to
+merge into `main`.
 
 **Storybook added 2026-09-15**, before step 3, on the owner's ask: Storybook
 10.6.0 (`@storybook/react-vite`, `@storybook/addon-docs`), telemetry off.

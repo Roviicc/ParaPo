@@ -151,8 +151,26 @@ await page.getByRole('button', { name: '✕' }).click()
 // ---- Regression: a 2-point route still snaps to roads
 await page.getByRole('button', { name: '+ New Route' }).click()
 await page.waitForTimeout(200)
-await page.mouse.click(cx - 60, cy); await page.waitForTimeout(150)
-await page.mouse.click(cx + 60, cy)
+// Two clicks on the centred saved route's own vertices, ~120 px apart and clear
+// of the cards and the toolbar: on a road, so the router (which refuses a click
+// more than 25 m from one) routes the gap. Fixed offsets from the centre can
+// land inside a block, and a refused gap is drawn freehand.
+const onRoad = await page.evaluate(async () => {
+  const f = ((await window.__src('saved-routes'))?.features ?? []).find(f => f.geometry.coordinates.length > 1)
+  if (!f) return []
+  const m = window.__map, { clientWidth: w, clientHeight: h } = m.getCanvas()
+  const picked = []
+  for (const c of f.geometry.coordinates) {
+    const p = m.project(c)
+    if (p.x < 80 || p.x > w - 80 || p.y < 80 || p.y > h - 140) continue
+    const last = picked[picked.length - 1]
+    if (!last || Math.hypot(p.x - last[0], p.y - last[1]) >= 120) picked.push([p.x, p.y])
+    if (picked.length === 2) break
+  }
+  return picked
+})
+check('route: two on-road click positions found on a saved route', onRoad.length === 2, `${onRoad.length} found`)
+for (const [x, y] of onRoad) { await page.mouse.click(box.x + x, box.y + y); await page.waitForTimeout(150) }
 await page.waitForFunction(() => !document.body.innerText.includes('snapping…'), null, { timeout: 30000 })
 const route = await page.evaluate(async () => {
   const line = await window.__src('draw-line')

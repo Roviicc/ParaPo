@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Drawing } from './useDrawing'
 import { MODES, type RouteRow, type TransportMode, type VariantRow } from '../shared/routes'
 import { saveVariant } from './routesWrite'
+import { routeStreets } from './snap'
 import { syncHintuanLinks } from './stopsWrite'
 
 type Props = {
@@ -35,6 +36,7 @@ export function SavePanel({ draw, existing, route, onSaved, onCancel }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   const routeLocked = !!parent
+  const streets = routeStreets(draw.segments)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -78,6 +80,35 @@ export function SavePanel({ draw, existing, route, onSaved, onCancel }: Props) {
           {draw.controlPoints.length} points · {(draw.metres / 1000).toFixed(2)} km
           {routeLocked && ' · route details are shared by all its directions'}
         </p>
+        {/* For a jeepney the street list says more than the two terminals do. */}
+        {streets.names.length > 0 && (
+          <p data-testid="save-streets" className="mt-2 text-xs leading-relaxed text-neutral-700">
+            via {streets.names.join(' → ')}
+            {streets.straight > 0 && (
+              <span className="text-neutral-400">
+                {' '}
+                · and {streets.straight} straight {streets.straight === 1 ? 'stretch' : 'stretches'}
+              </span>
+            )}
+          </p>
+        )}
+        {streets.missing > 0 && (
+          <p className="mt-1 text-[11px] text-neutral-400">
+            No street names yet for {streets.missing === 1 ? 'one stretch' : `${streets.missing} stretches`}{' '}
+            routed before they were recorded. Moving a point re-routes its stretches and fills them in.
+          </p>
+        )}
+        {draw.uTurns.length > 0 && (
+          <p
+            data-testid="save-uturns"
+            className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800"
+          >
+            This route turns back on itself at{' '}
+            {draw.uTurns.length === 1 ? 'one point' : `${draw.uTurns.length} points`}, ringed in amber
+            on the map. Save anyway if the jeep really turns there; otherwise go back and drag the
+            point to the corner.
+          </p>
+        )}
 
         <label className="mt-4 block text-xs font-medium text-neutral-700">
           Signboard <span className="text-neutral-400">(what is painted on the jeep)</span>

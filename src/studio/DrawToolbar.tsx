@@ -42,6 +42,15 @@ export function DrawToolbar({ draw, onDone }: { draw: Drawing; onDone: () => voi
           {!area && freehandCount > 0 && (
             <span className="text-neutral-400"> · {freehandCount} freehand</span>
           )}
+          {!area && draw.uTurns.length > 0 && (
+            <span
+              className="text-amber-600"
+              title="The route turns back on itself at the ringed point, drawn in amber. Drag the point to the corner to fix it, or keep it if the jeep really turns there."
+            >
+              {' '}
+              · ⚠ {draw.uTurns.length} U-turn{draw.uTurns.length === 1 ? '' : 's'}
+            </span>
+          )}
           {draw.snapping > 0 && <span className="text-rose-600"> · snapping…</span>}
         </span>
 
