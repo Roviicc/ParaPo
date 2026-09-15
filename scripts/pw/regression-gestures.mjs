@@ -6,9 +6,9 @@
 // Opens /studio/?e2e=1, which in development skips the sign-in door so
 // drawing can be exercised while signed out (Done still asks to sign in
 // before saving). Before each drawing section the map is jumped to a
-// street-level view centred on the middle vertex of an existing saved route,
-// or a fixed Metro Manila point when the database has none. Route clicks and
-// drags land on that saved route's own vertices, or along a segment's own
+// street-level view centred on the middle vertex of the saved route with the
+// most coordinates, or a fixed Metro Manila point when the database has none.
+// Route clicks and drags land on that saved route's own vertices, or along a segment's own
 // road: the router refuses a click more than 25 m from a road, and a refused
 // gap is drawn freehand, which would let the freehand checks below pass for
 // the wrong reason. Point counts asserted throughout come from this script's
@@ -25,6 +25,10 @@ let routerCalls = 0
 // where the browser cannot reach the internet but Node can (sandboxed CI).
 if (process.env.PARAPO_NODE_FETCH) {
 await page.route(/^https:\/\//, async (route) => { const req = route.request(); if (/routing\.openstreetmap\.de|route\/v1\/driving/.test(req.url())) routerCalls++; try { const h={...req.headers()}; delete h['accept-encoding']; const r = await fetch(req.url(), { method: req.method(), headers: h, body: ['GET','HEAD'].includes(req.method())?undefined:req.postDataBuffer() }); const body=Buffer.from(await r.arrayBuffer()); const hh={}; r.headers.forEach((v,k)=>{ if(!['content-encoding','content-length','transfer-encoding'].includes(k)) hh[k]=v }); await route.fulfill({status:r.status,headers:hh,body}) } catch { await route.abort() } })
+} else {
+// Otherwise count router requests as the browser sends them; without this the
+// counter never moves and "no router calls during any hotspot gesture" cannot fail.
+page.on('request', r => { if (/routing\.openstreetmap\.de|route\/v1\/driving/.test(r.url())) routerCalls++ })
 }
 await page.addInitScript(() => { window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null } })
 const errors = []; page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.type()==='error') errors.push(m.text().slice(0,160)) })
@@ -35,38 +39,49 @@ const proj = async (c) => page.evaluate(c => { const q = window.__map.project(c)
 const idle = async () => page.waitForFunction(() => !document.body.innerText.includes('snapping…'), null, { timeout: 30000 })
 const box0 = { x: 0, y: 0 }
 const renderedAt = async (px, layer='draw-point-dots') => page.waitForFunction(([x, y, l]) => window.__map.queryRenderedFeatures([x, y], { layers: [l] }).length > 0, [px[0], px[1], layer], { timeout: 5000 }).then(() => true).catch(() => false)
+// A gap waiting for the router is drawn as a straight stand-in that is also
+// 'snapped', so draw-line cannot tell it from a routed segment. The draft can: a
+// stand-in is written `pending` with no `streets`; a segment the router answered
+// has a `streets` array (empty on an unnamed road).
+const routed = async () => page.evaluate(() => {
+  const d = JSON.parse(localStorage.getItem('parapo.draft.v1') ?? 'null'); if (!d) return { ok: false, detail: 'no draft in localStorage' }
+  const sn = (d.segments ?? []).filter(x => x?.snap === 'snapped'), real = sn.filter(x => Array.isArray(x.streets) && !x.pending)
+  return { ok: sn.length > 0 && real.length === sn.length, detail: `${real.length}/${sn.length} snapped routed, ${sn.filter(x => x.pending).length} pending, ${sn.filter(x => !Array.isArray(x.streets)).length} no streets` }
+})
 
 // Known risk: clicks used to land at the centre of a view fitted to whatever
 // routes happen to be saved, which drifts as routes are added and can fall on
 // water or a block the public OSRM router can't snap to. Recentre on real
 // ground before drawing instead.
+// The saved route with the most coordinates, not features[0]: saved routes come
+// most recently updated first, so the first one changes whenever the owner edits
+// a route. centerOnLand keeps its coordinates in savedLine for roadPixels, so the
+// clicks come from the same route the view is centred on.
 const CUBAO = [121.0527, 14.6187] // Metro Manila land fallback, used when there are no saved routes yet
+let savedLine = []
 const centerOnLand = async () => {
   await page.waitForFunction(async () => ((await window.__src('saved-routes'))?.features?.length ?? 0) > 0, null, { timeout: 6000 }).catch(() => {})
-  const feats = await page.evaluate(async () => (await window.__src('saved-routes'))?.features ?? [])
-  const coords = feats[0]?.geometry?.coordinates
-  const center = coords && coords.length > 0 ? coords[Math.floor(coords.length / 2)] : CUBAO
+  savedLine = await page.evaluate(async () => ((await window.__src('saved-routes'))?.features ?? []).map(f => f.geometry?.coordinates ?? []).reduce((a, c) => c.length > a.length ? c : a, []))
+  const center = savedLine.length > 0 ? savedLine[Math.floor(savedLine.length / 2)] : CUBAO
   await page.evaluate(c => window.__map.jumpTo({ center: c, zoom: 15 }), center)
   await page.waitForTimeout(300)
 }
 
 // Canvas pixels of the centred saved route's own vertices in the current view,
-// in order along it, at least `gap` px apart and clear of the cards and the
-// toolbar. They are on a road, so the router routes a gap between any two.
-const roadPixels = async (n, gap) => page.evaluate(async ([n, gap]) => {
-  const f = ((await window.__src('saved-routes'))?.features ?? [])[0]
-  if (!f) return []
+// in order along it, each at least `gap` px from every earlier pick and clear of
+// the cards and the toolbar. They are on a road, so the router routes a gap
+// between any two.
+const roadPixels = async (n, gap) => page.evaluate(([line, n, gap]) => {
   const m = window.__map, { clientWidth: w, clientHeight: h } = m.getCanvas()
   const picked = []
-  for (const c of f.geometry.coordinates) {
+  for (const c of line) {
     const p = m.project(c)
     if (p.x < 80 || p.x > w - 80 || p.y < 80 || p.y > h - 140) continue
-    const last = picked[picked.length - 1]
-    if (!last || Math.hypot(p.x - last[0], p.y - last[1]) >= gap) picked.push([p.x, p.y])
+    if (picked.every(([x, y]) => Math.hypot(p.x - x, p.y - y) >= gap)) picked.push([p.x, p.y])
     if (picked.length === n) break
   }
   return picked
-}, [n, gap])
+}, [savedLine, n, gap])
 
 await page.goto(`${BASE}/studio/?e2e=1`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
@@ -86,8 +101,8 @@ check('four on-road click positions found on a saved route', road.length === 4, 
 for (const [x, y] of road) { await click(x, y); await page.waitForTimeout(120) }
 await idle()
 check('four clicks add four control points', await pts() === 4, String(await pts()))
-let s = await segs()
-check('segments routed without error', s.length === 3 && s.every(f => f.properties.snap === 'snapped'), `${s.length} segs`)
+let s = await segs(), r = await routed()
+check('segments routed without error', s.length === 3 && s.every(f => f.properties.snap === 'snapped') && r.ok, `${s.length} segs; ${r.detail}`)
 // drag point 1 along its own road, to the middle of segment 1, so both its
 // segments can still be routed
 let c = await cp(); let p1 = await proj(c[1])
@@ -101,8 +116,8 @@ let c2 = await cp()
 const dragged = Math.hypot(c2[1][0] - c[1][0], c2[1][1] - c[1][1])
 check('dragging a point moves it (not the map)', dragged > 1e-4 && c2[0][0] === c[0][0], `moved ${(dragged * 1e5).toFixed(0)}e-5°`)
 check('dragging keeps the point count', await pts() === 4)
-s = await segs()
-check('both segments of the dragged point are routed again (control for the shift-click)', s.length === 3 && s.every(f => f.properties.snap === 'snapped'), s.map(f => f.properties.snap).join(','))
+s = await segs(); r = await routed()
+check('both segments of the dragged point are routed again (control for the shift-click)', s.length === 3 && s.every(f => f.properties.snap === 'snapped') && r.ok, `${s.map(f => f.properties.snap).join(',')}; ${r.detail}`)
 // shift-click segment 0 midpoint to straighten
 const seg0 = s.find(f => f.properties.index === 0).geometry.coordinates
 // A routed segment's own vertices can run close to a neighbour's route near
@@ -176,7 +191,8 @@ c = await cp()
 check('click the closing edge appends a corner (ring re-closes through it)', c.length === 6 && c[5][0].toFixed(5) === cm[0].toFixed(5))
 p3 = await proj(c[5]); await renderedAt(p3); await click(p3[0], p3[1], { button: 'right' }); await page.waitForTimeout(250)
 check('right-click a corner deletes it', await pts() === 5)
-check('no router calls during any hotspot gesture', routerCalls === before, String(routerCalls - before))
+// before > 0: the counter saw the route section's requests, so a 0 here is real.
+check('no router calls during any hotspot gesture', routerCalls === before && before > 0, `${routerCalls - before} during hotspots, ${before} while drawing the route`)
 check('Done enabled for the outline', await page.getByRole('button', { name: /Done/ }).isEnabled())
 await page.getByRole('button', { name: '✕' }).click(); await page.waitForTimeout(200)
 check('cancel returns to idle with both buttons', await page.getByRole('button', { name: '+ New hotspot' }).count() === 1)

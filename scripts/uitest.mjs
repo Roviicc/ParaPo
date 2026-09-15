@@ -100,15 +100,29 @@ try {
     const m = /(\d+)\s+points?/.exec(t ?? '')
     return m ? Number(m[1]) : -1
   }
-  const settle = async (ms = 12000) => {
+  // A drawing still "snapping" when this gives up would be read half-routed by
+  // the checks after it, so a timeout is a failure of its own, named for the
+  // step (the line prints only when it happens).
+  const settle = async (step, ms = 12000) => {
     const until = Date.now() + ms
     while (Date.now() < until) {
       const t = (await text()) ?? ''
       if (!t.includes('snapping')) return true
       await sleep(400)
     }
+    check(`"snapping…" clears after ${step}`, false, `still showing after ${ms / 1000} s`)
     return false
   }
+  // A gap waiting for the router is drawn as a straight stand-in the toolbar
+  // does not count as freehand, so "none freehand" alone passes before the
+  // router answers. The draft tells them apart: a stand-in is written `pending`
+  // with no `streets`; a segment the router answered has a `streets` array
+  // (empty on an unnamed road).
+  const routed = async () => (await evaluate(`(() => {
+    const d = JSON.parse(localStorage.getItem('parapo.draft.v1') ?? 'null'); if (!d) return { ok: false, detail: 'no draft in localStorage' };
+    const sn = (d.segments ?? []).filter((s) => s && s.snap === 'snapped'), real = sn.filter((s) => Array.isArray(s.streets) && !s.pending);
+    return { ok: sn.length > 0 && real.length === sn.length, detail: real.length + '/' + sn.length + ' snapped routed, ' + sn.filter((s) => s.pending).length + ' pending, ' + sn.filter((s) => !Array.isArray(s.streets)).length + ' no streets' };
+  })()`)) ?? { ok: false, detail: 'draft unreadable' }
 
   await send('Page.enable'); await send('Runtime.enable')
 
@@ -138,32 +152,44 @@ try {
   for (let i = 0; i < 30; i++) { if (await evaluate('!!(window.__map && window.__map.areTilesLoaded())')) break; await sleep(300) }
   const t1 = (await text()) ?? ''
   check('pill shows the saved route count', /\d+ routes?/.test(t1), (t1.match(/\d+ routes?/) ?? ['-'])[0])
+  // Tap a vertex where only one saved route is drawn. Routes share roads (at
+  // this zoom the short "asd" lies on Tala), and a tap on a shared stretch
+  // opens whichever is on top: right for the map, but not the route the check
+  // names.
   const savedPt = await evaluate(`(() => {
     const m = window.__map; if (!m) return null;
-    const f = m.querySourceFeatures('saved-routes').find(f => f.geometry.coordinates.length > 1);
-    if (!f) return null; const c = f.geometry.coordinates; const p = m.project(c[Math.floor(c.length / 2)]);
-    return { x: p.x, y: p.y, signboard: f.properties.signboard };
+    const r = m.getCanvas().getBoundingClientRect();
+    for (const f of m.querySourceFeatures('saved-routes')) {
+      for (const c of f.geometry.coordinates.length > 1 ? f.geometry.coordinates : []) {
+        const p = m.project(c);
+        if (p.x < 100 || p.x > r.width - 100 || p.y < 100 || p.y > r.height - 160) continue;
+        const under = new Set(m.queryRenderedFeatures([[p.x - 12, p.y - 12], [p.x + 12, p.y + 12]], { layers: ['saved-routes-hit'] }).map((g) => g.properties.signboard));
+        if (under.size === 1 && under.has(f.properties.signboard)) return { x: r.x + p.x, y: r.y + p.y, signboard: f.properties.signboard };
+      }
+    }
+    return null;
   })()`)
-  check('a saved route is on the map', !!savedPt, savedPt ? savedPt.signboard : 'none')
+  check('a saved route is on the map, with a stretch no other route shares', !!savedPt, savedPt ? savedPt.signboard : 'none')
   if (savedPt) { await click(savedPt.x, savedPt.y); await sleep(400) }
   const tCard = (await text()) ?? ''
   check('tapping it opens the route card', !!savedPt && tCard.includes(savedPt.signboard) && tCard.includes('Direction'),
-    tCard.includes('drawn, not yet ridden') ? 'status badge present' : '')
+    savedPt ? `tapped "${savedPt.signboard}"; ${tCard.includes('Direction') ? 'a card opened' : 'no card opened'}` : '')
   const closeBtn = await evaluate(`(() => { const b = document.querySelector('button[aria-label="Close"]'); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.x + r.width/2, y: r.y + r.height/2 } })()`)
   if (closeBtn) await click(closeBtn.x, closeBtn.y)
   check('closing the card brings the pill back', ((await text()) ?? '').includes('Sign in'))
 
   // 1c. Jump to a street-level view, independent of what happens to be saved
-  // today: the middle vertex of an existing saved route, or the Cubao
-  // fallback if there are none. Fixed pixels on a bounds-fit view can land on
-  // water or inside a block, where OSRM can't snap.
-  const jumpTarget = await evaluate(`(async () => {
+  // today: the middle vertex of the saved route with the most coordinates, or
+  // the Cubao fallback if there are none. Not the first saved route: they come
+  // most recently updated first, so the first changes whenever one is edited.
+  // Step 3 clicks on this same line. Fixed pixels on a bounds-fit view can land
+  // on water or inside a block, where OSRM can't snap.
+  const savedLine = (await evaluate(`(async () => {
     const m = window.__map; const src = m && m.getSource('saved-routes');
     const fc = src ? await src.getData() : null;
-    const f = fc && fc.features.find((f) => f.geometry.coordinates.length > 1);
-    if (f) { const c = f.geometry.coordinates; return c[Math.floor(c.length / 2)]; }
-    return [121.0527, 14.6187];
-  })()`)
+    return (fc ? fc.features : []).map((f) => f.geometry.coordinates).reduce((a, c) => (c.length > a.length ? c : a), []);
+  })()`)) ?? []
+  const jumpTarget = savedLine.length > 1 ? savedLine[Math.floor(savedLine.length / 2)] : [121.0527, 14.6187]
   await evaluate(`(() => { window.__map.jumpTo({ center: ${JSON.stringify(jumpTarget)}, zoom: 15 }); return true })()`)
   for (let i = 0; i < 30; i++) { if (await evaluate('!!(window.__map && window.__map.areTilesLoaded())')) break; await sleep(300) }
   const canvasBox = await evaluate(`(() => {
@@ -199,35 +225,33 @@ try {
   })()`)
   const freehandCount = async () => Number(/(\d+) freehand/.exec((await text()) ?? '')?.[1] ?? 0)
 
-  // 3. add four points on the saved route's own vertices, at least 90 px apart
-  // and clear of the cards and the toolbar. They are on roads, so the router
-  // (which refuses a click more than 25 m from one) routes every gap; fixed
-  // pixel offsets from the centre can land inside a block, and a refused gap is
-  // drawn freehand, which would let the freehand check below pass for the
-  // wrong reason.
-  const roadPts = await evaluate(`(async () => {
-    const m = window.__map; const src = m && m.getSource('saved-routes');
-    const fc = src ? await src.getData() : null;
-    const f = fc && fc.features.find((f) => f.geometry.coordinates.length > 1);
-    if (!f) return [];
+  // 3. add four points on the saved route's own vertices (savedLine, the route
+  // the view jumped to), each at least 90 px from every earlier pick and clear
+  // of the cards and the toolbar. They are on roads, so the router (which
+  // refuses a click more than 25 m from one) routes every gap; fixed pixel
+  // offsets from the centre can land inside a block, and a refused gap is drawn
+  // freehand, which would let the freehand check below pass for the wrong
+  // reason.
+  const roadPts = await evaluate(`((line) => {
+    const m = window.__map; if (!m) return [];
     const r = m.getCanvas().getBoundingClientRect();
     const picked = [];
-    for (const c of f.geometry.coordinates) {
+    for (const c of line) {
       const p = m.project(c);
       if (p.x < 80 || p.x > r.width - 80 || p.y < 80 || p.y > r.height - 140) continue;
-      const last = picked[picked.length - 1];
-      if (!last || Math.hypot(p.x - last[0], p.y - last[1]) >= 90) picked.push([p.x, p.y]);
+      if (picked.every(([x, y]) => Math.hypot(p.x - x, p.y - y) >= 90)) picked.push([p.x, p.y]);
       if (picked.length === 4) break;
     }
     return picked.map(([x, y]) => [r.x + x, r.y + y]);
-  })()`)
+  })(${JSON.stringify(savedLine)})`)
   check('four on-road click positions found on a saved route', roadPts?.length === 4, `${roadPts?.length ?? 0} found`)
   for (const [x, y] of roadPts ?? []) await click(x, y)
-  await settle()
+  await settle('the four clicks')
   const afterAdd = await points()
   check('four clicks add four control points', afterAdd === 4, 'got ' + afterAdd)
-  check('every segment routed, none freehand', !((await text()) ?? '').includes('failed to load') && (await freehandCount()) === 0,
-    `${await freehandCount()} freehand`)
+  const routedAdd = await routed()
+  check('every segment routed, none freehand', !((await text()) ?? '').includes('failed to load') && (await freehandCount()) === 0 && routedAdd.ok,
+    `${await freehandCount()} freehand; ${routedAdd.detail}`)
   check('dev build exposes window.__map for tests', await evaluate('!!window.__map'))
 
   // 4. drag the third point along its own road, onto the middle of segment 2,
@@ -238,20 +262,21 @@ try {
     JSON.stringify(cp?.map((p) => [p.i, Math.round(p.x), Math.round(p.y)])))
   const seg2 = await onSegment(2)
   if (p2 && seg2) await drag(p2.x, p2.y, seg2.x, seg2.y)
-  await settle()
+  await settle('the drag')
   cp = await cps()
   const p2b = cp?.find((p) => p.i === 2)
   const movedPx = p2 && p2b ? Math.hypot(p2b.x - p2.x, p2b.y - p2.y) : 0
   check('dragging a point moves it (not the map)', movedPx > 15, `moved ${Math.round(movedPx)}px`)
   check('dragging keeps the point count', (await points()) === 4, 'got ' + (await points()))
-  check('still none freehand after the drag (control for the shift-click)', (await freehandCount()) === 0,
-    `${await freehandCount()} freehand`)
+  const routedDrag = await routed()
+  check('still none freehand after the drag (control for the shift-click)', (await freehandCount()) === 0 && routedDrag.ok,
+    `${await freehandCount()} freehand; ${routedDrag.detail}`)
 
   // 5. shift-click ON the routed line of segment 0 to straighten it
   const seg0 = await onSegment(0)
   check('segment 0 geometry is queryable', !!seg0, seg0 ? `${seg0.n} coords` : 'none')
   if (seg0) await click(seg0.x, seg0.y, { modifiers: 8 })
-  await settle()
+  await settle('the shift-click')
   check('shift-clicking a segment marks it freehand', (await freehandCount()) === 1,
     ((await text()) ?? '').split('\n').find((l) => l.includes('points')) ?? '')
   check('shift-click did not add a point', (await points()) === 4, 'got ' + (await points()))
@@ -259,7 +284,7 @@ try {
   // 5b. plain-click ON the (now straight) segment 0 to insert a point into it
   const seg0b = await onSegment(0)
   if (seg0b) await click(seg0b.x, seg0b.y)
-  await settle()
+  await settle('the insert')
   const afterInsert = await points()
   check('clicking the line inserts a point into that segment', afterInsert === 5, 'got ' + afterInsert)
   cp = await cps()
@@ -272,14 +297,14 @@ try {
   cp = await cps()
   const last = cp?.[cp.length - 1]
   if (last) await rightClick(last.x, last.y)
-  await settle()
+  await settle('the right-click')
   const afterDelete = await points()
   check('right-clicking a point deletes it', afterDelete === 4,
     `got ${afterDelete}; DOM contextmenu events seen: ${await evaluate('window.__cm')}`)
 
   // 7. undo
   const undo = await buttonRect('Undo')
-  if (undo) { await click(undo.x, undo.y); await settle() }
+  if (undo) { await click(undo.x, undo.y); await settle('undo') }
   const afterUndo = await points()
   check('undo removes the last point', afterUndo === afterDelete - 1, 'got ' + afterUndo)
 

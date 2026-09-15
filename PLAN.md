@@ -471,10 +471,11 @@ owner had just dragged onto a side street.
 | First independent review, by a separate read-only agent | 10 findings on the first version (bearings plus a repair re-route). Acted on: rate limits, reply placement, stand-ins after a reload, the save panel hint, a timeout, gesture tests passing for the wrong reason. The heading and forced-forward findings went with the owner's decision |
 | `scripts/pw/snap-test.mjs` | New, written by a helper agent and run against the old code first: it failed there on the far click, the spurs and the street names, which is the proof it can see them. Then rewritten for the owner's decision |
 | The existing gesture tests | They clicked fixed pixel offsets. With the radius, regression-gestures' drag landed off-road, and "shift-clicking marks it freehand" passed because the segment was already dashed; uitest showed "2 freehand" after one shift-click. They now click a saved route's own vertices, drag along a segment's own road, and check the segment is routed before the shift-click |
-| Checks | `npm run check` passes. Offline, snap.ts against scripted router answers: 28/28. Headless on a dev server: snap-test 20/20, regression-gestures 29/29, hotspot-test 22/22, uitest 26/26, gate-test 15/15, visitor-test 35/35 |
-| Visitors | Nothing they run changed. The shared CSS file grew 104.33 → 104.69 kB with the editor's amber classes, because Tailwind writes one file for both pages |
-| Second independent review | *Pending at the time of writing* |
-| The owner edits one real route | *Pending* |
+| Checks | `npm run check` passes. Offline, snap.ts against scripted router answers: 37/37. Headless on a dev server: snap-test 20/20, regression-gestures 29/29, hotspot-test 22/22, uitest 26/26, gate-test 15/15, visitor-test 35/35. uitest's route-card tap now picks a vertex no other saved route shares: at the fitted zoom the short test route "asd" lies on Tala, and a tap there opened Tala's card |
+| Visitors | Nothing they run changed. The shared CSS file grew 104.33 → 104.42 kB with the editor's amber classes, because Tailwind writes one file for both pages; after the second review the warnings reuse amber shades the file already had |
+| Second independent review, by a separate read-only agent | On the shown-not-changed version. Acted on: a loop round a one-way or divided block now counts as a U-turn; a retrace under 5 m, or a sharp turn onto another road, no longer does; duplicate vertices and malformed stored segments no longer break the check or the save panel; a press and release on a point no longer re-routes it or inserts a second point on top of it (a bug older than step 3); a drag released over the toolbar ends; a request whose stand-ins are gone is cancelled; Done stays disabled while any stand-in is left; the draft marks stand-ins `pending`, and a reload asks the router once more. Its test findings: the drawing tests now read the draft to tell a routed segment from a stand-in, a wait for "snapping…" that times out fails, and hotspot-test's router check must see a request |
+| A probe with router answers held back | The press-and-release, the drag released over the toolbar (Done disabled while the answer is out) and a reload mid-request, each checked with the router's answer deliberately delayed: 11/11 |
+| The owner edits one real route | Done 2026-09-15: "snapping is good" |
 
 Found while testing: starting `npm run dev` while another dev server is
 running fails on the port, but first rebuilds the shared `node_modules/.vite`
@@ -1014,9 +1015,9 @@ step 1; one account, the only editor.
 2026-09-15** (see its section); realshot on both live URLs passed, and the
 owner completed a real reset email on the live site. **Step 2 done.**
 **Step 3 built 2026-09-15** on `build-order` (see its section), with the
-owner's decision that U-turns are shown, never changed. Waiting on: the second
-independent review, the owner editing one real route, then the owner's go to
-merge into `main`.
+owner's decision that U-turns are shown, never changed. Two independent
+reviews acted on; the owner edited a real route ("snapping is good") and gave
+the go to merge into `main`.
 
 **Storybook added 2026-09-15**, before step 3, on the owner's ask: Storybook
 10.6.0 (`@storybook/react-vite`, `@storybook/addon-docs`), telemetry off.

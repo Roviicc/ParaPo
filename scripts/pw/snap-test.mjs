@@ -83,9 +83,11 @@ const bearing = ([lng1, lat1], [lng2, lat2]) => {
  * control point k it reports the worst turn within atM metres along the line.
  * A vertex's turn is the angle, 0–180°, between the bearing in from the last
  * vertex at least minStepM behind it and the bearing out to the first vertex
- * at least minStepM ahead, so repeated points cannot invent one.
+ * at least minStepM ahead, so repeated points cannot invent one. minStepM is
+ * 5 m because the editor ignores retraces shorter than 5 m (a route running
+ * back over itself at a control point), so the test does not count them either.
  */
-function turnsAtJoins(segments, { atM = 10, maxTurn = 150, minStepM = 2 } = {}) {
+function turnsAtJoins(segments, { atM = 10, maxTurn = 150, minStepM = 5 } = {}) {
   const line = [], joins = []
   segments.forEach((s, i) => { if (i > 0) joins.push(line.length - 1); line.push(...(i === 0 ? s : s.slice(1))) })
   const along = [0]
@@ -133,7 +135,16 @@ const proj = async (c) => page.evaluate(c => { const q = window.__map.project(c)
 const idle = async () => page.waitForFunction(() => !document.body.innerText.includes('snapping…'), null, { timeout: 30000 })
 // After a gesture that routes: let the request start, let it finish, then give the shared router a breather.
 const settle = async () => { await page.waitForTimeout(400); await idle(); await page.waitForTimeout(1500); await idle() }
-const segs = async () => (await page.evaluate(async () => ((await window.__src('draw-line'))?.features ?? []).map(f => ({ index: f.properties.index, snap: f.properties.snap, coords: f.geometry.coordinates }))))
+// Each drawn segment, with `real`: whether the router really answered it. A gap
+// still waiting shows a straight stand-in that is also 'snapped' on the map; the
+// draft marks it pending, with no streets.
+const segs = async () => (await page.evaluate(async () => {
+  const d = JSON.parse(localStorage.getItem('parapo.draft.v1') ?? 'null')
+  return ((await window.__src('draw-line'))?.features ?? []).map(f => {
+    const kept = d?.segments?.[f.properties.index]
+    return { index: f.properties.index, snap: f.properties.snap, coords: f.geometry.coordinates, real: !!kept && Array.isArray(kept.streets) && !kept.pending }
+  })
+}))
   .filter(s => s.index >= 0).sort((a, b) => a.index - b.index)
 const cps = async () => (await page.evaluate(async () => ((await window.__src('draw-points'))?.features ?? []).map(f => ({ index: f.properties.index, c: f.geometry.coordinates }))))
   .sort((a, b) => a.index - b.index).map(p => p.c)
@@ -150,8 +161,9 @@ const view = async (points) => {
 const newRoute = async () => { await page.getByRole('button', { name: '+ New Route' }).click(); await page.getByRole('button', { name: /Done/ }).waitFor({ timeout: 5000 }) }
 const discard = async () => { await page.getByRole('button', { name: '✕' }).click(); await page.getByRole('button', { name: '+ New Route' }).waitFor({ timeout: 5000 }) }
 const drawRoute = async (points) => { await newRoute(); for (const [i, p] of points.entries()) { await clickAt(p); if (i === 0) await page.waitForTimeout(250); else await settle() } }
-const snapModes = (s) => s.map(x => x.snap).join(',') || 'none'
-const allSnapped = (s, points) => s.length === points - 1 && s.every(x => x.snap === 'snapped')
+// "snapped?" marks a stand-in: snapped on the map, but the router has not answered it.
+const snapModes = (s) => s.map(x => x.snap + (x.snap === 'snapped' && !x.real ? '?' : '')).join(',') || 'none'
+const allSnapped = (s, points) => s.length === points - 1 && s.every(x => x.snap === 'snapped' && x.real)
 
 // What the editor flags: rings (points) and stubs (lines) in draw-uturns, and the toolbar count.
 const flagged = async () => {
@@ -190,13 +202,22 @@ console.log('== Far click (Quirino Highway, La Mesa watershed)')
 await view([Q1, Q2, W])
 await drawRoute([Q2, Q1])
 let s = await segs()
-check('far click: an on-road second point is snapped (control)', s.length === 1 && s[0].snap === 'snapped', `gaps ${snapModes(s)}`)
+check('far click: an on-road second point is snapped (control)', allSnapped(s, 2), `gaps ${snapModes(s)}`)
 await discard()
+// A 429, a 5xx or a timeout also leaves the gap freehand, so a freehand line
+// alone does not prove the router refused the point. Keep the router's answers
+// to this gesture: one must be HTTP 400 with NoSegment in its body.
+const answers = [], onAnswer = (r) => { if (isRouter(r.url())) answers.push(r) }
+page.on('response', onAnswer)
 await drawRoute([Q2, W])
+page.off('response', onAnswer)
+const said = await Promise.all(answers.map(async r => ({ status: r.status(), body: await r.text().catch(() => null) })))
+const noSegment = said.some(a => a.status === 400 && !!a.body?.includes('NoSegment'))
+const saidText = said.map(a => `${a.status}${a.body == null ? ' (body unavailable)' : a.body.includes('NoSegment') ? ' NoSegment' : ''}`).join(', ') || 'nothing'
 s = await segs()
 const end = s[0]?.coords.at(-1)
-check('far click: a point 1.2 km from any road draws freehand, not a line to that road', s.length === 1 && s[0].snap === 'freehand',
-  `gaps ${snapModes(s)}, the line ends ${end ? Math.round(metres(end, W)) : '?'} m from the click`)
+check('far click: a point 1.2 km from any road draws freehand, not a line to that road', s.length === 1 && s[0].snap === 'freehand' && noSegment,
+  `gaps ${snapModes(s)}, the line ends ${end ? Math.round(metres(end, W)) : '?'} m from the click, router answered ${saidText}`)
 await discard()
 
 console.log('== Append (Sinai Street, Novaliches)')

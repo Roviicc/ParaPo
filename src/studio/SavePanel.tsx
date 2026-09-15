@@ -82,7 +82,7 @@ export function SavePanel({ draw, existing, route, onSaved, onCancel }: Props) {
         </p>
         {/* For a jeepney the street list says more than the two terminals do. */}
         {streets.names.length > 0 && (
-          <p data-testid="save-streets" className="mt-2 text-xs leading-relaxed text-neutral-700">
+          <p data-testid="save-streets" className="mt-2 text-xs text-neutral-700">
             via {streets.names.join(' → ')}
             {streets.straight > 0 && (
               <span className="text-neutral-400">

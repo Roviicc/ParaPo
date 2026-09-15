@@ -33,9 +33,12 @@ export type HotspotKind = 'terminal' | 'hintuan'
  */
 export type AreaTarget = { kind: HotspotKind; stopId: string | null }
 
+/** A gap still waiting for the router when the draft was written is marked `pending`. */
+type DraftSegment = Segment & { pending?: boolean }
+
 type Draft = {
   controlPoints: LngLat[]
-  segments: Segment[]
+  segments: DraftSegment[]
   target: Target
   area?: AreaTarget | null
 }
@@ -67,6 +70,9 @@ const CLOSING = -1
 
 type IndexedFeature = { properties?: { index?: number } }
 
+/** A router request still wanted: the stand-ins its answer will replace. */
+type Request = { standIns: Segment[]; controller: AbortController }
+
 export type Drawing = ReturnType<typeof useDrawing>
 
 export function useDrawing(map: MapLibreMap | null) {
@@ -95,14 +101,23 @@ export function useDrawing(map: MapLibreMap | null) {
 
   /**
    * Straight stand-ins: drawn while the router is asked, and while a point is
-   * dragged. A router answer is written only where its stand-in still is, and
-   * no U-turn is ever reported against one.
+   * dragged. A router answer is written only where its stand-in still is, no
+   * U-turn is ever reported against one, and none can be saved.
    */
   const standInRef = useRef(new WeakSet<Segment>())
+  const requestsRef = useRef(new Set<Request>())
 
   const writeSegments = useCallback((next: Segment[]) => {
     segRef.current = next
     setSegments(next)
+    // A request whose stand-ins are all gone has nowhere to write: stop it,
+    // and give its place in the router queue to one that is still wanted.
+    for (const request of requestsRef.current) {
+      if (!request.standIns.some((s) => next.includes(s))) {
+        request.controller.abort()
+        requestsRef.current.delete(request)
+      }
+    }
   }, [])
 
   const writeSegment = useCallback(
@@ -126,7 +141,8 @@ export function useDrawing(map: MapLibreMap | null) {
    * each shows a straight stand-in, and the answer is written wherever that
    * stand-in is by then: moved along if a point was inserted or deleted before
    * it, dropped if it is gone (the point dragged again, the stretch
-   * straightened, the point undone, another route opened).
+   * straightened, the point undone, another route opened) — in which case the
+   * request is called off too.
    */
   const resolveGaps = useCallback(
     async (first: number, modes: SnapMode[]) => {
@@ -159,14 +175,22 @@ export function useDrawing(map: MapLibreMap | null) {
 
       await Promise.all(
         runs.map(async ([a, b]) => {
+          const request: Request = {
+            standIns: standIns.slice(a, b + 1) as Segment[],
+            controller: new AbortController(),
+          }
+          requestsRef.current.add(request)
           setSnapping((n) => n + 1)
           try {
-            const answer = await snapSegments(pts.slice(a, b + 2))
+            const answer = await snapSegments(pts.slice(a, b + 2), request.controller.signal)
             answer.forEach((seg, j) => {
-              const at = segRef.current.indexOf(standIns[a + j] as Segment)
+              const at = segRef.current.indexOf(request.standIns[j])
               if (at !== -1) writeSegment(at, seg)
             })
+          } catch (err) {
+            if (!(err instanceof Error && err.name === 'AbortError')) throw err
           } finally {
+            requestsRef.current.delete(request)
             setSnapping((n) => n - 1)
           }
         }),
@@ -318,34 +342,47 @@ export function useDrawing(map: MapLibreMap | null) {
 
   // ------------------------------------------------------------------ draft
 
+  // Once per page: development's StrictMode runs effects twice, which would ask
+  // the router for every pending gap twice.
+  const restoredRef = useRef(false)
+
   useEffect(() => {
+    if (restoredRef.current) return
+    restoredRef.current = true
     const d = readDraft()
     if (!d) return
     const a = d.area ?? null
     setArea(a)
     areaRef.current = a
+    const saved = d.segments ?? []
     writePoints(d.controlPoints)
-    writeSegments(d.segments ?? [])
+    writeSegments(saved.map((s) => (s?.pending ? { snap: s.snap, coordinates: s.coordinates } : s)))
     setTarget(d.target ?? { routeId: null, variantId: null })
     setDrawing(true)
 
-    // A draft saved while the router was being asked holds stand-ins: straight,
-    // two points, no streets, yet marked routed. Their answers died with the
-    // page, so ask again.
+    // Gaps still waiting for the router when the page went away: their answers
+    // went with it, so ask again, adjacent ones in one request as before.
     if (a) return
-    ;(d.segments ?? []).forEach((s, i) => {
-      if (s?.snap === 'snapped' && s.coordinates?.length === 2 && !s.streets) {
-        void resolveGaps(i, ['snapped'])
-      }
+    let from = -1
+    saved.forEach((s, i) => {
+      const pending = !!s?.pending
+      if (pending && from === -1) from = i
+      if (from === -1 || (pending && i < saved.length - 1)) return
+      const to = pending ? i : i - 1
+      void resolveGaps(from, new Array<SnapMode>(to - from + 1).fill('snapped'))
+      from = -1
     })
   }, [writePoints, writeSegments, resolveGaps])
 
   useEffect(() => {
     try {
       if (drawing && controlPoints.length > 0) {
+        const marked: DraftSegment[] = segments.map((s) =>
+          s && standInRef.current.has(s) ? { ...s, pending: true } : s,
+        )
         localStorage.setItem(
           DRAFT_KEY,
-          JSON.stringify({ controlPoints, segments, target, area }),
+          JSON.stringify({ controlPoints, segments: marked, target, area }),
         )
       } else if (!drawing) {
         localStorage.removeItem(DRAFT_KEY)
@@ -402,7 +439,7 @@ export function useDrawing(map: MapLibreMap | null) {
       },
     })
     // Where the route turns back on itself, the doubled-back stretch overlaps
-    // the line and would be invisible. Paint it amber over the line.
+    // or runs beside the line and would be invisible. Paint it amber over it.
     map.addLayer({
       id: 'draw-uturn-stub',
       type: 'line',
@@ -470,6 +507,9 @@ export function useDrawing(map: MapLibreMap | null) {
     }
 
     const onLineClick = (e: MapMouseEvent & { features?: IndexedFeature[] }) => {
+      // A click on a point's dot is a press on that point, not a click on the
+      // line beneath it: inserting here would stack a second point on the first.
+      if (map.queryRenderedFeatures(e.point, { layers: [POINT_LAYER] }).length > 0) return
       const gap = e.features?.[0]?.properties?.index
       if (typeof gap !== 'number') return
       // Clicking the closing edge of a hotspot appends a corner: the ring
@@ -491,6 +531,7 @@ export function useDrawing(map: MapLibreMap | null) {
     }
 
     let dragIdx: number | null = null
+    let dragMoved = false
     let dragModes: [SnapMode | undefined, SnapMode | undefined] = [
       undefined,
       undefined,
@@ -499,6 +540,7 @@ export function useDrawing(map: MapLibreMap | null) {
     const onDragMove = (e: MapMouseEvent) => {
       const i = dragIdx
       if (i === null) return
+      dragMoved = true
       const point: LngLat = [e.lngLat.lng, e.lngLat.lat]
       const pts = [...cpRef.current]
       pts[i] = point
@@ -521,9 +563,13 @@ export function useDrawing(map: MapLibreMap | null) {
       const i = dragIdx
       dragIdx = null
       map.off('mousemove', onDragMove)
+      map.off('mouseup', onDragEnd)
+      document.removeEventListener('mouseup', onDragEnd)
       canvas.style.cursor = 'crosshair'
       map.dragPan.enable()
-      if (i === null) return
+      // A press and release that never moved is not an edit: both segments are
+      // still right, so the router is not asked again.
+      if (i === null || !dragMoved) return
       // Only the two segments touching the moved point are stale, and they go
       // to the router together, as one request.
       const before = dragModes[0] ?? 'snapped'
@@ -542,11 +588,15 @@ export function useDrawing(map: MapLibreMap | null) {
       if (e.originalEvent.button !== 0) return
       e.preventDefault()
       dragIdx = idx
+      dragMoved = false
       dragModes = [segRef.current[idx - 1]?.snap, segRef.current[idx]?.snap]
       canvas.style.cursor = 'grabbing'
       map.dragPan.disable()
       map.on('mousemove', onDragMove)
       map.once('mouseup', onDragEnd)
+      // MapLibre reports mouseup only over the map. Released over the toolbar,
+      // the drag would never end and its stand-ins would stay.
+      document.addEventListener('mouseup', onDragEnd)
     }
 
     const enterPoint = () => {
@@ -578,6 +628,8 @@ export function useDrawing(map: MapLibreMap | null) {
       map.off('mouseenter', HIT_LAYER, enterLine)
       map.off('mouseleave', HIT_LAYER, leave)
       map.off('mousemove', onDragMove)
+      map.off('mouseup', onDragEnd)
+      document.removeEventListener('mouseup', onDragEnd)
       map.dragPan.enable()
       map.boxZoom.enable()
       map.doubleClickZoom.enable()
@@ -603,6 +655,12 @@ export function useDrawing(map: MapLibreMap | null) {
   const uTurns = useMemo(
     () => (area ? [] : findUTurns(segments, (s) => standInRef.current.has(s))),
     [segments, area],
+  )
+
+  /** A stand-in is still on the line: not road geometry yet, so not ready to save. */
+  const unresolved = useMemo(
+    () => segments.some((s) => !!s && standInRef.current.has(s)),
+    [segments],
   )
 
   useEffect(() => {
@@ -700,6 +758,8 @@ export function useDrawing(map: MapLibreMap | null) {
     segments,
     line,
     snapping,
+    /** True while a stand-in is still on the line (see standInRef). */
+    unresolved,
     freehand,
     setFreehand,
     target,

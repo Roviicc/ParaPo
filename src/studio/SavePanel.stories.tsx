@@ -5,8 +5,8 @@ import { SavePanel } from './SavePanel'
 import type { Drawing } from './useDrawing'
 
 /**
- * Just the parts of a drawing the panel reads. Sample data only: pressing Save
- * here fails with "Supabase is not configured", and nothing is written.
+ * Just the parts of a drawing the panel reads. Sample data only: a story has no
+ * Supabase client, so pressing Save here shows an error and writes nothing.
  */
 function drawing(segments: Segment[], uTurns = 0): Drawing {
   const controlPoints: LngLat[] = [

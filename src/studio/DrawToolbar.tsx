@@ -18,6 +18,9 @@ export function DrawToolbar({ draw, onDone }: { draw: Drawing; onDone: () => voi
   const area = draw.area
   const minPoints = area ? 3 : 2
   const noun = area ? 'corner' : 'point'
+  const uTurns = draw.uTurns.length
+  // A stand-in still on the line is not road geometry yet, and must not be saved.
+  const waiting = draw.snapping > 0 || draw.unresolved
 
   return (
     <div className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2">
@@ -42,13 +45,17 @@ export function DrawToolbar({ draw, onDone }: { draw: Drawing; onDone: () => voi
           {!area && freehandCount > 0 && (
             <span className="text-neutral-400"> · {freehandCount} freehand</span>
           )}
-          {!area && draw.uTurns.length > 0 && (
+          {!area && uTurns > 0 && (
             <span
-              className="text-amber-600"
-              title="The route turns back on itself at the ringed point, drawn in amber. Drag the point to the corner to fix it, or keep it if the jeep really turns there."
+              className="text-amber-700"
+              title={
+                uTurns === 1
+                  ? 'The route turns back on itself at the ringed point, drawn in amber. Drag the point to the corner to fix it, or keep it if the jeep really turns there.'
+                  : 'The route turns back on itself at the ringed points, drawn in amber. Drag a point to its corner to fix it, or keep it if the jeep really turns there.'
+              }
             >
               {' '}
-              · ⚠ {draw.uTurns.length} U-turn{draw.uTurns.length === 1 ? '' : 's'}
+              · ⚠ {uTurns} U-turn{uTurns === 1 ? '' : 's'}
             </span>
           )}
           {draw.snapping > 0 && <span className="text-rose-600"> · snapping…</span>}
@@ -89,11 +96,11 @@ export function DrawToolbar({ draw, onDone }: { draw: Drawing; onDone: () => voi
         <button
           type="button"
           onClick={onDone}
-          disabled={points < minPoints || draw.snapping > 0}
+          disabled={points < minPoints || waiting}
           title={
             points < minPoints
               ? `Add at least ${minPoints} ${noun}s`
-              : draw.snapping > 0
+              : waiting
                 ? 'Waiting for the router'
                 : area
                   ? 'Save this hotspot'

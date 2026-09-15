@@ -8,8 +8,8 @@
 // to 2 corners, checks the draft survives a reload, then traces a 2-point
 // route and checks it snaps to roads via the public OSRM router. To stay
 // independent of whatever is saved today, the map is recentred on the middle
-// vertex of an existing saved route (or a fixed Metro Manila fallback when
-// there are none) before drawing, so clicks land on real streets instead of
+// vertex of the saved route with the most coordinates (or a fixed Metro Manila
+// fallback when there are none) before drawing, so clicks land on real streets instead of
 // wherever the saved-routes bounding box happens to fit right now.
 import { chromium } from 'playwright'
 
@@ -72,11 +72,15 @@ if (savedCount > 0) {
 // Known risk: the map's opening view fits the saved-routes bounds, which
 // drifts as routes are added and can leave the centre over water or inside a
 // block, where the public OSRM router can't snap. Recentre on solid ground
-// before drawing: the middle vertex of an existing saved route, or a fixed
-// Metro Manila fallback (Cubao) when the database has none yet. Do this both
-// now and again after the reload below, since a reload resets the camera.
+// before drawing: the middle vertex of the saved route with the most
+// coordinates, or a fixed Metro Manila fallback (Cubao) when the database has
+// none yet. Not the first saved route: they come most recently updated first,
+// so the first changes whenever the owner edits one. The route clicks below
+// reuse this same line. Recentre both now and again after the reload below,
+// since a reload resets the camera.
 const FALLBACK_CENTER = [121.0527, 14.6187] // Cubao, Metro Manila
-const savedLine = savedRoutes.find(f => f.geometry?.type === 'LineString' && (f.geometry.coordinates?.length ?? 0) > 0)
+const savedLine = savedRoutes.filter(f => f.geometry?.type === 'LineString' && (f.geometry.coordinates?.length ?? 0) > 1)
+  .reduce((a, f) => (!a || f.geometry.coordinates.length > a.geometry.coordinates.length ? f : a), null)
 const center = savedLine ? savedLine.geometry.coordinates[Math.floor(savedLine.geometry.coordinates.length / 2)] : FALLBACK_CENTER
 const recentre = () => page.evaluate(([lng, lat]) => window.__map.jumpTo({ center: [lng, lat], zoom: 15 }), center)
 await recentre()
@@ -151,24 +155,22 @@ await page.getByRole('button', { name: '✕' }).click()
 // ---- Regression: a 2-point route still snaps to roads
 await page.getByRole('button', { name: '+ New Route' }).click()
 await page.waitForTimeout(200)
-// Two clicks on the centred saved route's own vertices, ~120 px apart and clear
-// of the cards and the toolbar: on a road, so the router (which refuses a click
-// more than 25 m from one) routes the gap. Fixed offsets from the centre can
-// land inside a block, and a refused gap is drawn freehand.
-const onRoad = await page.evaluate(async () => {
-  const f = ((await window.__src('saved-routes'))?.features ?? []).find(f => f.geometry.coordinates.length > 1)
-  if (!f) return []
+// Two clicks on the centred saved route's own vertices (savedLine, the same
+// route the view is centred on), each at least 120 px from every earlier pick
+// and clear of the cards and the toolbar: on a road, so the router (which
+// refuses a click more than 25 m from one) routes the gap. Fixed offsets from
+// the centre can land inside a block, and a refused gap is drawn freehand.
+const onRoad = await page.evaluate((line) => {
   const m = window.__map, { clientWidth: w, clientHeight: h } = m.getCanvas()
   const picked = []
-  for (const c of f.geometry.coordinates) {
+  for (const c of line) {
     const p = m.project(c)
     if (p.x < 80 || p.x > w - 80 || p.y < 80 || p.y > h - 140) continue
-    const last = picked[picked.length - 1]
-    if (!last || Math.hypot(p.x - last[0], p.y - last[1]) >= 120) picked.push([p.x, p.y])
+    if (picked.every(([x, y]) => Math.hypot(p.x - x, p.y - y) >= 120)) picked.push([p.x, p.y])
     if (picked.length === 2) break
   }
   return picked
-})
+}, savedLine?.geometry.coordinates ?? [])
 check('route: two on-road click positions found on a saved route', onRoad.length === 2, `${onRoad.length} found`)
 for (const [x, y] of onRoad) { await page.mouse.click(box.x + x, box.y + y); await page.waitForTimeout(150) }
 await page.waitForFunction(() => !document.body.innerText.includes('snapping…'), null, { timeout: 30000 })
@@ -185,8 +187,19 @@ const route = await page.evaluate(async () => {
     distanceShown: /\d+ m|\d+\.\d+ km/.test(document.body.innerText),
   }
 })
+// A gap waiting for the router is drawn as a straight stand-in that is also
+// 'snapped', so draw-line alone cannot tell it from a routed segment. The draft
+// can: a stand-in is written `pending` with no `streets`; a segment the router
+// answered has a `streets` array (empty on an unnamed road).
+const routed = await page.evaluate(() => {
+  const draft = JSON.parse(localStorage.getItem('parapo.draft.v1') ?? 'null')
+  if (!draft) return { ok: false, detail: 'no draft in localStorage' }
+  const snapped = (draft.segments ?? []).filter(s => s?.snap === 'snapped')
+  const real = snapped.filter(s => Array.isArray(s.streets) && !s.pending)
+  return { ok: snapped.length > 0 && real.length === snapped.length, detail: `${real.length}/${snapped.length} snapped routed, ${snapped.filter(s => s.pending).length} pending, ${snapped.filter(s => !Array.isArray(s.streets)).length} no streets` }
+})
 check('route: router WAS called for the route (positive control)', routerCalls > 0, `${routerCalls}`)
-check('route: one snapped segment', route.features === 1 && route.snap === 'snapped', `snap=${route.snap}`)
+check('route: one snapped segment', route.features === 1 && route.snap === 'snapped' && routed.ok, `snap=${route.snap}, ${routed.detail}`)
 check('route: geometry is road-following (>2 coords)', route.coords > 2, `${route.coords} coords`)
 check('route: no polygon fill in route mode', route.polygons === 0)
 check('route: rose colour restored', route.lineColor === '#e11d48', route.lineColor)
