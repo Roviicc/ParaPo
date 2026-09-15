@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { Chooser } from '../shared/Chooser'
 import { HotspotCard } from '../shared/HotspotCard'
-import { loadStopsFromFile, loadVariantsFromFile } from '../shared/mapFile'
+import { loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from '../shared/mapFile'
+import { reloadToUpdate, useNeedRefresh } from './pwa'
 import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
 import { variantLine, type VariantSummary } from '../shared/routes'
@@ -28,6 +29,9 @@ export default function CommuterApp() {
   const stops = useSavedStops(map, loadStopsFromFile)
 
   useShareLink(map, saved)
+  const offline = useOffline()
+  const age = useMapAge()
+  const needRefresh = useNeedRefresh()
 
   // One tap, several things: routes, hotspots or both. Keyed on what it lists,
   // so a fresh tap gets a fresh, open sheet.
@@ -67,6 +71,39 @@ export default function CommuterApp() {
             Try again
           </button>
         </div>
+      )}
+
+      {/*
+        Honesty about age. With no signal, or a network too slow to answer in
+        time, the map is whatever the phone kept, and the date comes from inside
+        the file itself, so it is exact. Above the pill: bottom left on a phone
+        (the credit line opens across the top there), under the pill on a wide
+        map.
+      */}
+      {(offline || age.stale) && (
+        <div
+          data-testid="offline"
+          className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom))]
+                     left-[calc(1rem+env(safe-area-inset-left))] z-10 rounded-full bg-neutral-800/90
+                     px-3 py-1.5 text-xs text-white shadow backdrop-blur
+                     @wide:bottom-auto @wide:top-[calc(3.25rem+env(safe-area-inset-top))]"
+        >
+          {offline ? 'Offline' : 'Not refreshed'}
+          {age.publishedAt && <> · map as of {shortDate(age.publishedAt)}</>}
+        </div>
+      )}
+
+      {/* A new version never applies itself: a reload mid-ride would drop the selected route. */}
+      {needRefresh && (
+        <button
+          type="button"
+          data-testid="update"
+          onClick={reloadToUpdate}
+          className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-1/2 z-20 -translate-x-1/2
+                     rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-lg"
+        >
+          New version · Reload
+        </button>
       )}
 
       {saved.selected && (
@@ -124,6 +161,42 @@ export default function CommuterApp() {
       )}
     </div>
   )
+}
+
+/** Whether the browser believes it has a network; `false` is certain, `true` only hopeful. */
+function useOffline(): boolean {
+  return useSyncExternalStore(
+    (notify) => {
+      window.addEventListener('online', notify)
+      window.addEventListener('offline', notify)
+      return () => {
+        window.removeEventListener('online', notify)
+        window.removeEventListener('offline', notify)
+      }
+    },
+    () => !navigator.onLine,
+    () => false,
+  )
+}
+
+/** When the map on screen was published, and whether it came from a stored copy, from the file both hooks already share. */
+function useMapAge(): { publishedAt: string | null; stale: boolean } {
+  const [age, setAge] = useState<{ publishedAt: string | null; stale: boolean }>({ publishedAt: null, stale: false })
+  useEffect(() => {
+    let live = true
+    loadMapFile().then((f) => live && setAge({ publishedAt: f.published_at, stale: mapFileIsStale() }), () => {})
+    return () => {
+      live = false
+    }
+  }, [])
+  return age
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+/** "14 Sep", in the phone's own time zone; spelled by hand so every browser agrees. */
+function shortDate(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : `${d.getDate()} ${MONTHS[d.getMonth()]}`
 }
 
 /**
@@ -193,7 +266,7 @@ function ShareButton({ variant }: { variant: VariantSummary }) {
 
   const share = async () => {
     const url = window.location.href
-    const title = `${variant.route?.signboard ?? 'ParaPo'} — ${variant.direction_name}`
+    const title = `${variant.route?.signboard ?? 'Para Po'} — ${variant.direction_name}`
     if (typeof navigator.share === 'function') {
       try {
         await navigator.share({ title, url })

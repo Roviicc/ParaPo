@@ -14,7 +14,20 @@ public map at `/` and the editor at `/studio/`. Complements `scripts/uitest.mjs`
     node scripts/pw/snap-test.mjs             # 20: far clicks go freehand, U-turns at joins shown not changed, street names
     node scripts/uitest.mjs                   # 26: route gestures through Windows Chrome's DevTools protocol
 
-    npm run build                             # also checks import boundaries, and that no editor code reaches /
+    npm run build                             # also checks import boundaries, that no editor code reaches /, and the installable app's files
+    node scripts/pw/pwa-test.mjs              # 41: the installable app, against the build in its own `vite preview` on :4173 — manifest, worker, offline, slow network, update
+
+The service worker is off under `npm run dev`, so every suite above meets a
+plain page; `pwa-test` alone runs the production build. It starts and stops its
+own preview server (set `PARAPO_BASE` to use one already running), checks that
+`/studio/` renders its door and gets neither the manifest nor a worker, that
+the worker answers only `/` from the stored page, then cuts the network and
+reloads `/`: the routes, hotspots and basemap (tiles from the worker's cache)
+must still draw, the notice must read "Offline · map as of <date>" from the
+file's own `published_at`, and panning into never-seen tiles must not raise the
+failure banner. Back online it delays the map file past the worker's 3 s and
+expects "Not refreshed · map as of <date>", then changes a byte of the built
+worker and expects "New version · Reload" to appear, wait, and work.
 
 The tests read what the map holds today (the published file for `/`, the live tables for the studio) and assert on that, so adding
 routes and hotspots does not break them. visitor-test's count grows with the

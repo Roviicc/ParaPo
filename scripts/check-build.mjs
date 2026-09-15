@@ -24,8 +24,14 @@
 //
 // Each check has a positive control on the studio side — its chunks must hold
 // studio modules, every marker and the Supabase client — or the search itself
-// is broken and a pass would mean nothing. Finally, no built file may mention
-// the `e2e` test switch, which exists only in development builds.
+// is broken and a pass would mean nothing. No built file may mention the `e2e`
+// test switch, which exists only in development builds.
+//
+// 4. The installable app (step 6) belongs to / only: the manifest link is in
+//    index.html and not in studio/index.html; the worker's precache holds the
+//    public page's chunks, the MapLibre worker and the icons, and no studio
+//    chunk, nothing from .vite/ or data/, and not _headers; the studio is on
+//    the worker's navigation denylist; a new version waits to be asked.
 //
 //   npm run build        (runs this at the end)
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
@@ -158,5 +164,81 @@ const mentions = [...walk(dist)]
   .filter((f) => E2E.test(readFileSync(f, 'utf8')))
   .map((f) => f.slice(dist.length + 1))
 check('no production file mentions the e2e test switch', mentions.length === 0, mentions.join(', '))
+
+// --------------------------------------------------------------------- pwa
+
+const html = (f) => readFileSync(join(dist, f), 'utf8')
+check('index.html links the manifest', /<link rel="manifest" href="\/manifest\.webmanifest">/.test(html('index.html')))
+check('studio/index.html links no manifest — /studio/ is not installable', !/rel="manifest"/.test(html('studio/index.html')))
+check('neither page carries a registration script', !/registerSW|vite-plugin-pwa:/.test(html('index.html') + html('studio/index.html')))
+
+const manifestFile = join(dist, 'manifest.webmanifest')
+let webManifest = null
+try {
+  webManifest = JSON.parse(readFileSync(manifestFile, 'utf8'))
+} catch {}
+check('manifest.webmanifest is valid JSON', webManifest !== null)
+if (webManifest) {
+  const icons = webManifest.icons ?? []
+  const hasIcon = (size, purpose) =>
+    icons.some((i) => i.sizes === size && (purpose ? i.purpose === purpose : !i.purpose) && existsSync(join(dist, i.src)))
+  check(
+    'manifest: name, id/start_url/scope /, standalone, colours',
+    webManifest.name === 'Para Po' &&
+      webManifest.short_name === 'Para Po' &&
+      webManifest.id === '/' &&
+      webManifest.start_url === '/' &&
+      webManifest.scope === '/' &&
+      webManifest.display === 'standalone' &&
+      /^#[0-9a-f]{6}$/.test(webManifest.theme_color) &&
+      /^#[0-9a-f]{6}$/.test(webManifest.background_color),
+  )
+  check('manifest: icons 192, 512 and 512 maskable, all present on disk', hasIcon('192x192') && hasIcon('512x512') && hasIcon('512x512', 'maskable'))
+  const themeMeta = /<meta name="theme-color" content="([^"]+)"/.exec(html('index.html'))?.[1]
+  check('index.html theme-color matches the manifest', themeMeta === webManifest.theme_color, `${themeMeta} vs ${webManifest.theme_color}`)
+}
+
+const swPath = join(dist, 'sw.js')
+check('sw.js exists', existsSync(swPath))
+if (existsSync(swPath)) {
+  const sw = readFileSync(swPath, 'utf8')
+  const precached = [...sw.matchAll(/"?url"?:\s*"([^"]+)"/g)].map((m) => m[1])
+  const expected = ['index.html', 'manifest.webmanifest', ...commuterFiles]
+  const cssOf = (files) => files.flatMap((f) => Object.values(manifest).find((c) => c.file === f)?.css ?? [])
+  expected.push(...cssOf(commuterFiles))
+  const missingPrecache = expected.filter((f) => !precached.includes(f))
+  check(
+    `precache holds the public page, its ${commuterFiles.length} chunk(s) and CSS (${precached.length} entries)`,
+    missingPrecache.length === 0,
+    missingPrecache.length ? 'missing: ' + missingPrecache.join(', ') : '',
+  )
+  check('precache holds the MapLibre worker', precached.some((u) => /^assets\/maplibre-gl-worker-.*\.js$/.test(u)))
+  check('precache holds the three icons', ['icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-512-maskable.png'].every((u) => precached.includes(u)))
+  const studioOnly = studioFiles.filter((f) => !commuterFiles.includes(f))
+  const leakedPrecache = precached.filter(
+    (u) => studioOnly.includes(u) || /^(studio\/|\.vite\/|data\/|branding\/|_headers)/.test(u),
+  )
+  check(
+    `precache holds no studio chunk (${studioOnly.length} to keep out), nothing from studio/, .vite/, data/, branding/, no _headers`,
+    studioOnly.length > 0 && leakedPrecache.length === 0,
+    leakedPrecache.join(', '),
+  )
+  check(
+    'sw.js answers only / from the stored page, and never /studio',
+    sw.includes('/^\\/(\\?.*)?$/') && sw.includes('/^\\/studio(\\/|$)/'),
+  )
+  check(
+    'sw.js caches /data/map.json NetworkFirst (stamping what it serves from the store) and OpenFreeMap tiles CacheFirst',
+    sw.includes('/data/map.json') && sw.includes('x-parapo-served-from') && sw.includes('tiles.openfreemap.org') && sw.includes('map-file') && sw.includes('basemap-tiles'),
+  )
+  // With `skipWaiting: false` Workbox calls skipWaiting() once, inside the
+  // handler for the page's SKIP_WAITING message — never on its own.
+  const msgAt = sw.indexOf('SKIP_WAITING')
+  const skipAt = sw.indexOf('skipWaiting()')
+  check(
+    'sw.js waits to be told to update (one skipWaiting(), inside the SKIP_WAITING handler)',
+    msgAt >= 0 && skipAt > msgAt && sw.indexOf('skipWaiting()', skipAt + 1) === -1,
+  )
+}
 
 process.exit(failed ? 1 : 0)

@@ -22,7 +22,15 @@ export type MapFile = {
 /** No hash in the name, so it keeps revalidating headers; never make it immutable. */
 export const MAP_FILE_URL = '/data/map.json'
 
+/**
+ * Set by the service worker (vite.config.ts, the map-file rule) on a copy it
+ * served from its store because the network was slow or gone. Absent on an
+ * answer from the network, and on every page with no worker.
+ */
+const SERVED_FROM_HEADER = 'x-parapo-served-from'
+
 let inFlight: Promise<MapFile> | null = null
+let stale = false
 
 /**
  * The published map, fetched once per page and shared by both hooks. A
@@ -34,6 +42,7 @@ export function loadMapFile(): Promise<MapFile> {
   inFlight ??= fetch(MAP_FILE_URL, { cache: 'no-cache' })
     .then(async (res) => {
       if (!res.ok) throw new Error(`${MAP_FILE_URL}: HTTP ${res.status}`)
+      stale = res.headers.get(SERVED_FROM_HEADER) === 'cache'
       const file = (await res.json()) as Partial<MapFile>
       if (
         typeof file.published_at !== 'string' ||
@@ -51,6 +60,9 @@ export function loadMapFile(): Promise<MapFile> {
     })
   return inFlight
 }
+
+/** True when the last load was answered from a stored copy rather than the network. Meaningful once `loadMapFile()` has resolved. */
+export const mapFileIsStale = () => stale
 
 /** Loaders in the shape the two hooks take. Module-level, so they never change between renders. */
 export const loadVariantsFromFile = () => loadMapFile().then((f) => f.variants)

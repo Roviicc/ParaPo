@@ -20,3 +20,8 @@ Claude outputs/
 
 *storybook.log
 storybook-static
+
+# Test screenshots land in the repo root; the owner's logo stays out of the
+# deploy (public/icons/ carries what the site needs).
+/*.png
+public/branding/

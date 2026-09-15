@@ -18,8 +18,8 @@ import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&ur
  */
 setWorkerUrl(maplibreWorkerUrl)
 
-/** OpenFreeMap: OSM-derived vector tiles, no API key, no usage limits. */
-const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
+/** OpenFreeMap: OSM-derived vector tiles, no API key, no usage limits. Exported for the offline cache warm-up (commuter/pwa.ts). */
+export const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 
 /**
  * The Liberty style ships no `attribution` on its sources, so MapLibre's
@@ -122,7 +122,9 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
         coarse ? 'top-right' : 'bottom-right',
       )
 
+      let isLoaded = false
       map.on('load', () => {
+        isLoaded = true
         setLoaded(true)
         setError(null)
         // Dev builds expose the map so scripts/uitest.mjs can read real
@@ -133,6 +135,13 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
 
       map.on('error', (e) => {
         const message = e.error?.message ?? 'unknown map error'
+        // Once the map is up, an error is a tile, glyph or sprite that did not
+        // arrive — offline, a place never viewed before. The map is drawn and
+        // working; that is not "failed to load", so only the console hears it.
+        if (isLoaded) {
+          console.warn('[map]', message)
+          return
+        }
         console.error('[map]', message, e)
         setError(message)
         void diagnose(STYLE_URL).then(setDiag)
