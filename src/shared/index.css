@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Stories are Storybook-only: their classes stay out of the site's CSS. .storybook/preview.css adds them back. */
+@source not "../**/*.stories.tsx";
 
 html,
 body,

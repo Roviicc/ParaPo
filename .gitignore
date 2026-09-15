@@ -17,3 +17,6 @@ uitest.png
 
 # Screenshots the Claude desktop app saves alongside the repo
 Claude outputs/
+
+*storybook.log
+storybook-static

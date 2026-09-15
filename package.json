@@ -6,7 +6,9 @@
     "dev": "vite",
     "build": "node scripts/check-boundaries.mjs && tsc --noEmit && vite build && node scripts/check-build.mjs",
     "check": "npm run build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "repository": {
     "type": "git",
@@ -31,7 +33,10 @@
     "playwright": "^1.63.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "storybook": "^10.6.0",
+    "@storybook/react-vite": "^10.6.0",
+    "@storybook/addon-docs": "^10.6.0"
   },
   "private": true
 }

@@ -430,7 +430,7 @@ headless checks pass against both pages.
 | Independent review, by a separate read-only agent | Nothing critical or high: no editor code reaches the public page. Acted on: the leak checks now run inside `npm run build`, so a leaking deploy fails; the build check now also proves by module that no `src/studio/` file reaches the public page, because the string markers came from only four editor files; the door guards the first entry only, so a session that ends mid-edit no longer throws away a half-filled save panel; the forwarder matches only `type=recovery`, `error_code` or `error_description`, and never on `/studio`; `public/.assetsignore` keeps `.vite/` off the live site. Noted, not changed: a direction with no stored `shape` would be missing from `/`, because summaries carry no segments. All 3 have one, and `saveVariant` always writes it |
 | The module check catches a leak | Probed on purpose: `src/studio/CardActions.tsx`, which contains none of the marker words, imported into the public page. `check-boundaries` failed on the import. With the build forced through anyway, `check-build`'s module check failed and named that file, while its string check alone still passed — the gap the review found. Restored and rebuilt: every check passes |
 | realshot on both live URLs, and the deploy | Done 2026-09-15 on the owner's go: `main` fast-forwarded to `c53562a` and pushed; the live site served the new build about 50 s later, with the same asset hashes as the local build. `npm run check` passed first. `/`: "3 routes · 4 hotspots", no buttons, no `window.__map`. `/studio/`: the sign-in door only, no map canvas. `/.vite/manifest.json`, `/.vite/modules.json` and `/.assetsignore` return the page fallback, not the files |
-| A real reset email, end to end, on the live site | *Pending — the owner, now that it is deployed* |
+| A real reset email, end to end, on the live site | Done 2026-09-15, by the owner, after the deploy: requested on `/studio/`, completed from the email, as the owner reports |
 
 ### Step 3 — Snapping quality
 
@@ -973,9 +973,25 @@ State: a planning session on 2026-09-14 produced Phase 2 (M7–M15) and the
 step 1; one account, the only editor.
 
 **Step 1 done 2026-09-15.** **Step 2 built, merged into `main` and deployed
-2026-09-15** (see its section); realshot on both live URLs passed. Left: one
-real reset email on the live site, by the owner. Step 3 waits for the owner's
-go.
+2026-09-15** (see its section); realshot on both live URLs passed, and the
+owner completed a real reset email on the live site. **Step 2 done.** Step 3
+started 2026-09-15 on the owner's go.
+
+**Storybook added 2026-09-15**, before step 3, on the owner's ask: Storybook
+10.6.0 (`@storybook/react-vite`, `@storybook/addon-docs`), telemetry off.
+`npm run storybook` opens it on port 6006; `npm run build-storybook` writes
+`storybook-static/` (ignored by git, never deployed). Stories sit next to their
+component — `src/shared/RouteCard.stories.tsx` and `HotspotCard.stories.tsx`,
+on sample data, no Supabase — so `check-boundaries` polices their imports like
+any other file. The generated examples in `src/stories/` were deleted: that
+folder is outside the three areas and fails the boundary check.
+`src/shared/index.css` has `@source not "../**/*.stories.tsx"`, because
+Tailwind otherwise scans stories into the site's CSS (measured: 104.33 →
+104.41 kB, and new file names); `.storybook/preview.css` adds them back for
+Storybook only. Checked: `npm run check` passes and the build is byte-for-byte
+the deployed one (`commuter-BNMeUuwJ.js`, `useSavedStops-C6AegbMv.css`); all 6
+stories render in Chromium, from the static build and the dev server, with no
+console errors.
 
 Owner actions already known: a strong password, then sign-ups off and a
 stronger password rule (step 1, done); the `/studio/` redirect URLs (step 2,
