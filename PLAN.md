@@ -562,7 +562,8 @@ ask for write access itself, and Actions are on.
 | Suites | visitor-test gains two checks (no request to `*.supabase.co`; `/data/map.json` served exactly once): 37/37. phone-test 42/42, gate-test 15/15, regression-gestures 29/29, hotspot-test 22/22, snap-test 20/20, uitest 26/26, on the owner's dev server, after the review's fixes. Two lessons about running them: one visitor-test run alongside the studio suites saw the file fetched three times and a click land on nothing, because the dev server had reloaded its pages to re-optimise dependencies after an edit; and five suites started at once crash on launch on this machine. Run them two at a time at most, and not right after a code change |
 | Independent review, by a separate read-only agent | 17 findings and 9 small ones. Acted on: the workflow's change test could not see an uncommitted file and would have reported "unchanged" daily with a green tick (the file is committed with this step, and the test is `git add` + `git diff --cached`); an empty or truncated answer was publishable truth (the shrink guard, and paging past 1,000 rows); `live.ts` into `studio/`; a rebase before the push; a note that the token's push starts no other workflow; the deviation check's early break could abort a good publish on a route that doubles back (gone); a null route embed, a hung request (timeout and retry), `.env` quoting and trailing comments; rows by id; `published_at` validated on load; visitor-test counts responses that were served, not requests; visitor-facing error copy with a retry; the studio banner shows `stops.error` too; the dates and numbers in this plan. Left: `loading` is returned by `useSavedRoutes` and read by nobody |
 | Two things step 5 makes true | **Published data is permanent.** Every publish is a commit in a public repo: a hotspot note that should not have been written (a name, a phone number) stays in git history after it is deleted from the database. Write notes as if they were already public, because from the next publish they are. And **a quiet map disables its own schedule**: the workflow commits only on change, GitHub disables schedules after 60 days without commits, and with the schedule goes the daily database activity that keeps the Free project from pausing. GitHub emails first; one click re-enables, and the map keeps working from the file throughout |
-| The owner presses "Run workflow" once | *Pending, after the merge* |
+| Merged and deployed | 2026-09-15, `0583051`. The live page's asset names match a build of the committed tree; `/data/map.json` is served with `public, max-age=0, must-revalidate` and an ETag, as expected of an unhashed file; a visit makes one request for it (200) and none to `*.supabase.co` or the router; the pill reads "2 routes · 4 hotspots", a tap opens a card, the studio still shows its door |
+| The owner presses "Run workflow" once | *Pending* |
 
 ### Step 6 — Installable PWA
 
@@ -1067,9 +1068,11 @@ conventions ("Decide before the next route is drawn") until after step 6, with
 the note that they hold at 1–3 routes; ideas for standardising are wanted then.
 **Step 5 built 2026-09-15** on `build-order` (see its section): the map as a
 file, the daily workflow, the visitor page off the database. One independent
-review acted on. Waiting on the owner's go to merge into `main`, then the
+review acted on. **Merged into `main` and deployed 2026-09-15** (`0583051`);
+the live map loads from the file and never calls the database. Waiting on the
 owner pressing "Run workflow" once (Actions → Publish map), which should find
-the map unchanged.
+the map unchanged; then step 5 is done and step 6 (the PWA) is next, on the
+owner's go.
 
 **Storybook added 2026-09-15**, before step 3, on the owner's ask: Storybook
 10.6.0 (`@storybook/react-vite`, `@storybook/addon-docs`), telemetry off.
