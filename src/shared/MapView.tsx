@@ -18,11 +18,19 @@ import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&ur
  */
 setWorkerUrl(maplibreWorkerUrl)
 
-/** OpenFreeMap: OSM-derived vector tiles, no API key, no usage limits. Exported for the offline cache warm-up (commuter/pwa.ts). */
-export const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
+/**
+ * OpenFreeMap: OSM-derived vector tiles, no API key, no usage limits. Exported
+ * for the offline cache warm-up (commuter/pwa.ts).
+ *
+ * Positron, not Liberty: a desaturated basemap, so the route lines and hotspot
+ * polygons we paint on top carry all the colour on the screen. It serves the
+ * same `/planet` tiles, sprite and fonts as Liberty from half the layers, so
+ * the switch costs no cached tile and draws a little cheaper.
+ */
+export const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron'
 
 /**
- * The Liberty style ships no `attribution` on its sources, so MapLibre's
+ * The OpenFreeMap styles ship no `attribution` on their sources, so MapLibre's
  * default control would render empty. The tiles are OSM-derived, so we
  * declare it ourselves.
  */

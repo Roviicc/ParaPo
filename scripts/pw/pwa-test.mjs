@@ -141,7 +141,7 @@ try {
   const precache = names.find((n) => n.includes('precache'))
   check('caches: precache, map-file, basemap-meta, basemap-tiles all exist', !!(precache && mapFile && meta && tiles), names.join(', '))
   check('map-file cache holds /data/map.json', !!mapFile && caches[mapFile].some((u) => u.endsWith('/data/map.json')))
-  check('basemap-meta holds the style and the TileJSON', !!meta && caches[meta].some((u) => u.endsWith('/styles/liberty')) && caches[meta].some((u) => u.endsWith('/planet')))
+  check('basemap-meta holds the style and the TileJSON', !!meta && caches[meta].some((u) => u.endsWith('/styles/positron')) && caches[meta].some((u) => u.endsWith('/planet')))
   check(`basemap-tiles holds tiles (${tiles ? caches[tiles].length : 0})`, !!tiles && caches[tiles].length > 0)
   check('precache holds no studio chunk', !!precache && !caches[precache].some((u) => /\/assets\/studio-/.test(u)))
   check('map.json is never precached', !precache || !caches[precache].some((u) => u.includes('/data/map.json')))
