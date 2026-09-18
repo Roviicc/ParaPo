@@ -9,6 +9,11 @@
 # If nothing changed, nothing is committed: the script writes a byte-identical
 # file for unchanged data.
 #
+# The script refuses to publish a map that suddenly shrank by more than 30%,
+# because a table that answers with no rows is a normal HTTP 200 and a policy
+# slip would otherwise blank the public map. When a clear-out is deliberate,
+# press "Run workflow" and tick Force.
+#
 # The daily run also counts as database activity, so the Free project is not
 # paused for idleness. GitHub disables schedules in a public repo after 60 days
 # without commits; it emails first, and one click re-enables. A quiet map
@@ -20,6 +25,11 @@ on:
     # 04:00 in Manila (UTC+8), when nobody is editing.
     - cron: '0 20 * * *'
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'Publish even if the map shrank (a deliberate clear-out)'
+        type: boolean
+        default: false
 
 # The default token is read-only; committing the file needs write.
 permissions:
@@ -45,8 +55,12 @@ jobs:
           node-version: 22
 
       # The script has no dependencies, so there is no `npm ci`.
+      #
+      # `--force` only on a "Run workflow" press with the box ticked: the
+      # schedule has no inputs, so the expression is empty there and the
+      # shrink guard keeps its say on every unattended run.
       - name: Publish the map
-        run: node scripts/publish-map.mjs
+        run: node scripts/publish-map.mjs ${{ inputs.force && '--force' || '' }}
 
       # `git add` first: `git diff` alone cannot see a file git does not track
       # yet, and would report "unchanged" for a brand-new one forever.
