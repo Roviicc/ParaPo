@@ -1383,6 +1383,37 @@ test to read what exists first.
 `localhost` (override with `PARAPO_BASE`), and all five pass against a plain
 `npm run dev`.
 
+## Next session (handoff, 2026-09-21)
+
+State, read from the live project and the repo, nothing changed but this file:
+
+- **Supabase is up to date.** Migrations 0001–0005 are all applied and were
+  verified statement by statement against the live schema (see "Migrations
+  applied to the live project"). Nothing in `supabase/migrations/` waits to
+  be applied. The security advisor shows the two known items only:
+  leaked-password protection (Pro plan, accepted) and the INFO on
+  `private.editor` (intended). One account, one editor.
+- **Live data:** 0 routes, 0 directions, 5 hotspots, 0 links. The owner
+  cleared every route on 2026-09-17 and began again from the hotspots:
+  "Phase 1" (12 Sep), "Tala Jeepney Terminal", "Barracks", "Malaria" (17 Sep)
+  and "Terminal Tala" (19 Sep). Two terminals named for Tala look like a
+  duplicate to settle in Phase 3 step 0 (hotspot names and spellings).
+- **Publishing:** the nightly run failed on 17 September, when the shrink
+  guard refused 2 → 0 directions; `b266d16` (19 Sep) published the cleared map
+  once with `--force` and gave "Run workflow" a Force box. Runs since (18, 19
+  and 20 Sep UTC) are green; the last change it committed is `aa8cbed`,
+  2026-09-19 22:07 UTC, carrying the five hotspots. `f5e6bde` (19 Sep) moved
+  the basemap to OpenFreeMap's Positron, so routes and hotspots carry the
+  colour.
+- **Branches:** `build-order` is fast-forwarded to `main` and carries nothing
+  unmerged. Work resumes on it.
+
+Next, on the owner's word, is **Phase 3** (drafted 2026-09-15, above),
+starting with step 0, the naming conventions. The first Supabase change after
+that is migration 0006 (M8, metres along the line, step 3), which is not
+written yet and waits on step 0 by design. The monthly private backup falls
+due mid-October.
+
 ## Known risks (reviewed 2026-09-12, after M6)
 
 Ranked by how soon each is likely to bite. Fix #1 before the next feature.
@@ -1447,7 +1478,8 @@ Dependencies that are not ours:
 10. **Hotspot labels use `Noto Sans Bold` from OpenFreeMap's glyphs.** A
     basemap change makes them vanish silently. Match the font name then.
 11. **Public OSRM** for every routed segment (see Router choice above).
-12. **Migrations tracked by hand** in this file. Fine at four; move to the
+12. **Migrations tracked by hand** in this file. Fine at five (the last two
+    are also in Supabase's own table, see "Migrations applied"); move to the
     Supabase CLI's tracking when it starts to hurt.
 
 Also: drafts do not save the map view (noted under M6).
@@ -1598,6 +1630,17 @@ tracking table. Do not re-apply.
 - [x] 0004_stop_hotspot — 2026-09-12 (stop table was empty; columns and enum
       verified after apply; advisor unchanged — only the pre-existing
       leaked-password warning)
+- [x] 0005_editor_role — 2026-09-15 (build-order step 1; the owner's uid
+      inserted into `private.editor` right after; checks in its section)
+
+0004 and 0005 went through the Supabase MCP, which records them in
+`supabase_migrations.schema_migrations` (`stop_hotspot`, `editor_role`);
+0001–0003 went through the SQL editor and are not recorded there. **Verified
+2026-09-21** against the live project: every policy carries the 0005 form,
+`touch_updated_at` and `is_editor` pin `search_path`, the `stop` columns and
+enums match 0004, and TRUNCATE, TRIGGER and REFERENCES are off `anon` and
+`authenticated`. Nothing in `supabase/migrations/` is left to apply; the next
+file is 0006 (M8, Phase 3 step 3), not yet written.
 
 ## Open items
 
