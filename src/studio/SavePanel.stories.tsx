@@ -186,3 +186,49 @@ export const TheReturnTrip: Story = {
 export const ReturnTripDrawnFromTheWrongEnd: Story = {
   args: { route: talaFairview, slotReversed: true },
 }
+
+/**
+ * Two hintuans drawn across the sample line, one far from it: the panel lists
+ * the two, in the order the line reaches them, and not the third — the same
+ * rule the save applies.
+ */
+export const PassesThroughHintuans: Story = {
+  args: {
+    stops: [
+      ...stops,
+      hintuan('h-on-1', 'Barracks', [121.0428, 14.742005]),
+      hintuan('h-on-2', 'Malaria', [121.0421, 14.741995]),
+      hintuan('h-off', 'Nowhere Near', [121.045, 14.745]),
+    ],
+  },
+}
+
+/** A small box, centred `metres` north of the sample line, with its near edge `metres` away. */
+const roadside = (id: string, name: string, lng: number, metres: number, informal: string | null = null): StopRow => {
+  const half = 0.00005 // ≈ 5.5 m
+  const edge = 14.742005 + metres / 111_000
+  const s = hintuan(id, name, [lng, edge + half * Math.sign(metres)], informal)
+  s.area = {
+    type: 'Polygon',
+    coordinates: [[[lng - 0.0001, edge], [lng + 0.0001, edge], [lng + 0.0001, edge + 2 * half * Math.sign(metres)], [lng - 0.0001, edge + 2 * half * Math.sign(metres)], [lng - 0.0001, edge]]],
+  }
+  return s
+}
+
+/**
+ * The way hintuans are really drawn: on the roadside, not across the road.
+ * A box whose edge is 2 m from the line is passed; the one on the other
+ * carriageway, 12 m away, is not — the 5 m rule tells the two sides apart.
+ * The Fatima box has an informal name and shares its place with another box,
+ * so it reads "Fatima – Fatima Church side".
+ */
+export const PassesBesideTheRoad: Story = {
+  args: {
+    stops: [
+      ...stops,
+      roadside('h-near', 'Fatima Church side', 121.0428, 2, 'Fatima'),
+      roadside('h-far', 'Fatima', 121.0428, -12),
+      roadside('h-near-2', 'Pangarap', 121.0422, 3),
+    ],
+  },
+}

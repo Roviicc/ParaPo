@@ -242,5 +242,26 @@ export function useSavedStops<S extends StopSummary>(
     [links],
   )
 
-  return { stops, links, error, reload, selected, select, candidates, linkedVariantIds }
+  /** The hotspots one direction passes, in the order its line reaches them — the card's timeline. */
+  const stopsAlong = useCallback(
+    (variantId: string): S[] =>
+      links
+        .filter((l) => l.route_variant_id === variantId)
+        .sort((a, b) => a.stop_sequence - b.stop_sequence)
+        .map((l) => stops.find((s) => s.id === l.stop_id))
+        .filter((s): s is S => !!s),
+    [links, stops],
+  )
+
+  /** Select a box and bring the map to it — what tapping a timeline row does, in both apps. */
+  const show = useCallback(
+    (id: string) => {
+      const s = stops.find((x) => x.id === id)
+      select(id)
+      if (s && map) map.flyTo({ center: s.point.coordinates, zoom: Math.max(map.getZoom(), 16) })
+    },
+    [stops, select, map],
+  )
+
+  return { stops, links, error, reload, selected, select, show, candidates, linkedVariantIds, stopsAlong }
 }

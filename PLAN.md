@@ -1415,6 +1415,75 @@ still draw at once, two offset blue lines down Quirino Highway, and a tap on
 the shared stretch opens the chooser with both. Flipping should swap the line,
 not add one. Next.
 
+### The timeline — a direction as a string of places. 2026-09-22
+
+The owner asked for the hintuans under the head and tail — "it can only be
+saved once it is near that road" — and then drew it: the card collapsed to
+**Tala → SM Fairview**, opened to a line of stops the way a train app shows a
+line. Built with his go, on his two answers: that picture, and **"the line
+enters the box"** as the rule — not "within N metres", so no number decides
+what a hintuan is on; the box the owner drew is the statement, and one that
+never reaches the road visibly does not count.
+
+Most of it already existed. `syncHintuanLinks` has linked a saved direction to
+every hintuan its line enters since M6, with the entry index as
+`stop_sequence`. What was missing was showing it from the route's side.
+
+| Part | What was done |
+|---|---|
+| `stops.ts` | `hintuansAlong(line, stops)` — the one rule, now shared by the save and the panel, so what is shown first is what is stored. `Timeline` (`from`, `between`, `to`) and `timelineFor(head, tail, reversed, along)`: the ends by direction, the hintuans in travel order, and boxes that are an end's own place folded into that end (H3) rather than repeated |
+| `routes.ts` | `routeTimeline(variant, stops, along)`: the ends resolved from the route |
+| `useSavedStops` | `stopsAlong(variantId)` from the links, ordered — the same hook serves the studio (live) and the visitor map (the file, which already carries `links`) |
+| `StopTimeline` | New, shared. Filled dots for the ends, hollow for hintuans, one line down the left; rows are buttons when there is a map to show the box on |
+| `RouteCard` | A collapsed `<details>` under the title — *Passes through 4 hintuans* — opening to the timeline. Tapping a stop closes the card, selects that box and flies the map to it, in both apps. Collapsed by default because the title already says the ends |
+| `SavePanel` | The same timeline, read-only, under Head and Tail before Save — computed on the snapped geometry, not the control points, since a box can sit between two clicks. Says how to get one when the line passes none |
+| `stopsWrite.ts` | `syncHintuanLinks` uses `hintuansAlong` — one rule, one place |
+| Stories | Card with a four-stop timeline and with none; panel with two boxes across the sample line and one beside it that must not appear |
+| Checks | Type check, build and guards; the stories read back headlessly (collapsed by default, count, order, the off-road box excluded, preview rows not buttons); visitor-test 36/36 |
+
+This is Phase 3 step 4's visible half — *the visitor card shows the string of
+places* — done with the entry index for order. M8's metres replace the index
+and change nothing on screen. The signboard, deferred, is now plainly this
+list read aloud.
+**Reviewed and corrected the same day.** A two-axis review of the diff
+(standards; spec against the owner's own words) found two real gaps, and the
+owner's first look found a third: the card listed three hintuans on a road
+he had drawn boxes for at Fatima, Pangarap and Amparo. Measured against the
+live boxes, those sat **0 to 1 m from the line** — drawn on the roadside,
+where people stand, while the line follows the road — so "the line enters
+the box" missed them by a metre. The wrong-side box was always 7 m or more
+away. Decided with the owner:
+
+- **Passes = enters the box, or comes within 5 m of it.** `PASS_WITHIN_M`
+  and `passIndex()` in `stops.ts`; `firstNearIndex()` in `geo.ts`. Both
+  sides of the save (`hintuansAlong` for the route, `linksThrough` for the
+  hotspot) and both previews ask it, so the hotspot-side copy the review
+  flagged is gone. Glossary "Passes" rewritten.
+- **A row names the box when the place has several** — "SM Fairview – Main
+  Babaan" — and the ends' own place is no longer folded out of the middle:
+  the owner wants to see which SM Fairview box the jeep passes on its way
+  to the terminal. `timelineLabel()`, `placeSizes()`; `placeKey()` is now
+  exported from `stops.ts` and the panel's private copy removed. A box with
+  no informal name (most of them: the save stores none when it equals the
+  name) reads as its name alone.
+- **Terminal links no longer leak into the middle**: the read path filters
+  to hintuans, as the save path always did.
+- **A return drawn from the wrong end** now lists its middle in travel
+  order: `timelineFor` takes the line's first point and turns the middle
+  round when it starts nearer the far end.
+- Small: `passesThrough(n)` shared wording; `useSavedStops.show(id)` replaces
+  the handler both apps had copied; the card shows the block whenever there
+  is anything to list; `hintuanCount` named honestly.
+- Story `PassesBesideTheRoad`: a box 2 m off the line is listed, the other
+  carriageway 12 m off is not. Drive script 13/13, type check and build green.
+
+**The stored links are still the old ones.** Links are written at save time,
+so the two saved directions keep their three hintuans until each is saved
+again (Edit route → Done → Save) — then the nightly publish carries them.
+Under the new rule the live data gives SM Fairview → Tala: Fairview
+Teraccess, SM Fairview, Fatima, Lagro, Malaria, Pangarap, Amparo, Barracks;
+and the return the matching boxes on its own side.
+
 ### Still open in step 0
 
 Decided today: the route's name, the four actions, how a direction behaves

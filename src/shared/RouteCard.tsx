@@ -2,9 +2,18 @@ import type { ReactNode } from 'react'
 import { lineLength } from './geo'
 import { MODES, variantLine, type VariantSummary } from './routes'
 import { Sheet } from './Sheet'
+import { StopTimeline, passesThrough } from './StopTimeline'
+import type { Timeline } from './stops'
 
 type Props = {
   variant: VariantSummary
+  /**
+   * The direction as a string of places, when the caller has the links:
+   * shown collapsed under the title, the way a train app lists a line's
+   * stops. Tapping one shows that box on the map.
+   */
+  timeline?: Timeline
+  onPickStop?: (stopId: string) => void
   /**
    * The route's other direction, when the caller knows it: drawn or not.
    * `undefined` when the caller has no idea (no switch is offered); `null`
@@ -34,11 +43,12 @@ type Props = {
  * direction; when that one has no line yet the card says so instead of
  * offering an empty one.
  */
-export function RouteCard({ variant, sibling, onSwitch, actions, onClose }: Props) {
+export function RouteCard({ variant, timeline, onPickStop, sibling, onSwitch, actions, onClose }: Props) {
   const r = variant.route
   const km = (lineLength(variantLine(variant)) / 1000).toFixed(1)
   const mode = MODES.find((m) => m.value === r?.mode)?.label ?? r?.mode ?? ''
   const siblingDrawn = !!sibling && variantLine(sibling).length > 1
+  const hintuanCount = timeline?.between.length ?? 0
 
   return (
     <Sheet
@@ -92,6 +102,15 @@ export function RouteCard({ variant, sibling, onSwitch, actions, onClose }: Prop
         </>
       }
     >
+      {timeline && (timeline.from || timeline.to || hintuanCount > 0) && (
+        /* Collapsed by default: the title already says the ends; this is the way between them. */
+        <details data-testid="card-timeline" className="mt-3 rounded-lg bg-neutral-50 px-3 py-2">
+          <summary className="cursor-pointer select-none text-xs font-medium text-neutral-600">
+            {hintuanCount === 0 ? 'No hintuan on the way yet' : passesThrough(hintuanCount)}
+          </summary>
+          <StopTimeline timeline={timeline} onPick={onPickStop} />
+        </details>
+      )}
       <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
         <dt className="text-neutral-500">Mode</dt>
         <dd className="text-neutral-900">{mode}</dd>

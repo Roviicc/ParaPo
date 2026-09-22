@@ -144,3 +144,34 @@ export const WithTheOtherDirection: Story = {
 export const OtherDirectionNotMapped: Story = {
   args: { sibling: { ...back, shape: null }, onSwitch: fn() },
 }
+
+/** The direction as a string of places, collapsed under the title until opened. */
+export const WithTimeline: Story = {
+  args: {
+    sibling: back,
+    onSwitch: fn(),
+    onPickStop: fn(),
+    timeline: {
+      from: { id: 'sample-tala', label: 'Tala', kind: 'terminal' },
+      between: [
+        { id: 'h-barracks', label: 'Barracks', kind: 'hintuan' },
+        { id: 'h-malaria', label: 'Malaria', kind: 'hintuan' },
+        { id: 'h-pangarap', label: 'Pangarap', kind: 'hintuan' },
+        { id: 'h-lagro', label: 'Lagro', kind: 'hintuan' },
+        { id: 'h-babaan', label: 'SM Fairview – Main Babaan', kind: 'hintuan' },
+      ],
+      to: { id: 'sample-fairview', label: 'SM Fairview', kind: 'terminal' },
+    },
+  },
+}
+
+/** Ends only: the line passes no hintuan yet, and the card says so rather than showing an empty list. */
+export const TimelineWithNoHintuans: Story = {
+  args: {
+    timeline: {
+      from: { id: 'sample-tala', label: 'Tala', kind: 'terminal' },
+      between: [],
+      to: { id: 'sample-fairview', label: 'SM Fairview', kind: 'terminal' },
+    },
+  },
+}

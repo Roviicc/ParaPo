@@ -6,7 +6,7 @@ import { HotspotCard } from '../shared/HotspotCard'
 import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
 import { listVariants, loadStopsFromSupabase } from './live'
-import { otherDirection, type VariantRow } from '../shared/routes'
+import { otherDirection, routeTimeline, type VariantRow } from '../shared/routes'
 import { stopLabel, stopRing, type StopRow } from '../shared/stops'
 import { getSupabase, supabaseConfigError } from '../shared/supabase'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
@@ -215,6 +215,11 @@ function Workshop({
       {!draw.drawing && saved.selected && (
         <RouteCard
           variant={saved.selected}
+          timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
+          onPickStop={(id) => {
+            saved.select(null)
+            stops.show(id)
+          }}
           sibling={otherDirection(saved.variants, saved.selected)}
           onSwitch={(v) => saved.select(v.id)}
           actions={

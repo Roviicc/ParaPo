@@ -167,6 +167,41 @@ export function lineIntersectsRing(line: LngLat[], ring: Ring): boolean {
   return firstTouchIndex(line, ring) !== -1
 }
 
+/** Metres from point p to segment a–b, on a flat patch around the segment (fine at street scale). */
+function pointToSegmentM(p: LngLat, a: LngLat, b: LngLat): number {
+  const k = Math.cos(toRad(a[1]))
+  const [px, py] = [(p[0] - a[0]) * k, p[1] - a[1]]
+  const [bx, by] = [(b[0] - a[0]) * k, b[1] - a[1]]
+  const l2 = bx * bx + by * by
+  const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, (px * bx + py * by) / l2))
+  const [dx, dy] = [px - t * bx, py - t * by]
+  return toRad(Math.hypot(dx, dy)) * EARTH_RADIUS_M
+}
+
+/**
+ * Where the line first enters the polygon or comes within `withinM` metres
+ * of its edge: the vertex index, or the index of the segment that does it.
+ * -1 if never. Two segments that do not cross are nearest at one of their
+ * four ends, so that is all that is measured.
+ */
+export function firstNearIndex(line: LngLat[], ring: Ring, withinM: number): number {
+  const touch = firstTouchIndex(line, ring)
+  const n = ring.length
+  if (n < 3 || line.length === 0) return -1
+  for (let i = 1; i < line.length; i++) {
+    if (touch >= 0 && i - 1 >= touch) return touch
+    const [a, b] = [line[i - 1], line[i]]
+    for (let j = 0; j < n; j++) {
+      const [c, d] = [ring[j], ring[(j + 1) % n]]
+      const near =
+        Math.min(pointToSegmentM(a, c, d), pointToSegmentM(b, c, d), pointToSegmentM(c, a, b), pointToSegmentM(d, a, b)) <=
+        withinM
+      if (near) return i - 1
+    }
+  }
+  return touch
+}
+
 /** Where segments a–b and c–d cross, or null if they do not (parallel/collinear count as no point). */
 function crossingPoint(a: LngLat, b: LngLat, c: LngLat, d: LngLat): LngLat | null {
   const den = (b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0])

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Drawing } from './useDrawing'
-import { haversine, type LngLat } from '../shared/geo'
+import { haversine, joinSegments, type LngLat } from '../shared/geo'
 import {
   MODES,
   directionName,
@@ -10,7 +10,8 @@ import {
   type TransportMode,
   type VariantRow,
 } from '../shared/routes'
-import { stopLabel, type StopRow } from '../shared/stops'
+import { hintuansAlong, placeKey, stopLabel, timelineFor, type StopRow } from '../shared/stops'
+import { StopTimeline, passesThrough } from '../shared/StopTimeline'
 import { saveVariant } from './routesWrite'
 import { routeStreets } from './snap'
 import { syncHintuanLinks } from './stopsWrite'
@@ -61,10 +62,6 @@ function nearestStop(stops: StopRow[], to: LngLat | undefined): string {
  * place in the list. The row a route actually references is `boxFor`.
  */
 type Place = { key: string; label: string; boxes: StopRow[]; terminal: StopRow | null }
-
-function placeKey(s: StopRow): string {
-  return stopLabel(s).trim().toLowerCase()
-}
 
 /** Every place, the ones with a terminal first, then by name. */
 function groupPlaces(stops: StopRow[]): Place[] {
@@ -167,6 +164,12 @@ export function SavePanel({
 
   const name = head && tail ? routeName(stopLabel(head), stopLabel(tail), via) : ''
   const direction = head && tail ? directionName(stopLabel(head), stopLabel(tail), reversed) : ''
+  // The snapped geometry, not the control points: a box between two clicks
+  // still counts, and this is the line the save will check.
+  const preview = useMemo(() => {
+    const line = joinSegments(draw.segments)
+    return timelineFor(head, tail, reversed, hintuansAlong(line, stops).map((a) => a.stop), stops, line[0])
+  }, [head, tail, reversed, draw.segments, stops])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -305,6 +308,18 @@ export function SavePanel({
             </select>
           </label>
         </div>
+
+        {/* What the line passes, by the rule the save will apply: seen first, stored the same. */}
+        {head && tail && (
+          <div data-testid="save-timeline" className="mt-3 rounded-lg bg-neutral-50 px-3 py-2">
+            <p className="text-xs font-medium text-neutral-600">
+              {preview.between.length === 0
+                ? 'Passes through no hintuan yet — draw one across the road and it appears here'
+                : `${passesThrough(preview.between.length)}, in this order`}
+            </p>
+            <StopTimeline timeline={preview} />
+          </div>
+        )}
 
         <label className="mt-3 block text-xs font-medium text-neutral-700">
           Via <span className="text-neutral-400">(only if another route shares both ends)</span>

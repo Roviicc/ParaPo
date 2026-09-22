@@ -1,6 +1,6 @@
 import type { LngLat, Segment } from './geo'
 import { joinSegments } from './geo'
-import { stopLabel, type StopSummary } from './stops'
+import { stopLabel, timelineFor, type StopSummary, type Timeline } from './stops'
 
 /** Mirrors the `transport_mode` enum in supabase/migrations/0001_init.sql. */
 export type TransportMode =
@@ -160,6 +160,20 @@ export function nameVariants<V extends Unnamed>(
  */
 export function otherDirection<V extends VariantSummary>(all: readonly V[], of: V): V | null {
   return all.find((v) => v.route_id === of.route_id && v.id !== of.id) ?? null
+}
+
+/**
+ * A saved direction as a string of places, for its card: its route's two ends
+ * resolved to hotspots, and the hotspots its links say it passes, in order.
+ */
+export function routeTimeline(
+  v: VariantSummary,
+  stops: readonly StopSummary[],
+  along: readonly StopSummary[],
+): Timeline {
+  const head = stops.find((s) => s.id === v.route?.head_stop_id) ?? null
+  const tail = stops.find((s) => s.id === v.route?.tail_stop_id) ?? null
+  return timelineFor(head, tail, v.reversed, along, stops, variantLine(v)[0])
 }
 
 /** Geometry to draw: the stored shape, or rebuilt from segments when the row has them. */

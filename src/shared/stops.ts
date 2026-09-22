@@ -1,4 +1,4 @@
-import { polygonToRing, type LngLat, type Ring } from './geo'
+import { polygonToRing, type LngLat, type Ring, firstNearIndex, haversine } from './geo'
 
 /** Mirrors the `stop_kind` enum in supabase/migrations/0004_stop_hotspot.sql. */
 export type StopKind = 'terminal' | 'hintuan'
@@ -71,4 +71,117 @@ export function parseAliases(text: string, exclude: string[] = []): string[] {
     out.push(a)
   }
   return out
+}
+
+// ------------------------------------------------------------ along the line
+
+/**
+ * How near a line must come to a box to pass it, in metres. A hintuan is
+ * drawn where people stand — the roadside — and the line follows the road,
+ * so the two touch without crossing by a metre or less. Five is enough for
+ * that and short of the other carriageway, which on Quirino Highway sits
+ * seven metres and more from a box on this side. Set 2026-09-22 from the
+ * live boxes, replacing "the line enters the box" alone.
+ */
+export const PASS_WITHIN_M = 5
+
+/**
+ * Where along the line this box is passed: the vertex or segment index at
+ * which the line first enters the box or comes within PASS_WITHIN_M of it,
+ * or -1. The one rule for "this direction passes this hotspot"; the save
+ * (both sides: route and hotspot), the save panel and the hotspot panel all
+ * ask it, so what is shown is what is stored.
+ */
+export function passIndex(line: LngLat[], ring: Ring): number {
+  return firstNearIndex(line, ring, PASS_WITHIN_M)
+}
+
+/**
+ * The hintuans a line passes, in the order it reaches them. `index` is
+ * where along the line, which is what `route_stop.stop_sequence` stores.
+ * Terminals are not listed: a route's ends come from the route itself.
+ */
+export function hintuansAlong<S extends StopSummary>(line: LngLat[], stops: readonly S[]): { stop: S; index: number }[] {
+  const along: { stop: S; index: number }[] = []
+  for (const stop of stops) {
+    if (stop.kind !== 'hintuan' || !stop.area) continue
+    const index = passIndex(line, stopRing(stop))
+    if (index >= 0) along.push({ stop, index })
+  }
+  return along.sort((a, b) => a.index - b.index)
+}
+
+// ------------------------------------------------------------------- places
+
+/**
+ * What makes two boxes one place: the same label, case-folded, so "SM
+ * fairview" typed once does not become a second place (H3). The pickers
+ * group by it and the timeline names by it.
+ */
+export function placeKey(s: Pick<StopSummary, 'name' | 'informal'>): string {
+  return stopLabel(s).trim().toLowerCase()
+}
+
+/** How many boxes each place has, by place key. */
+export function placeSizes(stops: readonly StopSummary[]): Map<string, number> {
+  const sizes = new Map<string, number>()
+  for (const s of stops) sizes.set(placeKey(s), (sizes.get(placeKey(s)) ?? 0) + 1)
+  return sizes
+}
+
+/**
+ * How a hotspot reads on a timeline: its place, and its own name after a
+ * dash when the place has several boxes and the box has a name of its own —
+ * "SM Fairview – Main Babaan" tells a rider which side of the mall. A box
+ * whose informal name is its name, or the only box of its place, is just
+ * its label. The owner's rule, 2026-09-22.
+ */
+export function timelineLabel(s: StopSummary, sizes: Map<string, number>): string {
+  const label = stopLabel(s)
+  const own = s.name.trim()
+  const several = (sizes.get(placeKey(s)) ?? 0) > 1
+  return several && own && own.toLowerCase() !== label.toLowerCase() ? `${label} – ${own}` : label
+}
+
+// ----------------------------------------------------------------- timeline
+
+/** One row of a direction's timeline. */
+export type TimelineStop = { id: string; label: string; kind: StopKind }
+
+/**
+ * A direction as a string of places: where it leaves from, the hintuans on
+ * the way in order, where it is going. What a signboard is, generated.
+ */
+export type Timeline = { from: TimelineStop | null; to: TimelineStop | null; between: TimelineStop[] }
+
+/**
+ * The timeline of a direction with these ends. `along` is the hintuans in
+ * the order the line reaches them; `all` is every hotspot, so a place with
+ * several boxes can name each. The ends' own boxes are dropped from the
+ * middle; a place's other boxes stay, since "SM Fairview – Main Babaan" on
+ * the way to the terminal is what a rider wants to see. When the line was
+ * drawn from the far end (the save panel allows it with a warning) and
+ * `lineStart` says so, the middle is turned round to read in travel order.
+ */
+export function timelineFor(
+  head: StopSummary | null | undefined,
+  tail: StopSummary | null | undefined,
+  reversed: boolean,
+  along: readonly StopSummary[],
+  all: readonly StopSummary[] = along,
+  lineStart?: LngLat,
+): Timeline {
+  const sizes = placeSizes(all)
+  const row = (s: StopSummary): TimelineStop => ({ id: s.id, label: timelineLabel(s, sizes), kind: s.kind })
+  // An end is its place, never a box: "SM Fairview", not the terminal's long name.
+  const end = (s: StopSummary): TimelineStop => ({ id: s.id, label: stopLabel(s), kind: s.kind })
+  const [from, to] = reversed ? [tail, head] : [head, tail]
+  const ends = new Set([head?.id, tail?.id])
+  let between = along.filter((s) => s.kind === 'hintuan' && !ends.has(s.id)).map(row)
+  if (lineStart && from && to) {
+    const toFrom = haversine(lineStart, from.point.coordinates)
+    const toTo = haversine(lineStart, to.point.coordinates)
+    if (toTo < toFrom) between = between.reverse()
+  }
+  return { from: from ? end(from) : null, to: to ? end(to) : null, between }
 }

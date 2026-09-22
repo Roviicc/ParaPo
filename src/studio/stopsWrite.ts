@@ -6,14 +6,7 @@ import {
   type Ring,
 } from '../shared/geo'
 import { variantLine, type VariantRow } from '../shared/routes'
-import {
-  normaliseName,
-  stopRing,
-  type PointGeoJSON,
-  type StopKind,
-  type StopLink,
-  type StopRow,
-} from '../shared/stops'
+import { hintuansAlong, normaliseName, passIndex, type PointGeoJSON, type StopKind, type StopLink, type StopRow } from '../shared/stops'
 import { requireSupabase } from '../shared/supabase'
 
 const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim())
@@ -24,8 +17,10 @@ const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim())
 // exactly what a save will write before it writes it.
 
 /**
- * Which directions pass under this outline, and where along each one. This
- * is a hintuan's whole route list: the polygon decides, nothing else.
+ * Which directions pass this outline, and where along each one. This is a
+ * hintuan's whole route list, by the one rule in `passIndex` — the same one
+ * the route side's `hintuansAlong` asks, so a box saved before or after its
+ * route ends up linked the same way.
  */
 export function linksThrough(
   ring: Ring,
@@ -33,7 +28,7 @@ export function linksThrough(
 ): { variantId: string; sequence: number }[] {
   const out: { variantId: string; sequence: number }[] = []
   for (const v of variants) {
-    const idx = firstTouchIndex(variantLine(v), ring)
+    const idx = passIndex(variantLine(v), ring)
     if (idx >= 0) out.push({ variantId: v.id, sequence: idx })
   }
   return out
@@ -172,14 +167,15 @@ export async function syncHintuanLinks(variant: VariantRow): Promise<void> {
   const hintuans = (data ?? []) as StopRow[]
   if (hintuans.length === 0) return
 
-  const line = variantLine(variant)
-  const keep: StopLink[] = []
-  const drop: string[] = []
-  for (const h of hintuans) {
-    const idx = firstTouchIndex(line, stopRing(h))
-    if (idx >= 0) keep.push({ route_variant_id: variant.id, stop_id: h.id, stop_sequence: idx })
-    else drop.push(h.id)
-  }
+  // The same rule the save panel showed before Save was pressed.
+  const along = hintuansAlong(variantLine(variant), hintuans)
+  const keep: StopLink[] = along.map(({ stop, index }) => ({
+    route_variant_id: variant.id,
+    stop_id: stop.id,
+    stop_sequence: index,
+  }))
+  const kept = new Set(keep.map((k) => k.stop_id))
+  const drop = hintuans.filter((h) => !kept.has(h.id)).map((h) => h.id)
 
   if (drop.length > 0) {
     const del = await client
