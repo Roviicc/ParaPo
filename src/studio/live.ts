@@ -1,4 +1,4 @@
-import type { VariantRow } from '../shared/routes'
+import { nameVariants, type UnnamedVariantRow, type VariantRow } from '../shared/routes'
 import type { StopLink, StopRow } from '../shared/stops'
 import { getSupabase } from '../shared/supabase'
 
@@ -17,16 +17,20 @@ import { getSupabase } from '../shared/supabase'
 /** A direction with its parent route embedded. */
 export const VARIANT_SELECT = '*, route:route(*)'
 
-/** Every saved direction of every route, in full. Public: RLS allows anyone to read. */
+/**
+ * Every saved direction of every route, in full, with the generated names
+ * filled in from the hotspots at each route's ends. Public: RLS allows anyone
+ * to read.
+ */
 export async function listVariants(): Promise<VariantRow[]> {
   const client = getSupabase()
   if (!client) return []
-  const { data, error } = await client
-    .from('route_variant')
-    .select(VARIANT_SELECT)
-    .order('updated_at', { ascending: false })
+  const [{ data, error }, stops] = await Promise.all([
+    client.from('route_variant').select(VARIANT_SELECT).order('updated_at', { ascending: false }),
+    listStops(),
+  ])
   if (error) throw new Error(error.message)
-  return (data ?? []) as VariantRow[]
+  return nameVariants((data ?? []) as UnnamedVariantRow[], stops)
 }
 
 /** Every hotspot, in full. Public: RLS allows anyone to read. */

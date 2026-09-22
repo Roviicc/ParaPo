@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { VariantSummary } from './routes'
 import { Sheet } from './Sheet'
-import type { StopSummary } from './stops'
+import { stopLabel, type StopSummary } from './stops'
 
 type Props = {
   stop: StopSummary
@@ -30,15 +30,16 @@ export function HotspotCard({
   onClose,
 }: Props) {
   const isTerminal = stop.kind === 'terminal'
+  const label = stopLabel(stop)
   const byId = new Map(variants.map((v) => [v.id, v]))
   const linked = linkedVariantIds
     .map((id) => byId.get(id))
     .filter((v): v is VariantSummary => !!v)
 
-  // Group by route so both directions of one signboard read as one entry.
+  // Group by route so both directions of one route read as one entry.
   const groups = new Map<string, { signboard: string; directions: VariantSummary[] }>()
   for (const v of linked) {
-    const g = groups.get(v.route_id) ?? { signboard: v.route?.signboard ?? '(unnamed)', directions: [] }
+    const g = groups.get(v.route_id) ?? { signboard: v.route?.name ?? '(unnamed)', directions: [] }
     g.directions.push(v)
     groups.set(v.route_id, g)
   }
@@ -48,7 +49,10 @@ export function HotspotCard({
       onClose={onClose}
       peek={
         <>
-          <p className="truncate text-base font-semibold text-neutral-900">{stop.name}</p>
+          <p className="truncate text-base font-semibold text-neutral-900">{label}</p>
+          {label !== stop.name && (
+            <p className="truncate text-xs text-neutral-500">{stop.name}</p>
+          )}
           <span
             className={
               'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' +

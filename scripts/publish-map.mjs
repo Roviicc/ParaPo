@@ -177,20 +177,41 @@ function maxDeviation(original, simplified, k) {
 // see. (The map draws them in file order, which nothing depends on.)
 const [variantRows, stopRows, linkRows] = await Promise.all([
   rest(
-    'route_variant?select=id,route_id,direction_name,origin_terminal,destination_terminal,shape,confidence,' +
-      'route:route(id,signboard,long_name,mode,fare_note)&order=id.asc',
+    'route_variant?select=id,route_id,direction_name,origin_terminal,destination_terminal,shape,confidence,reversed,' +
+      'route:route(id,signboard,long_name,mode,fare_note,head_stop_id,tail_stop_id,via)&order=id.asc',
   ),
-  rest('stop?select=id,name,kind,point,area,note,created_at&order=id.asc'),
+  rest('stop?select=id,name,informal,aliases,kind,point,area,note,created_at&order=id.asc'),
   rest('route_stop?select=route_variant_id,stop_id,stop_sequence&order=route_variant_id.asc,stop_sequence.asc,stop_id.asc'),
 ])
 
 // ---------------------------------------------------------------- assemble
 
+// Names are generated from the hotspots at each route's ends and never stored
+// (PLAN.md, "Naming and creating a route", 2026-09-21). The file carries the
+// generated strings so visitors need no join; a renamed hotspot shows on the
+// next publish. Mirrors routeName / directionName in src/shared/routes.ts.
+const DASH = '–'
+// A hotspot's informal name — what people say — is what a route name reads;
+// the name on the ground is the fallback. Mirrors stopLabel in src/shared/stops.ts (0007).
+const stopLabel = (s) => (s.informal && s.informal.trim()) || s.name
+const stopName = new Map(stopRows.map((s) => [s.id, stopLabel(s)]))
+const routeName = (head, tail, via) =>
+  via && via.trim() ? `${head} ${DASH} ${tail} via ${via.trim()}` : `${head} ${DASH} ${tail}`
+const directionName = (head, tail, reversed) => (reversed ? `${tail} → ${head}` : `${head} → ${tail}`)
+
 const stats = []
 const variants = variantRows.map((v) => {
   if (!v.route) {
-    fail(`FAIL  direction ${v.id} (${v.direction_name}) came without its route: is the route table still readable?`)
+    fail(`FAIL  direction ${v.id} came without its route: is the route table still readable?`)
   }
+  const head = stopName.get(v.route.head_stop_id)
+  const tail = stopName.get(v.route.tail_stop_id)
+  if (!head || !tail) {
+    // The foreign keys make this impossible unless the stop table was not fully readable.
+    fail(`FAIL  route ${v.route.id}: an end hotspot is missing from the stop rows (${v.route.head_stop_id}, ${v.route.tail_stop_id})`)
+  }
+  const name = routeName(head, tail, v.route.via)
+  const direction = directionName(head, tail, v.reversed)
   const coords = Array.isArray(v.shape?.coordinates) ? v.shape.coordinates : []
   let shape = null
   if (coords.length > 1) {
@@ -198,19 +219,22 @@ const variants = variantRows.map((v) => {
     const slim = simplify(coords, SIMPLIFY_M, k).map(([x, y]) => [round5(x), round5(y)])
     const dev = maxDeviation(coords, slim, k)
     if (dev > MAX_DEVIATION_M) {
-      fail(`FAIL  "${v.route?.signboard}" ${v.direction_name}: simplified line strays ${dev.toFixed(1)} m from the original`)
+      fail(`FAIL  "${name}" ${direction}: simplified line strays ${dev.toFixed(1)} m from the original`)
     }
-    stats.push({ name: `${v.route?.signboard} · ${v.direction_name}`, before: coords.length, after: slim.length, dev })
+    stats.push({ name: `${name} · ${direction}`, before: coords.length, after: slim.length, dev })
     shape = { type: 'LineString', coordinates: slim }
   }
-  // Key order is the file's contract; keep it fixed.
+  // Key order is the file's contract; keep it fixed. A direction with no line
+  // yet is published as it is — shape null — so a card can offer the flip and
+  // say the return trip is not mapped yet.
   return {
     id: v.id,
     route_id: v.route_id,
-    direction_name: v.direction_name,
+    direction_name: direction,
     origin_terminal: v.origin_terminal,
     destination_terminal: v.destination_terminal,
     shape,
+    reversed: v.reversed,
     confidence: v.confidence,
     route: {
       id: v.route.id,
@@ -218,6 +242,10 @@ const variants = variantRows.map((v) => {
       long_name: v.route.long_name,
       mode: v.route.mode,
       fare_note: v.route.fare_note,
+      head_stop_id: v.route.head_stop_id,
+      tail_stop_id: v.route.tail_stop_id,
+      via: v.route.via,
+      name,
     },
   }
 })
@@ -225,6 +253,8 @@ const variants = variantRows.map((v) => {
 const stops = stopRows.map((s) => ({
   id: s.id,
   name: s.name,
+  informal: s.informal ?? null,
+  aliases: Array.isArray(s.aliases) ? s.aliases : [],
   kind: s.kind,
   point: s.point,
   area: s.area,

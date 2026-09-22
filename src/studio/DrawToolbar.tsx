@@ -1,7 +1,15 @@
+import { useEffect } from 'react'
 import type { Drawing } from './useDrawing'
 
 function formatDistance(metres: number) {
   return metres < 1000 ? `${Math.round(metres)} m` : `${(metres / 1000).toFixed(2)} km`
+}
+
+/** A key pressed while typing belongs to the field, never to the map. */
+function typing(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null
+  if (!el) return false
+  return el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)
 }
 
 /**
@@ -11,8 +19,23 @@ function formatDistance(metres: number) {
  * Serves both a route trace and a hotspot outline. The outline needs three
  * corners, has no router to wait for, and has no freehand toggle because every
  * edge is already straight.
+ *
+ * Three of the buttons answer to a key as well — Ctrl+Z, Enter, F — but only
+ * while `keys` is true: the studio turns them off the moment a panel opens,
+ * so Enter in the save form submits the form and Ctrl+Z in a field is the
+ * browser's own undo. Esc is deliberately unbound (owner, 2026-09-22): cancel
+ * discards the whole trace, and that should not be one stray key away.
  */
-export function DrawToolbar({ draw, onDone }: { draw: Drawing; onDone: () => void }) {
+export function DrawToolbar({
+  draw,
+  onDone,
+  keys = true,
+}: {
+  draw: Drawing
+  onDone: () => void
+  /** Whether the keyboard shortcuts may act. False while a panel is open. */
+  keys?: boolean
+}) {
   const points = draw.controlPoints.length
   const freehandCount = draw.segments.filter((s) => s?.snap === 'freehand').length
   const area = draw.area
@@ -21,6 +44,30 @@ export function DrawToolbar({ draw, onDone }: { draw: Drawing; onDone: () => voi
   const uTurns = draw.uTurns.length
   // A stand-in still on the line is not road geometry yet, and must not be saved.
   const waiting = draw.snapping > 0 || draw.unresolved
+  const canDone = points >= minPoints && !waiting
+
+  useEffect(() => {
+    if (!keys) return
+    const onKey = (e: KeyboardEvent) => {
+      if (typing(e.target)) return
+      const mod = e.ctrlKey || e.metaKey
+      if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'z') {
+        // Same as the button: nothing to undo is nothing to do, but the
+        // browser's own undo must not run on the map either way.
+        e.preventDefault()
+        if (points > 0) draw.undo()
+      } else if (!mod && !e.altKey && e.key === 'Enter') {
+        if (!canDone) return
+        e.preventDefault()
+        onDone()
+      } else if (!mod && !e.altKey && !area && e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        draw.setFreehand(!draw.freehand)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [keys, points, canDone, area, draw, onDone])
 
   return (
     <div className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2">
@@ -68,8 +115,8 @@ export function DrawToolbar({ draw, onDone }: { draw: Drawing; onDone: () => voi
             aria-pressed={draw.freehand}
             title={
               draw.freehand
-                ? 'New segments are straight lines. Click to route them along roads again.'
-                : 'New segments follow roads. Click to draw straight lines instead — for paths the router refuses.'
+                ? 'New segments are straight lines. Click to route them along roads again. (F)'
+                : 'New segments follow roads. Click to draw straight lines instead — for paths the router refuses. (F)'
             }
             className={
               'rounded-full px-3 py-2 text-sm transition-colors ' +
@@ -86,7 +133,7 @@ export function DrawToolbar({ draw, onDone }: { draw: Drawing; onDone: () => voi
           type="button"
           onClick={draw.undo}
           disabled={points === 0}
-          title={`Undo last ${noun}`}
+          title={`Undo last ${noun} (Ctrl+Z)`}
           className="rounded-full px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100
                      disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -96,15 +143,15 @@ export function DrawToolbar({ draw, onDone }: { draw: Drawing; onDone: () => voi
         <button
           type="button"
           onClick={onDone}
-          disabled={points < minPoints || waiting}
+          disabled={!canDone}
           title={
             points < minPoints
               ? `Add at least ${minPoints} ${noun}s`
               : waiting
                 ? 'Waiting for the router'
                 : area
-                  ? 'Save this hotspot'
-                  : 'Save this route'
+                  ? 'Save this hotspot (Enter)'
+                  : 'Save this route (Enter)'
           }
           className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white
                      disabled:cursor-not-allowed disabled:opacity-40"

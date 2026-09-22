@@ -163,8 +163,8 @@ try {
       for (const c of f.geometry.coordinates.length > 1 ? f.geometry.coordinates : []) {
         const p = m.project(c);
         if (p.x < 100 || p.x > r.width - 100 || p.y < 100 || p.y > r.height - 160) continue;
-        const under = new Set(m.queryRenderedFeatures([[p.x - 12, p.y - 12], [p.x + 12, p.y + 12]], { layers: ['saved-routes-hit'] }).map((g) => g.properties.signboard));
-        if (under.size === 1 && under.has(f.properties.signboard)) return { x: r.x + p.x, y: r.y + p.y, signboard: f.properties.signboard };
+        const under = new Set(m.queryRenderedFeatures([[p.x - 12, p.y - 12], [p.x + 12, p.y + 12]], { layers: ['saved-routes-hit'] }).map((g) => g.properties.name));
+        if (under.size === 1 && under.has(f.properties.name)) return { x: r.x + p.x, y: r.y + p.y, signboard: f.properties.name };
       }
     }
     return null;

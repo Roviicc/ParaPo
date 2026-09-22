@@ -7,10 +7,14 @@ import type { StopRow } from './stops'
 /** Sample data only, shaped like saved rows. Not read from Supabase. */
 const route = {
   id: 'sample-route',
-  signboard: 'Tala – SM Fairview',
+  signboard: null,
   long_name: null,
   mode: 'jeepney',
   fare_note: null,
+  head_stop_id: 'sample-stop',
+  tail_stop_id: 'sample-fairview',
+  via: null,
+  name: 'Tala – SM Fairview',
 } as const
 
 const outbound: VariantSummary = {
@@ -20,16 +24,19 @@ const outbound: VariantSummary = {
   origin_terminal: null,
   destination_terminal: null,
   shape: null,
+  reversed: false,
   confidence: 'drawn',
   route,
 }
 
-const inbound: VariantSummary = { ...outbound, id: 'sample-in', direction_name: 'SM Fairview → Tala' }
+const inbound: VariantSummary = { ...outbound, id: 'sample-in', direction_name: 'SM Fairview → Tala', reversed: true }
 
 const terminal: StopRow = {
   id: 'sample-stop',
   owner_id: 'sample-owner',
-  name: 'Tala Novaliches Jeep Terminal',
+  name: 'Tala Jeepney Terminal',
+  informal: 'Tala',
+  aliases: ['Tala Terminal', 'Terminal Tala'],
   kind: 'terminal',
   point: { type: 'Point', coordinates: [121.0467, 14.7478] },
   area: null,
@@ -69,7 +76,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** A terminal with both directions of one route grouped under its signboard. */
+/** A terminal with both directions of one route grouped under its name. The informal name leads; the name on the ground is the small line under it. */
 export const Terminal: Story = {}
 
 /** A hintuan with a note and nothing linked yet. */
@@ -78,6 +85,8 @@ export const EmptyHintuan: Story = {
     stop: {
       ...terminal,
       name: 'Malaria',
+      informal: null,
+      aliases: [],
       kind: 'hintuan',
       note: 'Wait under the waiting shed across from the chapel.',
     },

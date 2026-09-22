@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { VariantRow } from '../shared/routes'
-import type { StopRow } from '../shared/stops'
+import { parseAliases, stopLabel, type StopRow } from '../shared/stops'
 import { linksThrough, saveStop, variantsStartingIn } from './stopsWrite'
 import type { Drawing } from './useDrawing'
 
@@ -12,6 +12,8 @@ type Props = {
   existingLinks: string[]
   /** Every saved direction — the terminal checklist and the hintuan preview. */
   variants: VariantRow[]
+  /** Every saved hotspot, so the informal-name box can offer the names already in use. */
+  stops?: StopRow[]
   onSaved: (s: StopRow) => void
   onCancel: () => void
 }
@@ -20,12 +22,12 @@ const field =
   'mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none ' +
   'focus:border-neutral-900'
 
-/** Directions grouped under their route's signboard, for both lists. */
+/** Directions grouped under their route's generated name, for both lists. */
 function groupBySignboard(variants: VariantRow[]) {
   const groups = new Map<string, { signboard: string; directions: VariantRow[] }>()
   for (const v of variants) {
     const key = v.route_id
-    const g = groups.get(key) ?? { signboard: v.route?.signboard ?? '(unnamed)', directions: [] }
+    const g = groups.get(key) ?? { signboard: v.route?.name ?? '(unnamed)', directions: [] }
     g.directions.push(v)
     groups.set(key, g)
   }
@@ -40,13 +42,35 @@ function groupBySignboard(variants: VariantRow[]) {
  * the directions that pass under the outline — the polygon decides, and this
  * shows exactly what the save will write.
  */
-export function HotspotPanel({ draw, existing, existingLinks, variants, onSaved, onCancel }: Props) {
+export function HotspotPanel({
+  draw,
+  existing,
+  existingLinks,
+  variants,
+  stops = [],
+  onSaved,
+  onCancel,
+}: Props) {
   const area = draw.area
   const kind = area?.kind ?? 'hintuan'
   const ring = draw.controlPoints
 
   const [name, setName] = useState(existing?.name ?? '')
+  const [informal, setInformal] = useState(existing?.informal ?? '')
+  const [aliasText, setAliasText] = useState(existing?.aliases?.join(', ') ?? '')
   const [note, setNote] = useState(existing?.note ?? '')
+
+  // The informal names already in use, offered as suggestions so a second box
+  // for the same place joins the group instead of starting "SM  Fairview".
+  const knownInformal = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const s of stops) {
+      if (s.id === existing?.id) continue
+      const label = stopLabel(s)
+      seen.set(label.toLowerCase(), label)
+    }
+    return [...seen.values()].sort((a, b) => a.localeCompare(b))
+  }, [stops, existing?.id])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -81,6 +105,8 @@ export function HotspotPanel({ draw, existing, existingLinks, variants, onSaved,
         stopId: existing?.id ?? area?.stopId ?? null,
         kind,
         name,
+        informal,
+        aliases: parseAliases(aliasText, [name, informal]),
         note,
         ring,
         variantIds: kind === 'terminal' ? [...ticked] : undefined,
@@ -109,13 +135,43 @@ export function HotspotPanel({ draw, existing, existingLinks, variants, onSaved,
         <p className="mt-1 text-xs text-neutral-500">{ring.length} corners</p>
 
         <label className="mt-4 block text-xs font-medium text-neutral-700">
-          Name
+          Name <span className="text-neutral-400">(as written on the ground)</span>
           <input
             required
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={kind === 'terminal' ? 'SM Fairview terminal' : 'Commonwealth – Tandang Sora'}
+            placeholder={kind === 'terminal' ? 'SM Fairview Terminal A' : 'SM Fairview Ilalim'}
+            className={field}
+          />
+        </label>
+
+        <label className="mt-3 block text-xs font-medium text-neutral-700">
+          Informal name <span className="text-neutral-400">(what people say — optional)</span>
+          <input
+            value={informal}
+            onChange={(e) => setInformal(e.target.value)}
+            list="parapo-informal-names"
+            placeholder="SM Fairview"
+            className={field}
+          />
+          <datalist id="parapo-informal-names">
+            {knownInformal.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
+          <span className="mt-1 block text-[11px] font-normal text-neutral-400">
+            Route names read this. Boxes that share it are one place to a commuter
+            {kind === 'terminal' ? '; a place has one terminal.' : '.'}
+          </span>
+        </label>
+
+        <label className="mt-3 block text-xs font-medium text-neutral-700">
+          Also called <span className="text-neutral-400">(optional, comma-separated)</span>
+          <input
+            value={aliasText}
+            onChange={(e) => setAliasText(e.target.value)}
+            placeholder="Fairview, SM City Fairview"
             className={field}
           />
         </label>

@@ -6,8 +6,8 @@ import { HotspotCard } from '../shared/HotspotCard'
 import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
 import { listVariants, loadStopsFromSupabase } from './live'
-import type { VariantRow } from '../shared/routes'
-import { stopRing, type StopRow } from '../shared/stops'
+import { otherDirection, type VariantRow } from '../shared/routes'
+import { stopLabel, stopRing, type StopRow } from '../shared/stops'
 import { getSupabase, supabaseConfigError } from '../shared/supabase'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
 import { useSavedStops } from '../shared/useSavedStops'
@@ -116,6 +116,13 @@ function Workshop({
     !editing && draw.target.routeId
       ? (saved.variants.find((v) => v.route_id === draw.target.routeId)?.route ?? null)
       : null
+  // The direction this line is for: the route's slot with no line yet. Fixed
+  // here rather than read off the drawing, so a return trip started from the
+  // wrong end cannot land on top of the direction that already exists.
+  const slotReversed = parentRoute
+    ? (saved.variants.find((v) => v.route_id === parentRoute.id && v.shape === null)?.reversed ??
+      null)
+    : null
 
   const onDone = () => {
     if (!signedIn) setSigningIn(true)
@@ -144,7 +151,7 @@ function Workshop({
   }
 
   const onDeleteStop = async (s: StopRow) => {
-    if (!window.confirm(`Delete ${s.kind} "${s.name}"?`)) return
+    if (!window.confirm(`Delete ${s.kind} "${stopLabel(s)}"?`)) return
     try {
       await deleteStop(s)
       stops.select(null)
@@ -159,7 +166,7 @@ function Workshop({
   const choosing = choice.length > 1
 
   const onDelete = async (v: VariantRow) => {
-    if (!window.confirm(`Delete "${v.route?.signboard}" — ${v.direction_name}?`)) return
+    if (!window.confirm(`Delete "${v.route?.name}" — ${v.direction_name}?`)) return
     try {
       await deleteVariant(v)
       saved.select(null)
@@ -208,6 +215,8 @@ function Workshop({
       {!draw.drawing && saved.selected && (
         <RouteCard
           variant={saved.selected}
+          sibling={otherDirection(saved.variants, saved.selected)}
+          onSwitch={(v) => saved.select(v.id)}
           actions={
             userId !== null &&
             userId === saved.selected.owner_id && (
@@ -308,7 +317,7 @@ function Workshop({
         >
           <span>
             Saved {justSavedStop.kind === 'terminal' ? 'terminal' : 'hintuan'}{' '}
-            <strong>{justSavedStop.name}</strong>
+            <strong>{stopLabel(justSavedStop)}</strong>
           </span>
           <button
             type="button"
@@ -328,7 +337,7 @@ function Workshop({
                      bg-neutral-900 px-4 py-2 text-sm text-white shadow-lg"
         >
           <span>
-            Saved <strong>{justSaved.route?.signboard}</strong> · {justSaved.direction_name}
+            Saved <strong>{justSaved.route?.name}</strong> · {justSaved.direction_name}
           </span>
           <button
             type="button"
@@ -365,7 +374,11 @@ function Workshop({
       )}
 
       {draw.drawing ? (
-        <DrawToolbar draw={draw} onDone={onDone} />
+        <DrawToolbar
+          draw={draw}
+          onDone={onDone}
+          keys={!saving && !signingIn && !changingPassword && !resetting}
+        />
       ) : (
         /* Drawing needs no account; saving does, and asks for it at Done. */
         <div className="absolute bottom-6 right-6 z-10 flex flex-col items-end gap-2">
@@ -444,6 +457,7 @@ function Workshop({
           existing={editingStop}
           existingLinks={editingStop ? stops.linkedVariantIds(editingStop.id) : []}
           variants={saved.variants}
+          stops={stops.stops}
           onSaved={onSavedStop}
           onCancel={() => setSaving(false)}
         />
@@ -454,6 +468,8 @@ function Workshop({
           draw={draw}
           existing={editing}
           route={parentRoute}
+          slotReversed={slotReversed}
+          stops={stops.stops}
           onSaved={onSaved}
           onCancel={() => setSaving(false)}
         />

@@ -175,7 +175,7 @@ export function useSavedRoutes<T extends VariantSummary>(
           properties: {
             id: v.id,
             route_id: v.route_id,
-            signboard: v.route?.signboard ?? '',
+            name: v.route?.name ?? '',
             mode: v.route?.mode ?? 'jeepney',
           },
           geometry: { type: 'LineString' as const, coordinates: line },

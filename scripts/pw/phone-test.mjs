@@ -219,7 +219,7 @@ const snapshot = await page.evaluate(async () => {
       .map((f) => ({
         id: f.properties.id,
         routeId: f.properties.route_id,
-        signboard: f.properties.signboard ?? '',
+        signboard: f.properties.name ?? '',
         coords: f.geometry.coordinates,
       })),
     polys: (stopsFC?.features ?? [])

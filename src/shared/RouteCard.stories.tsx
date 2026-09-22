@@ -19,13 +19,18 @@ const variant: VariantSummary = {
       [121.0601, 14.7221],
     ],
   },
+  reversed: false,
   confidence: 'drawn',
   route: {
     id: 'sample-route',
-    signboard: 'Tala – SM Fairview',
+    signboard: 'FAIRVIEW – TALA',
     long_name: null,
     mode: 'jeepney',
     fare_note: null,
+    head_stop_id: 'sample-tala',
+    tail_stop_id: 'sample-fairview',
+    via: null,
+    name: 'Tala – SM Fairview',
   },
 }
 
@@ -82,8 +87,8 @@ export const LongNames: Story = {
       ...variant,
       route: {
         ...variant.route,
-        signboard: 'Tala – Bagong Silang Phase 1 – Malaria – SM Fairview – Novaliches Bayan',
-        long_name: 'A very long descriptive name that will not fit on one line of the card',
+        name: 'Tala Jeepney Terminal – SM City Fairview Main Entrance via Quirino Highway',
+        signboard: 'TALA – BAGONG SILANG PH1 – MALARIA – SM FAIRVIEW – NOVALICHES BAYAN',
       },
     },
   },
@@ -119,4 +124,23 @@ export const Phone: Story = {
       route: { ...variant.route, fare_note: '₱13 minimum, as of Sept 2026' },
     },
   },
+}
+
+/** The same route, ridden the other way, for the switch beside the title. */
+const back: VariantSummary = {
+  ...variant,
+  id: 'sample-variant-back',
+  direction_name: 'SM Fairview → Tala',
+  reversed: true,
+  shape: { type: 'LineString', coordinates: [...variant.shape!.coordinates].reverse() },
+}
+
+/** The switch beside the title shows the other direction. */
+export const WithTheOtherDirection: Story = {
+  args: { sibling: back, onSwitch: fn() },
+}
+
+/** The other direction exists as a slot but has no line yet: the switch is off, and the card says so. */
+export const OtherDirectionNotMapped: Story = {
+  args: { sibling: { ...back, shape: null }, onSwitch: fn() },
 }

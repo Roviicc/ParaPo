@@ -7,6 +7,7 @@ import {
 } from '../shared/geo'
 import { variantLine, type VariantRow } from '../shared/routes'
 import {
+  normaliseName,
   stopRing,
   type PointGeoJSON,
   type StopKind,
@@ -64,7 +65,12 @@ export function variantsStartingIn(ring: Ring, variants: VariantRow[]): string[]
 export type SaveStopInput = {
   stopId: string | null
   kind: StopKind
+  /** What is written on the ground. Required. */
   name: string
+  /** What people say. Blank means "the same as the name". */
+  informal: string
+  /** Other names for the same place, already split and cleaned (parseAliases). */
+  aliases: string[]
   note: string
   ring: Ring
   /** Terminal only: the directions the owner ticked. Ignored for a hintuan. */
@@ -81,8 +87,16 @@ export async function saveStop(input: SaveStopInput): Promise<StopRow> {
   const client = requireSupabase()
   if (input.ring.length < 3) throw new Error('A hotspot needs at least three corners')
 
+  // Names are normalised here, not in the database: a stray double space
+  // would otherwise make "SM  Fairview" a second group, and the terminal
+  // uniqueness index (0007) compares what is stored.
+  const name = normaliseName(input.name)
+  const informal = normaliseName(input.informal)
+  if (!name) throw new Error('A hotspot needs a name')
   const row = {
-    name: input.name.trim(),
+    name,
+    informal: informal && informal.toLowerCase() !== name.toLowerCase() ? informal : null,
+    aliases: input.aliases,
     kind: input.kind,
     note: blankToNull(input.note),
     area: ringToPolygon(input.ring),
@@ -93,7 +107,14 @@ export async function saveStop(input: SaveStopInput): Promise<StopRow> {
     ? client.from('stop').update(row).eq('id', input.stopId)
     : client.from('stop').insert(row)
   const { data, error } = await query.select('*').single()
-  if (error) throw new Error(error.message)
+  if (error) {
+    if (error.code === '23505' && error.message.includes('stop_terminal_informal_unique')) {
+      throw new Error(
+        `There is already a terminal called "${informal}". A place has one terminal; draw the others as hintuans under the same informal name.`,
+      )
+    }
+    throw new Error(error.message)
+  }
   const stop = data as StopRow
 
   // Links: computed for a hintuan, chosen for a terminal. Either way the

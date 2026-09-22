@@ -6,7 +6,7 @@ import { loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } 
 import { reloadToUpdate, useNeedRefresh } from './pwa'
 import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
-import { variantLine, type VariantSummary } from '../shared/routes'
+import { otherDirection, variantLine, type VariantSummary } from '../shared/routes'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
 import { useSavedStops } from '../shared/useSavedStops'
 
@@ -109,6 +109,8 @@ export default function CommuterApp() {
       {saved.selected && (
         <RouteCard
           variant={saved.selected}
+          sibling={otherDirection(saved.variants, saved.selected)}
+          onSwitch={(v) => saved.select(v.id)}
           actions={<ShareButton variant={saved.selected} />}
           onClose={() => saved.select(null)}
         />
@@ -266,7 +268,7 @@ function ShareButton({ variant }: { variant: VariantSummary }) {
 
   const share = async () => {
     const url = window.location.href
-    const title = `${variant.route?.signboard ?? 'Para Po'} — ${variant.direction_name}`
+    const title = `${variant.route?.name ?? 'Para Po'} — ${variant.direction_name ?? ''}`
     if (typeof navigator.share === 'function') {
       try {
         await navigator.share({ title, url })

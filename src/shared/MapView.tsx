@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { BasemapControl } from './BasemapControl'
+import { DEFAULT_BASEMAP, initialStyle, readBasemap, type Basemap } from './basemap'
 import { diagnose, type Diagnosis } from './diagnose'
 import {
   AttributionControl,
@@ -25,9 +27,11 @@ setWorkerUrl(maplibreWorkerUrl)
  * Positron, not Liberty: a desaturated basemap, so the route lines and hotspot
  * polygons we paint on top carry all the colour on the screen. It serves the
  * same `/planet` tiles, sprite and fonts as Liberty from half the layers, so
- * the switch costs no cached tile and draws a little cheaper.
+ * the switch costs no cached tile and draws a little cheaper. A viewer can
+ * pick another design from the control at the top right (shared/basemap.ts);
+ * this is the one the map starts with when nothing has been chosen.
  */
-export const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron'
+export const STYLE_URL = DEFAULT_BASEMAP.url
 
 /**
  * The OpenFreeMap styles ship no `attribution` on their sources, so MapLibre's
@@ -72,6 +76,10 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
   const [trace, setTrace] = useState<string[]>([])
   const [dom, setDom] = useState<string | null>(null)
   const eventsRef = useRef<string[]>([])
+  // The design chosen on this device, read once; the map is built with it so
+  // a remembered choice never flashes gray first.
+  const [basemap] = useState<Basemap>(readBasemap)
+  const [ready, setReady] = useState<MapLibreMap | null>(null)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -87,13 +95,16 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
     let map: MapLibreMap | null = null
     let timer = 0
 
-    const startId = window.setTimeout(() => {
+    const startId = window.setTimeout(async () => {
+      // A URL for the plain designs; for "Gray, detailed" the style is fetched
+      // and extended first, since `Map` has no transform hook of its own.
+      const style = await initialStyle(basemap)
       if (cancelled || !containerRef.current) return
 
       try {
         map = new MapLibreMap({
           container: containerRef.current,
-          style: STYLE_URL,
+          style,
           center: CENTER,
           zoom: ZOOM,
           attributionControl: false,
@@ -102,7 +113,7 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
         setError(
           `MapLibre could not start: ${err instanceof Error ? err.message : String(err)}.`,
         )
-        void diagnose(STYLE_URL).then(setDiag)
+        void diagnose(basemap.url).then(setDiag)
         return
       }
 
@@ -138,6 +149,7 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
         // Dev builds expose the map so scripts/uitest.mjs can read real
         // screen positions from the drawn geometry instead of guessing.
         if (import.meta.env.DEV) (window as unknown as { __map?: MapLibreMap }).__map = map!
+        setReady(map)
         onReadyRef.current?.(map!)
       })
 
@@ -152,14 +164,14 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
         }
         console.error('[map]', message, e)
         setError(message)
-        void diagnose(STYLE_URL).then(setDiag)
+        void diagnose(basemap.url).then(setDiag)
       })
 
       timer = window.setTimeout(() => {
         setLoaded((isLoaded) => {
           if (!isLoaded) {
             setError(`The map did not finish loading within ${LOAD_TIMEOUT_MS / 1000}s.`)
-            void diagnose(STYLE_URL).then(setDiag)
+            void diagnose(basemap.url).then(setDiag)
             setTrace([...eventsRef.current])
             const el = containerRef.current
             const canvas = el?.querySelector('canvas')
@@ -181,8 +193,10 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
       cancelled = true
       window.clearTimeout(startId)
       window.clearTimeout(timer)
+      setReady(null)
       map?.remove()
     }
+    // `basemap` is read once at mount and never changes afterwards.
   }, [])
 
   return (
@@ -201,6 +215,8 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
       <div className="absolute inset-0 bg-neutral-100">
         <div ref={containerRef} className="h-full w-full" />
       </div>
+
+      {ready && !error && <BasemapControl map={ready} initial={basemap} coarse={coarse} />}
 
       {!loaded && !error && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
@@ -228,7 +244,7 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
             </dl>
           )}
           <p className="mt-2 text-red-700">
-            Tile source: <code className="break-all">{STYLE_URL}</code>
+            Tile source: <code className="break-all">{basemap.url}</code>
           </p>
         </div>
       )}

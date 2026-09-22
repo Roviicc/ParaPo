@@ -145,6 +145,11 @@ export function useSavedStops<S extends StopSummary>(
     if (!map) return
     const src = map.getSource(SRC) as GeoJSONSource | undefined
     if (!src) return
+    // The label on the map is the name written on the ground, not the informal
+    // one the cards, pickers and route names read: the map draws boxes, and the
+    // three boxes of one place would otherwise carry three identical labels.
+    // Tapping still opens a card that leads with the informal name and shows
+    // the ground name beneath it, so neither is lost. Decided 2026-09-22.
     const withArea = stops.filter((s) => stopRing(s).length >= 3)
     src.setData({
       type: 'FeatureCollection',

@@ -5,11 +5,21 @@ import type { VariantSummary } from './routes'
 import type { StopRow } from './stops'
 
 /** Sample data only, shaped like saved rows. Not read from Supabase. */
-function route(id: string, signboard: string): VariantSummary['route'] {
-  return { id, signboard, long_name: null, mode: 'jeepney', fare_note: null }
+function route(id: string, name: string): VariantSummary['route'] {
+  return {
+    id,
+    signboard: null,
+    long_name: null,
+    mode: 'jeepney',
+    fare_note: null,
+    head_stop_id: id + '-head',
+    tail_stop_id: id + '-tail',
+    via: null,
+    name,
+  }
 }
 
-function variant(id: string, signboard: string, direction: string): VariantSummary {
+function variant(id: string, name: string, direction: string): VariantSummary {
   return {
     id,
     route_id: id + '-route',
@@ -17,8 +27,9 @@ function variant(id: string, signboard: string, direction: string): VariantSumma
     origin_terminal: null,
     destination_terminal: null,
     shape: null,
+    reversed: false,
     confidence: 'drawn',
-    route: route(id + '-route', signboard),
+    route: route(id + '-route', name),
   }
 }
 
@@ -33,6 +44,8 @@ function stop(id: string, name: string, kind: StopRow['kind']): StopRow {
     id,
     owner_id: 'sample-owner',
     name,
+    informal: null,
+    aliases: [],
     kind,
     point: { type: 'Point', coordinates: [121.0467, 14.7478] },
     area: null,
@@ -42,7 +55,7 @@ function stop(id: string, name: string, kind: StopRow['kind']): StopRow {
 }
 
 const stops: StopRow[] = [
-  stop('s1', 'Tala Novaliches Jeep Terminal', 'terminal'),
+  { ...stop('s1', 'Tala Jeepney Terminal', 'terminal'), informal: 'Tala' },
   stop('s2', 'Malaria', 'hintuan'),
 ]
 

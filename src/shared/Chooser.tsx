@@ -1,6 +1,6 @@
 import type { VariantSummary } from './routes'
 import { Sheet } from './Sheet'
-import type { StopSummary } from './stops'
+import { stopLabel, type StopSummary } from './stops'
 
 type Props = {
   routes?: VariantSummary[]
@@ -48,9 +48,7 @@ export function Chooser({ routes = [], stops = [], onRoute, onStop, onClose }: P
               onClick={() => onRoute(v)}
               className="block w-full px-4 py-2.5 text-left hover:bg-neutral-100"
             >
-              <span className="block truncate font-medium text-neutral-900">
-                {v.route?.signboard}
-              </span>
+              <span className="block truncate font-medium text-neutral-900">{v.route?.name}</span>
               <span className="block truncate text-xs text-neutral-500">{v.direction_name}</span>
             </button>
           </li>
@@ -63,9 +61,10 @@ export function Chooser({ routes = [], stops = [], onRoute, onStop, onClose }: P
               onClick={() => onStop(s)}
               className="block w-full px-4 py-2.5 text-left hover:bg-neutral-100"
             >
-              <span className="block truncate font-medium text-neutral-900">{s.name}</span>
+              <span className="block truncate font-medium text-neutral-900">{stopLabel(s)}</span>
               <span className="block truncate text-xs text-neutral-500">
                 {s.kind === 'terminal' ? 'Terminal' : 'Hintuan'}
+                {stopLabel(s) !== s.name && ` · ${s.name}`}
               </span>
             </button>
           </li>

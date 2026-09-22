@@ -20,6 +20,57 @@ is ugly and produces correct geometry, it worked.
 
 ---
 
+## Where things stand — 2026-09-21
+
+The one section to read first. Everything below it is detail, history, or plans
+not yet started.
+
+**Built and live.** M0–M6 and the six build steps. The site is a gray map
+anyone can open, with a card on tap, a share link, offline use and an install
+prompt; the owner has it on a real phone. The editor is behind a sign-in and an
+editor list. The published map is a file (`public/data/map.json`), rebuilt by a
+nightly workflow, so visitors ask the database nothing.
+
+**The route table is empty, on purpose.** On 17–19 September the owner deleted
+every route. The nightly publish then refused a 2 → 0 shrink until it was
+pushed once with `--force`, and the workflow gained a Force box for the next
+deliberate clear-out. The four hotspots are untouched. So the map is live and
+correct, and it currently shows no routes.
+
+**Also on 19 September:** the basemap moved from OpenFreeMap's Liberty to
+Positron — gray, so routes and hotspots carry the colour — shared by both the
+visitor map and the studio. **On 21 September** a control at the top right
+lets a viewer pick Gray, Colour (Liberty) or Dark — see "Map design control". **On 22 September** a fourth design, Gray, detailed, draws the terminals, stops and landmarks the tiles already carry.
+
+**Built today, 2026-09-21, awaiting the owner's check.** The route naming
+rules as slice 1 (migration 0006, applied) and the hotspot naming rules
+(migration 0007, applied) — see "Naming and creating a route" and "Hotspot
+names". The four drawing actions beyond Draw and Draw the return trip are
+decided, not built.
+
+**Worked out but not decided.** The hotspot and interaction model from the
+sketch session, 2026-09-18. Three parts of it *are* settled, because they were
+measured or answered rather than argued: side of road, the absence of usable
+barangay boundaries, and a route owning its head and tail.
+
+**2026-09-22, in one day.** The owner checked both slices and drew **the first
+route**: Tala – SM Fairview, both directions, in the table. On the way: the
+map labels a box by its ground name; a fourth design, Gray, detailed, draws the
+terminals, stops and landmarks the tiles already carry; Ctrl+Z, Enter and F
+while drawing; the end pickers list places, not boxes; a save that failed
+half-way is explained, fixed and made self-healing; a direction is named from
+both ends (`SM Fairview → Tala`) and leads the save panel; and the route card
+is titled by its direction with a switch to the other — slice 2's first half.
+Each has a dated section below.
+
+**Next.** Commit and merge, so the nightly publish carries the new names. Then
+slice 2's second half — one line at a time — with the owner's asked-for group
+highlight for boxes that share a name. Then slices 3 and 4, then the rest of
+step 0: the spellings on the owner's list (21 boxes now), side of road, the
+field method behind `confidence`, the mode enum.
+
+---
+
 ## Locked decisions
 
 | Area | Decision |
@@ -676,7 +727,10 @@ his own words; they get sorted into route, hotspot and interface cases, marked
 by whether today's tables hold them or M8's metres are needed first, and the
 visitor screens are sketched from them.
 
-**2. Show the direction that starts near the person.** Near SM Fairview the
+**2. Show the direction that starts near the person.** **Retired 2026-09-18** —
+the sketch session replaced it with a direction anchored to the tap plus a
+switch, which needs no sense of "where they are" at all. Kept below for the edge
+cases it worked out, which the replacement still has to answer. Near SM Fairview the
 card says "SM Fairview to Tala"; near Tala, the other way. Touches two
 decisions: no location permission (step 4, APK checklist) and no tracking.
 Permission-free sources of "where they are", weakest to strongest: the centre
@@ -790,11 +844,96 @@ own late step after the hotspot lists exist (Phase 3 step 4), because a
 Needs the owner to narrow the "no contributions" decision to "no free-text
 contributions".
 
+## Sketch session — 2026-09-18. Ideas, plus three things that are now settled
+
+Six sketches from the owner, worked through in one sitting; the model was
+reshaped four times, each smaller than the last. His closing words were "we're
+just exhausting ideas, then we can reconcile everything later" — so most of
+this is **not decided**, and Phase 3 below still stands except where this
+section says otherwise. Written down 2026-09-21, three days late, which is how
+long it existed nowhere but in one conversation.
+
+**Settled, because they were measured or answered rather than argued:**
+
+- **Side of road is not a feature; it is a drawing rule.** Overpass counts of
+  oneway versus two-way ways in the owner's area (via `overpass.kumi.systems`;
+  `overpass-api.de` returned 406): Commonwealth 81/82, Mindanao 73/74, Regalado
+  41/46 — all divided, so OSM already carries two separate lines and each
+  direction snaps to its own with nothing added. Zabarte 1/26, Camarin 2/24,
+  Susano 0/10 — single centreline, and both directions genuinely share the
+  hintuan there. **Quirino Highway is mixed, 51/105**, and it is the owner's
+  main Tala–Novaliches road, so it behaves both ways along its own length. The
+  only rule that follows: on a divided stretch, keep the box to one carriageway.
+- **There are no barangay boundaries to use.** Tested live: Nominatim returns
+  Novaliches as a *point* with a fabricated ~4.4 km square bounding box, no
+  polygon; the three barangays searched returned only buildings. Any grouping
+  by area would have to be drawn by hand, so it is not worth doing.
+- **A route owns its head and tail** — answered 2026-09-21, see "Naming and
+  creating a route".
+
+**The model, as it stands after four reshapes** (not decided):
+
+- A hotspot is **a name and one or more boxes**; a terminal is exactly one box.
+  The same name in several places is what matches a papunta's end to a
+  balikan's start. This kills the "cluster" or "general hotspot" table that was
+  invented for that job, and the four rules invented with it. Cost if adopted:
+  `stop.area` holds one polygon today, so it needs a migration. *Adopted
+  2026-09-21 without that cost: the "name" is a shared informal name on each
+  box, not a shape, so one polygon per row is exactly right — see "Hotspot
+  names".*
+- A route is a name, a head hotspot, a tail hotspot, and two drawn directions.
+- If grouping is ever wanted — "routes ending anywhere in Novaliches" — the
+  cheap retrofit is a text label on the hotspot, never geometry.
+
+**The interaction (sketches 3–6), not decided:**
+
+- **Arrows inside one line beat two offset lines.** An offset drifts at low
+  zoom and mitres badly on sharp corners, and only says "there are two"; an
+  arrow says *which way*. Full overlap is the exception anyway, because the two
+  directions take different roads (idea 3).
+- **Arrows only on selection.** Tap a hotspot and arrows appear over a *range*
+  around it, fading out; tap a route and they run the whole line. MapLibre
+  cannot slide symbols along a line, so the cheap approximation of the owner's
+  mockup is static arrows plus an animated dash.
+- **Group directions at a hotspot by bearing**, not by a two-way toggle. Two
+  groups render as the owner's switch; a junction hotspot gets sections instead
+  of a broken toggle. Free to decide now, expensive later.
+- **This retires idea 2 entirely** — see the note on it in the ideas list.
+
+**Free, found during the session:** the dimming of unselected routes is already
+built (`useSavedRoutes.ts:202`, opacity 0.35), and `entryDistance()` in
+`geo.ts` already gives metres along a line into a hotspot's ring — so the fade
+range needs no migration and no M8. Sketch 6's trunk-and-branch picture
+therefore needs no M12 overlap work either: bright-selected over dim, on
+separately stored lines, *is* the picture.
+
+**The blue dot, from a later sketch the same day.** The owner asked whether a
+person's location could open a hotspot card without a tap. This is exactly the
+decision step 4 parked. It is three separable decisions, not one: show a dot on
+request (small); nudge the nearest hotspot (small); auto-open its card — the
+one to resist, because the hotspots on the owner's own list sit about 500 m
+apart and GPS at ±10–50 m against 30–80 m boxes makes "inside the box"
+unreliable; his own sketch draws the dot *outside* the box. If it is ever
+built: "nearest within ~150 m", and `getCurrentPosition` behind a button, never
+`watchPosition`. **Location picks the place, never the direction** — a rider
+mid-route wants where they are *going*, which no location knows — so the switch
+survives either way. No geolocation code exists yet, and the no-tracking
+promise survives literally: visitors read a static file, and there is no backend
+to send a coordinate to.
+
+---
+
 ## Phase 3 — the plan from the ideas. Drafted 2026-09-15, awaiting the owner's go
 
 Consolidates ideas 1–10 and M8–M12 into one order. Same rules as the build
 order: **no step starts without the owner's go, one at a time**; each part ends
 in a check; a failed check stops the line.
+
+**Status 2026-09-21.** Step 0 is under way: the route name and the four drawing
+actions are decided (see "Naming and creating a route"); direction names,
+hotspot spellings, side of road, `confidence` and the mode enum are not. Steps
+6 and 7 were revised by the 2026-09-18 sketch session and now depend on less
+than they did. Nothing is built.
 
 ### The model, in four sentences
 
@@ -817,8 +956,8 @@ in a check; a failed check stops the line.
 | 3 | M8 — metres along the line | Every hotspot link gets `dist_m`; `allTouches` for a line that meets a shape twice; migration 0006. The foundation for order, short turns, loops and "near" | Step 0 (names settle before positions are stored) | — |
 | 4 | Hotspots in order, and the signboard (ideas 5, 6) | Each direction lists its hotspots in order of metres; the signboard is generated from that list, or checked against it, so it cannot drift. The visitor card shows the string of places. *Check:* Tala to SM Fairview reads Barracks … SM Fairview Main in order; Fairview to Tala reads it back; Fairview to Bigte shares the same hotspot shapes | Step 3 | Confirm the lists against the signboards |
 | 5 | Short turns and loops (M10, M9), as the cases demand | "Tala to Malaria only" as a window onto its parent, no drawing; a loop as one direction with pass numbers, and no "Draw the return trip" for it. Only the shapes the cases actually contain | Steps 1, 3 | Name the real short turns and loops |
-| 6 | The visitor: direction near the person, and arrows (ideas 2, 10) | The card suggests the direction whose start is nearer the map's centre or the tap, with a one-tap flip; a shared link is never flipped; no location permission — "Near me" is a later, separate decision. Static arrows along every line, flowing arrows on the selected one only. *Check:* on the real phone, at SM Fairview's end of the map the card offers "to Tala" first; battery and frame rate acceptable | Step 4 for a good "near"; arrows need nothing | Try it on the phone, both ends |
-| 7 | M12 overlap, then the trunk picture and shortcut notes (ideas 8, 4) | Corridor overlap found per direction and stored as spans; the studio shows the shared stretch thick and the rest faded when a line is selected — Bagong Silang's fan-out as the test; shortcuts recorded as an M11 annotation on the stretch with a confidence, not as geometry, until a screen needs the other road | Steps 2, 3 | Check the picture against what drivers say |
+| 6 | The visitor: direction and arrows (ideas 2, 10) | **Revised 2026-09-18.** Idea 2's "nearest direction" is retired: the direction is anchored to the tap, with a switch, and no sense of location is needed — so this step no longer depends on step 4's metres. Arrows go *inside* the line, not as an offset, and appear only on selection: over a fading range around a tapped hotspot, over the whole line for a tapped route; static arrows plus an animated dash, because MapLibre cannot slide a symbol along a line. Directions at a hotspot group by bearing, which is what renders as the switch. *Check:* on the real phone, the switch reads right at both ends; battery and frame rate acceptable | Nothing, after the revision | Try it on the phone, both ends |
+| 7 | The trunk picture and shortcut notes, then M12 overlap (ideas 8, 4) | **Revised 2026-09-18.** The picture comes first and nearly free: bright-selected over dim, on separately stored lines, already *is* the trunk-and-branch view, and the dimming is built (`useSavedRoutes.ts:202`). M12's corridor overlap — spans per direction — is no longer what the picture waits on; it becomes a later authoring check, for catching a duplicate about to be drawn. Shortcuts stay an M11 annotation on the stretch with a confidence, not geometry, until a screen needs the other road. Bagong Silang's fan-out is the test | Steps 2, 3 for the overlap; the picture needs neither | Check the picture against what drivers say |
 | 8 | Visitors confirm a route (idea 11) | One tap, "Tama" / "Mali", per direction per day, nothing personal; a Worker endpoint with Turnstile writing to D1/KV; counts in the studio. *Check:* a tap from the phone counts once; a script without the bot token is refused; the database key still cannot insert | Step 4, and the owner narrowing "no contributions" to "no free-text contributions" | Decide; then tap a route you know |
 | — | Later, not planned | Journey planning ("I'm here, I want to go there"); a real trunk-and-branch structure, only if editing the same road in many lines becomes real pain at ~30 routes; GPS "Near me"; M5 export and tidy whenever convenient | | |
 
@@ -836,6 +975,458 @@ code side is ready for it: the theme lives in `src/shared/index.css`
 (`@theme`, Tailwind v4 tokens), Storybook is the catalogue of the components
 as built, and a Figma file can be read directly here (frames, variables) to
 turn a design into code or check code against it.
+
+---
+
+## Naming and creating a route — decided 2026-09-21
+
+Phase 3 step 0, first part, settled with the owner from his sketches while the
+route table was empty — the cheapest moment there will ever be. Two halves: how
+a route is named, and the four actions that produce every shape he draws.
+
+### How a route is named
+
+| # | Rule | Why this one |
+|---|---|---|
+| R1 | **The name is generated from the two end hotspots**, never typed: `Tala – SM Fairview`. The owner's "standard name": pick a head, it must have a tail | A route already *is* a head and a tail. Rename "SM Terraccess" to "SM Terraces" once and every route through it reads right forever; a typed name would need the same fix hunted across rows |
+| R2 | **The staging terminal comes first** — where the jeeps are based and wait | `Tala – SM Fairview`, `Bagong Silang – Philcoa`: the owner's own word order. Alphabetical needs no judgment but reads wrong out loud, and a route name is read out loud |
+| R3 | **The separator is ` – `**, a spaced en dash, applied by the app | Never typed, so it cannot vary between a hyphen, a dash and a slash |
+| R4 | **`via` only when the pair repeats.** Same two ends by different roads → `Tala – Novaliches via Zabarte` and `… via Camarin` | The kanan/kaliwa case (idea 8). The `via` names the one place that *differs*, not the path. Uniqueness becomes (head, tail, via), enforced by the database |
+| R5 | **The signboard stays separate, and stays observed** | The signboard is what is painted on that jeep, in its own words, and two jeeps on one route may disagree. The name is the tidy pair. One field cannot hold both honestly — and idea 5 later generates the signboard from the hotspot list, which only works if it was never the name |
+| R6 | **`route_code` carries real LTFRB/DOTC codes only**, filled later from reference data (M12); `short_name` stays empty until something needs it | An invented code looks official, which is worse than having none |
+
+Three questions the owner answered:
+
+- **The route owns head and tail.** One pair, shared by both directions. This
+  closes the question left open by the 2026-09-18 sketch session. It briefly
+  looked overturned: his sketch gives SM Fairview four tails — Tala, Amparo,
+  Capitol, Bagong Silang Kanan 5 — against Tala's two, and ends that do not
+  match cannot live in one pair. In that example the four turned out to be one
+  line with three windows onto it (short turns), not four ends, so the pair
+  survives. The cost stands, as accepted the same morning: where a papunta
+  genuinely ends on a different corner than the balikan starts, the model cannot
+  say so. A real case of that, met while drawing, is the trigger to revisit —
+  and the retrofit, a per-direction end, should be resisted, because R1 only
+  holds while there is exactly one pair to generate from.
+- **The generated name is locked.** No override field exists. A name that reads
+  wrong is then evidence that a *hotspot* is named wrong, fixed at the source,
+  which improves every other route touching it. An override is how a naming
+  convention quietly dies: the escape hatch becomes the habit.
+- **Place names are the local name, as people say it** — `SM Fairview`, `Tala`,
+  `Bagong Silang`. Title Case, never ALL CAPS even though the windshield is:
+  caps can be generated for display and cannot be un-generated. Not the official
+  name — nobody says "Barangay Bagong Silang" — and not whichever signboard was
+  seen last.
+
+### The four actions that make every shape
+
+Everything in the sketches reduces to these. Only the fourth is real new work.
+
+| Action | What it makes | State |
+|---|---|---|
+| **Draw** | The route and its first direction. Head and tail are hotspots; the name follows from them | Built, minus the hotspot pickers |
+| **Draw the return trip** | The other direction, drawn fresh against its own roads — never the outbound reversed (idea 3), which is what the owner's red line shows | **Built** — `StudioApp.tsx:342`, offered the moment a direction is saved |
+| **Ends early here** | A short turn. Pick a hotspot the line already passes; it stores no geometry, only a window onto its parent (M10). Fix the parent and every short turn under it is fixed | New, small. The metre needs no typing: `entryDistance()` in `geo.ts:185` already measures where a line enters a hotspot's ring |
+| **Extend at either end** | A **new route** that borrows an existing direction's line and adds road at one end only, so the borrowed kilometres are never redrawn. Either end: a new tail from the same head (`Tala – SM Fairview` → `Tala – Novaliches`), or a new head to the same tail (`SM Fairview – Tala` → `Novaliches – Tala`), which is how the sketches of 2026-09-21 actually draw it | New. This is Phase 3 step 2 (idea 9's magnet) as a button, which is the better shape — a magnet is a suggestion, a button is an intention |
+
+Decided with them:
+
+- **An extension is its own route, grouped by the end it shares.** `Tala –
+  Novaliches` is not a variant of `Tala – SM Fairview`, because a commuter on
+  the shared stretch has to flag down the right jeep and those are two different
+  jeeps. The studio groups every route sharing an end under one list, so the
+  owner still sees the fan he sketched. The grouping is a view over separate
+  rows, not a table — which is also how sketch 6's trunk picture comes free.
+- **The borrowed trunk is copied, and the borrow is recorded.** The new line
+  stores its own full geometry, so nothing downstream — hotspot links, metres,
+  publishing, tapping — has to resolve a reference. One nullable column
+  remembers which line it borrowed from and how far, which is what later allows
+  "you changed this trunk; 3 lines that borrowed it no longer match". The copy
+  is point-for-point identical, so M12's overlap finds it exactly. A real shared
+  trunk stays refused until the data hurts (idea 7, option A).
+
+**The tails in the sketch are examples, not the dataset.** Tala → SM Fairview,
+Novaliches and SM Fairview → Tala, Amparo, Capitol, Bagong Silang Kanan 5 were
+drawn to show the *shape*, and the owner has still to standardise the real
+routes against how he draws them. What is decided here is that all four shapes
+exist and what each costs; which real route is a short turn, an extension or a
+route of its own is settled route by route, at the drawing, and the answers
+belong in step 1's cases.
+
+### The card, and a direction before it is drawn
+
+From four more sketches the same day, 2026-09-21.
+
+- **A direction exists before its line does.** Saving `Tala → SM Fairview`
+  creates `SM Fairview → Tala` at once, as an empty slot with no geometry. The
+  card can therefore always be flipped, and flipping is *how the owner creates
+  the return*: the slot is the prompt. It also hands the studio a to-do list —
+  every undrawn return, visible without hunting for it.
+- **An undrawn direction says so.** On the visitor card the flip still works,
+  names the direction, and states that the return trip is not mapped yet. A
+  commuter can then tell "no jeep goes that way" from "nobody has drawn it
+  yet", which are different facts — and the map keeps its promise never to
+  pretend to know something.
+- **One line at a time.** The map draws the direction the card is showing, not
+  both; flipping swaps the line. This removes the two-offset-lines problem at
+  the root (sketch session, 2026-09-18) and leaves the in-line arrow as the
+  thing that says which way the jeep goes.
+- **An end becomes a stop when something extends past it.** SM Fairview is the
+  tail of one route and a hotspot in the middle of another. No data change —
+  M6 already links one shape to every direction crossing it — but the card
+  renders an end differently from a stop, as the sketches do.
+- **A pair of hotspots on one line needs no drawing.** `Novaliches → SM
+  Fairview` is the slice of `Novaliches → Tala` between those two places, the
+  same machinery as a short turn, with the metres from M8. So most of what the
+  owner's destination lists would offer costs nothing to produce.
+
+**Deferred, on the owner's call:** what exactly fills the "where to?" list when
+a visitor taps a hotspot, and the signboard with it — "that one is really
+informal". Both wait. One consequence to take now rather than later:
+`signboard` is a required field because it was what made a route recognisable,
+and R1 moved that job to the generated name, so the field can become optional
+and be filled in when the owner is sure. Until the list is decided the visitor
+UI stays as built: tap a line, get a card.
+
+**Worth saying out loud.** "Tap a place, choose where you are going, get the
+jeep" is journey planning, which this plan holds back under *later, not
+planned*. Restricted to one jeep and no transfers it is cheap and safe, and it
+is what these sketches ask for. The line is being crossed on purpose, not by
+accident.
+
+### What it costs before the next route is drawn
+
+- **A migration** (the next free number; M8 claims 0006, so whichever lands
+  first takes it). `route` gains `head_stop_id`, `tail_stop_id` referencing
+  `stop`, and `via text`, with `unique (head_stop_id, tail_stop_id, via)`.
+  `route_variant.origin_terminal` / `destination_terminal` — free text typed per
+  direction — become redundant and drop a release later, the way `stop_sequence`
+  does in M8. `long_name` stops being written by the form: the name is computed
+  on read, so a hotspot rename needs no backfill. Nothing to migrate — the route
+  table is empty.
+- **A changed save panel.** "Route name" as a text input disappears; in its
+  place two hotspot pickers and an optional `via`, with the resulting name shown
+  greyed as it will read. Signboard is untouched: required, typed, the jeep's
+  own words.
+- **A new failure to handle.** Both ends must exist as hotspots before a route
+  can be saved. Either the picker creates a terminal inline, or drawing the ends
+  creates them — the first interface case for step 1, and one the owner's own
+  list should answer.
+- **A question to settle when the short turn is planned.** M8 is written as the
+  floor under M9–M12, but a short turn's span is two numbers on `route_variant`,
+  and `entryDistance()` computes both today. Whether it can land before M8, or
+  whether that is borrowing trouble, is decided then — not here.
+- **The empty slot needs no migration.** `route_variant.shape` is already
+  nullable and `control_points` / `segments` already default to `[]`, so a
+  direction with no line is storable today; `routes.ts` types `shape` as
+  nullable and `publish-map.mjs` already writes `shape: null` when a row has no
+  coordinates. The work is in what reads it: keep a shapeless direction out of
+  the drawn layers, and make the card say the return trip is not mapped yet
+  instead of showing an empty one.
+- **`signboard` becomes optional**, per the deferral above — a column change and
+  one `required` removed from the save panel.
+
+### Built — slice 1, the new way to save a route. 2026-09-21
+
+The first of four slices (1 save · 2 the card and its flip · 3 extend at
+either end · 4 ends early here), with the owner's go. Type check, build, build
+guard and Storybook all pass. **The check is the owner's**, after the migration
+is applied: draw a line, pick the hotspot at each end, save → the name reads
+`Tala – SM Fairview`, and the route has two directions, one with no line.
+
+| Part | What was done |
+|---|---|
+| `0006_route_ends.sql` | `route` gains `head_stop_id`, `tail_stop_id` (required, referencing `stop`) and `via`; a unique index on (head, tail, `coalesce(via,'')`) so a bare pair cannot repeat; `signboard` becomes optional. `route_variant` gains `reversed`, loses the unique on `direction_name` (now nullable, no longer written) and gains a unique on (`route_id`, `reversed`): exactly two per route, enforced. Nothing to migrate — the table is empty |
+| `routes.ts` | `routeName()` and `directionName()`, the only places the ` – ` and the `to …` live. `nameVariants()` fills `route.name` and `direction_name` from the hotspot list after a load; **nothing stores either** |
+| `live.ts` | `listVariants()` loads the stops alongside and names the rows |
+| `routesWrite.ts` | A new route is inserted with **both** directions at once, the drawn one and an empty slot (`shape` null, `[]` points). "Draw the return trip" is now an update that fills the slot, found by (`route_id`, `reversed`); deleting a direction leaves its slot, and the route goes only when neither has a line |
+| `SavePanel.tsx` | "Route name", "Direction" and the two terminal inputs are gone. In their place: Head and Tail pickers (terminals listed first; **since 2026-09-22 they list places, not boxes** — see "Ends are places"), guessed from the hotspot nearest each end of the line; `via`; the generated name shown greyed with "Rename a hotspot to change it"; which way round the line runs, read off the geometry — whichever end it starts nearest is the end it starts from. Signboard optional. Refuses a save whose two ends are the same hotspot, and explains what to do when no hotspots exist yet |
+| The cards | `RouteCard` and `Chooser` lead with `route.name`; the signboard, when known, is a second line ("Signboard: …"). The Terminals row is gone with the fields it read. `HotspotCard` and `HotspotPanel` group by the name |
+| The map's features | `properties.signboard` → `properties.name` in `useSavedRoutes`; `phone-test` and `uitest` read the new key |
+| `publish-map.mjs` | Selects the new columns, resolves both names from the stop rows (fails loudly if an end is missing, which the foreign keys make impossible from a readable table), and writes `reversed`, `route.name`, `head_stop_id`, `tail_stop_id`, `via` into the file. A direction with no line is published with `shape: null` |
+| Stories | Fixtures carry the new fields; `SavePanel` stories get two sample terminals so the pickers have something to guess. Screenshotted: the guess, the name and the direction line all read right |
+| Not run | The headless suites. None of them saves a route (a bypassed session cannot write), the route table is empty so route checks would skip, and the memory rule says not straight after an edit. The `phone-test` / `uitest` key rename is therefore untested until a route exists |
+
+Left for the owner, in order: apply 0006 in the SQL editor · rename "Tala
+Jeepney Terminal" to what a driver would be told, if the hotspot-naming rule
+lands as proposed · draw a terminal at SM Fairview · draw Tala – SM Fairview and
+look at what the panel says before pressing Save.
+
+Two things slice 2 has to do before routes are published: keep a shapeless
+direction out of the drawn layers (today it is filtered by `line.length > 1`,
+which is enough not to crash, but not a statement), and make the card say the
+return trip is not mapped yet instead of offering an empty one.
+
+### Hotspot names — decided and built 2026-09-21
+
+From the owner's sketch the same afternoon, after slice 1 landed: a table of
+"Original Name" against "Informal name" — Tala Jeepney Terminal / Tala; SM
+Fairview Terminal A (a terminal), SM Fairview Terminal B and SM Fairview
+Ilalim (hintuans) / all SM Fairview — with three rules in the margin: both
+kinds can carry an informal name; a terminal is one box only; a hintuan is
+many boxes that can be named as one; and there can be more than one informal
+name. His stated goal: *"help me give users more recommendation and options
+to choose from, since informality is our enemy here."*
+
+| # | Rule | Why this one |
+|---|---|---|
+| H1 | **A box has two names.** `name` is what is written on the ground — "SM Fairview Terminal B". `informal` is what people say — "SM Fairview". Informal is optional; when blank, the box shows its name | The plan already said "the local name, as people say it"; the sketch keeps the formal one too, and both are facts worth keeping. Neither is invented |
+| H2 | **The route name reads the informal name** (`stopLabel`: informal, else name) | R1 gives `Tala – SM Fairview`, never `Tala Jeepney Terminal – SM Fairview Terminal A`. So do the cards and the pickers. **The label on the map is the exception, corrected 2026-09-22:** it names the box under it, so it reads `name`. The owner met it the first time he looked — his SM Fairview box was labelled "SM Fairview" where the ground says "Fairview Teraccess" — and three boxes of one place would have carried three identical labels |
+| H3 | **Boxes that share an informal name are one place.** No group table; the shared string *is* the group | The 2026-09-18 conclusion, kept. Adding a fourth SM Fairview box is one row and no linking step. If a place ever needs facts of its own, the string becomes a table in one migration — the retrofit already planned |
+| H4 | **One terminal per informal name**, enforced; any number of hintuans | The owner's "terminal one box max only", stated so the database can refuse a second SM Fairview terminal instead of doubling the place a route can end at. Case-folded (`lower`) |
+| H5 | **`aliases`: the other ways people say it**, a list on the box | "Fairview", "SM City Fairview". For a search or a "where to?" list to match any of them. **Nothing reads them yet** — the visitor list is deferred — but naming is cheapest at five rows, and the owner types them while he still remembers them |
+| H6 | **Normalised on save, never in the database.** Trim, collapse inner spaces, drop an informal name that only repeats the name, drop blank and repeated aliases. Case is left alone | "SM  Fairview" must not become a second group. The studio also offers the informal names already in use as suggestions while typing, so a new box joins its group by picking, not by retyping |
+
+Two limits, both fine at this size. A shared string is a weak link — the
+suggestions and the normalising are what hold it — and a list of aliases is
+not a search index, but the phone already holds every hotspot from the
+published file and scans them instantly; that holds to thousands of boxes.
+
+**Built, same afternoon.** Type check, build, build guard, Storybook and a
+rolled-back database probe all pass. The panel cannot be reached headlessly —
+under the bypass, Done opens the sign-in door — so it got a story of its own
+and was screenshotted there, with the card, the chooser and the save panel's
+pickers: "Tala · Tala Jeepney Terminal", name `Tala – SM Fairview`. The check
+is the owner's, in the studio.
+
+| Part | What was done |
+|---|---|
+| `0007_stop_names.sql` | `stop` gains `informal text` and `aliases text[] not null default '{}'`; a partial unique index on `lower(informal)` where `kind = 'terminal'`. Applied 2026-09-21; the five rows carry null and `{}`. Probed: a second terminal under "probe place" against "Probe Place" is refused, two hintuans under it are accepted |
+| `stops.ts` | The fields on `StopSummary`; `stopLabel()`, the one rule for which name shows; `normaliseName()`; `parseAliases()` |
+| `routes.ts` | `nameVariants()` names routes from `stopLabel`, so `Tala – SM Fairview` |
+| `stopsWrite.ts` | Normalises both names, writes `informal` only when it differs from `name`, writes the aliases; turns the index's refusal into "There is already a terminal called …" |
+| `HotspotPanel.tsx` | "Name (as written on the ground)", "Informal name (what people say)" with a datalist of the informal names already in use, "Also called" comma-separated. `StudioApp` passes it the hotspots for the datalist |
+| `SavePanel.tsx` | The end pickers read "SM Fairview · SM Fairview Terminal A"; the generated name uses the informal name. *Superseded 2026-09-22: the pickers list places — see "Ends are places"* |
+| The cards and the map | `HotspotCard` and `Chooser` lead with the informal name and show the name on the ground as a small second line when it differs; the map label (`useSavedStops`) is the informal name **— changed to the ground name on 2026-09-22, see H2**; the studio's Saved / Delete messages too |
+| `publish-map.mjs` | Selects and writes `informal` and `aliases` after `name` in each stop; the route name is generated from the informal name. The published file gains two keys per hotspot, so the next nightly publish writes a change |
+| Stories | Fixtures carry the fields; the sample terminal is "Tala Jeepney Terminal" with informal "Tala" and two aliases, so the card's second line shows. New `HotspotPanel.stories.tsx`: a new hintuan, a new terminal, and editing the Tala terminal with both names and its aliases |
+| Not run | The headless suites, as for slice 1 — a bypassed session cannot save a hotspot, and the memory rule says not straight after an edit. `hotspot-test` traces and cancels a hintuan without filling the panel, so the new fields do not change what it does |
+
+### Map design control — built 2026-09-21
+
+The owner asked for a way to toggle the map's look. Built the same evening,
+with his go; outside Phase 3, no data involved.
+
+- **Three designs, all OpenFreeMap:** Gray (Positron, the default), Colour
+  (Liberty), Dark. All three serve the same `/planet` tiles, sprite and glyph
+  endpoint, so a switch fetches one style file (20–45 kB) and wastes nothing
+  a phone has cached. Dark's own labels use only Noto Sans Regular, but the
+  glyph endpoint is per font, so the bold hotspot labels still resolve.
+- **One control, both pages.** A round button under the zoom buttons (under
+  the attribution on a phone), opening three radio items. It lives in
+  `MapView`, so the visitor map and the studio share it.
+- **The switch keeps everything drawn on top.** `setStyle` replaces sources
+  and layers wholesale; `applyBasemap` (`shared/basemap.ts`) uses MapLibre's
+  `transformStyle` hook to carry ours across — exactly the GeoJSON sources
+  (the basemaps use vector and raster only) and the layers drawn from them,
+  appended in their old order, so casing-under-line and draw-above-saved hold.
+  The route, hotspot and drawing hooks never notice. Driven headlessly on the
+  dev server: eight hotspot features and a three-corner half-drawn hintuan
+  survive Gray → Colour → Dark → Gray in the studio and on the public map.
+- **Remembered on the device, only once chosen.** `parapo.basemap.v1` in
+  local storage; choosing Gray removes it. A visitor who never touches the
+  control leaves storage empty, which `visitor-test` asserts. The map is
+  built with the remembered design, so it never flashes gray first.
+- **Offline:** the worker already caches anything under `/styles/`, so a
+  design opened once is available offline; one never opened is not, the same
+  rule as tiles. `pwa-test` still finds `/styles/positron` in the meta cache
+  because the default did not change.
+- **Not changed:** the route and hotspot colours. They were chosen against
+  gray; screenshots on Dark and Colour read fine, so no per-design palette.
+
+### Gray, detailed — built 2026-09-22
+
+The owner put an openstreetmap.org screenshot of SM Fairview beside the gray
+map and asked why ours felt thin, and whether the detail could be had. Measured
+before answering, all over the SM Fairview hintuan:
+
+- **The detail is mostly already on the phone.** The z14 tile there is 253 kB
+  and carries `poi`, `housenumber`, `building`, `landuse` and `park`. Of 22
+  names read off the screenshot, **19 were in the tile** — Novaliches Public
+  Terminal and Nova Stop among them. Positron has 55 style layers and **no**
+  layer reading `poi`; Liberty has 111 and four. The three misses (Fitness
+  First, Timezone, Kaji Building) are indoor tenants and a building *name*,
+  which the OpenMapTiles schema drops — no style brings them back.
+- **Past z14 there is nothing more.** OpenFreeMap's tiles stop at z14 (a z15
+  request returns 200 with 0 bytes) and MapLibre overzooms. Lines stay sharp;
+  no new feature ever appears.
+- **openstreetmap.org's own tiles are ruled out.** 256 px raster at 1× only,
+  z20 → HTTP 400, labels baked in, and holding one z14 square (2.37 km a side)
+  offline at z14–19 measured **12.9 MB against 0.25 MB** for the vector tile —
+  52×. Their usage policy forbids bulk downloading, which is what the service
+  worker does. A self-hosted Protomaps extract is the honest version of that
+  road, if tracing accuracy ever demands it; it is a project, not an afternoon.
+- **Drawing precision does not come from the backdrop.** Routes snap through
+  OSRM (`snap.ts`), full OSM geometry. Only freehand tracing — hotspot boxes —
+  depends on what the eye can see.
+
+**Built, with the owner's go, and checked by him the same evening — "it's good".** A fourth design in the same control. Positron
+plus layers drawn from the `poi` source-layer already in every tile, so it
+costs no request and no cache. Gray stays the default.
+
+| Part | What was done |
+|---|---|
+| `basemap.ts` | `detailStyle()` appends four symbol layers and firms the building fill (rgb 234 → 224). `detail-stations` from z13: `bus_station` and `railway`. `detail-stops` from z15: `bus_stop`. `detail-landmarks` from z15: grocery (supermarket, market, department store), mall, hospital (not clinic), college, town hall, police. `detail-landmarks-minor` from z16: school, church, fuel, park — at z15 those were 64 labels under one view and crowded the anchors out; tiered, 26. Gates (2,594 under one viewport), convenience stores and eateries stay hidden. Icons are the sprite's own `<class>_11`, at 75 %; text is Noto Sans Italic 11 in gray, transit in slate — italic is the basemap's voice, bold is ours |
+| First load | `Map` takes a style URL or object and has no transform hook, so a remembered detailed design cannot be built through the URL. `initialStyle()` fetches the style and adds the detail before the map exists — the same single request MapLibre would have made, verified: one `/styles/positron` fetch on reload, detail layers present at `load`, no plain-gray pass. A failed fetch falls back to the URL |
+| The switch | `styleTransform()` does both jobs the old hook did one of: add the detail when asked, then carry our GeoJSON sources and layers across on top. Checked: all 16 of our layers sit above the last detail layer after a switch; 20 hotspot features survive |
+| Taps | Unaffected by construction: `tapTargets` queries the two hit layers by name |
+| Checks | Type check, build and its guards pass. Driven headlessly in the studio at z15 and z16 and on the visitor map at phone size with the design remembered: no image or glyph warnings, no page errors, no database request from `/`. The only console warnings are Positron's own shield filters and SwiftShader's GPU note, both pre-existing |
+| Not done | House numbers (in the tile at z14, tiny value while tracing) and oneway arrows (`transportation.oneway` is in the tile — the very field the 2026-09-18 Overpass count measured; a cheap next step for the side-of-road rule, not started) |
+
+### Drawing keys — built 2026-09-22
+
+The owner asked for Ctrl+Z; M5 had asked for Esc, Ctrl+Z and Enter since
+8 September. Built with his go, **without Esc** on his call: cancel discards
+the whole trace and its draft, and that should not be one stray key away.
+
+- **Ctrl+Z / ⌘Z** undoes the last point or corner, exactly as the button does.
+- **Enter** is Done — only when Done is enabled, so a half-routed line cannot
+  be sent to the panel by a keystroke.
+- **F** toggles Freehand while tracing a route; a hotspot outline has no
+  freehand, and the key does nothing there.
+- **Quiet while a panel is open** (`keys` prop from the studio: off during the
+  save panel, the sign-in door, the password forms) and **quiet while typing**
+  in any field, so Enter submits the form and Ctrl+Z is the browser's own
+  undo. Each button's tooltip names its key.
+
+Not built: redo (nothing keeps what undo pops, and a snapped segment would
+need re-snapping — the next small thing if undo is overshot often).
+
+Pressed for real, headless, on the dev server: F on and off; Enter with no
+points does nothing; three clicks then Ctrl+Z leaves two; Enter at two opens
+the door; with the door open F and Ctrl+Z change nothing; "f" typed in the
+email field stays in the field; Esc leaves the trace where it was. 12/12,
+no page errors. Type check, build and its guards pass.
+
+### Ends are places — 2026-09-22
+
+The owner opened the save panel with seventeen boxes on the map and saw the
+pickers list every box — "SM Fairview · Fairview Teraccess (hintuan)" twice,
+"Lagro (hintuan)" twice — and asked for the informal names only. He was
+applying H3 to the form: **a route ends at a place, not at one of the boxes
+drawn there.** The pickers now list places — boxes grouped by the name people
+say, case-folded so a stray "SM fairview" cannot become a second entry — one
+line each, the places with a terminal first. The terminal's spelling names
+the place. No box name is ever shown.
+
+`route.head_stop_id` still references one row, so a chosen place resolves to a
+box: its terminal when it has one (H4 holds that to one row), else the box
+nearest that end of the line — the one the jeep actually stops at. The guess
+runs the same way: nearest box → its place → the place's own box. Two ends
+that are the same *place* are refused, not just the same box.
+
+Checked in Storybook on a fixture mirroring the live list (two terminals,
+eleven hintuans): six places, no box name, one SM Fairview, Tala – SM Fairview
+guessed, a hintuan-only place accepted as an end, same place refused. Type
+check, build and guards pass. Not yet exercised against the live table — no
+route has been saved.
+
+Seen in the live rows while doing this: one box carries the informal name
+"SM fairview", lower-case f. The picker folds it in, but its own card and map
+label still say "SM fairview". Worth fixing at the box.
+
+### The first route, and why it did not save — 2026-09-22
+
+The owner drew Tala – SM Fairview (3 points, 9.79 km) and pressed Save. The
+panel said `duplicate key value violates unique constraint "route_ends_unique"`.
+Postgres's log had the real story, three requests eight seconds apart: the
+`route` row was created (201); the two-direction insert was refused (400,
+*null value in column control_points violates not-null constraint*); his
+second press then met the unique index (409) for a route with no directions
+and no card to reach it from.
+
+**Cause.** A PostgREST rule: rows inserted in one request must share one
+column list, and a key one row lacks is sent as **null, not the column's
+default**. The empty slot went up as `{route_id, reversed}` beside the drawn
+direction's five keys, arrived as `control_points = null`, and the table did
+what 0001 told it to. The schema was never at fault: every 0006 change is
+live exactly as written.
+
+**Fixed.** The slot spells out every key (`control_points: []`, `segments: []`,
+`shape: null`). And because the route and its directions are two requests,
+not one transaction, a failed second request now deletes the route row it
+just made rather than leaving an orphan. And a save that meets an existing
+route with the same ends now looks at it: **no directions means an orphan, and
+the save adopts it** — same ends, same name, unreachable from any card — after
+bringing its signboard, mode and fare note up to what was just typed. Directions
+present means a real duplicate, refused in words: give it a `via`. The orphan
+from 07:46 UTC (the owner pressed Save on it again at 08:03) is therefore
+filled by the next press, not deleted by hand.
+
+**The honest shape is one transaction** — a `create_route()` function taking
+the route and its drawn direction, inserting all three rows or none, security
+invoker so RLS still rules, pinned `search_path`, revoked from public and anon
+as 0005 requires of every function. Migration 0008 when the owner wants it;
+the compensating delete covers the gap until then.
+
+Not exercised headlessly — a bypassed session cannot write. The check is the
+owner's: press Save again on the same line.
+
+### The first return trip — 2026-09-22
+
+**Slice 1 works end to end.** With the orphan adopted, Tala – SM Fairview
+saved at 08:08:09 UTC with both directions, one empty; the owner pressed
+"Draw the return trip", drew Fairview → Tala (6 points, 10.89 km) and filled
+the slot at 08:09:15. Both rows read right: `reversed=false` starts at Tala,
+`reversed=true` starts at SM Fairview.
+
+Then he said *"it's not reversing."* The data was; the panel wasn't. It led
+with the route name — **Tala – SM Fairview**, which R1 keeps the same for both
+directions — with the direction as a footnote, *"this line is the one to
+Tala"*, under Head and Tail pickers locked to Tala and SM Fairview. Read
+together, that says "not reversed". Two changes:
+
+- **A direction is named from both ends:** `SM Fairview → Tala`, not `to
+  Tala`. `directionName()` in `routes.ts` and its copy in `publish-map.mjs`;
+  the cards, the chooser and the page title read it unchanged. The plan's own
+  words for a direction were always "SM Fairview to Tala".
+- **The panel leads with the direction.** *This line is the direction* **SM
+  Fairview → Tala** *of the route Tala – SM Fairview*. The route name is still
+  there, second, generated from the same two ends.
+
+And a hazard closed in the same flow: the slot's `reversed` was inferred from
+where the line starts, so a return trip drawn from Tala again would have
+targeted `reversed=false` and **overwritten the outbound**. The studio now
+passes the empty slot's own flag (`slotReversed`), the panel uses it, and a
+line that starts at the wrong end gets an amber warning — not a block, since
+a line can honestly begin nearer the far end. Two stories cover it.
+
+### The card is the direction — slice 2, first half. 2026-09-22
+
+The owner opened both cards of his first route and saw **Tala – SM Fairview**
+on each, the direction a row below. "The title must switch too, add switch
+icon here." That is slice 2's card, asked for by the person it is for.
+
+- **The card's title is the direction** — `SM Fairview → Tala` — in the
+  studio and on the visitor map, since `RouteCard` is shared. The route name
+  moves to the line below, with the signboard when known; it stays in the
+  card because the chooser, the share title and the hotspot chips call the
+  route by it, and `phone-test` asserts the peek carries it.
+- **A switch beside the title** shows the other direction: `otherDirection()`
+  in `routes.ts` finds the sibling by `route_id`, and each app passes it with
+  its own `select`. When the sibling has no line the switch is disabled and
+  the card says *"SM Fairview → Tala is not mapped yet"* — the slice 2
+  requirement that a commuter can tell "no jeep goes that way" from "nobody
+  has drawn it yet".
+- The Direction row is gone from the card body; it was the title.
+
+**Not done, the other half of slice 2:** one line at a time. Both directions
+still draw at once, two offset blue lines down Quirino Highway, and a tap on
+the shared stretch opens the chooser with both. Flipping should swap the line,
+not add one. Next.
+
+### Still open in step 0
+
+Decided today: the route's name, the four actions, how a direction behaves
+before it is drawn, and how a hotspot is named. Still to settle before drawing
+resumes — how a *direction* is named (`to SM Fairview` today, and whether
+"kanan"/"kaliwa" is a direction name, a `via`, or neither); the spellings on
+the owner's own list, now that each has a place to go; side of road for a
+hintuan, now partly answered by the Overpass measurements; the field method
+behind `confidence`; and the mode enum, open since M0.
+
+Deferred past step 0 on the owner's call: the signboard, and the "where to?"
+list that would have been built on it.
 
 ---
 
@@ -1206,9 +1797,16 @@ Free today. Unfixable at 200 routes.
 - **Naming conventions, once.** Signboard casing, `direction_name` format,
   terminal naming. Inconsistency is invisible at eight routes, and it is what
   makes the dataset un-mergeable with anything else later.
+  *The route name is decided — 2026-09-21, see "Naming and creating a route".
+  Hotspot naming too — same day, see "Hotspot names": two names per box, the
+  informal one is what everything reads. Direction names and signboard casing
+  are still open.*
 - **Side of road for hintuans.** One on the northbound side of Commonwealth is
   not the southbound one. The polygon can already say so; whether it *does* is
-  a convention, not code.
+  a convention, not code. *Mostly answered 2026-09-18 by counting OSM ways: on
+  a divided road keep the box to one carriageway, on a single centreline both
+  directions share it. Quirino Highway is mixed along its length, so the rule
+  is applied per stretch, not per road. See the sketch session.*
 - **Field method**, mapped onto `confidence`: ridden · driver's word · local
   knowledge. This is what makes the claim at the top of this file true.
 
@@ -1238,6 +1836,7 @@ Done 2026-09-08: the public map opens fitted to the saved routes (padding
 Next is M5 — Export + tidy: GeoJSON export of all routes (the public read means
 this can be a plain fetch + download), keyboard shortcuts (Esc cancels,
 Ctrl+Z undoes, Enter = Done), and whatever the first real routes reveal.
+*Keyboard shortcuts landed 2026-09-22 — see "Drawing keys".*
 
 Security advisor is clean except "leaked password protection" (dashboard
 setting). Now that sign-in is password-based it is worth turning on.
@@ -1632,6 +2231,13 @@ tracking table. Do not re-apply.
       leaked-password warning)
 - [x] 0005_editor_role — 2026-09-15 (build-order step 1; the owner's uid
       inserted into `private.editor` right after; checks in its section)
+- [x] 0006_route_ends — written and applied 2026-09-21 (route and
+      route_variant were empty; six columns, two unique indexes and the dropped
+      `direction_name` unique verified after apply; the stop table held five
+      hotspots, two of them Tala terminals)
+- [x] 0007_stop_names — written and applied 2026-09-21 (two columns and the
+      partial unique index verified after apply; probed in a rolled-back block:
+      second terminal under one informal name refused, hintuans accepted)
 
 0004 and 0005 went through the Supabase MCP, which records them in
 `supabase_migrations.schema_migrations` (`stop_hotspot`, `editor_role`);
@@ -1639,8 +2245,10 @@ tracking table. Do not re-apply.
 2026-09-21** against the live project: every policy carries the 0005 form,
 `touch_updated_at` and `is_editor` pin `search_path`, the `stop` columns and
 enums match 0004, and TRUNCATE, TRIGGER and REFERENCES are off `anon` and
-`authenticated`. Nothing in `supabase/migrations/` is left to apply; the next
-file is 0006 (M8, Phase 3 step 3), not yet written.
+`authenticated`. 0006 and 0007 followed later the same day (their sections
+above); the live `route_variant` columns and indexes were read back on
+2026-09-22 and match 0006 exactly. Nothing in `supabase/migrations/` is left
+to apply; the next number is 0008.
 
 ## Open items
 
