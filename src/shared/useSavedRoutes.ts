@@ -11,8 +11,6 @@ const SELECTED_CASING = 'saved-routes-selected-casing'
 const SELECTED = 'saved-routes-selected'
 const HIT = ROUTES_HIT_LAYER
 
-/** Draw layers, if present, must stay above the saved ones. */
-const DRAW_ABOVE = 'draw-line-casing'
 
 /**
  * Three levels, decided with the owner 2026-09-22: every direction rests in a
@@ -22,6 +20,20 @@ const DRAW_ABOVE = 'draw-line-casing'
  */
 const REST = { line: 0.45, casing: 0.8 }
 const FADED = { line: 0.15, casing: 0.3 }
+
+/**
+ * The line fills the road, the owner's ask of 2026-09-23: its width follows
+ * the basemap's own curve for a major road (2 px at zoom 10, 20 px at zoom
+ * 20, growing by 1.3 a zoom), at 0.42 of it — the owner's "try 5 px",
+ * judged at zoom 18 where the road is 12 px, after 10/10, 8/10 and 6/10 —
+ * so road shows either side at every zoom. `extra` pads
+ * it: the casing shows 1 px either side, the lit direction sits 1 px proud,
+ * and the hit area reaches well beyond.
+ */
+const ROAD_SHARE = 0.42
+function roadWidth(extra: number) {
+  return ['interpolate', ['exponential', 1.3], ['zoom'], 10, 2 * ROAD_SHARE + extra, 20, 20 * ROAD_SHARE + extra] as never
+}
 
 /**
  * Every saved route direction, drawn for everyone. This is the public half of
@@ -90,7 +102,10 @@ export function useSavedRoutes<T extends VariantSummary>(
 
   useEffect(() => {
     if (!map || map.getSource(SRC)) return
-    const before = map.getLayer(DRAW_ABOVE) ? DRAW_ABOVE : undefined
+    // Under the basemap's labels, so a road painted blue still shows its
+    // name. The draft's layers, when there are any, sit above the labels and
+    // so above these too.
+    const before = map.getStyle().layers.find((l) => l.type === 'symbol')?.id
 
     map.addSource(SRC, {
       type: 'geojson',
@@ -102,7 +117,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': 6, 'line-opacity': REST.casing },
+        paint: { 'line-color': '#ffffff', 'line-width': roadWidth(2), 'line-opacity': REST.casing },
       },
       before,
     )
@@ -112,7 +127,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#2563eb', 'line-width': 3, 'line-opacity': REST.line },
+        paint: { 'line-color': '#2563eb', 'line-width': roadWidth(0), 'line-opacity': REST.line },
       },
       before,
     )
@@ -125,7 +140,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': 1 },
+        paint: { 'line-color': '#ffffff', 'line-width': roadWidth(3), 'line-opacity': 1 },
         filter: ['==', ['get', 'id'], ''] as never,
       },
       before,
@@ -136,7 +151,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#2563eb', 'line-width': 5 },
+        paint: { 'line-color': '#2563eb', 'line-width': roadWidth(1) },
         filter: ['==', ['get', 'id'], ''] as never,
       },
       before,
@@ -147,7 +162,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#000000', 'line-width': 18, 'line-opacity': 0 },
+        paint: { 'line-color': '#000000', 'line-width': roadWidth(14), 'line-opacity': 0 },
       },
       before,
     )

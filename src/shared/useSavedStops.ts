@@ -95,11 +95,13 @@ export function useSavedStops<S extends StopSummary>(
 
   useEffect(() => {
     if (!map || map.getSource(SRC)) return
+    // Under the routes, under the draft, and under the basemap's labels in
+    // any case: a box never hides a street name.
     const before = map.getLayer(ROUTES_ABOVE)
       ? ROUTES_ABOVE
       : map.getLayer(DRAW_ABOVE)
         ? DRAW_ABOVE
-        : undefined
+        : map.getStyle().layers.find((l) => l.type === 'symbol')?.id
 
     map.addSource(SRC, {
       type: 'geojson',

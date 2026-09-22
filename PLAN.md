@@ -1617,6 +1617,30 @@ Still to judge on a phone: battery over a few minutes with the arrows
 running. Size, spacing and speed are a first guess, to be tuned in the
 owner's map-marks tool rather than here.
 
+### The line fills the road. 2026-09-23
+
+The owner, looking at a 3 px line beside a 20 px highway at zoom 18: "how
+about we fill up the road with line?" Two things, built on that:
+
+- **Width follows the basemap's own curve for a major road** — 2 px at zoom
+  10, 20 px at zoom 20, growing 1.3× a zoom, read off the Positron style's
+  `highway_major_inner` — so at every zoom the blue is 0.42 of the road's width — his "try 5 px" at zoom 18, settled by eye from 10/10 through 8/10 and 6/10
+  it runs on. The casing sits 1 px either side, the lit direction 1 px
+  proud, the hit area well beyond (`roadWidth(extra)` in
+  `useSavedRoutes.ts`). A road painted blue also hides the small
+  disagreements between the router's roads and the tiles' at high zoom,
+  which is what he had noticed as "broken snapping".
+- **Our lines and boxes now sit under the basemap's labels**, so a road
+  painted blue still shows its name and shield: inserted before the style's
+  first symbol layer, and `styleTransform` keeps that order across a
+  basemap switch (our marks under the new style's labels, our own labels and
+  arrows on top). The draft's layers stay above everything while drawing.
+
+Seen at zooms 12, 15 and 18, at rest and lit: a light ribbon on the whole
+route from far out; at 18 each direction paints its own carriageway of
+Quirino Highway with the "127" shields and the name on top; lit, the chosen
+carriageway is bright with the arrows flowing inside it.
+
 ### Still open in step 0
 
 Decided today: the route's name, the four actions, how a direction behaves

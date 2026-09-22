@@ -208,10 +208,16 @@ export function styleTransform(b: Basemap) {
       Object.entries(previous.sources).filter(([, s]) => s.type === 'geojson'),
     )
     const ourLayers = previous.layers.filter((l) => 'source' in l && l.source in ours)
+    // Our lines and fills go under the new style's labels — a road painted
+    // blue still shows its name — and our own symbols (labels, arrows) on top.
+    const firstLabel = styled.layers.findIndex((l) => l.type === 'symbol')
+    const cut = firstLabel < 0 ? styled.layers.length : firstLabel
+    const ourMarks = ourLayers.filter((l) => l.type !== 'symbol')
+    const ourSymbols = ourLayers.filter((l) => l.type === 'symbol')
     return {
       ...styled,
       sources: { ...styled.sources, ...ours },
-      layers: [...styled.layers, ...ourLayers],
+      layers: [...styled.layers.slice(0, cut), ...ourMarks, ...styled.layers.slice(cut), ...ourSymbols],
     }
   }
 }
