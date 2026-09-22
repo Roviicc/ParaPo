@@ -153,6 +153,35 @@ export function nameVariants<V extends Unnamed>(
   })
 }
 
+/** Whether a direction has a line to draw, as opposed to being a slot. */
+export function isDrawn(v: VariantSummary & { segments?: Segment[] | null }): boolean {
+  return variantLine(v).length > 1
+}
+
+/** One route with its directions, for a sheet that lists routes, not directions. */
+export type RouteGroup<V extends VariantSummary> = { routeId: string; route: RouteSummary; directions: V[] }
+
+/** Directions gathered by route, in the order their routes were first met. */
+export function groupByRoute<V extends VariantSummary>(variants: readonly V[]): RouteGroup<V>[] {
+  const groups = new Map<string, RouteGroup<V>>()
+  for (const v of variants) {
+    const g = groups.get(v.route_id) ?? { routeId: v.route_id, route: v.route, directions: [] }
+    g.directions.push(v)
+    groups.set(v.route_id, g)
+  }
+  return [...groups.values()]
+}
+
+/**
+ * The direction a route opens with when it is picked as a whole: the
+ * outbound when it has a line, else the return — predictable, and ⇄ is one
+ * tap away. Decided with the owner 2026-09-22. Null only for a route with
+ * nothing drawn, which no tap can reach.
+ */
+export function directionToOpen<V extends VariantSummary>(directions: readonly V[]): V | null {
+  return directions.find((v) => !v.reversed && isDrawn(v)) ?? directions.find(isDrawn) ?? directions[0] ?? null
+}
+
 /**
  * The route's other direction, for the switch on a card: drawn or not, so the
  * card can say "not mapped yet" instead of offering an empty line. Null when

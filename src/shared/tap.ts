@@ -39,33 +39,55 @@ export function tapBox(
   ]
 }
 
-type IdFeature = { properties?: { id?: unknown } }
+type IdFeature = { properties?: { id?: unknown; route_id?: unknown } }
 
 /**
  * The ids a query hit, topmost first and each one once. A line crosses its
  * own tiles and a polygon is split across them, so the same feature comes
  * back several times.
  */
-export function idsInOrder(features: IdFeature[]): string[] {
+export function idsInOrder(features: IdFeature[], key: 'id' | 'route_id' = 'id'): string[] {
   const seen = new Set<string>()
   for (const f of features) {
-    const id = f.properties?.id
+    const id = f.properties?.[key]
     if (typeof id === 'string') seen.add(id)
   }
   return [...seen]
 }
 
+/** What one tap landed on: every direction, every route those belong to, and every hotspot in its box. */
+export type TapTargets = { routeIds: string[]; routeKeys: string[]; stopIds: string[] }
+
 /**
- * What one tap landed on: the route ids and hotspot ids in its box. A route
- * drawn right under the tapped pixel wins outright, as it always has — a line
- * crossing a hotspot must stay tappable. Otherwise everything in the box is
- * offered, so a terminal 25 px from its own route is still one tap away.
+ * Everything under the finger is offered, nothing wins outright — decided
+ * with the owner 2026-09-22: a tap lights all of it, and the sheet lists it,
+ * hotspots first. `routeKeys` counts routes, not directions, because a
+ * route's two directions share most of their road and are one thing to
+ * choose between.
  */
-export function tapTargets(map: MapLibreMap, point: { x: number; y: number }, event?: Event) {
-  const query = (geometry: Parameters<MapLibreMap['queryRenderedFeatures']>[0], layer: string) =>
-    map.getLayer(layer) ? idsInOrder(map.queryRenderedFeatures(geometry, { layers: [layer] })) : []
-  const underPoint = query([point.x, point.y], ROUTES_HIT_LAYER)
-  if (underPoint.length > 0) return { routeIds: underPoint, stopIds: [] as string[] }
+export function tapTargets(map: MapLibreMap, point: { x: number; y: number }, event?: Event): TapTargets {
   const box = tapBox(point, event)
-  return { routeIds: query(box, ROUTES_HIT_LAYER), stopIds: query(box, STOPS_FILL_LAYER) }
+  const features = (layer: string) => (map.getLayer(layer) ? map.queryRenderedFeatures(box, { layers: [layer] }) : [])
+  const routes = features(ROUTES_HIT_LAYER)
+  return { routeIds: idsInOrder(routes), routeKeys: idsInOrder(routes, 'route_id'), stopIds: idsInOrder(features(STOPS_FILL_LAYER)) }
+}
+
+/**
+ * What a tap means, the same in both hooks and both apps: nothing; one
+ * route (its directions, to open the drawn outbound); one hotspot; or
+ * several things, which light up and go to the sheet.
+ */
+export type TapOutcome =
+  | { kind: 'none' }
+  | { kind: 'route'; routeIds: string[] }
+  | { kind: 'stop'; stopId: string }
+  | { kind: 'several'; routeIds: string[]; routeKeys: string[]; stopIds: string[] }
+
+export function resolveTap(t: TapTargets): TapOutcome {
+  const routes = t.routeKeys.length
+  const stops = t.stopIds.length
+  if (routes + stops === 0) return { kind: 'none' }
+  if (routes === 1 && stops === 0) return { kind: 'route', routeIds: t.routeIds }
+  if (stops === 1 && routes === 0) return { kind: 'stop', stopId: t.stopIds[0]! }
+  return { kind: 'several', routeIds: t.routeIds, routeKeys: t.routeKeys, stopIds: t.stopIds }
 }

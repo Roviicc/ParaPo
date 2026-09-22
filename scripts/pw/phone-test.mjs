@@ -296,6 +296,8 @@ const closeCard = async () => {
   await page.getByRole('button', { name: 'Close' }).first().click({ timeout: 1500 }).catch(() => {})
   await page.waitForTimeout(300)
 }
+// Every direction rests in a light blue; a tap fades the rest further (2026-09-22).
+const REST_OPACITY = 0.45
 const lineOpacity = (p) =>
   p.evaluate(() => {
     const m = window.__map
@@ -399,13 +401,17 @@ if (routeA) {
   const text = await cardText()
   check(`a tap 14 px beside a lone route line selects it`, (await card().count()) > 0, `${desc}; [data-testid="card"] count ${await card().count()}`)
   check('  it opens as a sheet in "peek"', (await sheetState()) === 'peek', `data-sheet=${await sheetState()}`)
-  check('  the peek shows the signboard', !!r.signboard && text.includes(r.signboard), r.signboard)
-  check('  the peek shows "Direction"', text.includes('Direction'))
+  // The small line reads the route the way the opened direction rides it, so check both ends, not the order.
+  const peekEnds = r.signboard.split(' – ').map((e) => e.replace(/ via .*$/, ''))
+  check('  the peek names both ends of the route', peekEnds.length === 2 && peekEnds.every((e) => text.includes(e)), r.signboard)
+  check('  the peek leads with a direction (→)', text.includes('→'))
   check('  the peek hides "Length" until it is opened', text !== '' && !text.includes('Length'))
 
+  // The tap opens the route's drawn outbound, whichever direction was under the finger (2026-09-22).
+  const sameRoute = snapshot.routes.filter((o) => o.routeId === r.routeId).map((o) => o.id)
   const filter = await selectedFilter(page)
-  check('  saved-routes-selected filters to that id', !!filter && filter.includes(r.id), filter ?? 'no saved-routes-selected layer')
-  check('  the other lines dim to 0.35', (await lineOpacity(page)) === 0.35, String(await lineOpacity(page)))
+  check('  saved-routes-selected filters to one direction of that route', !!filter && sameRoute.some((id) => filter.includes(id)), filter ?? 'no saved-routes-selected layer')
+  check('  the other lines fade below the light rest', (await lineOpacity(page)) < REST_OPACITY, String(await lineOpacity(page)))
 
   // Negative control: 40 px out is twice as far as the box reaches — but only
   // where the line does not curve back and no hotspot sits on that side, so
@@ -428,7 +434,7 @@ if (routeA) {
     await page.touchscreen.tap(far.x, far.y)
     await page.waitForTimeout(500)
     check('a tap 40 px away from every line selects nothing', (await card().count()) === 0, `${Math.round(far.clear)} m clear`)
-    check('  the lines go back to full opacity', (await lineOpacity(page)) === 1, String(await lineOpacity(page)))
+    check('  the lines go back to their light rest', (await lineOpacity(page)) === REST_OPACITY, String(await lineOpacity(page)))
   }
   await closeCard()
 }
@@ -713,7 +719,8 @@ if (!routeA) {
   const box = await canvasBox()
   await page.touchscreen.tap(box.x + anchor[0] + perp[0] * 14, box.y + anchor[1] + perp[1] * 14)
   await page.waitForTimeout(600)
-  check('selecting a route puts ?r=<id> in the address', new URL(page.url()).searchParams.get('r') === r.id, page.url().slice(BASE.length) || '/')
+  const sameRouteIds = snapshot.routes.filter((o) => o.routeId === r.routeId).map((o) => o.id)
+  check('selecting a route puts ?r=<id> in the address', sameRouteIds.includes(new URL(page.url()).searchParams.get('r') ?? ''), page.url().slice(BASE.length) || '/')
   await closeCard()
   check('  closing the card clears it again', !new URL(page.url()).searchParams.has('r'), page.url().slice(BASE.length) || '/')
 
@@ -722,7 +729,9 @@ if (!routeA) {
   await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
   await page.waitForTimeout(2000)
   const shareText = await cardText()
-  check('loading /?r=<id> opens that route', !!r.signboard && shareText.includes(r.signboard), shareText.split('\n')[0] ?? '(no card)')
+  // The card reads the route the way that direction rides it: check both ends, not the order.
+  const ends = r.signboard.split(' – ').map((e) => e.replace(/ via .*$/, ''))
+  check('loading /?r=<id> opens that route', ends.length === 2 && ends.every((e) => shareText.includes(e)), shareText.split('\n')[0] ?? '(no card)')
 
   const view = await page.evaluate(() => {
     const c = window.__map.getCenter()

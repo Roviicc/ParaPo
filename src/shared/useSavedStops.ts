@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { HOTSPOT_COLOUR } from './colours'
 import { stopRing, type StopLink, type StopSummary } from './stops'
-import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, tapTargets } from './tap'
+import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, resolveTap, tapTargets } from './tap'
 
 const SRC = 'saved-stops'
 const FILL = STOPS_FILL_LAYER
 const OUTLINE = 'saved-stops-outline'
 const LABEL = 'saved-stops-label'
+/** The boxes under a tap, or the chosen one, drawn again stronger while they are asked about. */
+const LIT = 'saved-stops-lit'
 
 /**
  * Hotspots sit under the route lines; a route drawn right under the tapped
@@ -120,6 +122,18 @@ export function useSavedStops<S extends StopSummary>(
       },
       before,
     )
+    // The lit boxes: the one chosen, or everything under a tap while the sheet
+    // asks which. Same idea as the routes' lit pair, decided 2026-09-22.
+    map.addLayer(
+      {
+        id: LIT,
+        type: 'fill',
+        source: SRC,
+        filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['get', 'id'], ['literal', []]]] as never,
+        paint: { 'fill-color': colour as never, 'fill-opacity': 0.5 },
+      },
+      before,
+    )
     // Labels go on top of everything: a name is never worth hiding under a line.
     map.addLayer({
       id: LABEL,
@@ -168,6 +182,12 @@ export function useSavedStops<S extends StopSummary>(
     })
   }, [map, stops])
 
+  useEffect(() => {
+    if (!map || !map.getLayer(LIT)) return
+    const lit = selectedId ? [selectedId] : candidates.map((s) => s.id)
+    map.setFilter(LIT, ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['get', 'id'], ['literal', lit]]] as never)
+  }, [map, selectedId, candidates])
+
   // The hotspot being edited is drawn by the editor; hide the saved copy.
   useEffect(() => {
     if (!map || !map.getLayer(FILL)) return
@@ -198,19 +218,22 @@ export function useSavedStops<S extends StopSummary>(
       map.getLayer(ROUTES_HIT) &&
       map.queryRenderedFeatures(e.point, { layers: [ROUTES_HIT] }).length > 0
 
-    // One handler, one box, sized for the finger: nothing deselects, one thing
-    // selects it, several — hotspots, routes or both — open a chooser. The
-    // routes hook reads the same tap and keeps its own half.
+    // One handler, one box, sized for the finger: nothing deselects, one
+    // hotspot alone opens its card, several things — hotspots, routes or
+    // both — light up and go to the sheet. The routes hook reads the same
+    // tap and keeps its own half.
     const onMapClick = (e: MapMouseEvent) => {
       if (drawingRef.current) return
-      const { routeIds, stopIds } = tapTargets(map, e.point, e.originalEvent)
-      const here = stopIds.map((id) => byId.current.get(id)).filter((s) => !!s)
-      if (here.length === 1 && routeIds.length === 0) {
-        setSelectedId(here[0]!.id)
+      const out = resolveTap(tapTargets(map, e.point, e.originalEvent))
+      if (out.kind === 'stop') {
+        setSelectedId(out.stopId)
         setCandidates([])
+      } else if (out.kind === 'several') {
+        setSelectedId(null)
+        setCandidates(out.stopIds.map((id) => byId.current.get(id)).filter((s) => !!s))
       } else {
         setSelectedId(null)
-        setCandidates(here.length + routeIds.length > 1 ? here : [])
+        setCandidates([])
       }
     }
     const enter = (e: MapMouseEvent) => {

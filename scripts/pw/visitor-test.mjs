@@ -65,6 +65,18 @@ const findVertexInsideAnyHotspot = (routeLines, polys) => {
   }
   return null
 }
+// A route vertex a finger's width clear of every box: ~110 m, so no box edge
+// falls inside the tap and the tap means the route alone.
+const findVertexOutsideHotspots = (routeLines, polys) => {
+  const clear = 0.001
+  for (const coords of routeLines) {
+    for (const c of coords) {
+      const near = polys.some((p) => p.ring.some((v) => Math.hypot(v[0] - c[0], v[1] - c[1]) < clear))
+      if (!near) return c
+    }
+  }
+  return null
+}
 const parsePill = (text) => {
   if (!text) return null
   const both = text.match(/^(\d+) routes? · (\d+) hotspots?$/)
@@ -198,12 +210,20 @@ for (const [i, p] of snapshot.polys.entries()) {
     const box = await page.locator('canvas.maplibregl-canvas').boundingBox()
     await page.mouse.click(box.x + pt[0], box.y + pt[1])
     await page.waitForTimeout(350)
+    const chooser = page.locator('[data-testid="chooser"]')
+    if ((await chooser.count()) > 0) {
+      // The line runs within a finger of this point: the sheet lists the box
+      // first and the route after it. Its row opens the box's card.
+      const row = chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: p.name }).first()
+      if ((await row.count()) > 0) await row.click()
+      await page.waitForTimeout(350)
+    }
     const state = await cardKind()
     if (state.kind === 'hotspot') { opened = state.text; break }
     if (state.kind === 'route') await closeCard()
   }
 
-  check(`tap ${desc} opens its hotspot card`, !!opened, opened ? '' : `no click point avoided the route line (tried ${candidates.length})`)
+  check(`tap ${desc} opens its hotspot card`, !!opened, opened ? '' : `no click point reached the card (tried ${candidates.length})`)
   if (!opened) continue
 
   check(`  card shows its own name`, opened.includes(p.name))
@@ -234,20 +254,67 @@ for (const [i, p] of snapshot.polys.entries()) {
   await page.waitForTimeout(200)
 }
 
-// 4. Click priority: a route vertex inside a hotspot polygon must select the
-// route, not the hotspot underneath it. SKIP if no such vertex exists today.
+// 4. A tap on a route line inside a hotspot offers both — since 2026-09-22
+// nothing wins outright: the sheet lists the hotspot first, then one row per
+// route, and the route's row opens its card. SKIP if no such vertex exists.
 const hit = findVertexInsideAnyHotspot(snapshot.routeLines, snapshot.polys)
 if (!hit) {
-  skip('click on a route line inside a hotspot selects the ROUTE', 'no saved-route vertex lies inside any hotspot polygon today')
+  skip('a tap on a route line inside a hotspot offers both in the sheet', 'no saved-route vertex lies inside any hotspot polygon today')
 } else {
   await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 18 }), hit.point)
   await page.waitForTimeout(700)
   const box = await page.locator('canvas.maplibregl-canvas').boundingBox()
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
   await page.waitForTimeout(350)
-  const state = await cardKind()
-  check('click on a route line inside a hotspot selects the ROUTE', state.kind === 'route', state.kind)
-  await closeCard()
+  const chooser = page.locator('[data-testid="chooser"]')
+  const has = (await chooser.count()) > 0
+  const text = has ? await chooser.first().innerText() : ''
+  check('a tap on a route line inside a hotspot offers both in the sheet', has && /hotspot/.test(text) && /route/.test(text), has ? text.split('\n')[0] : `no sheet; card ${(await cardKind()).kind}`)
+  if (has) {
+    const items = chooser.locator('button[data-testid="chooser-item"]')
+    const first = await items.first().innerText()
+    check('  the hotspot is listed first', first.includes(hit.hotspot.name), first.split('\n')[0])
+    const litWhileAsking = await page.evaluate(() => window.__map.getPaintProperty('saved-routes-line', 'line-opacity'))
+    check('  the rest of the map fades while the sheet asks', litWhileAsking < 0.3, String(litWhileAsking))
+    await items.last().click()
+    await page.waitForTimeout(350)
+    const state = await cardKind()
+    check("  the route's row opens the route card", state.kind === 'route', state.kind)
+    await closeCard()
+  }
+}
+
+// 4b. Rest and lit: every direction rests light; one route alone under the
+// tap opens its card directly, drawn bright while the rest fade; closing the
+// card rests everything again.
+{
+  const opacity = () => page.evaluate(() => window.__map.getPaintProperty('saved-routes-line', 'line-opacity'))
+  const rest = await opacity()
+  check('the lines rest in a light blue (opacity under 0.6)', typeof rest === 'number' && rest > 0 && rest < 0.6, String(rest))
+  const clean = findVertexOutsideHotspots(snapshot.routeLines, snapshot.polys)
+  if (!clean) {
+    skip('a tap on one route opens its card straight away', 'every route vertex lies inside a hotspot today')
+  } else {
+    await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 17 }), clean)
+    await page.waitForTimeout(700)
+    const box = await page.locator('canvas.maplibregl-canvas').boundingBox()
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    await page.waitForTimeout(350)
+    const state = await cardKind()
+    const chooserCount = await page.locator('[data-testid="chooser"]').count()
+    check('a tap on one route opens its card straight away', state.kind === 'route' && chooserCount === 0, `card ${state.kind}, sheet count ${chooserCount}`)
+    if (state.kind === 'route') {
+      const title = await page.locator('[data-testid="card-direction"]').first().innerText().catch(() => '')
+      check('  the card leads with a direction', /→/.test(title), title)
+      const faded = await opacity()
+      check('  the rest fade while one direction is lit', faded < rest, `${faded} vs rest ${rest}`)
+      const litFilter = await page.evaluate(() => JSON.stringify(window.__map.getFilter('saved-routes-selected')))
+      check('  the lit layer names exactly one direction', (litFilter.match(/[0-9a-f]{8}-[0-9a-f]{4}-/g) ?? []).length === 1, litFilter)
+      await closeCard()
+      await page.waitForTimeout(300)
+      check('  closing the card rests the map again', (await opacity()) === rest, String(await opacity()))
+    }
+  }
 }
 
 // 5. Housekeeping: no storage, no OSRM calls, no errors.

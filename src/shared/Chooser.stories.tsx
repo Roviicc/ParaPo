@@ -19,24 +19,32 @@ function route(id: string, name: string): VariantSummary['route'] {
   }
 }
 
-function variant(id: string, name: string, direction: string): VariantSummary {
+/** One direction of a route; `drawn` false leaves it a slot, with no line yet. */
+function variant(routeKey: string, name: string, direction: string, reversed = false, drawn = true): VariantSummary {
   return {
-    id,
-    route_id: id + '-route',
+    id: routeKey + (reversed ? '-back' : '-out'),
+    route_id: routeKey + '-route',
     direction_name: direction,
     origin_terminal: null,
     destination_terminal: null,
-    shape: null,
-    reversed: false,
+    shape: drawn ? { type: 'LineString', coordinates: [[121.04, 14.74], [121.05, 14.75]] } : null,
+    reversed,
     confidence: 'drawn',
-    route: route(id + '-route', name),
+    route: route(routeKey + '-route', name),
   }
 }
 
+/**
+ * Every direction of every route under the tap, slots included, the way the
+ * hooks hand them over: the sheet groups them into one row per route.
+ */
 const routes: VariantSummary[] = [
   variant('a', 'Tala – SM Fairview', 'Tala → SM Fairview'),
+  variant('a', 'Tala – SM Fairview', 'SM Fairview → Tala', true),
   variant('b', 'Novaliches – Quiapo', 'Novaliches → Quiapo'),
-  variant('c', 'Lagro – Fairview', 'Fairview → Lagro'),
+  variant('b', 'Novaliches – Quiapo', 'Quiapo → Novaliches', true, false),
+  variant('c', 'Lagro – Fairview', 'Lagro → Fairview'),
+  variant('c', 'Lagro – Fairview', 'Fairview → Lagro', true),
 ]
 
 function stop(id: string, name: string, kind: StopRow['kind']): StopRow {
@@ -85,8 +93,11 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** The common case: one tap landed on two routes sharing a road. */
-export const TwoRoutes: Story = { args: { routes: routes.slice(0, 2) } }
+/** The common case: one tap landed on two routes sharing a road — four directions, two rows, one with its return still a slot. */
+export const TwoRoutes: Story = { args: { routes: routes.slice(0, 4) } }
+
+/** A box with a line through it: the hotspot first, then the route. */
+export const HotspotAndRoute: Story = { args: { routes: routes.slice(0, 2), stops: stops.slice(1) } }
 
 /** Three is still a list, not a menu. */
 export const ThreeRoutes: Story = { args: { routes } }

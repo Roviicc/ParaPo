@@ -1484,6 +1484,56 @@ Under the new rule the live data gives SM Fairview → Tala: Fairview
 Teraccess, SM Fairview, Fatima, Lagro, Malaria, Pangarap, Amparo, Barracks;
 and the return the matching boxes on its own side.
 
+### The tap, the lighting and the sheet — slice 2, second half. 2026-09-22
+
+Decided with the owner in a grilling session (eleven questions in three
+rounds, then a page he confirmed line by line), and built on his "go":
+
+- **Rest.** Every drawn direction shows in a light blue (`line-opacity`
+  0.45). Both directions of a route draw, so where they split by one-way
+  streets the split shows; where they share a road they overlap and read as
+  one. "One line at a time" now means: once a *direction* is picked, only
+  that one draws bright.
+- **A tap.** Everything under the finger is offered — nothing wins outright
+  any more (the old "a line under the exact pixel beats the box" rule is
+  gone). `tapTargets` returns directions, their routes and hotspots;
+  `resolveTap` says what the tap means, the same for both hooks and both
+  apps: nothing; one route alone → its card, opening **the direction whose
+  line is under the finger** — where the two directions run on different
+  roads, tapping the other one must open it, the owner's first check — and
+  only where both overlap the **drawn outbound** (`directionToOpen`), else
+  the return; one hotspot alone → its card; several → they **light up** and
+  the sheet opens.
+- **Three levels.** Rest 0.45; while something is lit the rest fade to 0.15;
+  the lit set draws again on top, full and thick (`saved-routes-selected`
+  now filters with `in`, a list, not one id). Boxes under a tap light too
+  (`saved-stops-lit`, fill 0.5).
+- **The sheet.** Hotspots first, then **one row per route, never per
+  direction** — the candidates carry every direction of each route, slots
+  included, so a row can say "Return not mapped yet" or "Both ways mapped".
+  Picking a row opens the route's drawn outbound; ⇄ is one tap away.
+- **⇄ swaps the line**; closing the card, or tapping empty map, rests
+  everything. A flip never sticks. A shared link opens its direction lit.
+- **The card's small line** reads the route the way the direction rides it
+  — "SM Fairview – Tala" under "SM Fairview → Tala" — the owner's note
+  during the build. Built from the timeline's ends with `routeName()`, so
+  nothing is parsed.
+- The studio taps exactly the same way; while drawing, the other direction
+  rests light under the draft.
+
+| Checks | Result |
+|---|---|
+| `visitor-test` | **131/131** (was 101 pass / 5 fail — the "no click point avoided the route line" and chooser-instead-of-card failures were exactly what this step changes). New: the sheet on a line inside a box, hotspot first; the rest fade while it asks; one route alone opens straight to its card; rest → lit → rest |
+| `phone-test` | **38/38**, expectations updated for the light rest, the outbound-opens rule and the flipped small line |
+| Studio drive (live data) | 16/16, including a tap on the other direction where the roads split: rest 0.45; tap → card "Tala → SM Fairview / Tala – SM Fairview", rest 0.15; ⇄ → "SM Fairview → Tala / SM Fairview – Tala", one id lit; close → 0.45; a line inside Barracks → sheet "Barracks · Hintuan | Tala – SM Fairview · Both ways mapped" |
+| Chooser stories | Fixtures now carry both directions and one slot; `HotspotAndRoute` added |
+
+Parked with the owner: the **place highlight** (siblings brighter, a wash,
+or both; studio or public map) — his call when he is ready. Next, by his
+order: the "Part of SM Fairview · terminal + 2 hintuans" line on the hotspot
+card with tappable siblings; then the design foundation (tokens, a screen
+inventory) before he designs in Figma.
+
 ### Still open in step 0
 
 Decided today: the route's name, the four actions, how a direction behaves

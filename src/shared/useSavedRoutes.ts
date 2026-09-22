@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
-import { variantLine, type VariantSummary } from './routes'
-import { ROUTES_HIT_LAYER, tapTargets } from './tap'
+import { directionToOpen, isDrawn, variantLine, type VariantSummary } from './routes'
+import { ROUTES_HIT_LAYER, resolveTap, tapTargets } from './tap'
 
 const SRC = 'saved-routes'
 const CASING = 'saved-routes-casing'
@@ -13,6 +13,15 @@ const HIT = ROUTES_HIT_LAYER
 
 /** Draw layers, if present, must stay above the saved ones. */
 const DRAW_ABOVE = 'draw-line-casing'
+
+/**
+ * Three levels, decided with the owner 2026-09-22: every direction rests in a
+ * light blue; when a tap lights some, the rest fade further; the lit ones are
+ * drawn again on top, full and thick. One rule for a road that will carry
+ * three routes.
+ */
+const REST = { line: 0.45, casing: 0.8 }
+const FADED = { line: 0.15, casing: 0.3 }
 
 /**
  * Every saved route direction, drawn for everyone. This is the public half of
@@ -93,7 +102,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': 6, 'line-opacity': 0.9 },
+        paint: { 'line-color': '#ffffff', 'line-width': 6, 'line-opacity': REST.casing },
       },
       before,
     )
@@ -103,12 +112,13 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#2563eb', 'line-width': 3 },
+        paint: { 'line-color': '#2563eb', 'line-width': 3, 'line-opacity': REST.line },
       },
       before,
     )
-    // The chosen direction, drawn once more above the rest. Dimming the others
-    // is what makes it stand out; this pair is what stays bright.
+    // The lit directions — the one chosen, or everything under a tap — drawn
+    // once more above the rest. Fading the others is what makes them stand
+    // out; this pair is what stays bright.
     map.addLayer(
       {
         id: SELECTED_CASING,
@@ -190,18 +200,20 @@ export function useSavedRoutes<T extends VariantSummary>(
     for (const id of [CASING, LINE, HIT]) map.setFilter(id, filter as never)
   }, [map, opts.hiddenVariantId])
 
-  // What "chosen" looks like: the selected pair shows only that direction, and
-  // the rest fade back so it reads at a glance on a small screen.
+  // What is lit: the chosen direction alone, or every drawn direction under
+  // a tap while the sheet asks which. The rest fade so it reads at a glance.
   useEffect(() => {
     if (!map || !map.getLayer(SELECTED)) return
+    const lit = selectedId ? [selectedId] : candidates.filter(isDrawn).map((v) => v.id)
     const hidden = ['!=', ['get', 'id'], opts.hiddenVariantId ?? '']
-    const isSelected = ['==', ['get', 'id'], selectedId ?? '']
-    const filter = ['all', hidden, isSelected]
+    const isLit = ['in', ['get', 'id'], ['literal', lit]]
+    const filter = ['all', hidden, isLit]
     map.setFilter(SELECTED_CASING, filter as never)
     map.setFilter(SELECTED, filter as never)
-    map.setPaintProperty(LINE, 'line-opacity', selectedId ? 0.35 : 1)
-    map.setPaintProperty(CASING, 'line-opacity', selectedId ? 0.5 : 0.9)
-  }, [map, selectedId, opts.hiddenVariantId])
+    const level = lit.length > 0 ? FADED : REST
+    map.setPaintProperty(LINE, 'line-opacity', level.line)
+    map.setPaintProperty(CASING, 'line-opacity', level.casing)
+  }, [map, selectedId, candidates, opts.hiddenVariantId])
 
   // ----------------------------------------------------------------- events
 
@@ -210,19 +222,32 @@ export function useSavedRoutes<T extends VariantSummary>(
     const canvas = map.getCanvas()
 
     // One handler, one box. A finger is wider than a pixel, so we ask what is
-    // near the tap: nothing deselects, one thing selects it, several — routes,
-    // hotspots or both — open a chooser. The stops hook reads the same tap and
-    // keeps its own half.
+    // near the tap: nothing deselects, one route opens its card, several
+    // things — routes, hotspots or both — light up and go to the sheet. The
+    // candidates are whole routes, slots included, so the sheet can say
+    // "return not mapped yet". The stops hook reads the same tap and keeps
+    // its own half.
     const onMapClick = (e: MapMouseEvent) => {
       if (drawingRef.current) return
-      const { routeIds, stopIds } = tapTargets(map, e.point, e.originalEvent)
-      const routes = routeIds.map((id) => byId.current.get(id)).filter((v) => !!v)
-      if (routes.length === 1 && stopIds.length === 0) {
-        setSelectedId(routes[0]!.id)
+      const out = resolveTap(tapTargets(map, e.point, e.originalEvent))
+      const all = [...byId.current.values()]
+      if (out.kind === 'route') {
+        // The line under the finger wins: where a route's two directions run
+        // on different roads, tapping the other one must open it (the owner's
+        // check, 2026-09-22). Only where both overlap does the outbound rule
+        // decide.
+        const under = out.routeIds.map((id) => byId.current.get(id)).filter((v) => !!v)
+        const routeId = under[0]?.route_id
+        const open = under.length === 1 ? under[0]! : directionToOpen(all.filter((v) => v.route_id === routeId))
+        setSelectedId(open?.id ?? null)
         setCandidates([])
+      } else if (out.kind === 'several') {
+        const keys = new Set(out.routeKeys)
+        setSelectedId(null)
+        setCandidates(all.filter((v) => keys.has(v.route_id)))
       } else {
         setSelectedId(null)
-        setCandidates(routes.length + stopIds.length > 1 ? routes : [])
+        setCandidates([])
       }
     }
     const enter = () => {

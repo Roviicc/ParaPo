@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { lineLength } from './geo'
-import { MODES, variantLine, type VariantSummary } from './routes'
+import { MODES, routeName, variantLine, type VariantSummary } from './routes'
 import { Sheet } from './Sheet'
 import { StopTimeline, passesThrough } from './StopTimeline'
 import type { Timeline } from './stops'
@@ -89,9 +89,11 @@ export function RouteCard({ variant, timeline, onPickStop, sibling, onSwitch, ac
               </button>
             )}
           </div>
-          {/* The route, and the signboard when known: what to look for on the jeep. */}
+          {/* The route read the way this direction rides it — "SM Fairview – Tala"
+              under "SM Fairview → Tala", the owner's note of 2026-09-22 — and
+              the signboard when known: what to look for on the jeep. */}
           <p className="truncate text-xs text-neutral-500">
-            {r?.name}
+            {timeline?.from && timeline.to ? routeName(timeline.from.label, timeline.to.label, r?.via) : r?.name}
             {r?.signboard && <> · Signboard: {r.signboard}</>}
           </p>
           {sibling && !siblingDrawn && (
