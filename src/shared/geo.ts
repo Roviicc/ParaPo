@@ -178,6 +178,15 @@ function pointToSegmentM(p: LngLat, a: LngLat, b: LngLat): number {
   return toRad(Math.hypot(dx, dy)) * EARTH_RADIUS_M
 }
 
+/** Metres from p to the polygon's edge (0 inside it). */
+export function distanceToRingM(p: LngLat, ring: Ring): number {
+  if (pointInRing(p, ring)) return 0
+  const n = ring.length
+  let best = Infinity
+  for (let j = 0; j < n; j++) best = Math.min(best, pointToSegmentM(p, ring[j], ring[(j + 1) % n]))
+  return best
+}
+
 /**
  * Where the line first enters the polygon or comes within `withinM` metres
  * of its edge: the vertex index, or the index of the segment that does it.

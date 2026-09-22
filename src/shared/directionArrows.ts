@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { haversine, type LngLat } from './geo'
+import { LIT_EXTRA, roadWidthAt } from './lineStyle'
 
 /**
  * Which way the jeep goes, drawn on the chosen direction only.
@@ -10,6 +11,10 @@ import { haversine, type LngLat } from './geo'
  * line they would be clutter once a road carries three routes — and
  * **flowing smoothly** along it from the start of the ride to its end. No
  * glow: he asked for it and then asked for it gone.
+ *
+ * One white arrow every so often, all alike, sized with the line. A train
+ * of four fading chevrons — his own spec, built and looked at the same
+ * evening — was dropped by him: "not good visually", back to this.
  *
  * MapLibre cannot slide a symbol along a line, so the arrows are points we
  * place ourselves: every frame, each one moves a little further along the
@@ -22,20 +27,35 @@ const SRC = 'direction-arrows'
 const ARROWS = 'direction-arrow-symbols'
 const ARROW_IMAGE = 'direction-arrow'
 
-/** On screen: how far apart the arrows sit, and how fast they flow. */
-const SPACING_PX = 56
+/**
+ * On screen: how far apart the arrows sit, and how fast they flow. The
+ * spacing is what the owner approved on 2026-09-22 — written as 56 then,
+ * but doubled by a tile-size slip in `metresPerPixel`, since fixed.
+ */
+const SPACING_PX = 112
 const SPEED_PX_PER_S = 28
+
+/**
+ * How wide the arrow is across the line: a share of the lit line's width,
+ * and never under a floor. The owner's look at 0.9 of the line was "too
+ * small"; this is the size he approved the day before, growing with the
+ * line as the map zooms in.
+ */
+const ACROSS_SHARE = 1.5
+const ACROSS_MIN_PX = 10
 
 /**
  * A white triangle pointing east, drawn rather than taken from a font: the
  * basemap's glyphs are whatever the tile server ships, and an arrow that
- * silently vanishes on one design is worse than one we own. Two device
- * pixels per logical pixel, so it stays crisp.
+ * silently vanishes on one design is worse than one we own. Drawn at
+ * `IMAGE_ACROSS` pixels across at scale 1, two device pixels per logical
+ * pixel so it stays crisp when scaled.
  */
+const IMAGE_ACROSS = 12
 function addArrowImage(map: MapLibreMap): void {
   if (map.hasImage(ARROW_IMAGE)) return
   const px = 2
-  const size = 12 * px
+  const size = 16 * px
   const canvas = document.createElement('canvas')
   canvas.width = size
   canvas.height = size
@@ -43,9 +63,9 @@ function addArrowImage(map: MapLibreMap): void {
   if (!c) return
   c.fillStyle = '#ffffff'
   c.beginPath()
-  c.moveTo(3.5 * px, 2 * px)
-  c.lineTo(9.5 * px, 6 * px)
-  c.lineTo(3.5 * px, 10 * px)
+  c.moveTo(4 * px, 2 * px)
+  c.lineTo(13 * px, 8 * px)
+  c.lineTo(4 * px, 14 * px)
   c.closePath()
   c.fill()
   const data = c.getImageData(0, 0, size, size).data
@@ -70,9 +90,15 @@ function measure(line: LngLat[]): Measured {
   return { line, at, bearing, length: at[at.length - 1], lat: line[Math.floor(line.length / 2)][1] }
 }
 
-/** Metres in one screen pixel at this latitude and zoom. */
+/** Metres in one screen pixel at this latitude and zoom, with MapLibre's 512 px tiles (half the 256 px figure). */
 function metresPerPixel(lat: number, zoom: number): number {
-  return (156543.03392 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom
+  return (78271.51696 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom
+}
+
+type Arrow = {
+  type: 'Feature'
+  properties: { bearing: number; size: number }
+  geometry: { type: 'Point'; coordinates: LngLat }
 }
 
 /**
@@ -81,14 +107,14 @@ function metresPerPixel(lat: number, zoom: number): number {
  * Only the part of the line on screen is walked; the rest would be drawn
  * for nobody.
  */
-function arrowsAt(m: Measured, offset: number, spacing: number, map: MapLibreMap) {
+function arrowsAt(m: Measured, offset: number, spacing: number, size: number, map: MapLibreMap) {
   const bounds = map.getBounds()
   const pad = 0.002
   const w = bounds.getWest() - pad
   const e = bounds.getEast() + pad
   const s = bounds.getSouth() - pad
   const n = bounds.getNorth() + pad
-  const features = []
+  const features: Arrow[] = []
   let i = 1
   for (let d = offset; d < m.length; d += spacing) {
     while (i < m.at.length - 1 && m.at[i] < d) i++
@@ -100,9 +126,9 @@ function arrowsAt(m: Measured, offset: number, spacing: number, map: MapLibreMap
     const y = a[1] + (b[1] - a[1]) * t
     if (x < w || x > e || y < s || y > n) continue
     features.push({
-      type: 'Feature' as const,
-      properties: { bearing: m.bearing[i - 1] - 90 },
-      geometry: { type: 'Point' as const, coordinates: [x, y] as LngLat },
+      type: 'Feature',
+      properties: { bearing: m.bearing[i - 1] - 90, size },
+      geometry: { type: 'Point', coordinates: [x, y] },
     })
   }
   return { type: 'FeatureCollection' as const, features }
@@ -126,7 +152,7 @@ export function useDirectionArrows(map: MapLibreMap | null, line: LngLat[] | nul
       source: SRC,
       layout: {
         'icon-image': ARROW_IMAGE,
-        'icon-size': 0.85,
+        'icon-size': ['get', 'size'],
         'icon-rotate': ['get', 'bearing'],
         'icon-rotation-alignment': 'map',
         // They move: never let placement drop one or nudge a label for it.
@@ -162,10 +188,13 @@ export function useDirectionArrows(map: MapLibreMap | null, line: LngLat[] | nul
         return
       }
       last = now
-      const mpp = metresPerPixel(m.lat, map.getZoom())
+      const zoom = map.getZoom()
+      const mpp = metresPerPixel(m.lat, zoom)
+      const acrossPx = Math.max(ACROSS_MIN_PX, roadWidthAt(zoom, LIT_EXTRA) * ACROSS_SHARE)
+      const size = acrossPx / IMAGE_ACROSS
       const spacing = SPACING_PX * mpp
       const offset = still ? spacing / 2 : (((now - start) / 1000) * SPEED_PX_PER_S * mpp) % spacing
-      src.setData(arrowsAt(m, offset, spacing, map))
+      src.setData(arrowsAt(m, offset, spacing, size, map))
       if (!still) frame.current = requestAnimationFrame(tick)
     }
     frame.current = requestAnimationFrame(tick)

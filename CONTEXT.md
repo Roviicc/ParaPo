@@ -98,7 +98,8 @@ The direction's line enters the hotspot's box, or comes within five metres of
 its edge — a hintuan is drawn on the roadside and the line follows the road,
 so they touch without crossing. Five metres reaches the box on this side of
 the road and not the one across it. Nothing else makes a hotspot part of a
-direction.
+direction. On the map, the stretch of the line that passes a hintuan is
+painted orange.
 _Avoid_: near (without the number), serves, links to
 
 **Timeline**:

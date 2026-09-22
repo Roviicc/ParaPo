@@ -10,6 +10,7 @@ import { otherDirection, routeTimeline, travelLine, type VariantRow } from '../s
 import { stopLabel, stopRing, type StopRow } from '../shared/stops'
 import { getSupabase, supabaseConfigError } from '../shared/supabase'
 import { useDirectionArrows } from '../shared/directionArrows'
+import { usePassStretches } from '../shared/passStretches'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
 import { useSavedStops } from '../shared/useSavedStops'
 import { CardActions } from './CardActions'
@@ -97,8 +98,11 @@ function Workshop({
     hiddenStopId: draw.area?.stopId ?? null,
   })
 
-  // Which way the jeep goes, on the chosen direction only: arrows inside the
-  // line and a glow running from where the ride starts.
+  // Where a direction passes a hintuan, the line turns orange for that stretch.
+  usePassStretches(map, saved.variants, stops.stops, saved.lit, draw.target.variantId)
+
+  // Which way the jeep goes, on the chosen direction only: chevrons flowing
+  // inside the line from where the ride starts.
   const chosenLine = useMemo(
     () => (saved.selected ? travelLine(saved.selected, stops.stops) : null),
     [saved.selected, stops.stops],

@@ -8,6 +8,7 @@ import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
 import { otherDirection, routeTimeline, travelLine, variantLine, type VariantSummary } from '../shared/routes'
 import { useDirectionArrows } from '../shared/directionArrows'
+import { usePassStretches } from '../shared/passStretches'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
 import { useSavedStops } from '../shared/useSavedStops'
 
@@ -29,8 +30,11 @@ export default function CommuterApp() {
   const saved = useSavedRoutes(map, loadVariantsFromFile)
   const stops = useSavedStops(map, loadStopsFromFile)
 
-  // Which way the jeep goes, on the chosen direction only: arrows inside the
-  // line and a glow running from where the ride starts.
+  // Where a direction passes a hintuan, the line turns orange for that stretch.
+  usePassStretches(map, saved.variants, stops.stops, saved.lit)
+
+  // Which way the jeep goes, on the chosen direction only: chevrons flowing
+  // inside the line from where the ride starts.
   const chosenLine = useMemo(
     () => (saved.selected ? travelLine(saved.selected, stops.stops) : null),
     [saved.selected, stops.stops],

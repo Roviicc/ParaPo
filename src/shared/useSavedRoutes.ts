@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { directionToOpen, isDrawn, variantLine, type VariantSummary } from './routes'
 import { ROUTES_HIT_LAYER, resolveTap, tapTargets } from './tap'
+import { CASING_EXTRA, LINE_BLUE, LIT_EXTRA, roadWidth } from './lineStyle'
 
 const SRC = 'saved-routes'
 const CASING = 'saved-routes-casing'
 const LINE = 'saved-routes-line'
 /** The chosen direction, drawn again on top so it can be thick while the rest dim. */
 const SELECTED_CASING = 'saved-routes-selected-casing'
+/** Named for the pass-stretch hook, which slots its layers just under this one. */
+export const SELECTED_CASING_LAYER = SELECTED_CASING
 const SELECTED = 'saved-routes-selected'
 const HIT = ROUTES_HIT_LAYER
 
@@ -20,20 +23,8 @@ const HIT = ROUTES_HIT_LAYER
  */
 const REST = { line: 0.45, casing: 0.8 }
 const FADED = { line: 0.15, casing: 0.3 }
-
-/**
- * The line fills the road, the owner's ask of 2026-09-23: its width follows
- * the basemap's own curve for a major road (2 px at zoom 10, 20 px at zoom
- * 20, growing by 1.3 a zoom), at 0.42 of it — the owner's "try 5 px",
- * judged at zoom 18 where the road is 12 px, after 10/10, 8/10 and 6/10 —
- * so road shows either side at every zoom. `extra` pads
- * it: the casing shows 1 px either side, the lit direction sits 1 px proud,
- * and the hit area reaches well beyond.
- */
-const ROAD_SHARE = 0.42
-function roadWidth(extra: number) {
-  return ['interpolate', ['exponential', 1.3], ['zoom'], 10, 2 * ROAD_SHARE + extra, 20, 20 * ROAD_SHARE + extra] as never
-}
+/** The same levels, for the pass stretches that ride the line. */
+export const LEVELS = { REST, FADED }
 
 /**
  * Every saved route direction, drawn for everyone. This is the public half of
@@ -117,7 +108,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': roadWidth(2), 'line-opacity': REST.casing },
+        paint: { 'line-color': '#ffffff', 'line-width': roadWidth(CASING_EXTRA), 'line-opacity': REST.casing },
       },
       before,
     )
@@ -127,7 +118,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#2563eb', 'line-width': roadWidth(0), 'line-opacity': REST.line },
+        paint: { 'line-color': LINE_BLUE, 'line-width': roadWidth(0), 'line-opacity': REST.line },
       },
       before,
     )
@@ -140,7 +131,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': roadWidth(3), 'line-opacity': 1 },
+        paint: { 'line-color': '#ffffff', 'line-width': roadWidth(LIT_EXTRA + CASING_EXTRA), 'line-opacity': 1 },
         filter: ['==', ['get', 'id'], ''] as never,
       },
       before,
@@ -151,7 +142,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#2563eb', 'line-width': roadWidth(1) },
+        paint: { 'line-color': LINE_BLUE, 'line-width': roadWidth(LIT_EXTRA) },
         filter: ['==', ['get', 'id'], ''] as never,
       },
       before,
@@ -217,9 +208,12 @@ export function useSavedRoutes<T extends VariantSummary>(
 
   // What is lit: the chosen direction alone, or every drawn direction under
   // a tap while the sheet asks which. The rest fade so it reads at a glance.
+  const lit = useMemo(
+    () => (selectedId ? [selectedId] : candidates.filter(isDrawn).map((v) => v.id)),
+    [selectedId, candidates],
+  )
   useEffect(() => {
     if (!map || !map.getLayer(SELECTED)) return
-    const lit = selectedId ? [selectedId] : candidates.filter(isDrawn).map((v) => v.id)
     const hidden = ['!=', ['get', 'id'], opts.hiddenVariantId ?? '']
     const isLit = ['in', ['get', 'id'], ['literal', lit]]
     const filter = ['all', hidden, isLit]
@@ -228,7 +222,7 @@ export function useSavedRoutes<T extends VariantSummary>(
     const level = lit.length > 0 ? FADED : REST
     map.setPaintProperty(LINE, 'line-opacity', level.line)
     map.setPaintProperty(CASING, 'line-opacity', level.casing)
-  }, [map, selectedId, candidates, opts.hiddenVariantId])
+  }, [map, lit, opts.hiddenVariantId])
 
   // ----------------------------------------------------------------- events
 
@@ -284,5 +278,5 @@ export function useSavedRoutes<T extends VariantSummary>(
 
   const selected = variants.find((v) => v.id === selectedId) ?? null
 
-  return { variants, error, loading, reload, selected, select, candidates }
+  return { variants, error, loading, reload, selected, select, candidates, lit }
 }

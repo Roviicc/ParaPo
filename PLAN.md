@@ -1641,6 +1641,45 @@ route from far out; at 18 each direction paints its own carriageway of
 Quirino Highway with the "127" shields and the name on top; lit, the chosen
 carriageway is bright with the arrows flowing inside it.
 
+### The owner's first colours, the chevron train, and the orange stretch. 2026-09-23, late
+
+His first designs arrived as two pictures and a spec (a train of four
+chevrons inside the line; a Figma frame of blue–colour–blue where a route
+passes a hintuan) with hex colours, tuned live over the evening. Built, on
+his "lesoog everything":
+
+- **The line is his blue** — tried `#143AB9`, `#1448F3`, then `#406AF5`,
+  where it sits — and **6 px again at zoom 18** (half the road's width,
+  `ROAD_SHARE` 0.5), the **lit direction 9 px** (`LIT_EXTRA` 3, after 8), the casing
+  1 px either side of each. Colours and the width curve now live in
+  `lineStyle.ts`, one place, read by the line, the stretches and the chevrons.
+- **The arrows, tried as a train and put back.** His spec — four white
+  chevrons, tail to head 25 → 45 → 70 → 100 %, the head 15 % larger, one
+  width apart — was built, then redrawn as filled darts from his second
+  picture, then dropped by him: "not good visually, go back to the older
+  design". What stays from the try: the arrow is sized with the line
+  (1.5× the lit width, never under 10 px, after "too small" at 0.9×),
+  scaled by a per-feature `size`; and the metres-per-pixel figure, which
+  assumed 256 px tiles where MapLibre's are 512, so yesterday's arrows sat
+  twice as far apart as written — fixed, and the spacing written as the
+  112 px he had actually approved.
+- **The orange stretch** (`passStretches.ts`, `#FF9831` after `#E8632A`):
+  where a direction passes a hintuan, the line turns orange for that
+  stretch, on the same "passes" rule as the timeline — inside the box or
+  within 5 m — so a box is orange on a direction exactly when its row is
+  listed. `passStretches()` in `stops.ts` walks the line a metre at a time
+  near each box and returns the near stretches as short lines. Hintuans
+  only; the ends are the ends. Two layers, a rest copy under the lit line
+  and a lit copy over it, following the line's three levels and the hidden
+  direction while editing; both fade in between zoom 14 and 15.5, since a
+  box is a couple of pixels further out and the line would only look
+  speckled.
+
+Rest width per zoom, for the record: 1 px at 10, 2.3 at 14, 2.9 at 15,
+3.7 at 16, 4.7 at 17, 6 at 18, 7.8 at 19, 10 at 20; the lit direction 3 px
+more. Suites: visitor 133/133 (two new checks: arrows sized with the lit line,
+the lit direction's stretches lit with it), phone 38/38, run one at a time.
+
 ### Still open in step 0
 
 Decided today: the route's name, the four actions, how a direction behaves

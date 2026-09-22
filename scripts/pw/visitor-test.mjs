@@ -310,6 +310,15 @@ if (!hit) {
       check('  the rest fade while one direction is lit', faded < rest, `${faded} vs rest ${rest}`)
       const litFilter = await page.evaluate(() => JSON.stringify(window.__map.getFilter('saved-routes-selected')))
       check('  the lit layer names exactly one direction', (litFilter.match(/[0-9a-f]{8}-[0-9a-f]{4}-/g) ?? []).length === 1, litFilter)
+      // The arrows: white, sized with the line, flowing along the lit direction.
+      await page.waitForTimeout(200)
+      const arrows = await page.evaluate(async () => ((await window.__src('direction-arrows'))?.features ?? []).map((f) => f.properties))
+      check('  arrows ride the lit line, sized with it', arrows.length > 0 && arrows.every((p) => p.size > 0), `${arrows.length} arrows, size ${arrows[0]?.size}`)
+      // The orange stretches: where this direction passes a hintuan, on the same "passes" rule as the card's count.
+      const litId = (litFilter.match(/[0-9a-f]{8}-[0-9a-f-]{27}/) ?? [''])[0]
+      const stretches = await page.evaluate(async (id) => ((await window.__src('saved-routes-pass'))?.features ?? []).filter((f) => f.properties.id === id).length, litId)
+      const passLit = await page.evaluate(() => JSON.stringify(window.__map.getFilter('saved-routes-selected-pass')))
+      check('  the orange stretches of the lit direction are lit with it', stretches > 0 && passLit.includes(litId), `${stretches} stretch(es); filter ${passLit}`)
       await closeCard()
       await page.waitForTimeout(300)
       check('  closing the card rests the map again', (await opacity()) === rest, String(await opacity()))

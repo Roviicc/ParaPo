@@ -1,4 +1,4 @@
-import { polygonToRing, type LngLat, type Ring, firstNearIndex, haversine } from './geo'
+import { polygonToRing, type LngLat, type Ring, distanceToRingM, firstNearIndex, haversine } from './geo'
 
 /** Mirrors the `stop_kind` enum in supabase/migrations/0004_stop_hotspot.sql. */
 export type StopKind = 'terminal' | 'hintuan'
@@ -109,6 +109,65 @@ export function hintuansAlong<S extends StopSummary>(line: LngLat[], stops: read
     if (index >= 0) along.push({ stop, index })
   }
   return along.sort((a, b) => a.index - b.index)
+}
+
+/**
+ * The pieces of the line that pass this box: every stretch that is inside it
+ * or within PASS_WITHIN_M of its edge, as short lines in travel order. The
+ * same rule as `passIndex`, so a box is painted on a direction exactly when
+ * the timeline lists it, and where the line runs beside a roadside box the
+ * paint is the part alongside.
+ *
+ * The line is walked a metre at a time near the box — a snapped road has a
+ * vertex every 20–30 m, so the box edges fall between vertices — and left
+ * alone everywhere else. Two points at least, so a stretch is a line.
+ */
+export function passStretches(line: LngLat[], ring: Ring, withinM = PASS_WITHIN_M, stepM = 1): LngLat[][] {
+  if (ring.length < 3 || line.length < 2) return []
+  // Only segments near the box's bounding box are worth sampling.
+  const k = Math.cos((ring[0][1] * Math.PI) / 180)
+  const padLat = (withinM + 2 * stepM) / 111_000
+  const padLng = padLat / k
+  let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity]
+  for (const [x, y] of ring) {
+    if (x < w) w = x
+    if (x > e) e = x
+    if (y < s) s = y
+    if (y > n) n = y
+  }
+  ;[w, s, e, n] = [w - padLng, s - padLat, e + padLng, n + padLat]
+  const nearBox = (a: LngLat, b: LngLat) =>
+    Math.max(a[0], b[0]) >= w && Math.min(a[0], b[0]) <= e && Math.max(a[1], b[1]) >= s && Math.min(a[1], b[1]) <= n
+  const near = (p: LngLat) => distanceToRingM(p, ring) <= withinM
+
+  const out: LngLat[][] = []
+  // The stretch being walked, and the last near sample between vertices,
+  // kept so the stretch ends where the box does and not at the vertex before.
+  const st: { cur: LngLat[] | null; pending: LngLat | null } = { cur: null, pending: null }
+  const close = () => {
+    if (!st.cur) return
+    if (st.pending) st.cur.push(st.pending)
+    if (st.cur.length > 1) out.push(st.cur)
+    st.cur = null
+    st.pending = null
+  }
+  const take = (p: LngLat, isVertex: boolean) => {
+    if (!near(p)) return close()
+    if (!st.cur) st.cur = [p]
+    else if (isVertex) st.cur.push(p)
+    st.pending = isVertex ? null : st.cur[0] === p ? null : p
+  }
+  take(line[0], true)
+  for (let i = 1; i < line.length; i++) {
+    const [a, b] = [line[i - 1], line[i]]
+    if (nearBox(a, b)) {
+      const steps = Math.max(1, Math.ceil(haversine(a, b) / stepM))
+      for (let t = 1; t < steps; t++) take([a[0] + ((b[0] - a[0]) * t) / steps, a[1] + ((b[1] - a[1]) * t) / steps], false)
+    }
+    take(b, true)
+  }
+  close()
+  return out
 }
 
 // ------------------------------------------------------------------- places
