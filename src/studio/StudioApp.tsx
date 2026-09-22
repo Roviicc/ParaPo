@@ -9,7 +9,7 @@ import { listVariants, loadStopsFromSupabase } from './live'
 import { otherDirection, routeTimeline, travelLine, type VariantRow } from '../shared/routes'
 import { stopLabel, stopRing, type StopRow } from '../shared/stops'
 import { getSupabase, supabaseConfigError } from '../shared/supabase'
-import { useDirectionArrows } from '../shared/directionArrows'
+import { useDirectionJeep } from '../shared/directionJeep'
 import { usePassStretches } from '../shared/passStretches'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
 import { useSavedStops } from '../shared/useSavedStops'
@@ -107,7 +107,7 @@ function Workshop({
     () => (saved.selected ? travelLine(saved.selected, stops.stops) : null),
     [saved.selected, stops.stops],
   )
-  useDirectionArrows(map, chosenLine)
+  useDirectionJeep(map, chosenLine)
 
   const signedIn = !!session
   const userId = session?.user.id ?? null

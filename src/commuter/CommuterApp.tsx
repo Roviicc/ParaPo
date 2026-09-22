@@ -7,7 +7,7 @@ import { reloadToUpdate, useNeedRefresh } from './pwa'
 import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
 import { otherDirection, routeTimeline, travelLine, variantLine, type VariantSummary } from '../shared/routes'
-import { useDirectionArrows } from '../shared/directionArrows'
+import { useDirectionJeep } from '../shared/directionJeep'
 import { usePassStretches } from '../shared/passStretches'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
 import { useSavedStops } from '../shared/useSavedStops'
@@ -39,7 +39,7 @@ export default function CommuterApp() {
     () => (saved.selected ? travelLine(saved.selected, stops.stops) : null),
     [saved.selected, stops.stops],
   )
-  useDirectionArrows(map, chosenLine)
+  useDirectionJeep(map, chosenLine)
 
   useShareLink(map, saved)
   const offline = useOffline()

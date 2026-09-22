@@ -310,12 +310,64 @@ if (!hit) {
       check('  the rest fade while one direction is lit', faded < rest, `${faded} vs rest ${rest}`)
       const litFilter = await page.evaluate(() => JSON.stringify(window.__map.getFilter('saved-routes-selected')))
       check('  the lit layer names exactly one direction', (litFilter.match(/[0-9a-f]{8}-[0-9a-f]{4}-/g) ?? []).length === 1, litFilter)
-      // The arrows: white, sized with the line, flowing along the lit direction.
-      await page.waitForTimeout(200)
-      const arrows = await page.evaluate(async () => ((await window.__src('direction-arrows'))?.features ?? []).map((f) => f.properties))
-      check('  arrows ride the lit line, sized with it', arrows.length > 0 && arrows.every((p) => p.size > 0), `${arrows.length} arrows, size ${arrows[0]?.size}`)
-      // The orange stretches: where this direction passes a hintuan, on the same "passes" rule as the card's count.
+      // The jeeps: one for every 2 km of the lit direction, sized with the line, driving it.
       const litId = (litFilter.match(/[0-9a-f]{8}-[0-9a-f-]{27}/) ?? [''])[0]
+      const km = await page.evaluate(async (id) => {
+        const f = ((await window.__src('saved-routes'))?.features ?? []).find((f) => f.properties.id === id)
+        if (!f) return null
+        const c = f.geometry.coordinates
+        const k = Math.PI / 180
+        let m = 0
+        for (let i = 1; i < c.length; i++) m += Math.hypot((c[i][0] - c[i - 1][0]) * Math.cos(((c[i][1] + c[i - 1][1]) / 2) * k), c[i][1] - c[i - 1][1]) * k * 6371008.8
+        return m / 1000
+      }, litId)
+      const jeepsNow = () => page.evaluate(async () => ((await window.__src('direction-jeep'))?.features ?? []).map((f) => ({ ...f.properties, at: f.geometry.coordinates })))
+      await page.waitForTimeout(200)
+      const jeeps1 = await jeepsNow()
+      await page.waitForTimeout(500)
+      const jeeps2 = await jeepsNow()
+      const want = km == null ? null : Math.max(1, Math.round(km / 2))
+      check('  a jeep for every 2 km of the lit line, sized with it', jeeps1.length > 0 && (want == null || jeeps1.length === want) && jeeps1.every((p) => p.size > 0), `${jeeps1.length} jeep(s) on ${km?.toFixed(2)} km, size ${jeeps1[0]?.size}`)
+      check('  and they drive', jeeps2.length === jeeps1.length && JSON.stringify(jeeps2[0]?.at) !== JSON.stringify(jeeps1[0]?.at), `${JSON.stringify(jeeps1[0]?.at)} -> ${JSON.stringify(jeeps2[0]?.at)}`)
+      // A tap on a jeep: the screen follows it down to street level and the
+      // card stays open; moving the map by hand lets go of it.
+      await page.evaluate(() => window.__map.jumpTo({ zoom: 13 }))
+      await page.waitForTimeout(400)
+      const target = await page.evaluate(async () => {
+        const m = window.__map
+        const canvas = m.getCanvas()
+        const r = canvas.getBoundingClientRect()
+        const all = ((await window.__src('direction-jeep'))?.features ?? []).map((f) => ({ k: f.properties.k, p: m.project(f.geometry.coordinates) }))
+        const clear = all.find(({ p }) => p.x > 40 && p.y > 40 && p.x < r.width - 40 && p.y < r.height - 40 && document.elementFromPoint(r.left + p.x, r.top + p.y) === canvas)
+        return clear ? { k: clear.k, x: r.left + clear.p.x, y: r.top + clear.p.y } : null
+      })
+      if (!target) {
+        skip('  a tap on a jeep makes the screen follow it', 'no jeep in open map at zoom 13')
+      } else {
+        await page.mouse.click(target.x, target.y)
+        await page.waitForTimeout(1500)
+        const followed = async () => page.evaluate(async (k) => {
+          const m = window.__map
+          const canvas = m.getCanvas()
+          const all = (await window.__src('direction-jeep'))?.features ?? []
+          const f = all.find((f) => f.properties.k === k)
+          const p = m.project(f.geometry.coordinates)
+          return { dx: p.x - canvas.clientWidth / 2, dy: p.y - canvas.clientHeight * 0.4, zoom: m.getZoom(), bigger: all.every((g) => g === f || g.properties.size < f.properties.size) }
+        }, target.k)
+        const on = await followed()
+        const kind = (await cardKind()).kind
+        check('  a tap on a jeep makes the screen follow it, down to street level', Math.hypot(on.dx, on.dy) < 30 && on.zoom > 15.8 && on.bigger, `off by ${on.dx.toFixed(0)},${on.dy.toFixed(0)} px at zoom ${on.zoom.toFixed(2)}; drawn bigger ${on.bigger}`)
+        check('  and the card stays open', kind === 'route', kind)
+        const box = await page.locator('canvas.maplibregl-canvas').boundingBox()
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.3)
+        await page.mouse.down()
+        await page.mouse.move(box.x + box.width / 2 + 120, box.y + box.height * 0.3 + 60, { steps: 8 })
+        await page.mouse.up()
+        await page.waitForTimeout(1200)
+        const off = await followed()
+        check('  moving the map by hand lets go of the jeep', Math.hypot(off.dx, off.dy) > 40, `${off.dx.toFixed(0)},${off.dy.toFixed(0)} px from the follow point`)
+      }
+      // The orange stretches: where this direction passes a hintuan, on the same "passes" rule as the card's count.
       const stretches = await page.evaluate(async (id) => ((await window.__src('saved-routes-pass'))?.features ?? []).filter((f) => f.properties.id === id).length, litId)
       const passLit = await page.evaluate(() => JSON.stringify(window.__map.getFilter('saved-routes-selected-pass')))
       check('  the orange stretches of the lit direction are lit with it', stretches > 0 && passLit.includes(litId), `${stretches} stretch(es); filter ${passLit}`)
