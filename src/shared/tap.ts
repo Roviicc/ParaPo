@@ -12,8 +12,6 @@ const TAP_HALF_PX = { coarse: 20, fine: 5 } as const
 /** The hit layers the two hooks draw. Named here so each can see the other's. */
 export const ROUTES_HIT_LAYER = 'saved-routes-hit'
 export const STOPS_FILL_LAYER = 'saved-stops-fill'
-/** The jeeps driving the chosen direction (`directionJeep`): a tap on one is theirs alone. */
-export const JEEPS_LAYER = 'direction-jeep-symbol'
 
 /**
  * Whether the tap that raised `event` came from a finger. The event itself
@@ -57,8 +55,8 @@ export function idsInOrder(features: IdFeature[], key: 'id' | 'route_id' = 'id')
   return [...seen]
 }
 
-/** What one tap landed on: a jeep or not, every direction, every route those belong to, and every hotspot in its box. */
-export type TapTargets = { jeep: boolean; routeIds: string[]; routeKeys: string[]; stopIds: string[] }
+/** What one tap landed on: every direction, every route those belong to, and every hotspot in its box. */
+export type TapTargets = { routeIds: string[]; routeKeys: string[]; stopIds: string[] }
 
 /**
  * Everything under the finger is offered, nothing wins outright — decided
@@ -71,30 +69,21 @@ export function tapTargets(map: MapLibreMap, point: { x: number; y: number }, ev
   const box = tapBox(point, event)
   const features = (layer: string) => (map.getLayer(layer) ? map.queryRenderedFeatures(box, { layers: [layer] }) : [])
   const routes = features(ROUTES_HIT_LAYER)
-  return {
-    jeep: features(JEEPS_LAYER).length > 0,
-    routeIds: idsInOrder(routes),
-    routeKeys: idsInOrder(routes, 'route_id'),
-    stopIds: idsInOrder(features(STOPS_FILL_LAYER)),
-  }
+  return { routeIds: idsInOrder(routes), routeKeys: idsInOrder(routes, 'route_id'), stopIds: idsInOrder(features(STOPS_FILL_LAYER)) }
 }
 
 /**
- * What a tap means, the same in both hooks and both apps: a jeep, which the
- * screen follows and which neither hook touches — a jeep always rides a
- * line, and the tap must not reopen that line or close its card; nothing;
- * one route (its directions, to open the drawn outbound); one hotspot; or
+ * What a tap means, the same in both hooks and both apps: nothing; one
+ * route (its directions, to open the drawn outbound); one hotspot; or
  * several things, which light up and go to the sheet.
  */
 export type TapOutcome =
-  | { kind: 'jeep' }
   | { kind: 'none' }
   | { kind: 'route'; routeIds: string[] }
   | { kind: 'stop'; stopId: string }
   | { kind: 'several'; routeIds: string[]; routeKeys: string[]; stopIds: string[] }
 
 export function resolveTap(t: TapTargets): TapOutcome {
-  if (t.jeep) return { kind: 'jeep' }
   const routes = t.routeKeys.length
   const stops = t.stopIds.length
   if (routes + stops === 0) return { kind: 'none' }

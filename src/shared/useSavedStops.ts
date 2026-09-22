@@ -287,7 +287,6 @@ export function useSavedStops<S extends StopSummary>(
     const onMapClick = (e: MapMouseEvent) => {
       if (drawingRef.current) return
       const out = resolveTap(tapTargets(map, e.point, e.originalEvent))
-      if (out.kind === 'jeep') return
       if (out.kind === 'stop') {
         setSelectedId(out.stopId)
         setCandidates([])

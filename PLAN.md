@@ -1680,6 +1680,60 @@ Rest width per zoom, for the record: 1 px at 10, 2.3 at 14, 2.9 at 15,
 more. Suites: visitor 133/133 (two new checks: arrows sized with the lit line,
 the lit direction's stretches lit with it), phone 38/38, run one at a time.
 
+### Jeepneys in place of the arrows: tried, and parked for a Simulate button. 2026-09-23, night
+
+His ask: in place of the arrow, a small jeepney like the cars in Grab,
+Angkas, Move It, JoyRide or Uber, "recognizable as a Philippine jeepney".
+Built in full and committed as `17db5e3`, then taken off the map by him the
+same night.
+
+- **The jeep**, seen from above (`jeepSprites.ts`). From above the
+  paintings and curtains are out of sight, so it leans on what still shows:
+  a long hood narrower than its front fenders, the chrome bumper, the horse
+  on the hood, mirrors at the windshield, the route board across the front
+  of the roof, the painted roof, the open back with its step. Four paint
+  jobs: `toy` and `painted` after the two jeepneys he sent (a model with a
+  yellow roof edged red and white, a red route board and a blue hood; a
+  painted one with a canvas roof, painted bands and a bumper in colour
+  blocks), `classic`, and `route` in the line's blue; `toy` the default.
+- **How many, how fast** (`directionJeep.ts`): one for every 2 km of the
+  ride, evenly spaced ("if 10 km there should be 5"), each one that
+  reaches the end starting again from the beginning; 42 px a second on
+  screen at every zoom, his "6/10" of the first try, which drove about 70 px
+  a second at the whole-route view on a phone.
+- **Tap one and the screen follows it** (his ask): the camera comes down to
+  zoom 16 and keeps the jeep a little above the middle, clear of the card,
+  until the end of the ride, a second tap, or a hand on the map. The hand
+  must let go on the press itself, not on the map moving: every camera step
+  resets MapLibre's gesture handlers, so a drag would never start. A tap on
+  a jeep is its own kind of tap (`resolveTap`), so the card stays open.
+  visitor-test 137/137 with it.
+- **Why parked**, in his words: "the user might think that we're tracking
+  jeepneys, or the jeepney is upcoming". Jeeps moving on their own read as
+  live positions, and this map has none.
+
+**Later: a Simulate button.** His idea for keeping it: a button (on the
+route card, most likely) that, when tapped, sends a jeepney along the chosen
+direction to show the route. Bring the work back from `17db5e3`
+(`jeepSprites.ts`, `directionJeep.ts`, the jeep tap in `tap.ts`). To settle
+with him when it is built: which paint job; one jeep once from start to end,
+or the queue; whether the camera follows it by default; and wording that
+makes plain it is a simulation, never a jeep on its way.
+
+**Next: one chevron, bigger, clipped by the line.** His call the same
+night: back to the arrows, but as a chevron — no trail (the four-chevron
+train stays dropped), one chevron to a place, bigger than today's arrow, and
+cut off at the edges of the line so none of it shows outside. MapLibre
+cannot clip a symbol to a line's width, so the chevron is drawn already cut:
+its arms run off the top and bottom of the image, the image is exactly as
+tall as the lit line is wide, and it is turned to the line's bearing as the
+arrow is. On a straight run that looks the same as a bigger chevron clipped
+by the line. The catch: clipped to the line, it can be no taller than the
+lit line — 9 px at zoom 18 but about 5 px at zoom 13 to 14, where today's
+arrow is kept at 10 px or more — to judge on the map. Also to fix then: with
+reduced motion on, the arrows are drawn once and never again on zoom, so
+their size and spacing go stale; the parked jeeps redrew on every zoom.
+
 ### Still open in step 0
 
 Decided today: the route's name, the four actions, how a direction behaves

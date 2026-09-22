@@ -73,9 +73,9 @@ function addArrowImage(map: MapLibreMap): void {
 }
 
 /** The line measured once: where each vertex is along it, in metres, and each segment's bearing. */
-export type Measured = { line: LngLat[]; at: number[]; bearing: number[]; length: number; lat: number }
+type Measured = { line: LngLat[]; at: number[]; bearing: number[]; length: number; lat: number }
 
-export function measure(line: LngLat[]): Measured {
+function measure(line: LngLat[]): Measured {
   const at = [0]
   const bearing: number[] = []
   for (let i = 1; i < line.length; i++) {
@@ -91,7 +91,7 @@ export function measure(line: LngLat[]): Measured {
 }
 
 /** Metres in one screen pixel at this latitude and zoom, with MapLibre's 512 px tiles (half the 256 px figure). */
-export function metresPerPixel(lat: number, zoom: number): number {
+function metresPerPixel(lat: number, zoom: number): number {
   return (78271.51696 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom
 }
 
@@ -135,7 +135,7 @@ function arrowsAt(m: Measured, offset: number, spacing: number, size: number, ma
 }
 
 /** Whether this browser has been asked to keep still. */
-export function stillPlease(): boolean {
+function stillPlease(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }

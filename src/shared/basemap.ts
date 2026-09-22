@@ -71,7 +71,7 @@ export function rememberBasemap(b: Basemap): void {
  * Only what helps someone place themselves while tracing: transit first,
  * then the landmarks a driver would name. Convenience stores, eateries and
  * gates (2,594 of them under one viewport) stay hidden. Taps are unaffected:
- * `tapTargets` queries our own layers by name and nothing else.
+ * `tapTargets` queries our two hit layers by name and nothing else.
  */
 
 const SOURCE = 'openmaptiles'

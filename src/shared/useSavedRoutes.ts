@@ -239,7 +239,6 @@ export function useSavedRoutes<T extends VariantSummary>(
     const onMapClick = (e: MapMouseEvent) => {
       if (drawingRef.current) return
       const out = resolveTap(tapTargets(map, e.point, e.originalEvent))
-      if (out.kind === 'jeep') return
       const all = [...byId.current.values()]
       if (out.kind === 'route') {
         // The line under the finger wins: where a route's two directions run
