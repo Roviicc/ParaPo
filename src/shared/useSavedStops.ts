@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { HOTSPOT_COLOUR } from './colours'
-import { stopRing, type StopLink, type StopSummary } from './stops'
+import { convexHull, ringToPolygon } from './geo'
+import { siblingsOf, stopRing, type StopLink, type StopSummary } from './stops'
 import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, resolveTap, tapTargets } from './tap'
 
 const SRC = 'saved-stops'
@@ -10,6 +11,16 @@ const OUTLINE = 'saved-stops-outline'
 const LABEL = 'saved-stops-label'
 /** The boxes under a tap, or the chosen one, drawn again stronger while they are asked about. */
 const LIT = 'saved-stops-lit'
+/**
+ * The place highlight, decided with the owner 2026-09-23: tap one box and
+ * its siblings — the boxes sharing its informal name — draw stronger, and a
+ * soft wash over the hull of all of them says "one place". Studio and public
+ * map alike. The wash has its own source, rebuilt when the selection changes.
+ */
+const SIBLINGS = 'saved-stops-siblings'
+const WASH_SRC = 'place-wash'
+const WASH = 'place-wash-fill'
+const WASH_EDGE = 'place-wash-edge'
 
 /**
  * Hotspots sit under the route lines; a route drawn right under the tapped
@@ -94,6 +105,30 @@ export function useSavedStops<S extends StopSummary>(
       type: 'geojson',
       data: { type: 'FeatureCollection', features: [] },
     })
+    map.addSource(WASH_SRC, {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    })
+    // The wash sits under every box: a tint that joins them, never a thing to tap.
+    map.addLayer(
+      {
+        id: WASH,
+        type: 'fill',
+        source: WASH_SRC,
+        paint: { 'fill-color': HOTSPOT_COLOUR.terminal, 'fill-opacity': 0.1 },
+      },
+      before,
+    )
+    map.addLayer(
+      {
+        id: WASH_EDGE,
+        type: 'line',
+        source: WASH_SRC,
+        layout: { 'line-join': 'round' },
+        paint: { 'line-color': HOTSPOT_COLOUR.terminal, 'line-width': 1.5, 'line-opacity': 0.5, 'line-dasharray': [2, 2] },
+      },
+      before,
+    )
     const colour = [
       'match',
       ['get', 'kind'],
@@ -119,6 +154,17 @@ export function useSavedStops<S extends StopSummary>(
         filter: ['==', ['geometry-type'], 'Polygon'],
         layout: { 'line-join': 'round' },
         paint: { 'line-color': colour as never, 'line-width': 2 },
+      },
+      before,
+    )
+    // The chosen box's siblings, drawn stronger than the rest and outlined.
+    map.addLayer(
+      {
+        id: SIBLINGS,
+        type: 'fill',
+        source: SRC,
+        filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['get', 'id'], ['literal', []]]] as never,
+        paint: { 'fill-color': colour as never, 'fill-opacity': 0.4 },
       },
       before,
     )
@@ -187,6 +233,20 @@ export function useSavedStops<S extends StopSummary>(
     const lit = selectedId ? [selectedId] : candidates.map((s) => s.id)
     map.setFilter(LIT, ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['get', 'id'], ['literal', lit]]] as never)
   }, [map, selectedId, candidates])
+
+  // The place highlight: the chosen box's siblings, and the wash over all of them.
+  useEffect(() => {
+    if (!map || !map.getLayer(SIBLINGS)) return
+    const wash = map.getSource(WASH_SRC) as GeoJSONSource | undefined
+    const chosen = stops.find((s) => s.id === selectedId)
+    const siblings = chosen ? siblingsOf(chosen, stops).filter((s) => stopRing(s).length >= 3) : []
+    map.setFilter(SIBLINGS, ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['get', 'id'], ['literal', siblings.map((s) => s.id)]]] as never)
+    const hull = chosen && siblings.length > 0 ? convexHull([chosen, ...siblings].flatMap((s) => stopRing(s))) : []
+    wash?.setData({
+      type: 'FeatureCollection',
+      features: hull.length >= 3 ? [{ type: 'Feature', properties: {}, geometry: ringToPolygon(hull) }] : [],
+    })
+  }, [map, selectedId, stops])
 
   // The hotspot being edited is drawn by the editor; hide the saved copy.
   useEffect(() => {

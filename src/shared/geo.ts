@@ -263,6 +263,28 @@ export function ringCentroid(ring: Ring): LngLat {
   return [cx / (3 * a2), cy / (3 * a2)]
 }
 
+/**
+ * The convex hull of some points (Andrew's monotone chain), as a ring. Fewer
+ * than three distinct points give back what was passed. Used for the wash
+ * that joins the boxes of one place on the map.
+ */
+export function convexHull(points: LngLat[]): Ring {
+  const pts = [...new Map(points.map((p) => [p.join(','), p])).values()].sort((a, b) => a[0] - b[0] || a[1] - b[1])
+  if (pts.length < 3) return pts
+  const cross = (o: LngLat, a: LngLat, b: LngLat) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+  const lower: LngLat[] = []
+  for (const p of pts) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop()
+    lower.push(p)
+  }
+  const upper: LngLat[] = []
+  for (const p of [...pts].reverse()) {
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop()
+    upper.push(p)
+  }
+  return [...lower.slice(0, -1), ...upper.slice(0, -1)]
+}
+
 /** GeoJSON Polygon with the ring closed, as the database and MapLibre want it. */
 export function ringToPolygon(ring: Ring): { type: 'Polygon'; coordinates: LngLat[][] } {
   const closed = ring.length > 0 ? [...ring, ring[0]] : []

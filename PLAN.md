@@ -1556,6 +1556,24 @@ Two boxes both named "Fairview Teraccess" give two chips with the same
 words — they are two boxes, on two sides — which the highlight, when the
 owner decides its look, will tell apart on the map.
 
+### The place highlight — one place, seen. 2026-09-23
+
+Parked since the grilling's first round; the owner's "3. game" was taken as
+"go with the recommendation": **both** — siblings drawn stronger *and* a
+soft wash joining them — on the **studio and the public map** alike, since
+it is one hook. To be confirmed at his check.
+
+- Tap a box: its siblings (`siblingsOf`, the boxes sharing its informal
+  name) draw at fill 0.4 in their kind's colour on `saved-stops-siblings`;
+  a wash — the convex hull of every corner of the place's boxes
+  (`convexHull` in `geo.ts`) — sits under all of them at 0.1 sky with a
+  dashed edge, on its own source `place-wash`. Never a thing to tap.
+- Close the card and both go. Nothing at rest; nothing while the sheet is
+  only asking.
+- Drive on live data, 17/17 on both surfaces: the SM Fairview terminal
+  lights six siblings under one wash; a Lagro box lights the other Lagro
+  across the highway, the wash spanning both carriageways.
+
 ### Still open in step 0
 
 Decided today: the route's name, the four actions, how a direction behaves
