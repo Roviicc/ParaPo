@@ -63,11 +63,24 @@ both ends (`SM Fairview → Tala`) and leads the save panel; and the route card
 is titled by its direction with a switch to the other — slice 2's first half.
 Each has a dated section below.
 
-**Next.** Commit and merge, so the nightly publish carries the new names. Then
-slice 2's second half — one line at a time — with the owner's asked-for group
-highlight for boxes that share a name. Then slices 3 and 4, then the rest of
-step 0: the spellings on the owner's list (21 boxes now), side of road, the
-field method behind `confidence`, the mode enum.
+**2026-09-22 evening to 2026-09-23.** A grilling session settled slice 2's
+second half as a page the owner confirmed line by line, and `CONTEXT.md`
+became the shared glossary (with two decision records in `docs/adr/`). Built
+and checked, each on his go: the **timeline** (a direction as its string of
+places, with "the line enters the box *or comes within 5 m*" as the rule
+after the live boxes showed roadside hintuans a metre off the line); **the
+tap, the lighting and the sheet** (every direction rests light; a tap lights
+all of it; hotspots first, one row per route; the tapped line wins where the
+two roads split; ⇄ swaps the bright line); the **"Part of SM Fairview"** line
+on the hotspot card with tappable siblings; and the **place highlight**
+(siblings stronger under a soft wash, studio and public map). visitor-test
+131/131, phone-test 38/38. Each has a dated section below.
+
+**Next.** The design foundation before the owner designs in Figma: tokens in
+one place and a screen inventory in Storybook. Then slices 3 and 4 (short
+turn, extension), the shortcut after the extension, then the rest of step 0:
+the spellings on the owner's list, side of road, the field method behind
+`confidence`, the mode enum.
 
 ---
 
