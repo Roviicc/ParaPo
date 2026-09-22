@@ -1587,6 +1587,36 @@ it is one hook. To be confirmed at his check.
   lights six siblings under one wash; a Lagro box lights the other Lagro
   across the highway, the wash spanning both carriageways.
 
+### Which way the jeep goes — arrows flowing along the lit line. 2026-09-23
+
+Phase 3 step 6's other half, decided with the owner in three messages:
+arrows **only on the chosen direction**, pointing the way it is ridden
+("Tala to SM means the arrow shows Tala to SM, and otherwise"), **flowing
+smoothly** along it, and no glow — asked for first, then asked away once
+seen.
+
+- `travelLine(v, stops)` in `routes.ts`: the direction's line in travel
+  order. The stored points run whichever way the owner drew them; the ends
+  decide, so a return drawn from the far end still points the right way.
+- `useDirectionArrows(map, line)` in `directionArrows.ts`, called by both
+  apps after both hooks. MapLibre cannot slide a symbol along a line, so the
+  arrows are points placed by us: the line is measured once (metres at each
+  vertex, bearing of each segment), and every frame each arrow sits a little
+  further along — 28 px a second, one every 56 px, spacing and speed held in
+  screen pixels by reading the zoom each frame — turned to its bearing there.
+  Only the on-screen part of the line is walked. The arrow is a white
+  triangle we draw and hand to the map as an image (a font glyph would be at
+  the mercy of whatever the tile server ships); a basemap switch carries the
+  layer but not the image, so `styledata` re-adds it. A browser asking for
+  reduced motion gets the arrows standing still.
+- Drive on live data 9/9: nothing at rest; choose a direction → arrows on
+  it, and the same arrow is elsewhere 400 ms later; ⇄ → they run the other
+  way; close → gone; no glow layer. visitor-test 131/131.
+
+Still to judge on a phone: battery over a few minutes with the arrows
+running. Size, spacing and speed are a first guess, to be tuned in the
+owner's map-marks tool rather than here.
+
 ### Still open in step 0
 
 Decided today: the route's name, the four actions, how a direction behaves

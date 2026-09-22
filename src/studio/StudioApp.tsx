@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { MapLibreMap } from 'maplibre-gl'
 import { Chooser } from '../shared/Chooser'
@@ -6,9 +6,10 @@ import { HotspotCard } from '../shared/HotspotCard'
 import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
 import { listVariants, loadStopsFromSupabase } from './live'
-import { otherDirection, routeTimeline, type VariantRow } from '../shared/routes'
+import { otherDirection, routeTimeline, travelLine, type VariantRow } from '../shared/routes'
 import { stopLabel, stopRing, type StopRow } from '../shared/stops'
 import { getSupabase, supabaseConfigError } from '../shared/supabase'
+import { useDirectionArrows } from '../shared/directionArrows'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
 import { useSavedStops } from '../shared/useSavedStops'
 import { CardActions } from './CardActions'
@@ -95,6 +96,14 @@ function Workshop({
     drawing: draw.drawing,
     hiddenStopId: draw.area?.stopId ?? null,
   })
+
+  // Which way the jeep goes, on the chosen direction only: arrows inside the
+  // line and a glow running from where the ride starts.
+  const chosenLine = useMemo(
+    () => (saved.selected ? travelLine(saved.selected, stops.stops) : null),
+    [saved.selected, stops.stops],
+  )
+  useDirectionArrows(map, chosenLine)
 
   const signedIn = !!session
   const userId = session?.user.id ?? null

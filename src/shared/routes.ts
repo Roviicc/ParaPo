@@ -1,5 +1,5 @@
 import type { LngLat, Segment } from './geo'
-import { joinSegments } from './geo'
+import { haversine, joinSegments } from './geo'
 import { stopLabel, timelineFor, type StopSummary, type Timeline } from './stops'
 
 /** Mirrors the `transport_mode` enum in supabase/migrations/0001_init.sql. */
@@ -203,6 +203,24 @@ export function routeTimeline(
   const head = stops.find((s) => s.id === v.route?.head_stop_id) ?? null
   const tail = stops.find((s) => s.id === v.route?.tail_stop_id) ?? null
   return timelineFor(head, tail, v.reversed, along, stops, variantLine(v)[0])
+}
+
+/**
+ * The direction's line in travel order: from where it leaves to where it is
+ * going. The stored points run whichever way the owner drew them, and the
+ * save panel lets a return be drawn from the far end with only a warning, so
+ * the ends decide, not the drawing. What the arrows and the glow follow.
+ */
+export function travelLine(v: VariantSummary, stops: readonly StopSummary[]): LngLat[] {
+  const line = variantLine(v)
+  if (line.length < 2) return line
+  const head = stops.find((s) => s.id === v.route?.head_stop_id)
+  const tail = stops.find((s) => s.id === v.route?.tail_stop_id)
+  const [from, to] = v.reversed ? [tail, head] : [head, tail]
+  if (!from || !to) return line
+  const start = line[0]
+  const backwards = haversine(start, to.point.coordinates) < haversine(start, from.point.coordinates)
+  return backwards ? [...line].reverse() : line
 }
 
 /** Geometry to draw: the stored shape, or rebuilt from segments when the row has them. */

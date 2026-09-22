@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { Chooser } from '../shared/Chooser'
 import { HotspotCard } from '../shared/HotspotCard'
@@ -6,7 +6,8 @@ import { loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } 
 import { reloadToUpdate, useNeedRefresh } from './pwa'
 import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
-import { otherDirection, routeTimeline, variantLine, type VariantSummary } from '../shared/routes'
+import { otherDirection, routeTimeline, travelLine, variantLine, type VariantSummary } from '../shared/routes'
+import { useDirectionArrows } from '../shared/directionArrows'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
 import { useSavedStops } from '../shared/useSavedStops'
 
@@ -27,6 +28,14 @@ export default function CommuterApp() {
   // One file, fetched once, shared by both hooks.
   const saved = useSavedRoutes(map, loadVariantsFromFile)
   const stops = useSavedStops(map, loadStopsFromFile)
+
+  // Which way the jeep goes, on the chosen direction only: arrows inside the
+  // line and a glow running from where the ride starts.
+  const chosenLine = useMemo(
+    () => (saved.selected ? travelLine(saved.selected, stops.stops) : null),
+    [saved.selected, stops.stops],
+  )
+  useDirectionArrows(map, chosenLine)
 
   useShareLink(map, saved)
   const offline = useOffline()
