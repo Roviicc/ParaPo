@@ -130,6 +130,8 @@ export default function CommuterApp() {
             stops.select(null)
             saved.select(v.id)
           }}
+          stops={stops.stops}
+          onPickSibling={stops.show}
           onClose={() => stops.select(null)}
         />
       )}

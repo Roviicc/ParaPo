@@ -94,6 +94,33 @@ export const EmptyHintuan: Story = {
   },
 }
 
+/**
+ * One box of a place with company: the card says what SM Fairview is made
+ * of and lists the other boxes, terminal first, each a tap away.
+ */
+const fairview = (id: string, name: string, kind: StopRow['kind']): StopRow => ({
+  ...terminal,
+  id,
+  name,
+  informal: 'SM Fairview',
+  aliases: [],
+  kind,
+  point: { type: 'Point', coordinates: [121.0424 + Math.random() * 0.001, 14.7415] },
+})
+const fairviewBoxes = [
+  fairview('fv-terminal', 'SM City Fairview Jeepney Terminal', 'terminal'),
+  fairview('fv-babaan', 'SM Fairview Main Babaan', 'hintuan'),
+  fairview('fv-teraccess', 'Fairview Teraccess', 'hintuan'),
+]
+export const PartOfAPlace: Story = {
+  args: {
+    stop: fairviewBoxes[1]!,
+    stops: fairviewBoxes,
+    onPickSibling: fn(),
+    linkedVariantIds: [inbound.id],
+  },
+}
+
 /** A handset-sized box, so the card becomes a bottom sheet. */
 export const Phone: Story = {
   parameters: { phone: true },

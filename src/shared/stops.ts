@@ -122,6 +122,30 @@ export function placeKey(s: Pick<StopSummary, 'name' | 'informal'>): string {
   return stopLabel(s).trim().toLowerCase()
 }
 
+/**
+ * The other boxes of this box's place — SM Fairview's terminal and hintuans
+ * when one of them is tapped — terminal first, then by name. Empty for a
+ * place with one box. What the card's "Part of …" line lists, so a rider
+ * who tapped a hintuan can find the terminal. Decided with the owner
+ * 2026-09-22.
+ */
+export function siblingsOf<S extends StopSummary>(stop: StopSummary, all: readonly S[]): S[] {
+  const key = placeKey(stop)
+  return all
+    .filter((s) => s.id !== stop.id && placeKey(s) === key)
+    .sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'terminal' ? -1 : 1))
+}
+
+/** "terminal + 2 hintuans", "3 hintuans", "terminal": what a place is made of. */
+export function placeSummary(boxes: readonly StopSummary[]): string {
+  const terminals = boxes.filter((s) => s.kind === 'terminal').length
+  const hintuans = boxes.length - terminals
+  const parts: string[] = []
+  if (terminals > 0) parts.push(terminals === 1 ? 'terminal' : `${terminals} terminals`)
+  if (hintuans > 0) parts.push(`${hintuans} ${hintuans === 1 ? 'hintuan' : 'hintuans'}`)
+  return parts.join(' + ')
+}
+
 /** How many boxes each place has, by place key. */
 export function placeSizes(stops: readonly StopSummary[]): Map<string, number> {
   const sizes = new Map<string, number>()

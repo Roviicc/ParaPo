@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { VariantSummary } from './routes'
 import { Sheet } from './Sheet'
-import { stopLabel, type StopSummary } from './stops'
+import { placeSummary, siblingsOf, stopLabel, type StopSummary } from './stops'
 
 type Props = {
   stop: StopSummary
@@ -9,6 +9,10 @@ type Props = {
   linkedVariantIds: string[]
   variants: VariantSummary[]
   onSelectVariant: (v: VariantSummary) => void
+  /** Every hotspot, so the card can name the place this box belongs to and list its siblings. */
+  stops?: readonly StopSummary[]
+  /** Show a sibling box on the map: select it and go there. */
+  onPickSibling?: (id: string) => void
   /** Buttons along the bottom. The editor passes Edit and Delete; the public map passes nothing. */
   actions?: ReactNode
   onClose: () => void
@@ -26,11 +30,14 @@ export function HotspotCard({
   linkedVariantIds,
   variants,
   onSelectVariant,
+  stops = [],
+  onPickSibling,
   actions,
   onClose,
 }: Props) {
   const isTerminal = stop.kind === 'terminal'
   const label = stopLabel(stop)
+  const siblings = siblingsOf(stop, stops)
   const byId = new Map(variants.map((v) => [v.id, v]))
   const linked = linkedVariantIds
     .map((id) => byId.get(id))
@@ -65,6 +72,38 @@ export function HotspotCard({
       }
     >
       {stop.note && <p className="mt-3 text-sm text-neutral-700">{stop.note}</p>}
+
+      {/* The place this box belongs to, when it has company: the map shows
+          *that* they belong together, this says *what* the place has, and each
+          sibling is one tap away — a rider at a hintuan looking for the
+          terminal. Decided with the owner 2026-09-22. */}
+      {siblings.length > 0 && (
+        <div data-testid="card-place" className="mt-3 rounded-lg bg-neutral-50 px-3 py-2">
+          <p className="text-xs font-medium text-neutral-600">
+            Part of {label} · {placeSummary([stop, ...siblings])}
+          </p>
+          <ul className="mt-1.5 flex flex-wrap gap-1">
+            {siblings.map((s) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  data-testid="card-sibling"
+                  onClick={() => onPickSibling?.(s.id)}
+                  disabled={!onPickSibling}
+                  title="Show this box on the map"
+                  className={
+                    'rounded-full px-2.5 py-1 text-xs ' +
+                    (s.kind === 'terminal' ? 'bg-sky-50 text-sky-800' : 'bg-orange-50 text-orange-800') +
+                    (onPickSibling ? ' hover:bg-neutral-900 hover:text-white' : '')
+                  }
+                >
+                  {s.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <p className="mt-3 text-xs font-medium text-neutral-500">
         {isTerminal ? 'Routes that stage here' : 'Routes that pass through'}

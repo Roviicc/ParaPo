@@ -251,6 +251,8 @@ function Workshop({
             stops.select(null)
             saved.select(v.id)
           }}
+          stops={stops.stops}
+          onPickSibling={stops.show}
           actions={
             userId !== null &&
             userId === stops.selected.owner_id && (

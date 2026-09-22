@@ -1534,6 +1534,28 @@ order: the "Part of SM Fairview · terminal + 2 hintuans" line on the hotspot
 card with tappable siblings; then the design foundation (tokens, a screen
 inventory) before he designs in Figma.
 
+### "Part of SM Fairview" — the hotspot card names its place. 2026-09-23
+
+The owner's two Lagro boxes, one per side of the highway, were "in separate
+boxes and don't share the same identity — can I combine them but keep them
+separate?" They already were one place by name; what was missing was seeing
+it. Built on his go:
+
+- `siblingsOf(stop, all)` and `placeSummary(boxes)` in `stops.ts`: the other
+  boxes of the same place, terminal first, then by name; and "terminal + 2
+  hintuans" as what the place is made of.
+- `HotspotCard` gets `stops` and `onPickSibling`: a line **"Part of SM
+  Fairview · terminal + 6 hintuans"** with one chip per sibling (its ground
+  name, tinted by kind). Tapping a chip selects that box and flies the map to
+  it (`useSavedStops.show`, the same one the timeline rows use). A place with
+  one box shows nothing. Both apps pass the same two props.
+- Story `PartOfAPlace`; drive 10/10 in Storybook and on live data (the SM
+  Fairview terminal → six siblings → tap "SM Fairview" → its card, map moved).
+
+Two boxes both named "Fairview Teraccess" give two chips with the same
+words — they are two boxes, on two sides — which the highlight, when the
+owner decides its look, will tell apart on the map.
+
 ### Still open in step 0
 
 Decided today: the route's name, the four actions, how a direction behaves
