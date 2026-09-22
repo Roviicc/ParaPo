@@ -1734,6 +1734,38 @@ arrow is kept at 10 px or more — to judge on the map. Also to fix then: with
 reduced motion on, the arrows are drawn once and never again on zoom, so
 their size and spacing go stale; the parked jeeps redrew on every zoom.
 
+### The chevron, cut by the line. 2026-09-23, night
+
+Built on his "yeah yess" and kept ("the current one is good"):
+
+- **One white chevron to a place, no trail**, flowing as the arrows did
+  (28 px a second), drawn as wide as the lit line and no wider: its arms
+  run out to the line's edges and are cut there, flush, so they meet the
+  line's white border. A 1 px inset a side was looked at and not taken.
+- **Its stroke is 0.7 of the line's width**, arms at 40° to the line — the
+  middle of three looked at up close (0.4; 0.7; 1.0 at 35°). The thicker
+  stroke is how it is "bigger": the width is the line's, so a bigger
+  chevron shows as a longer, bolder cut.
+- **How many** (his "12/10" and "8/10", which count chevrons, not gaps):
+  12/10 as many below zoom 14, where the whole ride is on screen; 8/10 as
+  many from zoom 16, street level; as before in between. In steps, not
+  smoothly: where each chevron sits depends on the spacing, so a spacing
+  that followed every bit of zoom would send them racing along the line
+  under a pinch; a step moves them once.
+- **Drawn, not pictured** (`directionArrows.ts`): each chevron is a small
+  polygon laid out in screen pixels and placed every frame, on a fill layer
+  over the lit line and its orange stretches, under the hit area and the
+  basemap's labels. A picture scaled between the line's 5 px zoomed out and
+  13 px at zoom 20 would blur or shimmer.
+- With reduced motion they are drawn once and again whenever the map moves,
+  which fixes the arrows' stale size on zoom noted above.
+- The catch, seen and accepted: zoomed out the line is about 5 px wide, and
+  the chevrons are small notches in it.
+
+visitor-test 133/133 (the arrows' check is now "chevrons ride the lit line,
+each as wide as it", measured on screen against `lineStyle.ts`), phone-test
+38/38 (2 SKIP, as before).
+
 ### Still open in step 0
 
 Decided today: the route's name, the four actions, how a direction behaves

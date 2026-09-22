@@ -310,10 +310,30 @@ if (!hit) {
       check('  the rest fade while one direction is lit', faded < rest, `${faded} vs rest ${rest}`)
       const litFilter = await page.evaluate(() => JSON.stringify(window.__map.getFilter('saved-routes-selected')))
       check('  the lit layer names exactly one direction', (litFilter.match(/[0-9a-f]{8}-[0-9a-f]{4}-/g) ?? []).length === 1, litFilter)
-      // The arrows: white, sized with the line, flowing along the lit direction.
+      // The chevrons: flowing along the lit direction, each cut to exactly
+      // the lit line's width. Measured on screen, across the chevron's own
+      // axis (outer tip to inner tip); the line's width comes from
+      // lineStyle.ts itself where the dev server can serve it.
       await page.waitForTimeout(200)
-      const arrows = await page.evaluate(async () => ((await window.__src('direction-arrows'))?.features ?? []).map((f) => f.properties))
-      check('  arrows ride the lit line, sized with it', arrows.length > 0 && arrows.every((p) => p.size > 0), `${arrows.length} arrows, size ${arrows[0]?.size}`)
+      const chevrons = await page.evaluate(async () => {
+        const m = window.__map
+        let line = null
+        try {
+          const { roadWidthAt, LIT_EXTRA } = await import('/src/shared/lineStyle.ts')
+          line = roadWidthAt(m.getZoom(), LIT_EXTRA)
+        } catch {}
+        const all = ((await window.__src('direction-arrows'))?.features ?? []).map((f) => {
+          const p = f.geometry.coordinates[0].map((c) => m.project(c))
+          const ax = p[3].x - p[0].x
+          const ay = p[3].y - p[0].y
+          const len = Math.hypot(ax, ay)
+          const across = 2 * Math.max(...p.map((q) => Math.abs(((q.x - p[0].x) * ay - (q.y - p[0].y) * ax) / len)))
+          return { across, meant: f.properties.across }
+        })
+        return { line, all }
+      })
+      const fit = chevrons.all.every((c) => Math.abs(c.across - c.meant) < 0.5 && (chevrons.line == null || Math.abs(c.meant - chevrons.line) < 0.01))
+      check('  chevrons ride the lit line, each as wide as it', chevrons.all.length > 0 && fit, `${chevrons.all.length} chevrons, ${chevrons.all[0]?.across.toFixed(2)} px across; the lit line ${chevrons.line?.toFixed(2) ?? 'unread'} px`)
       // The orange stretches: where this direction passes a hintuan, on the same "passes" rule as the card's count.
       const litId = (litFilter.match(/[0-9a-f]{8}-[0-9a-f-]{27}/) ?? [''])[0]
       const stretches = await page.evaluate(async (id) => ((await window.__src('saved-routes-pass'))?.features ?? []).filter((f) => f.properties.id === id).length, litId)
