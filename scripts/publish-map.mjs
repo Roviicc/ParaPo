@@ -7,7 +7,9 @@
 // environment), exactly the columns the public map shows: no owner ids, no
 // control points, no segments. Each direction's line is simplified to within
 // 5 m of the original and rounded to 5 decimals (about 1 m), which makes it
-// several times smaller and looks the same at any zoom the map offers.
+// several times smaller and looks the same at any zoom the map offers. A
+// hotspot's point and box are rounded to 6 decimals (about 0.1 m): the
+// editor saves them with 15 or more, and those digits were half the file.
 //
 // The file is written the same way every time: fixed key order, fixed row
 // order, and `published_at` is carried over from the previous file when
@@ -153,6 +155,19 @@ function simplify(coords, epsilon, k) {
 }
 
 const round5 = (n) => Math.round(n * 1e5) / 1e5
+/** A hotspot is a few tens of metres across, so its corners keep 6 decimals: 0.1 m, a tenth of a line's. */
+const round6 = (n) => Math.round(n * 1e6) / 1e6
+/** A Point or Polygon with every coordinate rounded to 6 decimals; anything else as it came. */
+function roundGeometry(g) {
+  if (!g || typeof g !== 'object') return g
+  if (g.type === 'Point' && Array.isArray(g.coordinates)) {
+    return { ...g, coordinates: g.coordinates.map(round6) }
+  }
+  if (g.type === 'Polygon' && Array.isArray(g.coordinates)) {
+    return { ...g, coordinates: g.coordinates.map((ring) => ring.map((c) => c.map(round6))) }
+  }
+  return g
+}
 
 /**
  * The largest distance from any original point to the simplified line. Every
@@ -258,8 +273,8 @@ const stops = stopRows.map((s) => ({
   informal: s.informal ?? null,
   aliases: Array.isArray(s.aliases) ? s.aliases : [],
   kind: s.kind,
-  point: s.point,
-  area: s.area,
+  point: roundGeometry(s.point),
+  area: roundGeometry(s.area),
   note: s.note,
   created_at: s.created_at,
 }))

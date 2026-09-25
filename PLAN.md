@@ -91,9 +91,19 @@ the rules: adding a field is not a new shape, renaming or removing one is,
 and a new shape goes to a new path while the old path keeps the old shape for
 installed apps; 9 checks in `npm run test:mapfile`). A file of a shape the
 installed app does not know gets a banner that says so and a Reload, not a
-blank map. Agreed next, in order: a smaller file at publish time; feature state
-for the tap instead of rebuilding the layer; and a domain, parapo.app, when
-the owner is ready — the code side is the README link and a redirect.
+blank map. **Step 4, same day:** the file diet. The publish script already
+kept a line to within 5 m and 5 decimals; a hotspot's point and box went out
+with 15 or more decimals, and those digits were half the file. They now carry
+6 (about 0.1 m; no corner moved more than 7 cm): the committed file went
+from 31,857 bytes to 28,393, and on the wire, gzipped as Cloudflare serves
+it, from 6,781 to 5,067. A check in `npm run test:mapfile` holds the file to
+those decimals. What is left is shape, not digits — the links repeat two
+UUIDs a row, and each direction repeats its route — and the same file at 500
+routes would be about 1 MB gzipped, which is when the file splits (an index,
+and a line per route fetched on demand) as shape 2 at its own path. Agreed
+next, in order: feature state for the tap instead of rebuilding the layer;
+and a domain, parapo.app, when the owner is ready — the code side is the
+README link and a redirect.
 
 **Next.** The design foundation before the owner designs in Figma: tokens in
 one place and a screen inventory in Storybook. Then slices 3 and 4 (short
