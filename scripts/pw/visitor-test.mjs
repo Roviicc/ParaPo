@@ -112,7 +112,25 @@ const page = await b.newPage({ viewport: { width: 1280, height: 800 } })
 if (process.env.PARAPO_NODE_FETCH) {
 await page.route(/^https:\/\//, async (route) => { const req = route.request(); try { const h={...req.headers()}; delete h['accept-encoding']; const r = await fetch(req.url(), { method: req.method(), headers: h, body: ['GET','HEAD'].includes(req.method())?undefined:req.postDataBuffer() }); const body=Buffer.from(await r.arrayBuffer()); const hh={}; r.headers.forEach((v,k)=>{ if(!['content-encoding','content-length','transfer-encoding'].includes(k)) hh[k]=v }); await route.fulfill({status:r.status,headers:hh,body}) } catch { await route.abort() } })
 }
-await page.addInitScript(() => { window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null } })
+await page.addInitScript(() => {
+  window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
+  // Since 2026-09-25 a tap is feature state, not a filter or a paint
+  // expression naming ids (useLighting in src/shared/useSavedRoutes.ts).
+  // The directions a source has lit; and the level the line layer paints a
+  // direction nobody tapped: dim while anything is lit, at rest otherwise —
+  // its own expression's branches, read through the state, as MapLibre does.
+  window.__lit = async (src) => {
+    const m = window.__map
+    const fc = await m?.getSource(src)?.getData()
+    if (!fc) return null
+    return [...new Set(fc.features.map((f) => f.properties.id))].filter((id) => !!m.getFeatureState({ source: src, id }).lit)
+  }
+  window.__restLevel = async () => {
+    const o = window.__map.getPaintProperty('saved-routes-line', 'line-opacity')
+    if (!Array.isArray(o)) return o
+    return ((await window.__lit('saved-routes')) ?? []).length ? o[4] : o[o.length - 1]
+  }
+})
 const errors = []
 page.on('pageerror', (e) => errors.push(String(e)))
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 160)) })
@@ -321,12 +339,9 @@ if (!hit) {
     const items = chooser.locator('button[data-testid="chooser-item"]')
     const first = await items.first().innerText()
     check('  the hotspot is listed first', first.includes(hit.hotspot.name), first.split('\n')[0])
-    // A plain level, or, when the listed routes' other way round stays at
-    // rest (the owner's pick, 2026-09-25), the level its `case` falls back to.
-    const fadedWhileAsking = await page.evaluate(() => {
-      const o = window.__map.getPaintProperty('saved-routes-line', 'line-opacity')
-      return Array.isArray(o) ? o[o.length - 1] : o
-    })
+    // The level of a direction the sheet does not list (the listed routes'
+    // other way round stays at rest, the owner's pick of 2026-09-25).
+    const fadedWhileAsking = await page.evaluate(() => window.__restLevel())
     check('  the rest of the map fades while the sheet asks', fadedWhileAsking < 0.3, String(fadedWhileAsking))
     await items.last().click()
     await page.waitForTimeout(350)
@@ -340,13 +355,9 @@ if (!hit) {
 // tap opens its card directly, drawn bright while the rest fade; closing the
 // card rests everything again.
 {
-  // A plain level, or, when a lit direction's way back rests (the owner,
-  // 2026-09-25), the level its `case` falls back to: what the rest are at.
-  const opacity = () =>
-    page.evaluate(() => {
-      const o = window.__map.getPaintProperty('saved-routes-line', 'line-opacity')
-      return Array.isArray(o) ? o[o.length - 1] : o
-    })
+  // What the rest are at: the level of a direction nobody tapped (a lit
+  // direction's way back rests, the owner's pick of 2026-09-25).
+  const opacity = () => page.evaluate(() => window.__restLevel())
   const rest = await opacity()
   check('the lines rest in a light blue (opacity under 0.6)', typeof rest === 'number' && rest > 0 && rest < 0.6, String(rest))
   const clean = findVertexOutsideHotspots(snapshot.routes, snapshot.polys)
@@ -366,8 +377,8 @@ if (!hit) {
       check('  the card leads with a direction', /→/.test(title), title)
       const faded = await opacity()
       check('  the rest fade while one direction is lit', faded < rest, `${faded} vs rest ${rest}`)
-      const litFilter = await page.evaluate(() => JSON.stringify(window.__map.getFilter('saved-routes-selected')))
-      check('  the lit layer names exactly one direction', (litFilter.match(/[0-9a-f]{8}-[0-9a-f]{4}-/g) ?? []).length === 1, litFilter)
+      const litIds = (await page.evaluate(() => window.__lit('saved-routes'))) ?? []
+      check('  exactly one direction is lit', litIds.length === 1, JSON.stringify(litIds))
       // The chevrons: flowing along the lit direction, each cut to exactly
       // the lit line's width. Measured on screen, across the chevron's own
       // axis (outer tip to inner tip); the line's width comes from
@@ -393,10 +404,10 @@ if (!hit) {
       const fit = chevrons.all.every((c) => Math.abs(c.across - c.meant) < 0.5 && (chevrons.line == null || Math.abs(c.meant - chevrons.line) < 0.01))
       check('  chevrons ride the lit line, each as wide as it', chevrons.all.length > 0 && fit, `${chevrons.all.length} chevrons, ${chevrons.all[0]?.across.toFixed(2)} px across; the lit line ${chevrons.line?.toFixed(2) ?? 'unread'} px`)
       // The orange stretches: where this direction passes a hintuan, on the same "passes" rule as the card's count.
-      const litId = (litFilter.match(/[0-9a-f]{8}-[0-9a-f-]{27}/) ?? [''])[0]
+      const litId = litIds[0] ?? ''
       const stretches = await page.evaluate(async (id) => ((await window.__src('saved-routes-pass'))?.features ?? []).filter((f) => f.properties.id === id).length, litId)
-      const passLit = await page.evaluate(() => JSON.stringify(window.__map.getFilter('saved-routes-selected-pass')))
-      check('  the orange stretches of the lit direction are lit with it', stretches > 0 && passLit.includes(litId), `${stretches} stretch(es); filter ${passLit}`)
+      const passLit = (await page.evaluate(() => window.__lit('saved-routes-pass'))) ?? []
+      check('  the orange stretches of the lit direction are lit with it', stretches > 0 && passLit.includes(litId), `${stretches} stretch(es); lit on the stretches: ${JSON.stringify(passLit)}`)
       await closeCard()
       await page.waitForTimeout(300)
       check('  closing the card rests the map again', (await opacity()) === rest, String(await opacity()))

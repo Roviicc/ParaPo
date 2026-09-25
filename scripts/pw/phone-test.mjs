@@ -173,6 +173,22 @@ await page.addInitScript(() => {
     const s = window.__map?.getSource(id)
     return s ? await s.getData() : null
   }
+  // Since 2026-09-25 a tap is feature state, not a filter or a paint
+  // expression naming ids (useLighting in src/shared/useSavedRoutes.ts).
+  // The directions a source has lit; and the level the line layer paints a
+  // direction nobody tapped: dim while anything is lit, at rest otherwise —
+  // its own expression's branches, read through the state, as MapLibre does.
+  window.__lit = async (src) => {
+    const m = window.__map
+    const fc = await m?.getSource(src)?.getData()
+    if (!fc) return null
+    return [...new Set(fc.features.map((f) => f.properties.id))].filter((id) => !!m.getFeatureState({ source: src, id }).lit)
+  }
+  window.__restLevel = async () => {
+    const o = window.__map.getPaintProperty('saved-routes-line', 'line-opacity')
+    if (!Array.isArray(o)) return o
+    return ((await window.__lit('saved-routes')) ?? []).length ? o[4] : o[o.length - 1]
+  }
 })
 
 // ------------------------------------------------------------- 1. the pointer
@@ -212,6 +228,34 @@ await page.goto(`${BASE}/`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
 await waitForSource('saved-routes')
 await page.waitForTimeout(1200)
+
+/**
+ * A finger on the map at page point (x, y). A real touch first; when the map
+ * has seen no click from it within 1.5 s, a click the browser would have
+ * made, sent by hand with `pointerType: 'touch'`, so the app still reads a
+ * finger. On a GitHub runner the page draws so slowly at three device pixels
+ * per CSS pixel that the touch's end came half a second and more after its
+ * start, which Chromium takes for a long press and turns into no click at
+ * all (the fourth CI run, 2026-09-25). How many taps needed the fallback is
+ * reported at the end.
+ */
+let tapsByHand = 0
+await page.evaluate(() => {
+  window.__clicks = 0
+  window.__map.on('click', () => window.__clicks++)
+})
+const mapTap = async (x, y) => {
+  const before = await page.evaluate(() => window.__clicks)
+  await page.touchscreen.tap(x, y)
+  const until = Date.now() + 1500
+  while ((await page.evaluate(() => window.__clicks)) === before && Date.now() < until) await page.waitForTimeout(100)
+  if ((await page.evaluate(() => window.__clicks)) !== before) return
+  tapsByHand++
+  await page.evaluate(([px, py]) => {
+    const el = window.__map.getCanvasContainer()
+    el.dispatchEvent(new PointerEvent('click', { pointerType: 'touch', clientX: px, clientY: py, bubbles: true, cancelable: true }))
+  }, [x, y])
+}
 
 check('no zoom buttons on a touch screen', (await page.locator('.maplibregl-ctrl-zoom-in').count()) === 0)
 check(
@@ -348,19 +392,10 @@ const closeCard = async () => {
 }
 // Every direction rests in a light blue; a tap fades the rest further (2026-09-22).
 const REST_OPACITY = 0.45
-const lineOpacity = (p) =>
-  p.evaluate(() => {
-    const m = window.__map
-    if (!m.getLayer('saved-routes-line')) return null
-    // A `case` when a lit direction's way back rests: its fallback is what the rest are at.
-    const o = m.getPaintProperty('saved-routes-line', 'line-opacity')
-    return Array.isArray(o) ? o[o.length - 1] : o
-  })
-const selectedFilter = (p) =>
-  p.evaluate(() => {
-    const m = window.__map
-    return m.getLayer('saved-routes-selected') ? JSON.stringify(m.getFilter('saved-routes-selected')) : null
-  })
+// What the rest are at: the level of a direction nobody tapped.
+const lineOpacity = (p) => p.evaluate(() => (window.__map.getLayer('saved-routes-line') ? window.__restLevel() : null))
+/** The directions lit now, by id. */
+const litIds = (p) => p.evaluate(() => window.__lit('saved-routes'))
 
 // How far a pixel reaches on the ground — measured off the map, not looked up.
 // MapLibre serves 512 px tiles, so its zoom 16 is the scale a 256 px table calls
@@ -448,7 +483,7 @@ if (routeA) {
   const at = (px) => [box.x + anchor[0] + perp[0] * px, box.y + anchor[1] + perp[1] * px]
 
   const [tx, ty] = at(14)
-  await page.touchscreen.tap(tx, ty)
+  await mapTap(tx, ty)
   await page.waitForTimeout(500)
 
   const text = await cardText()
@@ -462,8 +497,8 @@ if (routeA) {
 
   // The tap opens the route's drawn outbound, whichever direction was under the finger (2026-09-22).
   const sameRoute = snapshot.routes.filter((o) => o.routeId === r.routeId).map((o) => o.id)
-  const filter = await selectedFilter(page)
-  check('  saved-routes-selected filters to one direction of that route', !!filter && sameRoute.some((id) => filter.includes(id)), filter ?? 'no saved-routes-selected layer')
+  const lit = (await litIds(page)) ?? []
+  check('  one direction of that route is lit', lit.length === 1 && sameRoute.includes(lit[0]), JSON.stringify(lit))
   check('  the other lines fade below the light rest', (await lineOpacity(page)) < REST_OPACITY, String(await lineOpacity(page)))
 
   // Negative control: 40 px out is twice as far as the box reaches — but only
@@ -484,7 +519,7 @@ if (routeA) {
   if (far.clear <= BOX_M) {
     skip('a tap 40 px away from every line selects nothing', `neither side of the line is clear 40 px out — the nearest thing is ${Math.round(far.clear)} m away, inside the ${Math.round(BOX_M)} m box`)
   } else {
-    await page.touchscreen.tap(far.x, far.y)
+    await mapTap(far.x, far.y)
     await page.waitForTimeout(500)
     check('a tap 40 px away from every line selects nothing', (await card().count()) === 0, `${Math.round(far.clear)} m clear`)
     check('  the lines go back to their light rest', (await lineOpacity(page)) === REST_OPACITY, String(await lineOpacity(page)))
@@ -543,7 +578,7 @@ const openRouteA = async () => {
   const anchor = await project(page, routeA.point)
   const perp = await perpendicular(page, routeA.point, routeA.neighbour, routeA.route.coords, 40)
   const box = await canvasBox()
-  await page.touchscreen.tap(box.x + anchor[0] + perp[0] * 14, box.y + anchor[1] + perp[1] * 14)
+  await mapTap(box.x + anchor[0] + perp[0] * 14, box.y + anchor[1] + perp[1] * 14)
   await page.waitForTimeout(600)
 }
 /** Each gesture below is judged on its own, so put the sheet back if one broke it. */
@@ -623,7 +658,7 @@ if (!shared) {
   const anchor = await project(page, shared.point)
   const box = await canvasBox()
   await drawnAt('saved-routes-hit', anchor)
-  await page.touchscreen.tap(box.x + anchor[0], box.y + anchor[1])
+  await mapTap(box.x + anchor[0], box.y + anchor[1])
   await page.waitForTimeout(600)
 
   const chooser = page.locator('[data-testid="chooser"]')
@@ -701,7 +736,7 @@ if (!inside) {
   const anchor = await project(page, point)
   const box = await canvasBox()
   const drawn = await drawnAt('saved-stops-fill', anchor)
-  await page.touchscreen.tap(box.x + anchor[0], box.y + anchor[1])
+  await mapTap(box.x + anchor[0], box.y + anchor[1])
   await page.waitForTimeout(600)
   const chooser = page.locator('[data-testid="chooser"]')
   if (routesInBox.length > 0) {
@@ -759,7 +794,7 @@ if (snapshot.polys.length === 0) {
   const len = Math.hypot(dx, dy) || 1
   const box = await canvasBox()
   const drawn = await drawnAt('saved-stops-fill', inward)
-  await page.touchscreen.tap(box.x + anchor[0] + (dx / len) * 15, box.y + anchor[1] + (dy / len) * 15)
+  await mapTap(box.x + anchor[0] + (dx / len) * 15, box.y + anchor[1] + (dy / len) * 15)
   await page.waitForTimeout(600)
 
   const text = await cardText()
@@ -787,7 +822,7 @@ if (!routeA) {
   const anchor = await project(page, routeA.point)
   const perp = await perpendicular(page, routeA.point, routeA.neighbour, routeA.route.coords, 40)
   const box = await canvasBox()
-  await page.touchscreen.tap(box.x + anchor[0] + perp[0] * 14, box.y + anchor[1] + perp[1] * 14)
+  await mapTap(box.x + anchor[0] + perp[0] * 14, box.y + anchor[1] + perp[1] * 14)
   await page.waitForTimeout(600)
   const sameRouteIds = snapshot.routes.filter((o) => o.routeId === r.routeId).map((o) => o.id)
   check('selecting a route puts ?r=<id> in the address', sameRouteIds.includes(new URL(page.url()).searchParams.get('r') ?? ''), page.url().slice(BASE.length) || '/')
@@ -899,6 +934,7 @@ if (!routeA) {
 }
 
 // --------------------------------------------------------- 8. housekeeping
+if (tapsByHand) console.log(`\n(${tapsByHand} tap(s) on the map needed the click sent by hand: the runner dropped the touch)\n`)
 check('no request to router.project-osrm.org', !osrmHit)
 check('no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
 

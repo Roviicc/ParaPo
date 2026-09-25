@@ -20,6 +20,8 @@ const HINTUAN_LABEL = 'saved-stops-label-hintuan'
  */
 const NAMES_FROM = 16.5 - Math.log2(1.2)
 
+/** A flag of the feature state a tap sets on a box: `lit`, `sibling` or `chosen`. */
+const state = (name: 'lit' | 'sibling' | 'chosen') => ['boolean', ['feature-state', name], false] as const
 /** The label points of one kind, less the hotspot being edited. */
 const labelsOf = (kind: StopKind, hidden = '') =>
   ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'kind'], kind], ['!=', ['get', 'id'], hidden]] as never
@@ -117,8 +119,11 @@ export function useSavedStops<S extends StopSummary>(
         ? DRAW_ABOVE
         : map.getStyle().layers.find((l) => l.type === 'symbol')?.id
 
+    // `promoteId`: the feature state a tap sets is keyed on the hotspot's id
+    // (its box and its label point share it, so both carry the state).
     map.addSource(SRC, {
       type: 'geojson',
+      promoteId: 'id',
       data: { type: 'FeatureCollection', features: [] },
     })
     map.addSource(WASH_SRC, {
@@ -169,18 +174,22 @@ export function useSavedStops<S extends StopSummary>(
         source: SRC,
         filter: ['==', ['geometry-type'], 'Polygon'],
         layout: { 'line-join': 'round' },
-        paint: { 'line-color': colour as never, 'line-width': 2 },
+        // The chosen box is outlined twice as thick.
+        paint: { 'line-color': colour as never, 'line-width': ['case', state('chosen'), 4, 2] as never },
       },
       before,
     )
     // The chosen box's siblings, drawn stronger than the rest and outlined.
+    // Every box is in this layer and the lit one, at opacity 0 unless its
+    // feature state says so: a filter naming the boxes would lay the whole
+    // source out again at every tap (see useLighting in useSavedRoutes.ts).
     map.addLayer(
       {
         id: SIBLINGS,
         type: 'fill',
         source: SRC,
-        filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['get', 'id'], ['literal', []]]] as never,
-        paint: { 'fill-color': colour as never, 'fill-opacity': 0.4 },
+        filter: ['==', ['geometry-type'], 'Polygon'],
+        paint: { 'fill-color': colour as never, 'fill-opacity': ['case', state('sibling'), 0.4, 0] as never },
       },
       before,
     )
@@ -191,8 +200,8 @@ export function useSavedStops<S extends StopSummary>(
         id: LIT,
         type: 'fill',
         source: SRC,
-        filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['get', 'id'], ['literal', []]]] as never,
-        paint: { 'fill-color': colour as never, 'fill-opacity': 0.5 },
+        filter: ['==', ['geometry-type'], 'Polygon'],
+        paint: { 'fill-color': colour as never, 'fill-opacity': ['case', state('lit'), 0.5, 0] as never },
       },
       before,
     )
@@ -252,19 +261,37 @@ export function useSavedStops<S extends StopSummary>(
     })
   }, [map, stops])
 
+  // What a tap did to each box, as feature state: lit (chosen, or under the
+  // tap while the sheet asks), the chosen one, and its siblings. Only the
+  // boxes whose state changed are set, and none is ever removed: a removal
+  // and a set of one id in the same frame leave the removal in charge.
+  const was = useRef(new Map<string, string>())
   useEffect(() => {
-    if (!map || !map.getLayer(LIT)) return
+    if (!map || !map.getSource(SRC)) return
+    const chosen = stops.find((s) => s.id === selectedId)
+    const siblings = chosen ? siblingsOf(chosen, stops).map((s) => s.id) : []
     const lit = selectedId ? [selectedId] : candidates.map((s) => s.id)
-    map.setFilter(LIT, ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['get', 'id'], ['literal', lit]]] as never)
-  }, [map, selectedId, candidates])
+    const now = new Map<string, string>()
+    for (const id of lit) now.set(id, 'lit')
+    for (const id of siblings) now.set(id, now.has(id) ? 'lit+sibling' : 'sibling')
+    if (chosen) now.set(chosen.id, 'chosen')
+    for (const id of new Set([...was.current.keys(), ...now.keys()])) {
+      const state = now.get(id) ?? 'none'
+      if (was.current.get(id) === state) continue
+      map.setFeatureState(
+        { source: SRC, id },
+        { lit: state === 'lit' || state === 'lit+sibling' || state === 'chosen', sibling: state.includes('sibling'), chosen: state === 'chosen' },
+      )
+    }
+    was.current = now
+  }, [map, selectedId, candidates, stops])
 
-  // The place highlight: the chosen box's siblings, and the wash over all of them.
+  // The place highlight's wash: a hull over the chosen box and its siblings.
   useEffect(() => {
     if (!map || !map.getLayer(SIBLINGS)) return
     const wash = map.getSource(WASH_SRC) as GeoJSONSource | undefined
     const chosen = stops.find((s) => s.id === selectedId)
     const siblings = chosen ? siblingsOf(chosen, stops).filter((s) => stopRing(s).length >= 3) : []
-    map.setFilter(SIBLINGS, ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['get', 'id'], ['literal', siblings.map((s) => s.id)]]] as never)
     const hull = chosen && siblings.length > 0 ? convexHull([chosen, ...siblings].flatMap((s) => stopRing(s))) : []
     wash?.setData({
       type: 'FeatureCollection',
@@ -281,16 +308,6 @@ export function useSavedStops<S extends StopSummary>(
     map.setFilter(LABEL, labelsOf('terminal', hidden))
     map.setFilter(HINTUAN_LABEL, labelsOf('hintuan', hidden))
   }, [map, opts.hiddenStopId])
-
-  useEffect(() => {
-    if (!map || !map.getLayer(OUTLINE)) return
-    map.setPaintProperty(OUTLINE, 'line-width', [
-      'case',
-      ['==', ['get', 'id'], selectedId ?? ''],
-      4,
-      2,
-    ])
-  }, [map, selectedId])
 
   // ----------------------------------------------------------------- events
 

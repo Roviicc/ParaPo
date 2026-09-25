@@ -100,10 +100,27 @@ it, from 6,781 to 5,067. A check in `npm run test:mapfile` holds the file to
 those decimals. What is left is shape, not digits — the links repeat two
 UUIDs a row, and each direction repeats its route — and the same file at 500
 routes would be about 1 MB gzipped, which is when the file splits (an index,
-and a line per route fetched on demand) as shape 2 at its own path. Agreed
-next, in order: feature state for the tap instead of rebuilding the layer;
-and a domain, parapo.app, when the owner is ready — the code side is the
-README link and a redirect.
+and a line per route fetched on demand) as shape 2 at its own path. **Step 5,
+same day:** a tap is feature state. Lighting a direction used to set a
+filter on the lit layers and a paint expression naming ids on the resting
+ones, and MapLibre answers either by laying every tile of the source out
+again in its worker — for hotspots too, and the orange stretches. Now each
+direction's features carry `lit`, `resting` or `dim` as feature state
+(`useLighting` in `src/shared/useSavedRoutes.ts`; the hotspot hook does the
+same with `lit`, `sibling`, `chosen`), the paint expressions read the state
+and never change, and the lit layers hold every direction at opacity 0 but
+for the lit ones. Only the features whose state changed are repainted, on
+the main thread. Measured on a synthetic map of 1,000 directions and 500
+hotspots (250 copies of today's, shifted across a grid; `scripts/_perf.mjs`
+was the harness, not kept): at zoom 11 the lit line reached the screen 143 ms
+after the tap instead of 260 ms, with the two source reloads a tap caused
+gone; at zoom 14 both were about 10 ms here. The gain is the worker's
+re-layout, which grows with the directions on the map and with a phone's
+slower CPU; this sandbox's main thread was busy with software rendering
+either way. The suites read the state now (`window.__lit`, `__restLevel`
+in their init scripts) instead of the filters. Agreed next: a domain,
+parapo.app, when the owner is ready — the code side is the README link and
+a redirect.
 
 **Next.** The design foundation before the owner designs in Figma: tokens in
 one place and a screen inventory in Storybook. Then slices 3 and 4 (short

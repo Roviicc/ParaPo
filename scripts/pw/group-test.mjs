@@ -28,6 +28,22 @@ const errors = []
 page.on('pageerror', (e) => errors.push(String(e)))
 await page.addInitScript(() => {
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
+  // Since 2026-09-25 a tap is feature state, not a filter or a paint
+  // expression naming ids (useLighting in src/shared/useSavedRoutes.ts).
+  // The directions a source has lit; and the level the line layer paints a
+  // direction nobody tapped: dim while anything is lit, at rest otherwise —
+  // its own expression's branches, read through the state, as MapLibre does.
+  window.__lit = async (src) => {
+    const m = window.__map
+    const fc = await m?.getSource(src)?.getData()
+    if (!fc) return null
+    return [...new Set(fc.features.map((f) => f.properties.id))].filter((id) => !!m.getFeatureState({ source: src, id }).lit)
+  }
+  window.__restLevel = async () => {
+    const o = window.__map.getPaintProperty('saved-routes-line', 'line-opacity')
+    if (!Array.isArray(o)) return o
+    return ((await window.__lit('saved-routes')) ?? []).length ? o[4] : o[o.length - 1]
+  }
 })
 // The features of one of our GeoJSON sources once the page has some, asked
 // every 100 ms from here for up to `ms`; [] when none came in time. Not
@@ -111,7 +127,7 @@ if (!spot) {
     await page.waitForTimeout(300)
     const map = await page.evaluate(async () => {
       const m = window.__map
-      const lit = (JSON.stringify(m.getFilter('saved-routes-selected')).match(/[0-9a-f]{8}-[0-9a-f-]{27}/g) ?? [])
+      const lit = (await window.__lit('saved-routes')) ?? []
       const endFeatures = (await window.__src('direction-ends'))?.features ?? []
       const ends = endFeatures.length
       const names = endFeatures.filter((f) => f.properties.named).map((f) => f.properties.name)
@@ -221,11 +237,11 @@ if (!spot) {
     await page.waitForTimeout(600)
     const title = await page.locator('[data-testid="card-direction"]').first().innerText().catch(() => '')
     check('a row opens that direction\'s card', title === `${place.from} → ${row.to}`, title)
-    const litOne = await page.evaluate(() => (JSON.stringify(window.__map.getFilter('saved-routes-selected')).match(/[0-9a-f]{8}-[0-9a-f-]{27}/g) ?? []).length)
+    const litOne = ((await page.evaluate(() => window.__lit('saved-routes'))) ?? []).length
     const endsOne = await page.evaluate(async () => ((await window.__src('direction-ends'))?.features ?? []).length)
     check('  lit alone, with its two circles', litOne === 1 && endsOne === 2, `${litOne} lit, ${endsOne} circle(s)`)
     // Its way back rests in light blue, as in the list (the owner's pick, 2026-09-25).
-    const openId = (JSON.stringify(await page.evaluate(() => window.__map.getFilter('saved-routes-selected'))).match(/[0-9a-f]{8}-[0-9a-f-]{27}/) ?? [''])[0]
+    const openId = ((await page.evaluate(() => window.__lit('saved-routes'))) ?? [''])[0]
     const openRoute = lines.find((l) => l.id === openId)?.route
     const twins = lines.filter((l) => l.route === openRoute && l.id !== openId).map((l) => l.id)
     const restOne = restingIn(await levels())
