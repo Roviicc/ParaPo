@@ -76,6 +76,18 @@ on the hotspot card with tappable siblings; and the **place highlight**
 (siblings stronger under a soft wash, studio and public map). visitor-test
 131/131, phone-test 38/38. Each has a dated section below.
 
+**2026-09-25, future-proofing, step 1 of 6.** Every push now runs on GitHub:
+the build with its guards, then gate, visitor, phone and pwa against the dev
+server, and the drawing suites one at a time with one retry for the shared
+router (`.github/workflows/ci.yml`). Until today the suites ran only on the
+owner's laptop, so a change he could not test shipped unchecked. Agreed next,
+in order: the studio's table reads paged (Supabase answers at most 1,000 rows
+a request and says nothing when it cuts, which the links table crosses at
+about 40 routes); a schema number in the map file so an installed app never
+reads a shape it does not know; a smaller file at publish time; feature state
+for the tap instead of rebuilding the layer; and a domain, parapo.app, when
+the owner is ready — the code side is the README link and a redirect.
+
 **Next.** The design foundation before the owner designs in Figma: tokens in
 one place and a screen inventory in Storybook. Then slices 3 and 4 (short
 turn, extension), the shortcut after the extension, then the rest of step 0:

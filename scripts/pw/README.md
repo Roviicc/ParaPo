@@ -19,6 +19,12 @@ public map at `/` and the editor at `/studio/`. Complements `scripts/uitest.mjs`
     npm run build                             # also checks import boundaries, that no editor code reaches /, and the installable app's files
     node scripts/pw/pwa-test.mjs              # 41: the installable app, against the build in its own `vite preview` on :4173 — manifest, worker, offline, slow network, update
 
+**On GitHub, every push runs these** (`.github/workflows/ci.yml`): one job builds
+and runs gate, visitor, phone and pwa; a second runs the drawing suites one at a
+time, with one retry after a minute for the shared router. A red check on a
+branch means the push broke something; the failing suite's screenshots are
+kept as the run's artifact.
+
 The service worker is off under `npm run dev`, so every suite above meets a
 plain page; `pwa-test` alone runs the production build. It starts and stops its
 own preview server (set `PARAPO_BASE` to use one already running), checks that
