@@ -92,11 +92,11 @@ test('the committed public/data/map.json is a file this app reads', async () => 
   assert.equal((await loadMapFile()).schema, MAP_FILE_SCHEMA)
 })
 
-// The file diet of 2026-09-25 (scripts/publish-map.mjs): a line's points
-// carry 5 decimals (about 1 m), a hotspot's corners 6 (about 0.1 m). The
-// editor saves 15 or more, and those digits were half the file's bytes.
-// Checked on the committed file, so a publish that forgets the rounding
-// cannot land quietly.
+// The file diet of 2026-09-25 (scripts/publish-map.mjs): every coordinate,
+// a line's points and a hotspot's corners alike, carries 6 decimals (about
+// 0.1 m). The editor saves 15 or more, and those digits were half the
+// file's bytes. Checked on the committed file, so a publish that forgets
+// the rounding cannot land quietly.
 test('the committed file carries no more decimals than the publish script writes', async () => {
   const { readFileSync } = await import('node:fs')
   const file = JSON.parse(readFileSync(new URL('../public/data/map.json', import.meta.url), 'utf8'))
@@ -107,6 +107,6 @@ test('the committed file carries no more decimals than the publish script writes
     for (const n of s.point?.coordinates ?? []) worst.hotspot = Math.max(worst.hotspot, decimals(n))
     for (const ring of s.area?.coordinates ?? []) for (const c of ring) for (const n of c) worst.hotspot = Math.max(worst.hotspot, decimals(n))
   }
-  assert.ok(worst.line <= 5, `a line point has ${worst.line} decimals`)
+  assert.ok(worst.line <= 6, `a line point has ${worst.line} decimals`)
   assert.ok(worst.hotspot <= 6, `a hotspot corner has ${worst.hotspot} decimals`)
 })

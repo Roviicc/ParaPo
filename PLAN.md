@@ -118,9 +118,22 @@ gone; at zoom 14 both were about 10 ms here. The gain is the worker's
 re-layout, which grows with the directions on the map and with a phone's
 slower CPU; this sandbox's main thread was busy with software rendering
 either way. The suites read the state now (`window.__lit`, `__restLevel`
-in their init scripts) instead of the filters. Agreed next: a domain,
-parapo.app, when the owner is ready — the code side is the README link and
-a redirect.
+in their init scripts) instead of the filters. **Same night, the lines.**
+The owner zoomed the live map to Belfast Avenue and Quirino Highway and saw
+the lines cut the corners and the two routes that share the road out of
+Tala braid across each other. That was the publish step's thinning, 5 m
+since the file existed: at zoom 20 five metres is sixty pixels, and each
+direction thinned on its own keeps different corners, so lines the router
+had put on the same points came apart. The publish script now thins to
+0.3 m and rounds to 6 decimals, and checks every original point is within
+half a metre — the lit line is 10 px wide at zoom 20, a pixel 7 cm, so the
+drawn line never leaves its own width. Today's four directions: 321 → 988
+points, the file 28,393 → 44,219 bytes, 5,067 → 7,296 gzipped, and the two
+outbound directions share their first 84 points exactly again. The file is
+published from `main`, so the live map shows this once the branch is merged
+and the publish workflow runs (04:00 Manila, or "Run workflow"). Agreed
+next: a domain, parapo.app, when the owner is ready — the code side is the
+README link and a redirect.
 
 **Next.** The design foundation before the owner designs in Figma: tokens in
 one place and a screen inventory in Storybook. Then slices 3 and 4 (short

@@ -4,9 +4,9 @@ import type { StopLink, StopSummary } from './stops'
 /**
  * The published map: one file, written by scripts/publish-map.mjs and served
  * as a static file. It holds exactly what the public map shows, with each
- * direction's line simplified to within 5 m and rounded to 5 decimals, and
- * each hotspot's point and box rounded to 6. Visitors read this and never
- * ask the database; the studio keeps reading the live tables.
+ * direction's line thinned to within half a metre and every coordinate
+ * rounded to 6 decimals (about 0.1 m). Visitors read this and never ask
+ * the database; the studio keeps reading the live tables.
  */
 export type MapFile = {
   /**
