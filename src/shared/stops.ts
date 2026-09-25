@@ -1,4 +1,4 @@
-import { polygonToRing, type LngLat, type Ring, distanceToRingM, firstNearIndex, haversine } from './geo'
+import { bboxContains, bboxOf, polygonToRing, type BBox, type LngLat, type Ring, distanceToRingM, firstNearIndex, haversine } from './geo'
 
 /** Mirrors the `stop_kind` enum in supabase/migrations/0004_stop_hotspot.sql. */
 export type StopKind = 'terminal' | 'hintuan'
@@ -112,6 +112,16 @@ export function hintuansAlong<S extends StopSummary>(line: LngLat[], stops: read
 }
 
 /**
+ * The ground a line must reach for any of it to pass this box: the box,
+ * `withinM` and two steps wider. A line whose own box (`bboxOf`) does not
+ * overlap it has no stretch here, so a caller with many lines and many
+ * boxes can skip the pair without walking the line.
+ */
+export function passBounds(ring: Ring, withinM = PASS_WITHIN_M, stepM = 1): BBox {
+  return bboxOf(ring, withinM + 2 * stepM)
+}
+
+/**
  * The pieces of the line that pass this box: every stretch that is inside it
  * or within PASS_WITHIN_M of its edge, as short lines in travel order. The
  * same rule as `passIndex`, so a box is painted on a direction exactly when
@@ -124,21 +134,16 @@ export function hintuansAlong<S extends StopSummary>(line: LngLat[], stops: read
  */
 export function passStretches(line: LngLat[], ring: Ring, withinM = PASS_WITHIN_M, stepM = 1): LngLat[][] {
   if (ring.length < 3 || line.length < 2) return []
-  // Only segments near the box's bounding box are worth sampling.
-  const k = Math.cos((ring[0][1] * Math.PI) / 180)
-  const padLat = (withinM + 2 * stepM) / 111_000
-  const padLng = padLat / k
-  let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity]
-  for (const [x, y] of ring) {
-    if (x < w) w = x
-    if (x > e) e = x
-    if (y < s) s = y
-    if (y > n) n = y
-  }
-  ;[w, s, e, n] = [w - padLng, s - padLat, e + padLng, n + padLat]
+  // Only segments near the box's bounds are worth sampling, and only a
+  // vertex inside them is worth measuring: the ring distance is the cost
+  // here, and on a big map almost every vertex of almost every line is
+  // nowhere near this box (1,000 directions and 500 hotspots took 142 s to
+  // open before this check, 2026-09-25).
+  const bounds = passBounds(ring, withinM, stepM)
+  const [w, s, e, n] = bounds
   const nearBox = (a: LngLat, b: LngLat) =>
     Math.max(a[0], b[0]) >= w && Math.min(a[0], b[0]) <= e && Math.max(a[1], b[1]) >= s && Math.min(a[1], b[1]) <= n
-  const near = (p: LngLat) => distanceToRingM(p, ring) <= withinM
+  const near = (p: LngLat) => bboxContains(bounds, p) && distanceToRingM(p, ring) <= withinM
 
   const out: LngLat[][] = []
   // The stretch being walked, and the last near sample between vertices,

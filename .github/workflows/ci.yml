@@ -5,7 +5,7 @@
 #
 #   public  — the pages anyone opens. `npm run build` (import boundaries, no
 #             editor code on /, the installable app's files), then gate,
-#             visitor and phone against `vite` on :5173, then pwa-test against
+#             visitor, phone and scale against `vite` on :5173, then pwa-test against
 #             the build in its own `vite preview`. Needs only the published map
 #             file and OpenFreeMap's tiles.
 #   studio  — the editor. group, regression-gestures, hotspot, snap and extend
@@ -84,6 +84,11 @@ jobs:
 
       - name: phone-test — the public map at 390×844
         run: node scripts/pw/phone-test.mjs
+
+      # 1,000 directions and 500 hotspots made from today's map, no tiles:
+      # the first line must reach the screen within its budget.
+      - name: scale-test — the public map with 1,000 directions
+        run: node scripts/pw/scale-test.mjs
 
       # Starts and stops its own `vite preview` on :4173 from the build above.
       - name: pwa-test — the installable app, offline and updates

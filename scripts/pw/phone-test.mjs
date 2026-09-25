@@ -244,9 +244,17 @@ await page.evaluate(() => {
   window.__clicks = 0
   window.__map.on('click', () => window.__clicks++)
 })
+let lateClicks = 0
+/** A frame drawn after the input queue drained: the click a touch makes, if any, has been dispatched by now. */
+const settled = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0))))
 const mapTap = async (x, y) => {
   const before = await page.evaluate(() => window.__clicks)
   await page.touchscreen.tap(x, y)
+  // The page may be busy drawing for a while after the touch; only then does
+  // the wait for its click start, or the click comes late, after the one
+  // sent by hand, and two taps land where one was meant (a local run,
+  // 2026-09-25: the second tap replaced the chooser the first had opened).
+  await settled()
   const until = Date.now() + 1500
   while ((await page.evaluate(() => window.__clicks)) === before && Date.now() < until) await page.waitForTimeout(100)
   if ((await page.evaluate(() => window.__clicks)) !== before) return
@@ -255,6 +263,8 @@ const mapTap = async (x, y) => {
     const el = window.__map.getCanvasContainer()
     el.dispatchEvent(new PointerEvent('click', { pointerType: 'touch', clientX: px, clientY: py, bubbles: true, cancelable: true }))
   }, [x, y])
+  await settled()
+  if ((await page.evaluate(() => window.__clicks)) > before + 1) lateClicks++
 }
 /**
  * A finger on a button (a chooser row): a real touch, and, when `done()` is
@@ -263,14 +273,20 @@ const mapTap = async (x, y) => {
  * such button.
  */
 const buttonTap = async (locator, done) => {
-  const b = (await locator.count()) ? await locator.first().boundingBox() : null
+  const b = (await locator.count()) ? await locator.first().boundingBox({ timeout: 2000 }).catch(() => null) : null
   if (!b) return false
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2)
+  await settled()
   const until = Date.now() + 1500
   while (!(await done()) && Date.now() < until) await page.waitForTimeout(100)
   if (!(await done())) {
     tapsByHand++
-    await locator.first().click({ timeout: 1500 }).catch(() => {})
+    // Sent straight to the button: Playwright's own click first waits for
+    // the page to hold still, which a runner drawing a phone at three
+    // device pixels per CSS pixel may not do in time (the seventh CI run).
+    await locator.first().dispatchEvent('click')
+    const again = Date.now() + 1500
+    while (!(await done()) && Date.now() < again) await page.waitForTimeout(100)
   }
   await page.waitForTimeout(600)
   return true
@@ -766,7 +782,11 @@ if (!inside) {
     const row = chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: poly.name })
     await buttonTap(row, async () => (await chooser.count()) === 0)
     const text = await cardText()
-    check(`  choosing "${poly.name}" opens its card, with its badge`, text.includes(poly.name) && text.includes(badgeOf(poly)) && (await chooser.count()) === 0, text.split('\n')[0] ?? '(no card)')
+    check(
+      `  choosing "${poly.name}" opens its card, with its badge`,
+      text.includes(poly.name) && text.includes(badgeOf(poly)) && (await chooser.count()) === 0,
+      text.split('\n')[0] || `(no card; chooser count ${await chooser.count()})`,
+    )
   } else {
     const text = await cardText()
     check(`a tap inside "${poly.name}", no route near, opens it directly`, text.includes(poly.name) && text.includes(badgeOf(poly)) && (await chooser.count()) === 0, text.split('\n')[0] ?? '(no card)')
@@ -947,7 +967,7 @@ if (!routeA) {
 }
 
 // --------------------------------------------------------- 8. housekeeping
-if (tapsByHand) console.log(`\n(${tapsByHand} tap(s) needed the click sent by hand: the runner dropped the touch)\n`)
+if (tapsByHand) console.log(`\n(${tapsByHand} tap(s) needed the click sent by hand: the runner dropped the touch${lateClicks ? `; ${lateClicks} of those got the touch's own click afterwards too` : ''})\n`)
 check('no request to router.project-osrm.org', !osrmHit)
 check('no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
 

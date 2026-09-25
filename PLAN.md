@@ -131,9 +131,24 @@ drawn line never leaves its own width. Today's four directions: 321 → 988
 points, the file 28,393 → 44,219 bytes, 5,067 → 7,296 gzipped, and the two
 outbound directions share their first 84 points exactly again. The file is
 published from `main`, so the live map shows this once the branch is merged
-and the publish workflow runs (04:00 Manila, or "Run workflow"). Agreed
-next: a domain, parapo.app, when the owner is ready — the code side is the
-README link and a redirect.
+and the publish workflow runs (04:00 Manila, or "Run workflow"). **Step 6,
+the load at scale.** Served a map of 1,000 directions and 510 hotspots (250
+copies of today's, shifted across a grid), the public map took 142 s to
+open, all of it in the orange stretches: every vertex of every line measured
+against every hotspot box, over a hundred million ring distances. Two
+bounds checks now come first — a vertex outside a box's padded bounds is
+never measured (`passStretches`), and a line whose own box does not reach a
+box's is never walked (`passBounds`, `bboxOf` in `src/shared/geo.ts`) — and
+the same map opens with its lines on the screen in 2.4 s here. Four checks
+in `npm run test:pass` prove the stretches of every direction past every
+box in the committed map are identical with and without the checks (Node's
+test runner imports the app's TypeScript through `scripts/ts-resolve.mjs`,
+which resolves the app's extensionless imports). `scripts/pw/scale-test.mjs`
+runs that map in CI from now on, with loose budgets — the first line within
+30 s, the main thread busy under 20 s — to catch the next such regression,
+and prints where the opening went when it fails. Agreed next: a domain,
+parapo.app, when the owner is ready — the code side is the README link and
+a redirect.
 
 **Next.** The design foundation before the owner designs in Figma: tokens in
 one place and a screen inventory in Storybook. Then slices 3 and 4 (short

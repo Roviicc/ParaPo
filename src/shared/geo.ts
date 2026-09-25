@@ -178,6 +178,38 @@ function pointToSegmentM(p: LngLat, a: LngLat, b: LngLat): number {
   return toRad(Math.hypot(dx, dy)) * EARTH_RADIUS_M
 }
 
+/** West, south, east, north, in degrees. */
+export type BBox = [number, number, number, number]
+
+/**
+ * The box around some points, `padM` metres wider on every side. A cheap
+ * first question before any distance is measured: a point outside a ring's
+ * box padded by `d` metres is more than `d` metres from the ring.
+ */
+export function bboxOf(points: readonly LngLat[], padM = 0): BBox {
+  let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity]
+  for (const [x, y] of points) {
+    if (x < w) w = x
+    if (x > e) e = x
+    if (y < s) s = y
+    if (y > n) n = y
+  }
+  if (padM <= 0 || points.length === 0) return [w, s, e, n]
+  const padLat = padM / 111_000
+  const padLng = padLat / Math.cos((((s + n) / 2) * Math.PI) / 180)
+  return [w - padLng, s - padLat, e + padLng, n + padLat]
+}
+
+/** Whether two boxes share any ground. */
+export function bboxesOverlap(a: BBox, b: BBox): boolean {
+  return a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3]
+}
+
+/** Whether the point is inside the box. */
+export function bboxContains(b: BBox, [x, y]: LngLat): boolean {
+  return x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3]
+}
+
 /** Metres from p to the polygon's edge (0 inside it). */
 export function distanceToRingM(p: LngLat, ring: Ring): number {
   if (pointInRing(p, ring)) return 0

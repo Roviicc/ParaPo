@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { variantLine, type VariantSummary } from './routes'
-import { passStretches, stopRing, type StopSummary } from './stops'
+import { passBounds, passStretches, stopRing, type StopSummary } from './stops'
+import { bboxOf, bboxesOverlap } from './geo'
 import { PASS_ORANGE, litWidth, roadWidth } from './lineStyle'
 import { SELECTED_CASING_LAYER, litOpacity, unlitOpacity, useLighting } from './useSavedRoutes'
 import { ROUTES_HIT_LAYER } from './tap'
@@ -69,11 +70,19 @@ export function usePassStretches(
   }, [map])
 
   const features = useMemo(() => {
-    const boxes = stops.filter((s) => s.kind === 'hintuan' && s.area).map((s) => stopRing(s))
+    const boxes = stops
+      .filter((s) => s.kind === 'hintuan' && s.area)
+      .map((s) => {
+        const ring = stopRing(s)
+        return { ring, bounds: passBounds(ring) }
+      })
     return variants.flatMap((v) => {
       const line = variantLine(v)
       if (line.length < 2) return []
-      return boxes.flatMap((ring) =>
+      // Only the boxes the line's own bounds reach: on a big map, most
+      // directions and most boxes are nowhere near each other.
+      const reach = bboxOf(line)
+      return boxes.filter((b) => bboxesOverlap(reach, b.bounds)).flatMap(({ ring }) =>
         passStretches(line, ring).map((coordinates) => ({
           type: 'Feature' as const,
           properties: { id: v.id, route_id: v.route_id },
