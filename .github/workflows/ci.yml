@@ -57,6 +57,9 @@ jobs:
       - name: Build, with the boundary and build checks
         run: npm run build
 
+      - name: The studio's paged table reader, against a capped fake server
+        run: npm run test:reader
+
       # gate-test opens /studio/, whose door needs the database address.
       - name: Give the dev server the public database address and key
         run: cp .env.production .env.local

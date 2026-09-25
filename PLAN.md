@@ -80,10 +80,12 @@ on the hotspot card with tappable siblings; and the **place highlight**
 the build with its guards, then gate, visitor, phone and pwa against the dev
 server, and the drawing suites one at a time with one retry for the shared
 router (`.github/workflows/ci.yml`). Until today the suites ran only on the
-owner's laptop, so a change he could not test shipped unchecked. Agreed next,
-in order: the studio's table reads paged (Supabase answers at most 1,000 rows
-a request and says nothing when it cuts, which the links table crosses at
-about 40 routes); a schema number in the map file so an installed app never
+owner's laptop, so a change he could not test shipped unchecked. **Step 2, same
+day:** the studio's three table reads go through one paged reader
+(`src/studio/readAll.ts`, 8 checks in `npm run test:reader`): Supabase answers
+at most 1,000 rows a request and says nothing when it cuts, which the links
+table crosses at about 40 routes, and the editor would have drawn directions
+with hotspots missing and no error anywhere. Agreed next, in order: a schema number in the map file so an installed app never
 reads a shape it does not know; a smaller file at publish time; feature state
 for the tap instead of rebuilding the layer; and a domain, parapo.app, when
 the owner is ready — the code side is the README link and a redirect.
