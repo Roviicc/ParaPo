@@ -231,15 +231,15 @@ development, once in the build.
 **Stage 3, on paper: the file split, measured, for the owner to decide.**
 Today's file is 43 KB, 7 KB gzipped: 2 routes, 4 directions (247 points
 each at 0.3 m), 30 hotspots, 53 links. Made bigger the way the scale suites
-do it (copies of today's, shifted; hotspots at about five a route, which is
-a guess — today has fifteen a route, but a hotspot at scale is shared), the
-one file as shape 1 comes to:
+do it (copies of today's, shifted), the one file as shape 1 comes to — at
+five hotspots a route, the first guess, and at fifteen to twenty, which is
+what the owner expects of a long route (2026-09-26; today has fifteen):
 
-| routes | directions | hotspots | links | one file, raw | gzipped, honest* |
+| routes | directions | links | hotspots at 5 / 15–20 | one file, raw | gzipped, honest* |
 |---|---|---|---|---|---|
-| 100 | 200 | 510 | 2,650 | 1.7 MB | ~0.3 MB |
-| 250 | 500 | 1,260 | 6,625 | 4.4 MB | ~0.75 MB |
-| 500 | 1,000 | 2,490 | 13,250 | 8.8 MB | ~1.5 MB |
+| 100 | 200 | 2,650 | 510 / 1,500 | 1.7 / 2.2 MB | ~0.3 / 0.4 MB |
+| 250 | 500 | 6,625 | 1,260 / 3,750 | 4.4 / 5.4 MB | ~0.75 / 0.9 MB |
+| 500 | 1,000 | 13,250 | 2,490 / 7,500 | 8.8 / 10.9 MB | ~1.5 / 1.8 MB |
 
 \*Shifted copies gzip 14× because they repeat; today's real file gzips
 6.5× (lines), 4.4× (hotspots), 7.4× (links), and those are the ratios used.
@@ -257,10 +257,18 @@ gzipped**, so the split is two moves, not one. What shape 2 is, concretely:
   links as one array per direction, `[stop_id, sequence]` pairs, instead
   of a row that repeats two UUIDs (13,250 rows × 128 characters → about
   half). Measured, today's data restructured so (20.5 KB, 4.6 KB gzipped,
-  4.5×) and made bigger the same way: the index is 0.6 MB raw at 100
-  routes, 1.5 MB at 250, 3.0 MB at 500 (a third of it hotspots), about
-  0.13, 0.33 and 0.67 MB gzipped — in place of 0.3, 0.75 and 1.5 MB for
-  the one file, with the precise lines then fetched a route at a time.
+  4.5×) and made bigger the same way: at five hotspots a route the index
+  is 0.6 MB raw at 100 routes, 1.5 MB at 250, 3.0 MB at 500 (a third of
+  it hotspots), about 0.13, 0.33 and 0.67 MB gzipped — in place of 0.3,
+  0.75 and 1.5 MB for the one file, with the precise lines then fetched a
+  route at a time. At fifteen to twenty a route it is 1.0, 2.5 and 5.0 MB
+  raw (0.22, 0.56 and 1.1 MB gzipped), and three fifths of it is
+  hotspots: at that density the lines are not the bulk, the boxes are,
+  and the split has a third move — the hotspots by area, a file per cell
+  of a grid over the city, fetched for the cells on the screen the way
+  the lines are fetched a route at a time — or a slimmer hotspot first
+  (no `created_at`, no `point` when the box gives it; about 400
+  characters each today), before any split at all.
 - `/data/v2/lines/<route_id>.json`, one file per route: both directions'
   lines at 0.3 m, 11 KB raw and 3 KB gzipped each (they share their common
   road, which gzips), fetched when a route is lit, or when the zoom passes
@@ -278,10 +286,11 @@ gzipped**, so the split is two moves, not one. What shape 2 is, concretely:
   evening, all of it inside the boundaries the build checks.
 - When: not before 250 routes. At 100 the one file is a photo's worth and
   parses in under 100 ms; at 250 it is 0.75 MB on a phone's first open,
-  borderline; at 500 it is 1.5 MB and the layout of a thousand full lines
-  is what the scale suite times (5.9 s to the first line here, on software
-  rendering). The 1 MB gzipped mark from step 4 is around 350 routes. The
-  owner decides when; the numbers above are what he decides with.
+  borderline; at 500 it is 1.5 to 1.8 MB and the layout of a thousand
+  full lines is what the scale suite times (5.9 s to the first line here,
+  on software rendering). The 1 MB gzipped mark from step 4 is around 350
+  routes at five hotspots a route, around 280 at twenty. The owner decides
+  when; the numbers above are what he decides with.
 - Not this: vector tiles (PMTiles) for the lines. They solve the same
   problem for ten thousand routes and cost a tile build in the publish, a
   protocol handler in the app and a second cache rule; nothing here needs
