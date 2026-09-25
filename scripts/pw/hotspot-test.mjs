@@ -49,6 +49,21 @@ await page.addInitScript(() => {
   // MapLibre 6: GeoJSONSource data is behind an async getter.
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
 })
+// The features of one of our GeoJSON sources once the page has some, asked
+// every 100 ms from here for up to `ms`; [] when none came in time. Not
+// `page.waitForFunction` with an async function: under Playwright's default
+// polling that resolves after the function's first call whatever it returned,
+// so a slow database (GitHub's runners are far from it) let the checks start
+// on an empty map. Seen on the first CI run, 2026-09-25.
+const waitForSource = async (id, ms = 20000) => {
+  const until = Date.now() + ms
+  for (;;) {
+    const fs = await page.evaluate(async (id) => (await window.__src(id))?.features ?? [], id)
+    if (fs.length > 0 || Date.now() > until) return fs
+    await page.waitForTimeout(100)
+  }
+}
+
 await page.goto(`${BASE}/studio/?e2e=1`, { waitUntil: 'load' })
 // wait for the map to exist and be loaded
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
@@ -57,16 +72,14 @@ check('map loaded', true)
 // saved routes fetched (public read) — proves Supabase config is live.
 // The page normally has them in about a second; give a slow network up to
 // 20s before calling it a failure, and say plainly when that's what happened.
-let savedRoutesTimedOut = false
-await page.waitForFunction(async () => ((await window.__src('saved-routes'))?.features?.length ?? 0) > 0, null, { timeout: 20000 }).catch(() => { savedRoutesTimedOut = true })
-const savedRoutes = await page.evaluate(async () => (await window.__src('saved-routes'))?.features ?? [])
+const savedRoutes = await waitForSource('saved-routes')
 const savedCount = savedRoutes.length
 if (savedCount > 0) {
   check('saved routes loaded from Supabase', true, `${savedCount} direction(s)`)
-} else if (savedRoutesTimedOut) {
-  check('saved routes loaded from Supabase', false, 'timed out after 20s waiting for saved-routes to load (normally ~1s)')
 } else {
-  skip('saved routes loaded from Supabase', 'no saved routes in the database yet')
+  // The page cannot tell an empty table from a slow one; either way the
+  // route checks below have nothing to click, so say so rather than skip.
+  check('saved routes loaded from Supabase', false, 'no saved routes in 20 s: none in the database, or a slow answer (normally ~1s)')
 }
 
 // Known risk: the map's opening view fits the saved-routes bounds, which

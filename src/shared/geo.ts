@@ -33,6 +33,17 @@ export function joinSegments(segments: Segment[]): LngLat[] {
   return out
 }
 
+/**
+ * Six decimals, about 0.1 m: what a save keeps of a coordinate. The router
+ * and the mouse give 15 or more, and those digits were half of every row
+ * (2026-09-25, future-proofing stage 2). The publish script rounds the same
+ * way, so a published point is the saved one.
+ */
+export const round6 = (n: number): number => Math.round(n * 1e6) / 1e6
+
+/** The point with both coordinates rounded to 6 decimals. */
+export const roundLngLat = (p: LngLat): LngLat => [round6(p[0]), round6(p[1])]
+
 const EARTH_RADIUS_M = 6_371_000
 
 function toRad(deg: number) {
@@ -151,10 +162,15 @@ export function firstVertexInside(line: LngLat[], ring: Ring): number {
  */
 export function firstTouchIndex(line: LngLat[], ring: Ring): number {
   if (ring.length < 3 || line.length === 0) return -1
+  // A vertex inside the ring is inside its box, and a segment that crosses
+  // its edge reaches its box: the cheap questions first, and none of the
+  // dear ones for a line whose own box is nowhere near (lineBounds).
+  const box = bboxOf(ring)
+  if (!bboxesOverlap(lineBounds(line), box)) return -1
   const n = ring.length
   for (let i = 0; i < line.length; i++) {
-    if (pointInRing(line[i], ring)) return i
-    if (i === 0) continue
+    if (bboxContains(box, line[i]) && pointInRing(line[i], ring)) return i
+    if (i === 0 || !bboxMeetsSegment(box, line[i - 1], line[i])) continue
     for (let j = 0; j < n; j++) {
       if (segmentsIntersect(line[i - 1], line[i], ring[j], ring[(j + 1) % n])) return i - 1
     }
@@ -178,6 +194,67 @@ function pointToSegmentM(p: LngLat, a: LngLat, b: LngLat): number {
   return toRad(Math.hypot(dx, dy)) * EARTH_RADIUS_M
 }
 
+/** West, south, east, north, in degrees. */
+export type BBox = [number, number, number, number]
+
+/**
+ * The box around some points, `padM` metres wider on every side. A cheap
+ * first question before any distance is measured: a point outside a ring's
+ * box padded by `d` metres is more than `d` metres from the ring.
+ */
+export function bboxOf(points: readonly LngLat[], padM = 0): BBox {
+  let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity]
+  for (const [x, y] of points) {
+    if (x < w) w = x
+    if (x > e) e = x
+    if (y < s) s = y
+    if (y > n) n = y
+  }
+  if (padM <= 0 || points.length === 0) return [w, s, e, n]
+  const padLat = padM / 111_000
+  const padLng = padLat / Math.cos((((s + n) / 2) * Math.PI) / 180)
+  return [w - padLng, s - padLat, e + padLng, n + padLat]
+}
+
+/** Whether two boxes share any ground. */
+export function bboxesOverlap(a: BBox, b: BBox): boolean {
+  return a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3]
+}
+
+/** Whether the point is inside the box. */
+export function bboxContains(b: BBox, [x, y]: LngLat): boolean {
+  return x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3]
+}
+
+/** Whether the segment a–b reaches the box: its own box overlaps it. */
+export function bboxMeetsSegment(b: BBox, a: LngLat, c: LngLat): boolean {
+  return (
+    Math.max(a[0], c[0]) >= b[0] &&
+    Math.min(a[0], c[0]) <= b[2] &&
+    Math.max(a[1], c[1]) >= b[1] &&
+    Math.min(a[1], c[1]) <= b[3]
+  )
+}
+
+const lineBoxes = new WeakMap<readonly LngLat[], BBox>()
+
+/**
+ * The box around a line, computed once per array. A loaded direction's line
+ * is one array for as long as it is loaded, and every hotspot saved asks
+ * every line whether it comes near (linksThrough), every direction saved
+ * asks every hotspot (hintuansAlong): the box is the first question each
+ * time, and a thousand lines answer it in a millisecond. Rebuilt for a new
+ * array, never for an array changed in place — no line is.
+ */
+export function lineBounds(line: readonly LngLat[]): BBox {
+  let b = lineBoxes.get(line)
+  if (!b) {
+    b = bboxOf(line)
+    lineBoxes.set(line, b)
+  }
+  return b
+}
+
 /** Metres from p to the polygon's edge (0 inside it). */
 export function distanceToRingM(p: LngLat, ring: Ring): number {
   if (pointInRing(p, ring)) return 0
@@ -197,9 +274,14 @@ export function firstNearIndex(line: LngLat[], ring: Ring, withinM: number): num
   const touch = firstTouchIndex(line, ring)
   const n = ring.length
   if (n < 3 || line.length === 0) return -1
+  // A segment within `withinM` of the ring reaches the ring's box padded by
+  // that much (a metre more, for the flat patch the metres are measured on).
+  const box = bboxOf(ring, withinM + 1)
+  if (!bboxesOverlap(lineBounds(line), box)) return touch
   for (let i = 1; i < line.length; i++) {
     if (touch >= 0 && i - 1 >= touch) return touch
     const [a, b] = [line[i - 1], line[i]]
+    if (!bboxMeetsSegment(box, a, b)) continue
     for (let j = 0; j < n; j++) {
       const [c, d] = [ring[j], ring[(j + 1) % n]]
       const near =

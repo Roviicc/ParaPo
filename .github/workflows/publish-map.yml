@@ -1,15 +1,27 @@
-# Publishes the public map as a file, daily and on demand.
+# Publishes the public map as a file, daily and on demand, and keeps one
+# issue open while anything about it needs the owner.
 #
 # Runs scripts/publish-map.mjs, which reads the public tables with the
 # publishable key committed in .env.production and writes public/data/map.json.
+# Then scripts/check-map-data.mjs reads the file back: a problem the app
+# could not show honestly (a link to a hotspot that is not there, a route
+# whose end hotspot is missing) fails the run before the commit; a warning
+# (a line that ends far from its terminal, a hintuan the line passes without
+# being linked to it) lets the map go out and is written up for the owner.
 # If the file changed, the change is committed to main and the push deploys
 # as any other: Cloudflare's GitHub App gets the push like any other. (A push
 # made with GITHUB_TOKEN starts no other GitHub Actions workflow, by design —
-# should this repo ever gain a CI workflow, it will not run on these commits.)
-# If nothing changed, nothing is committed: the script writes a byte-identical
-# file for unchanged data.
+# the CI workflow does not run on these commits.) If nothing changed, nothing
+# is committed: the script writes a byte-identical file for unchanged data.
 #
-# The script refuses to publish a map that suddenly shrank by more than 30%,
+# The last step is the loud part. A failed run — the database unreachable, a
+# table gone private, a data problem — used to be an email from GitHub that
+# nobody reads while the live map went quietly stale. Now the run opens the
+# issue "The map needs a look", or brings the open one up to date, with the
+# run's log and the data report; the same issue carries the data warnings of
+# a run that published. The first run with nothing to report closes it.
+#
+# The publish script refuses a map that suddenly shrank by more than 30%,
 # because a table that answers with no rows is a normal HTTP 200 and a policy
 # slip would otherwise blank the public map. When a clear-out is deliberate,
 # press "Run workflow" and tick Force.
@@ -31,9 +43,11 @@ on:
         type: boolean
         default: false
 
-# The default token is read-only; committing the file needs write.
+# The default token is read-only; committing the file needs write, and so
+# does keeping the issue.
 permissions:
   contents: write
+  issues: write
 
 # Never two publishes at once.
 concurrency:
@@ -54,13 +68,22 @@ jobs:
         with:
           node-version: 22
 
-      # The script has no dependencies, so there is no `npm ci`.
+      # The scripts have no dependencies, so there is no `npm ci`. The output
+      # is kept for the issue; the step's shell fails on the script's exit
+      # code through the pipe.
       #
       # `--force` only on a "Run workflow" press with the box ticked: the
       # schedule has no inputs, so the expression is empty there and the
       # shrink guard keeps its say on every unattended run.
       - name: Publish the map
-        run: node scripts/publish-map.mjs ${{ inputs.force && '--force' || '' }}
+        run: node scripts/publish-map.mjs ${{ inputs.force && '--force' || '' }} 2>&1 | tee "$RUNNER_TEMP/publish.log"
+
+      # The check imports the app's own rules from src/shared, TypeScript,
+      # which Node strips; ts-resolve.mjs finds the .ts behind an
+      # extensionless import. The report lands on this run's summary page
+      # and in $RUNNER_TEMP/data.md for the issue.
+      - name: Check the map data
+        run: node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/check-map-data.mjs --markdown "$RUNNER_TEMP/data.md" 2>&1 | tee "$RUNNER_TEMP/check.log"
 
       # `git add` first: `git diff` alone cannot see a file git does not track
       # yet, and would report "unchanged" for a brand-new one forever.
@@ -77,3 +100,43 @@ jobs:
           # The owner may have pushed while this ran; go once more behind it.
           git pull --rebase origin main || { git rebase --abort; exit 1; }
           git push origin HEAD:main
+
+      # One issue, "The map needs a look", is the whole story. Its body is
+      # replaced on every run that has something to say, and a comment is
+      # left only when that body changed, so a warning that stands for a
+      # month nudges the owner once. Nothing to say closes it.
+      - name: Keep the owner told
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="The map needs a look"
+          now="$(date -u '+%Y-%m-%d %H:%M UTC')"
+          body=""
+          if [ "$STATUS" != "success" ]; then
+            body+="**The publish on $now did not go through** ($STATUS): [the run]($RUN_URL)."$'\n\n'
+            log="$(tail -q -n 15 "$RUNNER_TEMP/publish.log" "$RUNNER_TEMP/check.log" 2>/dev/null | sed '/ExperimentalWarning/d' || true)"
+            if [ -n "$log" ]; then body+='```'$'\n'"$log"$'\n''```'$'\n\n'; fi
+          fi
+          if [ -f "$RUNNER_TEMP/data.md" ] && ! grep -q 'Nothing to report' "$RUNNER_TEMP/data.md"; then
+            body+="$(cat "$RUNNER_TEMP/data.md")"$'\n\n'
+          fi
+          number="$(gh issue list --state open --limit 50 --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -n 1)"
+          if [ -z "$body" ]; then
+            if [ -n "$number" ]; then
+              gh issue close "$number" --comment "All clear: the publish on $now had nothing to report ([the run]($RUN_URL))."
+            fi
+            echo "Nothing to report."
+            exit 0
+          fi
+          body+="_Kept by the Publish map workflow (.github/workflows/publish-map.yml); it closes on the first run with nothing to report._"
+          if [ -z "$number" ]; then
+            gh issue create --title "$title" --body "$body"
+          elif [ "$(gh issue view "$number" --json body --jq .body)" != "$body" ]; then
+            gh issue edit "$number" --body "$body"
+            gh issue comment "$number" --body "Brought up to date by [the run]($RUN_URL) on $now."
+          else
+            echo "The open issue already says this."
+          fi

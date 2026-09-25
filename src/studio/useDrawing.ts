@@ -9,7 +9,7 @@ import {
 } from '../shared/geo'
 import { HOTSPOT_COLOUR } from '../shared/colours'
 import { findUTurns, snapSegments, straightSegment } from './snap'
-import { variantLine, type VariantRow } from '../shared/routes'
+import { variantLine, type VariantDrawing } from '../shared/routes'
 import { cutAt, nearestSpot, reverseDrawing, type BorrowPart, type LineSpot } from './borrow'
 import { ROUTES_HIT_LAYER } from '../shared/tap'
 
@@ -46,7 +46,7 @@ export type Borrow = { variantId: string; part: BorrowPart }
  * Set while choosing where a new route leaves a saved direction, before any
  * of it is taken: the direction, and the spot tapped on it so far.
  */
-export type Picking = { variant: VariantRow; spot: LineSpot | null }
+export type Picking = { variant: VariantDrawing; spot: LineSpot | null }
 
 /** A gap still waiting for the router when the draft was written is marked `pending`. */
 type DraftSegment = Segment & { pending?: boolean }
@@ -383,9 +383,9 @@ export function useDrawing(
     [reset],
   )
 
-  /** Open a saved direction for editing. */
+  /** Open a saved direction for editing: its row with its drawing (live.ts withDrawing). */
   const load = useCallback(
-    (v: VariantRow) => {
+    (v: VariantDrawing) => {
       reset()
       writePoints(v.control_points ?? [])
       writeSegments(v.segments ?? [])
@@ -403,7 +403,7 @@ export function useDrawing(
    * the new route leaves it, then keeps the part before or after that spot.
    */
   const startExtend = useCallback(
-    (v: VariantRow) => {
+    (v: VariantDrawing) => {
       reset()
       setFreehand(false)
       setArea(null)
@@ -447,15 +447,27 @@ export function useDrawing(
    *
    * Returns a sentence for the owner when it cannot join, or null.
    */
+  /**
+   * Whether a join can start now, asked before the line's drawing is fetched
+   * (live.ts withDrawing), so the owner hears "draw first" at once rather
+   * than after a request. `go` false with no problem: nothing to say, as when
+   * tracing a hotspot. `connect` asks the same again when the drawing lands.
+   */
+  const joinGate = useCallback((): { go: boolean; problem: string | null } => {
+    if (areaRef.current || pickingRef.current) return { go: false, problem: null }
+    if (cpRef.current.length === 0) {
+      return { go: false, problem: 'Draw from where the jeep starts first, then right-click the line it joins.' }
+    }
+    if (joinRef.current || borrowRef.current) {
+      return { go: false, problem: 'This drawing already follows part of another line. One per drawing, for now.' }
+    }
+    return { go: true, problem: null }
+  }, [])
+
   const connect = useCallback(
-    (v: VariantRow, at: LngLat, backwards: boolean): string | null => {
-      if (areaRef.current || pickingRef.current) return null
-      if (cpRef.current.length === 0) {
-        return 'Draw from where the jeep starts first, then right-click the line it joins.'
-      }
-      if (joinRef.current || borrowRef.current) {
-        return 'This drawing already follows part of another line. One per drawing, for now.'
-      }
+    (v: VariantDrawing, at: LngLat, backwards: boolean): string | null => {
+      const gate = joinGate()
+      if (!gate.go) return gate.problem
       const cp = v.control_points ?? []
       const segs = v.segments ?? []
       const src = backwards ? reverseDrawing(cp, segs) : { controlPoints: cp, segments: segs }
@@ -473,7 +485,7 @@ export function useDrawing(
       void resolveGaps(gap, [freehandRef.current ? 'freehand' : 'snapped'])
       return null
     },
-    [resolveGaps, writePoints, writeSegments],
+    [joinGate, resolveGaps, writePoints, writeSegments],
   )
 
   /** Begin tracing a hotspot outline. */
@@ -1029,6 +1041,7 @@ export function useDrawing(
     picking,
     startExtend,
     keep,
+    joinGate,
     connect,
     /** Control points where the route turns back on itself (see findUTurns). */
     uTurns,

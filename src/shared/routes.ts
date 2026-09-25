@@ -105,11 +105,15 @@ export type VariantSummary = {
   route: RouteSummary
 }
 
-/** One direction with everything the editor needs to reopen and re-save it. */
+/**
+ * One direction as the editor lists it: what the map, the cards, the links
+ * and a save need to know about every direction, without its drawing. The
+ * drawing — the clicks and the road between each pair — is read on its own
+ * when a direction is opened (VariantDrawing, live.ts withDrawing): it is
+ * half of every row, and the editor lists a thousand rows to open one.
+ */
 export type VariantRow = VariantSummary & {
   owner_id: string
-  control_points: LngLat[]
-  segments: Segment[]
   updated_at: string
   route: RouteRow & { name: string }
   /**
@@ -122,6 +126,12 @@ export type VariantRow = VariantSummary & {
   borrowed_from?: string | null
   borrowed_part?: 'start' | 'end' | null
   borrowed_m?: number | null
+}
+
+/** A direction with its drawing, for reopening and re-saving it. */
+export type VariantDrawing = VariantRow & {
+  control_points: LngLat[]
+  segments: Segment[]
 }
 
 /** A VariantRow straight from the database, before nameVariants has run. */

@@ -24,17 +24,73 @@ const HIT = ROUTES_HIT_LAYER
  */
 const REST = { line: 0.45, casing: 0.8 }
 const FADED = { line: 0.15, casing: 0.3 }
-/** The same levels, for the pass stretches that ride the line. */
-export const LEVELS = { REST, FADED }
 
 /**
- * The `line-opacity` of the lines that are not lit: all at rest while
- * nothing is lit; once something is, faded, but for the `resting` ones.
+ * What a tap does to a direction's features, kept as MapLibre feature state
+ * (`setFeatureState`) rather than as a filter or a paint expression naming
+ * ids. The paint expressions below read it and never change, and a change
+ * of feature state repaints only the features whose state changed, on the
+ * main thread; whereas a new filter, or a new expression in a data-driven
+ * paint property, has MapLibre lay out every tile of the source again in
+ * its worker — for 1,000 directions, a second and a half of stall a tap
+ * (measured 2026-09-25, future-proofing step 5).
+ *
+ *   lit      – drawn again on top, full and thick
+ *   resting  – at rest while others fade: the lit direction's way back
+ *   dim      – faded: everything else, once anything is lit
+ *   (none)   – at rest: everything, while nothing is lit
  */
-export function unlitOpacity(part: keyof typeof REST, lit: readonly string[], resting: readonly string[]) {
-  if (lit.length === 0) return REST[part]
-  if (resting.length === 0) return FADED[part]
-  return ['case', ['in', ['get', 'id'], ['literal', [...resting]]], REST[part], FADED[part]] as never
+export type Lighting = 'lit' | 'resting' | 'dim' | 'rest'
+const STATE_OF: Record<Lighting, { lit: boolean; resting: boolean; dim: boolean }> = {
+  lit: { lit: true, resting: false, dim: true },
+  resting: { lit: false, resting: true, dim: false },
+  dim: { lit: false, resting: false, dim: true },
+  rest: { lit: false, resting: false, dim: false },
+}
+const flag = (name: 'lit' | 'resting' | 'dim') => ['boolean', ['feature-state', name], false]
+
+/**
+ * The `line-opacity` of the lines that are not lit, from feature state: at
+ * rest while nothing is lit; once something is, faded, but for the
+ * `resting` ones. (A lit direction's own copy here fades too; its lit copy
+ * is drawn on top.)
+ */
+export function unlitOpacity(part: keyof typeof REST) {
+  return ['case', flag('resting'), REST[part], flag('dim'), FADED[part], REST[part]] as never
+}
+
+/** The opacity of a layer that draws the lit directions only: 1 for them, 0 for the rest. */
+export function litOpacity() {
+  return ['case', flag('lit'), 1, 0] as never
+}
+
+/**
+ * Sets the lighting of every id in `ids` on `source`, changing only what
+ * changed since the last call. `lit` and `resting` name the exceptions;
+ * everything else is dim while anything is lit, at rest otherwise. Never
+ * `removeFeatureState`: a removal and a set of the same id in one frame
+ * leave the removal in charge.
+ */
+export function useLighting(
+  map: MapLibreMap | null,
+  source: string,
+  ids: readonly string[],
+  lit: readonly string[],
+  resting: readonly string[],
+) {
+  const was = useRef(new Map<string, Lighting>())
+  useEffect(() => {
+    if (!map || !map.getSource(source)) return
+    const now = new Map<string, Lighting>()
+    if (lit.length > 0) {
+      for (const id of ids) now.set(id, lit.includes(id) ? 'lit' : resting.includes(id) ? 'resting' : 'dim')
+    }
+    for (const id of new Set([...was.current.keys(), ...now.keys()])) {
+      const state = now.get(id) ?? 'rest'
+      if ((was.current.get(id) ?? 'rest') !== state) map.setFeatureState({ source, id }, STATE_OF[state])
+    }
+    was.current = now
+  }, [map, source, ids, lit, resting])
 }
 
 /**
@@ -116,8 +172,10 @@ export function useSavedRoutes<T extends VariantSummary>(
     // so above these too.
     const before = map.getStyle().layers.find((l) => l.type === 'symbol')?.id
 
+    // `promoteId`: the feature state a tap sets is keyed on the direction's id.
     map.addSource(SRC, {
       type: 'geojson',
+      promoteId: 'id',
       data: { type: 'FeatureCollection', features: [] },
     })
     map.addLayer(
@@ -126,7 +184,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': roadWidth(CASING_EXTRA), 'line-opacity': REST.casing },
+        paint: { 'line-color': '#ffffff', 'line-width': roadWidth(CASING_EXTRA), 'line-opacity': unlitOpacity('casing') },
       },
       before,
     )
@@ -136,21 +194,22 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': LINE_BLUE, 'line-width': roadWidth(0), 'line-opacity': REST.line },
+        paint: { 'line-color': LINE_BLUE, 'line-width': roadWidth(0), 'line-opacity': unlitOpacity('line') },
       },
       before,
     )
     // The lit directions — the one chosen, or everything under a tap — drawn
     // once more above the rest. Fading the others is what makes them stand
-    // out; this pair is what stays bright.
+    // out; this pair is what stays bright. Every direction is in these
+    // layers, the unlit ones at opacity 0: a filter naming the lit ones
+    // would lay the whole source out again at every tap (see `useLighting`).
     map.addLayer(
       {
         id: SELECTED_CASING,
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': litWidth(CASING_EXTRA), 'line-opacity': 1 },
-        filter: ['==', ['get', 'id'], ''] as never,
+        paint: { 'line-color': '#ffffff', 'line-width': litWidth(CASING_EXTRA), 'line-opacity': litOpacity() },
       },
       before,
     )
@@ -160,8 +219,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': LINE_BLUE, 'line-width': litWidth() },
-        filter: ['==', ['get', 'id'], ''] as never,
+        paint: { 'line-color': LINE_BLUE, 'line-width': litWidth(), 'line-opacity': litOpacity() },
       },
       before,
     )
@@ -221,7 +279,7 @@ export function useSavedRoutes<T extends VariantSummary>(
   useEffect(() => {
     if (!map || !map.getLayer(LINE)) return
     const filter = ['!=', ['get', 'id'], opts.hiddenVariantId ?? ''] as const
-    for (const id of [CASING, LINE, HIT]) map.setFilter(id, filter as never)
+    for (const id of [CASING, LINE, SELECTED_CASING, SELECTED, HIT]) map.setFilter(id, filter as never)
   }, [map, opts.hiddenVariantId])
 
   // What is lit: the chosen direction alone, or, while the sheet asks which,
@@ -246,16 +304,8 @@ export function useSavedRoutes<T extends VariantSummary>(
       : candidates.filter((v) => v.reversed !== back)
     return others.filter(isDrawn).map((v) => v.id)
   }, [selectedId, variants, candidates, back])
-  useEffect(() => {
-    if (!map || !map.getLayer(SELECTED)) return
-    const hidden = ['!=', ['get', 'id'], opts.hiddenVariantId ?? '']
-    const isLit = ['in', ['get', 'id'], ['literal', lit]]
-    const filter = ['all', hidden, isLit]
-    map.setFilter(SELECTED_CASING, filter as never)
-    map.setFilter(SELECTED, filter as never)
-    map.setPaintProperty(LINE, 'line-opacity', unlitOpacity('line', lit, resting))
-    map.setPaintProperty(CASING, 'line-opacity', unlitOpacity('casing', lit, resting))
-  }, [map, lit, resting, opts.hiddenVariantId])
+  const drawnIds = useMemo(() => variants.filter(isDrawn).map((v) => v.id), [variants])
+  useLighting(map, SRC, drawnIds, lit, resting)
 
   // The click handler is bound once; this is how it reads what is lit now.
   const litRef = useRef<readonly string[]>([])

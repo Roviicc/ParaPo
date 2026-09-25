@@ -1,5 +1,5 @@
 import type { LngLat, Segment } from '../shared/geo'
-import { joinSegments } from '../shared/geo'
+import { joinSegments, roundLngLat } from '../shared/geo'
 import { VARIANT_SELECT } from './live'
 import type { LineStringGeoJSON, TransportMode, UnnamedVariantRow, VariantRow } from '../shared/routes'
 import { requireSupabase } from '../shared/supabase'
@@ -46,7 +46,8 @@ const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim())
  * the return trip" a fill rather than an insert. Decided 2026-09-21.
  *
  * Writes require a signed-in editor who owns the row; RLS enforces it. The row
- * comes back without its generated name: the caller has the hotspot list and
+ * comes back as the list reads it (VARIANT_SELECT, without the drawing just
+ * sent) and without its generated name: the caller has the hotspot list and
  * runs nameVariants on it.
  */
 /** Postgres: a unique index refused the row. */
@@ -126,15 +127,20 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
     }
   }
 
+  // Six decimals, about 0.1 m (roundLngLat): the router's points carry 15 or
+  // more, and those digits were half of every row. The line is joined from
+  // the rounded segments, so a segment's end and the shape's point are the
+  // same number, and the publish script's rounding then changes nothing.
+  const segments: Segment[] = input.segments.map((s) => ({ ...s, coordinates: s.coordinates.map(roundLngLat) }))
   const shape: LineStringGeoJSON = {
     type: 'LineString',
-    coordinates: joinSegments(input.segments),
+    coordinates: joinSegments(segments),
   }
   const drawn = {
     route_id: routeId,
     reversed: input.reversed,
-    control_points: input.control_points,
-    segments: input.segments,
+    control_points: input.control_points.map(roundLngLat),
+    segments,
     shape,
     borrowed_from: input.borrowed_from,
     borrowed_part: input.borrowed_from ? input.borrowed_part : null,
@@ -168,7 +174,7 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
       await client.from('route').delete().eq('id', routeId)
       throw new Error(error.message)
     }
-    const saved = (data as UnnamedVariantRow[]).find((v) => v.reversed === input.reversed)
+    const saved = (data as unknown as UnnamedVariantRow[]).find((v) => v.reversed === input.reversed)
     if (!saved) throw new Error('Saved the route but could not read the direction back')
     return saved
   }
@@ -182,7 +188,7 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
 
   const { data, error } = await target.select(VARIANT_SELECT).maybeSingle()
   if (error) throw new Error(error.message)
-  if (data) return data as UnnamedVariantRow
+  if (data) return data as unknown as UnnamedVariantRow
 
   // No slot to fill. Only reachable for a route saved before 0006, or one
   // whose slot was deleted by hand; an insert is the honest repair.
@@ -192,7 +198,7 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
     .select(VARIANT_SELECT)
     .single()
   if (insertError) throw new Error(insertError.message)
-  return made as UnnamedVariantRow
+  return made as unknown as UnnamedVariantRow
 }
 
 /**

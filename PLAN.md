@@ -76,6 +76,221 @@ on the hotspot card with tappable siblings; and the **place highlight**
 (siblings stronger under a soft wash, studio and public map). visitor-test
 131/131, phone-test 38/38. Each has a dated section below.
 
+**2026-09-25, future-proofing, step 1 of 6.** Every push now runs on GitHub:
+the build with its guards, then gate, visitor, phone and pwa against the dev
+server, and the drawing suites one at a time with one retry for the shared
+router (`.github/workflows/ci.yml`). Until today the suites ran only on the
+owner's laptop, so a change he could not test shipped unchecked. **Step 2, same
+day:** the studio's three table reads go through one paged reader
+(`src/studio/readAll.ts`, 8 checks in `npm run test:reader`): Supabase answers
+at most 1,000 rows a request and says nothing when it cuts, which the links
+table crosses at about 40 routes, and the editor would have drawn directions
+with hotspots missing and no error anywhere. **Step 3, same day:** the map file
+carries `"schema": 1` and the reader checks it (`src/shared/mapFile.ts` has
+the rules: adding a field is not a new shape, renaming or removing one is,
+and a new shape goes to a new path while the old path keeps the old shape for
+installed apps; 9 checks in `npm run test:mapfile`). A file of a shape the
+installed app does not know gets a banner that says so and a Reload, not a
+blank map. **Step 4, same day:** the file diet. The publish script already
+kept a line to within 5 m and 5 decimals; a hotspot's point and box went out
+with 15 or more decimals, and those digits were half the file. They now carry
+6 (about 0.1 m; no corner moved more than 7 cm): the committed file went
+from 31,857 bytes to 28,393, and on the wire, gzipped as Cloudflare serves
+it, from 6,781 to 5,067. A check in `npm run test:mapfile` holds the file to
+those decimals. What is left is shape, not digits — the links repeat two
+UUIDs a row, and each direction repeats its route — and the same file at 500
+routes would be about 1 MB gzipped, which is when the file splits (an index,
+and a line per route fetched on demand) as shape 2 at its own path. **Step 5,
+same day:** a tap is feature state. Lighting a direction used to set a
+filter on the lit layers and a paint expression naming ids on the resting
+ones, and MapLibre answers either by laying every tile of the source out
+again in its worker — for hotspots too, and the orange stretches. Now each
+direction's features carry `lit`, `resting` or `dim` as feature state
+(`useLighting` in `src/shared/useSavedRoutes.ts`; the hotspot hook does the
+same with `lit`, `sibling`, `chosen`), the paint expressions read the state
+and never change, and the lit layers hold every direction at opacity 0 but
+for the lit ones. Only the features whose state changed are repainted, on
+the main thread. Measured on a synthetic map of 1,000 directions and 500
+hotspots (250 copies of today's, shifted across a grid; `scripts/_perf.mjs`
+was the harness, not kept): at zoom 11 the lit line reached the screen 143 ms
+after the tap instead of 260 ms, with the two source reloads a tap caused
+gone; at zoom 14 both were about 10 ms here. The gain is the worker's
+re-layout, which grows with the directions on the map and with a phone's
+slower CPU; this sandbox's main thread was busy with software rendering
+either way. The suites read the state now (`window.__lit`, `__restLevel`
+in their init scripts) instead of the filters. **Same night, the lines.**
+The owner zoomed the live map to Belfast Avenue and Quirino Highway and saw
+the lines cut the corners and the two routes that share the road out of
+Tala braid across each other. That was the publish step's thinning, 5 m
+since the file existed: at zoom 20 five metres is sixty pixels, and each
+direction thinned on its own keeps different corners, so lines the router
+had put on the same points came apart. The publish script now thins to
+0.3 m and rounds to 6 decimals, and checks every original point is within
+half a metre — the lit line is 10 px wide at zoom 20, a pixel 7 cm, so the
+drawn line never leaves its own width. Today's four directions: 321 → 988
+points, the file 28,393 → 44,219 bytes, 5,067 → 7,296 gzipped, and the two
+outbound directions share their first 84 points exactly again. The file is
+published from `main`, so the live map shows this once the branch is merged
+and the publish workflow runs (04:00 Manila, or "Run workflow"). **Step 6,
+the load at scale.** Served a map of 1,000 directions and 510 hotspots (250
+copies of today's, shifted across a grid), the public map took 142 s to
+open, all of it in the orange stretches: every vertex of every line measured
+against every hotspot box, over a hundred million ring distances. Two
+bounds checks now come first — a vertex outside a box's padded bounds is
+never measured (`passStretches`), and a line whose own box does not reach a
+box's is never walked (`passBounds`, `bboxOf` in `src/shared/geo.ts`) — and
+the same map opens with its lines on the screen in 2.4 s here. Four checks
+in `npm run test:pass` prove the stretches of every direction past every
+box in the committed map are identical with and without the checks (Node's
+test runner imports the app's TypeScript through `scripts/ts-resolve.mjs`,
+which resolves the app's extensionless imports). `scripts/pw/scale-test.mjs`
+runs that map in CI from now on, with loose budgets — the first line within
+30 s, the main thread busy under 20 s — to catch the next such regression,
+and prints where the opening went when it fails. **The same night, the
+publish checks its data and says so.** `scripts/check-map-data.mjs` reads
+the file the publish has just written against the app's own rules
+(`src/shared/stops.ts`): a link to a hotspot that is not there, a route
+whose end hotspot is missing, an id twice, are *problems* and the run stops
+before the commit; a line that starts or ends more than 50 m from the
+hotspot it leaves from or arrives at, a hintuan the line passes but is not
+linked to, a link to one it never comes within 5 m of, a hintuan without a
+box, are *warnings* and the map goes out with them written up. Twelve
+checks in `npm run test:data`; `npm run check:data` runs it on the
+committed file, and found today's first finding: the Tala – SM Fairview
+line ends 3 m inside the "SM Fairview Public Transport Terminal" hintuan,
+589 m from the SM City terminal the route names as its end — the owner's
+call which of the two is right. And the workflow keeps one issue, "The map
+needs a look": opened or brought up to date by a run that failed (with its
+log) or published with warnings (with the report), a comment only when the
+body changed, closed by the first run with nothing to report. Until then a
+failed publish was an email from GitHub while the live map went quietly
+stale. **The studio at scale, measured, not changed.** The same 1,000
+directions and 510 hotspots, this time as the database sends them to the
+editor — full lines (471 points a direction on average today), control
+points, segments, 15-decimal coordinates, 25 KB a row measured on the live
+table — served to `/studio/?e2e=1` by a stand-in for Supabase's REST API
+(`scratchpad`, not kept). Opening: the map ready at 3.3 s, the lines on
+the screen at 5.7 s, idle at 7 s, 4 s of it with the main thread in long
+tasks, 235 MB of JS heap; the shared hooks carry steps 5 and 6, so the
+stretches cost nothing now and MapLibre's layout and the JSON parsing are
+what is left. A click on a line at zoom 14 lit it in about 0.8 s here,
+most of it MapLibre's worker writing the state into the tiles' paint
+buffers and garbage collection. What would hurt first, in order: (1) the
+download — the editor fetches every column of every direction on open,
+about 25 MB at 500 routes before compression, and in this run the variant
+table was read four times: two are StrictMode's double effects in
+development, the other pair came two seconds later, after the session
+resolved, and is worth a look in a signed-in production studio's network
+panel; the fix is to select the columns the map needs (no `segments`, no
+`control_points`) and fetch a direction's full row when it is opened for
+editing, and to save coordinates with 6 decimals, which together cut the
+open to about a fifth; (2) the links table is read a page at a time, 14
+round trips at 500 routes — after the first page says the count, the rest
+can go out at once; (3) every hotspot save walks every direction's full
+line (`linksThrough`: 1.0 s at 1,000 directions here) and every direction
+save and save-panel preview walks every hotspot (`hintuansAlong`: 0.55 s)
+— both are step 6's problem without step 6's answer, and `passBounds` and
+`bboxOf` give it to them in a few lines each, with a bbox per direction
+computed once per load. None of it is needed at 4 routes, or at 40.
+**Stage 2, the same night: the studio at scale, changed.** The three, in
+that order, each pushed and proven green before the next. (1) The list of
+directions names its columns (`VARIANT_SELECT` in `src/studio/live.ts`): no
+`control_points`, no `segments`. The type says the same — `VariantRow` is
+the list row, `VariantDrawing` the row with its drawing — and the drawing
+hook takes only the latter, so a direction's drawing is read in one small
+request when it is opened to edit, extend or follow (`withDrawing`); a
+right-click to follow hears "draw first" before that request, not after
+(`joinGate`). Saves round every coordinate to 6 decimals, the publish
+script's own rounding, so a published point is the saved one (2 checks in
+`npm run test:precision`). (2) The paged reader asks the pages after the
+first for together, stepping by what the server actually answered
+(`src/studio/readAll.ts`; 11 checks now, two of them the pages in flight at
+once and a short page followed up whole). (3) The one rule for "this
+direction passes this hotspot" asks the cheap question first: does the
+line's box reach the ring's at all, and then only the segments whose own
+box does (`firstTouchIndex`, `firstNearIndex` in `src/shared/geo.ts`, with
+`lineBounds` computing a line's box once per array). Same answers for every
+direction past every box in the committed map (4 checks in `npm run
+test:index`); on the 1,000 directions and 510 hotspots, linking one box
+went from 1.0 s to 1 ms, one line from 0.55 s to 4 ms. (4) All of it is held
+by `scripts/pw/studio-scale-test.mjs` in CI: the same 1,000 directions as
+the database keeps them, served by a stand-in for its REST API that honours
+`select`, paging, `id=eq.` and single-row asks — the list asks for no
+drawings and is under two thirds of the rows whole (23 MB for 46 here), the
+links table's 14 pages go out together, a click lights within 5 s (0.3 s
+here), following a line reads its drawing in one request (0.0 MB), and the
+first line is on the screen within 45 s (5.8 s here). The suite found one
+thing of its own: the new reader asked for one page more than it needed
+when a server gave no count and the first page was short; fixed, with a
+check. The variant table read twice per load that the measurement flagged
+is StrictMode: with the stand-in exposing its count header as Supabase
+does, a load is exactly one list request, two of the hotspots (both hooks
+read them), and one links request a page — everything twice in
+development, once in the build.
+
+**Stage 3, on paper: the file split, measured, for the owner to decide.**
+Today's file is 43 KB, 7 KB gzipped: 2 routes, 4 directions (247 points
+each at 0.3 m), 30 hotspots, 53 links. Made bigger the way the scale suites
+do it (copies of today's, shifted; hotspots at about five a route, which is
+a guess — today has fifteen a route, but a hotspot at scale is shared), the
+one file as shape 1 comes to:
+
+| routes | directions | hotspots | links | one file, raw | gzipped, honest* |
+|---|---|---|---|---|---|
+| 100 | 200 | 510 | 2,650 | 1.7 MB | ~0.3 MB |
+| 250 | 500 | 1,260 | 6,625 | 4.4 MB | ~0.75 MB |
+| 500 | 1,000 | 2,490 | 13,250 | 8.8 MB | ~1.5 MB |
+
+\*Shifted copies gzip 14× because they repeat; today's real file gzips
+6.5× (lines), 4.4× (hotspots), 7.4× (links), and those are the ratios used.
+Of the 8.8 MB at 500 routes, the lines are 5.5 MB and the hotspots and links
+3.3 MB: **a split of the lines alone leaves an index of about 0.6 MB
+gzipped**, so the split is two moves, not one. What shape 2 is, concretely:
+
+- `/data/v2/map.json`, the index: `schema: 2`, `published_at`, licence,
+  attribution; each route once with its two directions under it (today
+  each direction repeats its route: 430 characters, twice); each direction
+  with `bbox` and a *coarse* line thinned to 10 m (46 points instead of
+  247; 1.1 MB raw at 1,000 directions, about 0.16 MB gzipped) — enough to
+  draw every direction at rest and to hit-test a tap, since at zoom 15 a
+  pixel is 4.6 m and ten metres about two of them; hotspots as today;
+  links as one array per direction, `[stop_id, sequence]` pairs, instead
+  of a row that repeats two UUIDs (13,250 rows × 128 characters → about
+  half). Measured, today's data restructured so (20.5 KB, 4.6 KB gzipped,
+  4.5×) and made bigger the same way: the index is 0.6 MB raw at 100
+  routes, 1.5 MB at 250, 3.0 MB at 500 (a third of it hotspots), about
+  0.13, 0.33 and 0.67 MB gzipped — in place of 0.3, 0.75 and 1.5 MB for
+  the one file, with the precise lines then fetched a route at a time.
+- `/data/v2/lines/<route_id>.json`, one file per route: both directions'
+  lines at 0.3 m, 11 KB raw and 3 KB gzipped each (they share their common
+  road, which gzips), fetched when a route is lit, or when the zoom passes
+  15 for the directions in view, and swapped into the source in place of
+  the coarse line. Named with `?v=<published_at>` from the index, so the
+  service worker can keep them `CacheFirst` and a new publish fetches new
+  ones; the index stays `NetworkFirst` as the file is today.
+- What changes: `scripts/publish-map.mjs` writes v2 beside v1 (v1 kept for
+  installed apps, a month at least, then dropped); `scripts/check-map-data.mjs`
+  reads v2; `src/shared/mapFile.ts` gains the index and the line loader
+  (`MAP_FILE_SCHEMA` stays 1 for v1's path; v2 has its own); the two hooks
+  in `src/shared/` take a direction whose `shape` can be replaced;
+  `vite.config.ts`'s worker rules and `publish-map.yml`'s `git add` name
+  the new paths; scale-test, visitor, phone and pwa follow. About an
+  evening, all of it inside the boundaries the build checks.
+- When: not before 250 routes. At 100 the one file is a photo's worth and
+  parses in under 100 ms; at 250 it is 0.75 MB on a phone's first open,
+  borderline; at 500 it is 1.5 MB and the layout of a thousand full lines
+  is what the scale suite times (5.9 s to the first line here, on software
+  rendering). The 1 MB gzipped mark from step 4 is around 350 routes. The
+  owner decides when; the numbers above are what he decides with.
+- Not this: vector tiles (PMTiles) for the lines. They solve the same
+  problem for ten thousand routes and cost a tile build in the publish, a
+  protocol handler in the app and a second cache rule; nothing here needs
+  them before a thousand routes.
+
+Agreed next: a domain,
+parapo.app, when the owner is ready — the code side is the README link and
+a redirect.
+
 **Next.** The design foundation before the owner designs in Figma: tokens in
 one place and a screen inventory in Storybook. Then slices 3 and 4 (short
 turn, extension), the shortcut after the extension, then the rest of step 0:

@@ -1,0 +1,174 @@
+# Checks every push and pull request: the production build with its guards,
+# then the headless suites from scripts/pw/ against the dev server.
+#
+# Two jobs, so a wobble in the drawing suites never hides a broken public map:
+#
+#   public  — the pages anyone opens. `npm run build` (import boundaries, no
+#             editor code on /, the installable app's files), then gate,
+#             visitor, phone and scale against `vite` on :5173, then pwa-test against
+#             the build in its own `vite preview`. Needs only the published map
+#             file and OpenFreeMap's tiles.
+#   studio  — the editor. First studio-scale: /studio/?e2e=1 with 1,000
+#             directions served by a stand-in for the database, no router, so
+#             it needs no retry. Then group, regression-gestures, hotspot, snap
+#             and extend against /studio/?e2e=1, which draws through the public
+#             OSRM demo router (about one request a second, shared with the
+#             world) and reads the live tables. One suite at a time, and a
+#             suite that fails is run once more after a minute, as
+#             scripts/pw/README.md tells a person to do; a second failure is
+#             real.
+#
+# The dev server reads .env.local, which is gitignored; here it is a copy of
+# .env.production, whose two values are public by design (see that file).
+#
+# A commit the publish-map workflow pushes with GITHUB_TOKEN starts no other
+# workflow, by GitHub's rule, so the nightly map file is not checked here —
+# it changes only public/data/map.json, which the suites read as data anyway.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch cancels the run for the older one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  public:
+    name: Build and the public map
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Playwright's Chromium, at the version package-lock pins.
+      - run: npx playwright install --with-deps chromium
+
+      - name: Build, with the boundary and build checks
+        run: npm run build
+
+      # Node's own test runner, no browser: the studio's paged table reader
+      # against a capped fake server, and the map file reader against every
+      # shape of file it can meet.
+      - name: The unit checks
+        run: npm run test:unit
+
+      # gate-test opens /studio/, whose door needs the database address.
+      - name: Give the dev server the public database address and key
+        run: cp .env.production .env.local
+
+      - name: Start the dev server
+        run: |
+          npx vite --port 5173 --strictPort > vite.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:5173/ && exit 0
+            sleep 1
+          done
+          echo "The dev server did not answer in 60 s"; cat vite.log; exit 1
+
+      - name: gate-test — the studio's sign-in door
+        run: node scripts/pw/gate-test.mjs
+
+      - name: visitor-test — the public map
+        run: node scripts/pw/visitor-test.mjs
+
+      - name: phone-test — the public map at 390×844
+        run: node scripts/pw/phone-test.mjs
+
+      # 1,000 directions and 500 hotspots made from today's map, no tiles:
+      # the first line must reach the screen within its budget.
+      - name: scale-test — the public map with 1,000 directions
+        run: node scripts/pw/scale-test.mjs
+
+      # Starts and stops its own `vite preview` on :4173 from the build above.
+      - name: pwa-test — the installable app, offline and updates
+        run: node scripts/pw/pwa-test.mjs
+
+      - name: Keep the screenshots and the dev server log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-screenshots
+          path: |
+            *.png
+            vite.log
+          if-no-files-found: ignore
+
+  studio:
+    name: The editor
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Give the dev server the public database address and key
+        run: cp .env.production .env.local
+
+      - name: Start the dev server
+        run: |
+          npx vite --port 5173 --strictPort > vite.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:5173/ && exit 0
+            sleep 1
+          done
+          echo "The dev server did not answer in 60 s"; cat vite.log; exit 1
+
+      # 1,000 directions and 500 hotspots as the database keeps them, served
+      # by a stand-in: what the editor asks for, and how soon it opens.
+      - name: studio-scale-test — the editor with 1,000 directions
+        run: node scripts/pw/studio-scale-test.mjs
+
+      # One at a time, and once more after a minute if the router was busy.
+      - name: The drawing suites
+        run: |
+          set +e
+          status=0
+          for suite in group-test regression-gestures hotspot-test snap-test extend-test; do
+            echo "::group::$suite"
+            if node "scripts/pw/$suite.mjs"; then
+              echo "::endgroup::"
+              continue
+            fi
+            echo "$suite failed; waiting a minute for the router, then once more"
+            sleep 60
+            if node "scripts/pw/$suite.mjs"; then
+              echo "::endgroup::"
+              continue
+            fi
+            echo "::endgroup::"
+            echo "::error::$suite failed twice"
+            status=1
+          done
+          exit $status
+
+      - name: Keep the screenshots and the dev server log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-screenshots
+          path: |
+            *.png
+            vite.log
+          if-no-files-found: ignore

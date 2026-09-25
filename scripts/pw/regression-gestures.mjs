@@ -60,7 +60,7 @@ const routed = async () => page.evaluate(() => {
 const CUBAO = [121.0527, 14.6187] // Metro Manila land fallback, used when there are no saved routes yet
 let savedLine = []
 const centerOnLand = async () => {
-  await page.waitForFunction(async () => ((await window.__src('saved-routes'))?.features?.length ?? 0) > 0, null, { timeout: 6000 }).catch(() => {})
+  await waitForSource('saved-routes', 6000)
   savedLine = await page.evaluate(async () => ((await window.__src('saved-routes'))?.features ?? []).map(f => f.geometry?.coordinates ?? []).reduce((a, c) => c.length > a.length ? c : a, []))
   const center = savedLine.length > 0 ? savedLine[Math.floor(savedLine.length / 2)] : CUBAO
   await page.evaluate(c => window.__map.jumpTo({ center: c, zoom: 15 }), center)
@@ -82,6 +82,21 @@ const roadPixels = async (n, gap) => page.evaluate(([line, n, gap]) => {
   }
   return picked
 }, [savedLine, n, gap])
+
+// The features of one of our GeoJSON sources once the page has some, asked
+// every 100 ms from here for up to `ms`; [] when none came in time. Not
+// `page.waitForFunction` with an async function: under Playwright's default
+// polling that resolves after the function's first call whatever it returned,
+// so a slow database (GitHub's runners are far from it) let the checks start
+// on an empty map. Seen on the first CI run, 2026-09-25.
+const waitForSource = async (id, ms = 20000) => {
+  const until = Date.now() + ms
+  for (;;) {
+    const fs = await page.evaluate(async (id) => (await window.__src(id))?.features ?? [], id)
+    if (fs.length > 0 || Date.now() > until) return fs
+    await page.waitForTimeout(100)
+  }
+}
 
 await page.goto(`${BASE}/studio/?e2e=1`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })

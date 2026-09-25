@@ -173,6 +173,22 @@ await page.addInitScript(() => {
     const s = window.__map?.getSource(id)
     return s ? await s.getData() : null
   }
+  // Since 2026-09-25 a tap is feature state, not a filter or a paint
+  // expression naming ids (useLighting in src/shared/useSavedRoutes.ts).
+  // The directions a source has lit; and the level the line layer paints a
+  // direction nobody tapped: dim while anything is lit, at rest otherwise —
+  // its own expression's branches, read through the state, as MapLibre does.
+  window.__lit = async (src) => {
+    const m = window.__map
+    const fc = await m?.getSource(src)?.getData()
+    if (!fc) return null
+    return [...new Set(fc.features.map((f) => f.properties.id))].filter((id) => !!m.getFeatureState({ source: src, id }).lit)
+  }
+  window.__restLevel = async () => {
+    const o = window.__map.getPaintProperty('saved-routes-line', 'line-opacity')
+    if (!Array.isArray(o)) return o
+    return ((await window.__lit('saved-routes')) ?? []).length ? o[4] : o[o.length - 1]
+  }
 })
 
 // ------------------------------------------------------------- 1. the pointer
@@ -193,12 +209,88 @@ if (!isCoarse) {
 }
 check('the page reports a coarse pointer', isCoarse, isCoarse ? `via ${coarseVia}` : 'matchMedia("(pointer: coarse)") is false — every check below is meaningless')
 
+// The features of one of our GeoJSON sources once the page has some, asked
+// every 100 ms from here for up to `ms`; [] when none came in time. Not
+// `page.waitForFunction` with an async function: under Playwright's default
+// polling that resolves after the function's first call whatever it returned,
+// so a slow database (GitHub's runners are far from it) let the checks start
+// on an empty map. Seen on the first CI run, 2026-09-25.
+const waitForSource = async (id, ms = 20000) => {
+  const until = Date.now() + ms
+  for (;;) {
+    const fs = await page.evaluate(async (id) => (await window.__src(id))?.features ?? [], id)
+    if (fs.length > 0 || Date.now() > until) return fs
+    await page.waitForTimeout(100)
+  }
+}
+
 await page.goto(`${BASE}/`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
-await page
-  .waitForFunction(async () => ((await window.__src('saved-routes'))?.features?.length ?? 0) > 0, null, { timeout: 20000 })
-  .catch(() => {})
+await waitForSource('saved-routes')
 await page.waitForTimeout(1200)
+
+/**
+ * A finger on the map at page point (x, y). A real touch first; when the map
+ * has seen no click from it within 1.5 s, a click the browser would have
+ * made, sent by hand with `pointerType: 'touch'`, so the app still reads a
+ * finger. On a GitHub runner the page draws so slowly at three device pixels
+ * per CSS pixel that the touch's end came half a second and more after its
+ * start, which Chromium takes for a long press and turns into no click at
+ * all (the fourth CI run, 2026-09-25). How many taps needed the fallback is
+ * reported at the end.
+ */
+let tapsByHand = 0
+await page.evaluate(() => {
+  window.__clicks = 0
+  window.__map.on('click', () => window.__clicks++)
+})
+let lateClicks = 0
+/** A frame drawn after the input queue drained: the click a touch makes, if any, has been dispatched by now. */
+const settled = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0))))
+const mapTap = async (x, y) => {
+  const before = await page.evaluate(() => window.__clicks)
+  await page.touchscreen.tap(x, y)
+  // The page may be busy drawing for a while after the touch; only then does
+  // the wait for its click start, or the click comes late, after the one
+  // sent by hand, and two taps land where one was meant (a local run,
+  // 2026-09-25: the second tap replaced the chooser the first had opened).
+  await settled()
+  const until = Date.now() + 1500
+  while ((await page.evaluate(() => window.__clicks)) === before && Date.now() < until) await page.waitForTimeout(100)
+  if ((await page.evaluate(() => window.__clicks)) !== before) return
+  tapsByHand++
+  await page.evaluate(([px, py]) => {
+    const el = window.__map.getCanvasContainer()
+    el.dispatchEvent(new PointerEvent('click', { pointerType: 'touch', clientX: px, clientY: py, bubbles: true, cancelable: true }))
+  }, [x, y])
+  await settled()
+  if ((await page.evaluate(() => window.__clicks)) > before + 1) lateClicks++
+}
+/**
+ * A finger on a button (a chooser row): a real touch, and, when `done()` is
+ * still false 1.5 s later, a click on the button, since the runner drops a
+ * touch on a button the same way (the sixth CI run). False when there is no
+ * such button.
+ */
+const buttonTap = async (locator, done) => {
+  const b = (await locator.count()) ? await locator.first().boundingBox({ timeout: 2000 }).catch(() => null) : null
+  if (!b) return false
+  await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2)
+  await settled()
+  const until = Date.now() + 1500
+  while (!(await done()) && Date.now() < until) await page.waitForTimeout(100)
+  if (!(await done())) {
+    tapsByHand++
+    // Sent straight to the button: Playwright's own click first waits for
+    // the page to hold still, which a runner drawing a phone at three
+    // device pixels per CSS pixel may not do in time (the seventh CI run).
+    await locator.first().dispatchEvent('click')
+    const again = Date.now() + 1500
+    while (!(await done()) && Date.now() < again) await page.waitForTimeout(100)
+  }
+  await page.waitForTimeout(600)
+  return true
+}
 
 check('no zoom buttons on a touch screen', (await page.locator('.maplibregl-ctrl-zoom-in').count()) === 0)
 check(
@@ -240,9 +332,41 @@ const ZOOM = 16
 
 // --------------------------------------------------------------- page helpers
 const canvasBox = () => page.locator('canvas.maplibregl-canvas').boundingBox()
+// A jump is done when the map is idle again, not half a second later: on a
+// GitHub runner the zoom-18 tiles were still arriving 500 ms after the jump,
+// and a tap then hit a route beside a hotspot instead of the hotspot (the
+// second CI run, 2026-09-25). The desktop suite has always waited for `idle`.
 const jumpTo = async (p, center, zoom = ZOOM) => {
-  await p.evaluate(([c, z]) => window.__map.jumpTo({ center: c, zoom: z }), [center, zoom])
-  await p.waitForTimeout(500)
+  await p.evaluate(
+    ([c, z]) =>
+      new Promise((r) => {
+        const m = window.__map
+        m.jumpTo({ center: c, zoom: z })
+        m.once('idle', r)
+        setTimeout(r, 10000)
+      }),
+    [center, zoom],
+  )
+  await p.waitForTimeout(300)
+}
+/**
+ * How many features `layer` draws at canvas point `xy` once it draws any,
+ * polled for up to `ms`; 0 if it never does, -1 if there is no such layer.
+ * A tap is made on what is on the screen: on a GitHub runner, a phone at
+ * three device pixels per CSS pixel draws so slowly that a hotspot's box was
+ * not there yet when the finger came, and the tap hit only the route beside
+ * it (the third CI run, 2026-09-25).
+ */
+const drawnAt = async (layer, xy, ms = 10000) => {
+  const until = Date.now() + ms
+  for (;;) {
+    const n = await page.evaluate(
+      ([l, q]) => (window.__map.getLayer(l) ? window.__map.queryRenderedFeatures(q, { layers: [l] }).length : -1),
+      [layer, xy],
+    )
+    if (n !== 0 || Date.now() > until) return n
+    await page.waitForTimeout(150)
+  }
 }
 const project = (p, lngLat) =>
   p.evaluate((c) => {
@@ -294,23 +418,19 @@ const sheetState = async () =>
   (await card().count()) ? await card().first().getAttribute('data-sheet') : null
 const closeCard = async () => {
   await page.getByRole('button', { name: 'Close' }).first().click({ timeout: 1500 }).catch(() => {})
+  // The ✕ can be missed while the page is busy drawing; Escape closes a sheet too.
+  for (let i = 0; i < 20 && (await card().count()) > 0; i++) {
+    if (i === 5) await page.keyboard.press('Escape')
+    await page.waitForTimeout(100)
+  }
   await page.waitForTimeout(300)
 }
 // Every direction rests in a light blue; a tap fades the rest further (2026-09-22).
 const REST_OPACITY = 0.45
-const lineOpacity = (p) =>
-  p.evaluate(() => {
-    const m = window.__map
-    if (!m.getLayer('saved-routes-line')) return null
-    // A `case` when a lit direction's way back rests: its fallback is what the rest are at.
-    const o = m.getPaintProperty('saved-routes-line', 'line-opacity')
-    return Array.isArray(o) ? o[o.length - 1] : o
-  })
-const selectedFilter = (p) =>
-  p.evaluate(() => {
-    const m = window.__map
-    return m.getLayer('saved-routes-selected') ? JSON.stringify(m.getFilter('saved-routes-selected')) : null
-  })
+// What the rest are at: the level of a direction nobody tapped.
+const lineOpacity = (p) => p.evaluate(() => (window.__map.getLayer('saved-routes-line') ? window.__restLevel() : null))
+/** The directions lit now, by id. */
+const litIds = (p) => p.evaluate(() => window.__lit('saved-routes'))
 
 // How far a pixel reaches on the ground — measured off the map, not looked up.
 // MapLibre serves 512 px tiles, so its zoom 16 is the scale a 256 px table calls
@@ -398,7 +518,7 @@ if (routeA) {
   const at = (px) => [box.x + anchor[0] + perp[0] * px, box.y + anchor[1] + perp[1] * px]
 
   const [tx, ty] = at(14)
-  await page.touchscreen.tap(tx, ty)
+  await mapTap(tx, ty)
   await page.waitForTimeout(500)
 
   const text = await cardText()
@@ -412,8 +532,8 @@ if (routeA) {
 
   // The tap opens the route's drawn outbound, whichever direction was under the finger (2026-09-22).
   const sameRoute = snapshot.routes.filter((o) => o.routeId === r.routeId).map((o) => o.id)
-  const filter = await selectedFilter(page)
-  check('  saved-routes-selected filters to one direction of that route', !!filter && sameRoute.some((id) => filter.includes(id)), filter ?? 'no saved-routes-selected layer')
+  const lit = (await litIds(page)) ?? []
+  check('  one direction of that route is lit', lit.length === 1 && sameRoute.includes(lit[0]), JSON.stringify(lit))
   check('  the other lines fade below the light rest', (await lineOpacity(page)) < REST_OPACITY, String(await lineOpacity(page)))
 
   // Negative control: 40 px out is twice as far as the box reaches — but only
@@ -434,7 +554,7 @@ if (routeA) {
   if (far.clear <= BOX_M) {
     skip('a tap 40 px away from every line selects nothing', `neither side of the line is clear 40 px out — the nearest thing is ${Math.round(far.clear)} m away, inside the ${Math.round(BOX_M)} m box`)
   } else {
-    await page.touchscreen.tap(far.x, far.y)
+    await mapTap(far.x, far.y)
     await page.waitForTimeout(500)
     check('a tap 40 px away from every line selects nothing', (await card().count()) === 0, `${Math.round(far.clear)} m clear`)
     check('  the lines go back to their light rest', (await lineOpacity(page)) === REST_OPACITY, String(await lineOpacity(page)))
@@ -493,7 +613,7 @@ const openRouteA = async () => {
   const anchor = await project(page, routeA.point)
   const perp = await perpendicular(page, routeA.point, routeA.neighbour, routeA.route.coords, 40)
   const box = await canvasBox()
-  await page.touchscreen.tap(box.x + anchor[0] + perp[0] * 14, box.y + anchor[1] + perp[1] * 14)
+  await mapTap(box.x + anchor[0] + perp[0] * 14, box.y + anchor[1] + perp[1] * 14)
   await page.waitForTimeout(600)
 }
 /** Each gesture below is judged on its own, so put the sheet back if one broke it. */
@@ -572,7 +692,8 @@ if (!shared) {
   await jumpTo(page, shared.point)
   const anchor = await project(page, shared.point)
   const box = await canvasBox()
-  await page.touchscreen.tap(box.x + anchor[0], box.y + anchor[1])
+  await drawnAt('saved-routes-hit', anchor)
+  await mapTap(box.x + anchor[0], box.y + anchor[1])
   await page.waitForTimeout(600)
 
   const chooser = page.locator('[data-testid="chooser"]')
@@ -597,11 +718,7 @@ if (!shared) {
     `${itemTexts.length} row(s): ${itemTexts.map((t) => t.replace(/\n/g, ' / ')).join(' | ')}`,
   )
   const wanted = items.filter({ hasText: endsOf(shared.b.signboard)[1] })
-  const wb = (await wanted.count()) ? await wanted.first().boundingBox() : null
-  if (wb) {
-    await page.touchscreen.tap(wb.x + wb.width / 2, wb.y + wb.height / 2)
-    await page.waitForTimeout(600)
-  }
+  await buttonTap(wanted, async () => (await chooser.count()) === 0)
   check(
     `  tapping "${shared.b.signboard}" opens that route and closes the chooser`,
     (await cardText()).includes(shared.b.signboard) && (await chooser.count()) === 0,
@@ -649,7 +766,8 @@ if (!inside) {
   await jumpTo(page, point, Z_HOT)
   const anchor = await project(page, point)
   const box = await canvasBox()
-  await page.touchscreen.tap(box.x + anchor[0], box.y + anchor[1])
+  const drawn = await drawnAt('saved-stops-fill', anchor)
+  await mapTap(box.x + anchor[0], box.y + anchor[1])
   await page.waitForTimeout(600)
   const chooser = page.locator('[data-testid="chooser"]')
   if (routesInBox.length > 0) {
@@ -657,14 +775,18 @@ if (!inside) {
     check(
       `a tap inside "${poly.name}" beside its route offers both`,
       cText.includes('1 hotspot here') && cText.includes(`${routesInBox.length} route`) && cText.includes(poly.name),
-      cText ? cText.split('\n')[0] : `no chooser; card "${(await cardText()).split('\n')[0] ?? ''}"`,
+      cText
+        ? cText.split('\n')[0]
+        : `no chooser; card "${(await cardText()).split('\n')[0] ?? ''}"; the box drawn under the tap: ${drawn === 1 ? 'yes' : drawn}`,
     )
     const row = chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: poly.name })
-    const rb = (await row.count()) ? await row.first().boundingBox() : null
-    if (rb) await page.touchscreen.tap(rb.x + rb.width / 2, rb.y + rb.height / 2)
-    await page.waitForTimeout(600)
+    await buttonTap(row, async () => (await chooser.count()) === 0)
     const text = await cardText()
-    check(`  choosing "${poly.name}" opens its card, with its badge`, text.includes(poly.name) && text.includes(badgeOf(poly)) && (await chooser.count()) === 0, text.split('\n')[0] ?? '(no card)')
+    check(
+      `  choosing "${poly.name}" opens its card, with its badge`,
+      text.includes(poly.name) && text.includes(badgeOf(poly)) && (await chooser.count()) === 0,
+      text.split('\n')[0] || `(no card; chooser count ${await chooser.count()})`,
+    )
   } else {
     const text = await cardText()
     check(`a tap inside "${poly.name}", no route near, opens it directly`, text.includes(poly.name) && text.includes(badgeOf(poly)) && (await chooser.count()) === 0, text.split('\n')[0] ?? '(no card)')
@@ -704,11 +826,16 @@ if (snapshot.polys.length === 0) {
   const dy = anchor[1] - inward[1]
   const len = Math.hypot(dx, dy) || 1
   const box = await canvasBox()
-  await page.touchscreen.tap(box.x + anchor[0] + (dx / len) * 15, box.y + anchor[1] + (dy / len) * 15)
+  const drawn = await drawnAt('saved-stops-fill', inward)
+  await mapTap(box.x + anchor[0] + (dx / len) * 15, box.y + anchor[1] + (dy / len) * 15)
   await page.waitForTimeout(600)
 
   const text = await cardText()
-  check(`a tap 15 px outside "${poly.name}" still opens it`, text.includes(poly.name), text.split('\n')[0] ?? '(no card)')
+  check(
+    `a tap 15 px outside "${poly.name}" still opens it`,
+    text.includes(poly.name),
+    `${text.split('\n')[0] || '(no card)'}; the box drawn at its centre: ${drawn === 1 ? 'yes' : drawn}`,
+  )
   check(`  the card shows its "${badgeOf(poly).split(' ·')[0]}" badge`, text.includes(badgeOf(poly)))
   await closeCard()
 }
@@ -728,7 +855,7 @@ if (!routeA) {
   const anchor = await project(page, routeA.point)
   const perp = await perpendicular(page, routeA.point, routeA.neighbour, routeA.route.coords, 40)
   const box = await canvasBox()
-  await page.touchscreen.tap(box.x + anchor[0] + perp[0] * 14, box.y + anchor[1] + perp[1] * 14)
+  await mapTap(box.x + anchor[0] + perp[0] * 14, box.y + anchor[1] + perp[1] * 14)
   await page.waitForTimeout(600)
   const sameRouteIds = snapshot.routes.filter((o) => o.routeId === r.routeId).map((o) => o.id)
   check('selecting a route puts ?r=<id> in the address', sameRouteIds.includes(new URL(page.url()).searchParams.get('r') ?? ''), page.url().slice(BASE.length) || '/')
@@ -840,6 +967,7 @@ if (!routeA) {
 }
 
 // --------------------------------------------------------- 8. housekeeping
+if (tapsByHand) console.log(`\n(${tapsByHand} tap(s) needed the click sent by hand: the runner dropped the touch${lateClicks ? `; ${lateClicks} of those got the touch's own click afterwards too` : ''})\n`)
 check('no request to router.project-osrm.org', !osrmHit)
 check('no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
 

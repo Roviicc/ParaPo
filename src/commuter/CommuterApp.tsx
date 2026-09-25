@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import type { MapLibreMap } from 'maplibre-gl'
 import { Chooser } from '../shared/Chooser'
 import { HotspotCard } from '../shared/HotspotCard'
-import { loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from '../shared/mapFile'
+import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from '../shared/mapFile'
 import { reloadToUpdate, useNeedRefresh } from './pwa'
 import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
@@ -36,6 +36,7 @@ export default function CommuterApp() {
   // One file, fetched once, shared by both hooks.
   const saved = useSavedRoutes(map, loadVariantsFromFile)
   const stops = useSavedStops(map, loadStopsFromFile)
+  const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW
 
   // Where a direction passes a hintuan, the line turns orange for that stretch.
   usePassStretches(map, saved.variants, stops.stops, saved.lit, saved.resting)
@@ -81,17 +82,34 @@ export default function CommuterApp() {
                      bg-amber-50 px-4 py-2 text-xs text-amber-900 shadow ring-1 ring-amber-200
                      @wide:bottom-auto @wide:top-[calc(1rem+env(safe-area-inset-top))] @wide:max-w-xl"
         >
-          <span>The routes could not be loaded. Check your connection and try again.</span>
-          <button
-            type="button"
-            onClick={() => {
-              void saved.reload()
-              void stops.reload()
-            }}
-            className="rounded-full bg-amber-900 px-3 py-1 text-xs font-medium text-white"
-          >
-            Try again
-          </button>
+          {tooNew ? (
+            // The file is a shape this installed app does not know. Loading
+            // it again cannot help; loading the page fetches the app that can.
+            <>
+              <span>{MAP_FILE_TOO_NEW} Reload to update.</span>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="rounded-full bg-amber-900 px-3 py-1 text-xs font-medium text-white"
+              >
+                Reload
+              </button>
+            </>
+          ) : (
+            <>
+              <span>The routes could not be loaded. Check your connection and try again.</span>
+              <button
+                type="button"
+                onClick={() => {
+                  void saved.reload()
+                  void stops.reload()
+                }}
+                className="rounded-full bg-amber-900 px-3 py-1 text-xs font-medium text-white"
+              >
+                Try again
+              </button>
+            </>
+          )}
         </div>
       )}
 

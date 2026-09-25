@@ -5,9 +5,15 @@
 // Reads the public tables over Supabase's REST API with the publishable key
 // (from .env.production, or SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY in the
 // environment), exactly the columns the public map shows: no owner ids, no
-// control points, no segments. Each direction's line is simplified to within
-// 5 m of the original and rounded to 5 decimals (about 1 m), which makes it
-// several times smaller and looks the same at any zoom the map offers.
+// control points, no segments. Each direction's line is thinned to within
+// half a metre of the original and rounded to 6 decimals (about 0.1 m): the
+// router's points every metre or two on a straight road go, the bends
+// stay. It was 5 m and 5 decimals until 2026-09-25, when the owner zoomed
+// to a street and saw the lines cut the corners and the two routes that
+// share the road out of Tala braid across each other, each thinned on its
+// own; at zoom 20 five metres is sixty pixels. A hotspot's point and box
+// are rounded to 6 decimals as well: the editor saves them with 15 or
+// more, and those digits were half the file.
 //
 // The file is written the same way every time: fixed key order, fixed row
 // order, and `published_at` is carried over from the previous file when
@@ -15,7 +21,7 @@
 // file, and the workflow that runs this daily commits only real changes.
 //
 // The script checks its own work before writing: every original point must
-// lie within 5 m of the simplified line, or it fails. And it refuses to
+// lie within half a metre of the thinned line, or it fails. And it refuses to
 // publish a map that shrank suddenly — a table that answers with no rows is a
 // normal HTTP 200, so without this a policy slip would blank the public map
 // and deploy it. `--force` overrides that one check, for a deliberate removal.
@@ -45,9 +51,13 @@ process.on('uncaughtException', (e) => {
 const OUT = join(root, 'public', 'data', 'map.json')
 const FORCE = process.argv.includes('--force')
 
-/** Douglas–Peucker tolerance. With 5-decimal rounding (≤ 0.8 m) the total stays under 5 m. */
-const SIMPLIFY_M = 4.2
-const MAX_DEVIATION_M = 5
+/**
+ * Douglas–Peucker tolerance. With 6-decimal rounding (≤ 0.08 m) the total
+ * stays under half a metre: the lit line is 10 px wide at zoom 20, where a
+ * pixel is 7 cm, so the drawn line never leaves its own width.
+ */
+const SIMPLIFY_M = 0.3
+const MAX_DEVIATION_M = 0.5
 /** A collection that lost more than this share of its rows since the last file is not published without --force. */
 const MAX_SHRINK = 0.3
 /** PostgREST answers at most this many rows per request; ask page by page. */
@@ -55,6 +65,8 @@ const PAGE = 1000
 const TIMEOUT_MS = 30_000
 
 /** The data's licence, written into the file itself. See README.md, "Data and licence". */
+/** The file's shape; must equal MAP_FILE_SCHEMA in src/shared/mapFile.ts, which has the rules for changing it. */
+const SCHEMA = 1
 const LICENSE = 'ODbL-1.0'
 const ATTRIBUTION =
   'Route data © ParaPo contributors, ODbL (https://opendatacommons.org/licenses/odbl/1-0/). ' +
@@ -150,7 +162,19 @@ function simplify(coords, epsilon, k) {
   return coords.filter((_, i) => keep[i])
 }
 
-const round5 = (n) => Math.round(n * 1e5) / 1e5
+/** Six decimals: about 0.1 m, for a line's points and a hotspot's corners alike. */
+const round6 = (n) => Math.round(n * 1e6) / 1e6
+/** A Point or Polygon with every coordinate rounded to 6 decimals; anything else as it came. */
+function roundGeometry(g) {
+  if (!g || typeof g !== 'object') return g
+  if (g.type === 'Point' && Array.isArray(g.coordinates)) {
+    return { ...g, coordinates: g.coordinates.map(round6) }
+  }
+  if (g.type === 'Polygon' && Array.isArray(g.coordinates)) {
+    return { ...g, coordinates: g.coordinates.map((ring) => ring.map((c) => c.map(round6))) }
+  }
+  return g
+}
 
 /**
  * The largest distance from any original point to the simplified line. Every
@@ -216,7 +240,7 @@ const variants = variantRows.map((v) => {
   let shape = null
   if (coords.length > 1) {
     const k = mPerDegLng(coords[0][1])
-    const slim = simplify(coords, SIMPLIFY_M, k).map(([x, y]) => [round5(x), round5(y)])
+    const slim = simplify(coords, SIMPLIFY_M, k).map(([x, y]) => [round6(x), round6(y)])
     const dev = maxDeviation(coords, slim, k)
     if (dev > MAX_DEVIATION_M) {
       fail(`FAIL  "${name}" ${direction}: simplified line strays ${dev.toFixed(1)} m from the original`)
@@ -256,8 +280,8 @@ const stops = stopRows.map((s) => ({
   informal: s.informal ?? null,
   aliases: Array.isArray(s.aliases) ? s.aliases : [],
   kind: s.kind,
-  point: s.point,
-  area: s.area,
+  point: roundGeometry(s.point),
+  area: roundGeometry(s.area),
   note: s.note,
   created_at: s.created_at,
 }))
@@ -297,8 +321,11 @@ const same =
   previous && JSON.stringify({ variants: previous.variants, stops: previous.stops, links: previous.links }) === JSON.stringify(body)
 const published_at = same ? previous.published_at : new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
 
-// The terms travel inside the file, so no copy can arrive without them.
-const file = JSON.stringify({ published_at, license: LICENSE, attribution: ATTRIBUTION, ...body }) + '\n'
+// The terms travel inside the file, so no copy can arrive without them. The
+// shape number first: an installed app reads whatever this path serves, and
+// checks the number against the one it knows (src/shared/mapFile.ts has the
+// rules for changing it — a new shape goes to a new path).
+const file = JSON.stringify({ schema: SCHEMA, published_at, license: LICENSE, attribution: ATTRIBUTION, ...body }) + '\n'
 mkdirSync(dirname(OUT), { recursive: true })
 writeFileSync(OUT, file)
 
