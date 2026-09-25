@@ -16,7 +16,8 @@ public map at `/` and the editor at `/studio/`. Complements `scripts/uitest.mjs`
     node scripts/pw/group-test.mjs            # 26: a tap where routes share a road — one way round, by place, ⇄, lit with arrows, end circles and names, the other way at rest; clicks that switch, and clicks that keep what is lit
     node scripts/uitest.mjs                   # 26: route gestures through Windows Chrome's DevTools protocol
 
-    npm run test:unit                         # 22, Node's own test runner, no browser: the studio's paged table reader against a capped fake server (8), the map file reader against every shape of file it can meet, and the committed file's decimals (10), the orange stretches with their bounds checks against the walk without them (4)
+    npm run test:unit                         # 34, Node's own test runner, no browser: the studio's paged table reader against a capped fake server (8), the map file reader against every shape of file it can meet, and the committed file's decimals (10), the orange stretches with their bounds checks against the walk without them (4), the map data check against small maps with one thing wrong each and the committed map (12)
+    npm run check:data                        # the committed map against the app's own rules: problems stop a publish, warnings are for the owner (scripts/check-map-data.mjs)
     npm run build                             # also checks import boundaries, that no editor code reaches /, and the installable app's files
     node scripts/pw/scale-test.mjs            # 5: / with 1,000 directions and 500 hotspots made from today's map, no tiles — the first line on the screen within 30 s, the main thread busy under 20 s; prints where the opening went
     node scripts/pw/pwa-test.mjs              # 41: the installable app, against the build in its own `vite preview` on :4173 — manifest, worker, offline, slow network, update

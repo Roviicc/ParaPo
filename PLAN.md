@@ -146,7 +146,25 @@ test runner imports the app's TypeScript through `scripts/ts-resolve.mjs`,
 which resolves the app's extensionless imports). `scripts/pw/scale-test.mjs`
 runs that map in CI from now on, with loose budgets — the first line within
 30 s, the main thread busy under 20 s — to catch the next such regression,
-and prints where the opening went when it fails. Agreed next: a domain,
+and prints where the opening went when it fails. **The same night, the
+publish checks its data and says so.** `scripts/check-map-data.mjs` reads
+the file the publish has just written against the app's own rules
+(`src/shared/stops.ts`): a link to a hotspot that is not there, a route
+whose end hotspot is missing, an id twice, are *problems* and the run stops
+before the commit; a line that starts or ends more than 50 m from the
+hotspot it leaves from or arrives at, a hintuan the line passes but is not
+linked to, a link to one it never comes within 5 m of, a hintuan without a
+box, are *warnings* and the map goes out with them written up. Twelve
+checks in `npm run test:data`; `npm run check:data` runs it on the
+committed file, and found today's first finding: the Tala – SM Fairview
+line ends 3 m inside the "SM Fairview Public Transport Terminal" hintuan,
+589 m from the SM City terminal the route names as its end — the owner's
+call which of the two is right. And the workflow keeps one issue, "The map
+needs a look": opened or brought up to date by a run that failed (with its
+log) or published with warnings (with the report), a comment only when the
+body changed, closed by the first run with nothing to report. Until then a
+failed publish was an email from GitHub while the live map went quietly
+stale. Agreed next: a domain,
 parapo.app, when the owner is ready — the code side is the README link and
 a redirect.
 
