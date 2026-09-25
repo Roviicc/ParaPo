@@ -112,6 +112,16 @@ export type VariantRow = VariantSummary & {
   segments: Segment[]
   updated_at: string
   route: RouteRow & { name: string }
+  /**
+   * Set when this line was started from part of another direction's (Extend,
+   * 0008): which one, which part of *this* line it is ('start' or 'end'), and
+   * how many metres of it still run on the other's. The borrowed part is a
+   * copy; this only remembers where it came from. Optional so fixtures and
+   * rows read before 0008 need not carry it.
+   */
+  borrowed_from?: string | null
+  borrowed_part?: 'start' | 'end' | null
+  borrowed_m?: number | null
 }
 
 /** A VariantRow straight from the database, before nameVariants has run. */
@@ -170,6 +180,46 @@ export function groupByRoute<V extends VariantSummary>(variants: readonly V[]): 
     groups.set(v.route_id, g)
   }
   return [...groups.values()]
+}
+
+/**
+ * The places a direction runs from and to, as its generated name says them —
+ * `Tala → SM Fairview` — so a list reads exactly what the card's title will.
+ * Falls back to the route's name, read the way this direction rides it, for a
+ * row that has no direction name (a file from before names were generated).
+ */
+export function directionEnds(v: VariantSummary): { from: string; to: string } {
+  const [from, to] = (v.direction_name ?? '').split(' → ')
+  if (from && to) return { from, to }
+  const [head = '', tail = ''] = (v.route?.name ?? '').replace(/ via .*$/, '').split(` ${DASH} `)
+  return v.reversed ? { from: tail, to: head } : { from: head, to: tail }
+}
+
+/** One place in the chooser, and the directions shown leaving it. */
+export type Departures<V extends VariantSummary> = {
+  from: string
+  directions: { v: V; to: string; drawn: boolean }[]
+}
+
+/**
+ * The routes under a tap one way round — outbound, or with `back` the way
+ * back — gathered by the place each leaves from, in the order met. Tala →
+ * SM Fairview and Tala → Novaliches read as Tala, then its two ends; the way
+ * back reads SM Fairview, then Tala, and Novaliches, then Tala. The owner's
+ * layout of 2026-09-25. A direction still a slot is listed, marked undrawn.
+ */
+export function departures<V extends VariantSummary>(variants: readonly V[], back: boolean): Departures<V>[] {
+  const byPlace = new Map<string, Departures<V>>()
+  for (const g of groupByRoute(variants)) {
+    const v = g.directions.find((d) => d.reversed === back)
+    if (!v) continue
+    const { from, to } = directionEnds(v)
+    const key = from.toLowerCase()
+    const place = byPlace.get(key) ?? { from, directions: [] }
+    place.directions.push({ v, to, drawn: isDrawn(v) })
+    byPlace.set(key, place)
+  }
+  return [...byPlace.values()]
 }
 
 /**

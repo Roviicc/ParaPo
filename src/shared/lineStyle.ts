@@ -26,19 +26,74 @@ const ROAD_SHARE = 0.5
 const BASE = 1.3
 const [Z0, W0, Z1, W1] = [10, 2 * ROAD_SHARE, 20, 20 * ROAD_SHARE]
 
-/** The style expression: `extra` pixels wider than the line, at every zoom. */
-export function roadWidth(extra: number) {
-  return ['interpolate', ['exponential', BASE], ['zoom'], Z0, W0 + extra, Z1, W1 + extra] as never
+/** A width along the zoom: [zoom, px] stops, exponential between them and flat outside. */
+type Stops = [number, number][]
+
+/** The stops as the style expression the layers take. */
+function curve(stops: Stops) {
+  return ['interpolate', ['exponential', BASE], ['zoom'], ...stops.flat()] as never
 }
 
-/** The same curve as a number, the way MapLibre evaluates an exponential interpolation. */
+/** The stops as a number at `zoom`, the way MapLibre evaluates an exponential interpolation. */
+function curveAt(stops: Stops, zoom: number): number {
+  if (zoom <= stops[0][0]) return stops[0][1]
+  for (let i = 1; i < stops.length; i++) {
+    const [[za, wa], [zb, wb]] = [stops[i - 1], stops[i]]
+    if (zoom <= zb) return wa + ((BASE ** (zoom - za) - 1) / (BASE ** (zb - za) - 1)) * (wb - wa)
+  }
+  return stops[stops.length - 1][1]
+}
+
+const road = (extra: number): Stops => [
+  [Z0, W0 + extra],
+  [Z1, W1 + extra],
+]
+
+/** The style expression: `extra` pixels wider than the line, at every zoom. */
+export function roadWidth(extra: number) {
+  return curve(road(extra))
+}
+
+/** The same curve as a number. */
 export function roadWidthAt(zoom: number, extra: number): number {
-  const z = Math.min(Z1, Math.max(Z0, zoom))
-  const t = (BASE ** (z - Z0) - 1) / (BASE ** (Z1 - Z0) - 1)
-  return W0 + extra + t * (W1 - W0)
+  return curveAt(road(extra), zoom)
 }
 
 /** How much wider than the rest the lit direction is drawn: 9 px to the line's 6 at zoom 18, the owner's numbers. */
 export const LIT_EXTRA = 3
+
+/**
+ * Zoomed out, the lit direction is drawn 12/10 as wide: the owner's ask of
+ * 2026-09-25, looking at zoom 16, where it read thin under its orange
+ * stretches. Full at 16 and below, gone by 18, where the 9 px was judged;
+ * between, it eases, so the line never thins as the map zooms in.
+ */
+const LIT_BOOST = 1.2
+const [BOOST_FULL_TO, BOOST_GONE_AT] = [16, 18]
+
+/** The lit line's stops, `extra` pixels wider: a casing keeps its pixel a side, boost or not. */
+function lit(extra: number): Stops {
+  const at = (z: number, k: number): [number, number] => [z, roadWidthAt(z, LIT_EXTRA) * k + extra]
+  return [at(Z0, LIT_BOOST), at(BOOST_FULL_TO, LIT_BOOST), at(BOOST_GONE_AT, 1), at(Z1, 1)]
+}
+
+/** The lit direction's width, `extra` pixels wider, as the layers take it: the line, its casing, its orange. */
+export function litWidth(extra = 0) {
+  return curve(lit(extra))
+}
+
+/** The same as a number: what the chevrons are cut to. */
+export function litWidthAt(zoom: number, extra = 0): number {
+  return curveAt(lit(extra), zoom)
+}
+
+/**
+ * The circle at each end of a lit direction, as a radius inside its 2 px
+ * ring: half the lit line and two pixels more, so the line reads as ending
+ * in it at every zoom. Plain for now; the owner decides its look.
+ */
+export function endRadius() {
+  return curve(lit(0).map(([z, w]) => [z, w / 2 + 2]))
+}
 /** The casing shows one pixel either side of whatever it wraps. */
 export const CASING_EXTRA = 2

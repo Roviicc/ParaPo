@@ -169,6 +169,7 @@ check(
 const fillIdx = snapshot.order.indexOf('saved-stops-fill')
 const outlineIdx = snapshot.order.indexOf('saved-stops-outline')
 const labelIdx = snapshot.order.indexOf('saved-stops-label')
+const hintuanLabelIdx = snapshot.order.indexOf('saved-stops-label-hintuan')
 const casingIdx = snapshot.order.indexOf('saved-routes-casing')
 const hitIdx = snapshot.order.indexOf('saved-routes-hit')
 check(
@@ -177,10 +178,23 @@ check(
   `fill ${fillIdx} outline ${outlineIdx} casing ${casingIdx}`,
 )
 check(
-  'hotspot labels sit ABOVE the route hit layer',
-  labelIdx >= 0 && hitIdx >= 0 && labelIdx > hitIdx,
-  `label ${labelIdx} hit ${hitIdx}`,
+  'hotspot labels, terminals and hintuans, sit ABOVE the route hit layer',
+  labelIdx >= 0 && hintuanLabelIdx >= 0 && hitIdx >= 0 && labelIdx > hitIdx && hintuanLabelIdx > hitIdx,
+  `terminal labels ${labelIdx}, hintuan labels ${hintuanLabelIdx}, hit ${hitIdx}`,
 )
+// Hotspot names only close in, terminals' and hintuans' alike (the owner,
+// 2026-09-25): from zoom 16.24, so none is drawn at 16 and some are at 17.
+const namesAt = (zoom) =>
+  page.evaluate(async (zoom) => {
+    const m = window.__map
+    const pt = (await window.__src('saved-stops')).features.find((f) => f.geometry.type === 'Point')
+    m.jumpTo({ center: pt.geometry.coordinates, zoom })
+    await new Promise((r) => { m.once('idle', r); setTimeout(r, 4000) })
+    await new Promise((r) => setTimeout(r, 400))
+    return new Set(m.queryRenderedFeatures({ layers: ['saved-stops-label', 'saved-stops-label-hintuan'] }).map((f) => f.properties.name)).size
+  }, zoom)
+const [namesFar, namesNear] = [await namesAt(16), await namesAt(17)]
+check('hotspot names only close in: none at zoom 16, some at 17', namesFar === 0 && namesNear > 0, `${namesFar} at 16, ${namesNear} at 17`)
 const drawLayers = snapshot.order.filter((id) => id.startsWith('draw-'))
 check('no editor (draw-*) layers on the public page', drawLayers.length === 0, drawLayers.join(', '))
 
@@ -274,8 +288,13 @@ if (!hit) {
     const items = chooser.locator('button[data-testid="chooser-item"]')
     const first = await items.first().innerText()
     check('  the hotspot is listed first', first.includes(hit.hotspot.name), first.split('\n')[0])
-    const litWhileAsking = await page.evaluate(() => window.__map.getPaintProperty('saved-routes-line', 'line-opacity'))
-    check('  the rest of the map fades while the sheet asks', litWhileAsking < 0.3, String(litWhileAsking))
+    // A plain level, or, when the listed routes' other way round stays at
+    // rest (the owner's pick, 2026-09-25), the level its `case` falls back to.
+    const fadedWhileAsking = await page.evaluate(() => {
+      const o = window.__map.getPaintProperty('saved-routes-line', 'line-opacity')
+      return Array.isArray(o) ? o[o.length - 1] : o
+    })
+    check('  the rest of the map fades while the sheet asks', fadedWhileAsking < 0.3, String(fadedWhileAsking))
     await items.last().click()
     await page.waitForTimeout(350)
     const state = await cardKind()
@@ -288,7 +307,13 @@ if (!hit) {
 // tap opens its card directly, drawn bright while the rest fade; closing the
 // card rests everything again.
 {
-  const opacity = () => page.evaluate(() => window.__map.getPaintProperty('saved-routes-line', 'line-opacity'))
+  // A plain level, or, when a lit direction's way back rests (the owner,
+  // 2026-09-25), the level its `case` falls back to: what the rest are at.
+  const opacity = () =>
+    page.evaluate(() => {
+      const o = window.__map.getPaintProperty('saved-routes-line', 'line-opacity')
+      return Array.isArray(o) ? o[o.length - 1] : o
+    })
   const rest = await opacity()
   check('the lines rest in a light blue (opacity under 0.6)', typeof rest === 'number' && rest > 0 && rest < 0.6, String(rest))
   const clean = findVertexOutsideHotspots(snapshot.routeLines, snapshot.polys)
@@ -319,8 +344,8 @@ if (!hit) {
         const m = window.__map
         let line = null
         try {
-          const { roadWidthAt, LIT_EXTRA } = await import('/src/shared/lineStyle.ts')
-          line = roadWidthAt(m.getZoom(), LIT_EXTRA)
+          const { litWidthAt } = await import('/src/shared/lineStyle.ts')
+          line = litWidthAt(m.getZoom())
         } catch {}
         const all = ((await window.__src('direction-arrows'))?.features ?? []).map((f) => {
           const p = f.geometry.coordinates[0].map((c) => m.project(c))

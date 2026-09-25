@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { directionToOpen, isDrawn, variantLine, type VariantSummary } from './routes'
 import { ROUTES_HIT_LAYER, resolveTap, tapTargets } from './tap'
-import { CASING_EXTRA, LINE_BLUE, LIT_EXTRA, roadWidth } from './lineStyle'
+import { CASING_EXTRA, LINE_BLUE, litWidth, roadWidth } from './lineStyle'
 
 const SRC = 'saved-routes'
 const CASING = 'saved-routes-casing'
@@ -19,12 +19,23 @@ const HIT = ROUTES_HIT_LAYER
  * Three levels, decided with the owner 2026-09-22: every direction rests in a
  * light blue; when a tap lights some, the rest fade further; the lit ones are
  * drawn again on top, full and thick. One rule for a road that will carry
- * three routes.
+ * three routes. While the sheet lights one way round, the same routes the
+ * other way stay at rest rather than fade (the owner's pick, 2026-09-25).
  */
 const REST = { line: 0.45, casing: 0.8 }
 const FADED = { line: 0.15, casing: 0.3 }
 /** The same levels, for the pass stretches that ride the line. */
 export const LEVELS = { REST, FADED }
+
+/**
+ * The `line-opacity` of the lines that are not lit: all at rest while
+ * nothing is lit; once something is, faded, but for the `resting` ones.
+ */
+export function unlitOpacity(part: keyof typeof REST, lit: readonly string[], resting: readonly string[]) {
+  if (lit.length === 0) return REST[part]
+  if (resting.length === 0) return FADED[part]
+  return ['case', ['in', ['get', 'id'], ['literal', [...resting]]], REST[part], FADED[part]] as never
+}
 
 /**
  * Every saved route direction, drawn for everyone. This is the public half of
@@ -53,6 +64,13 @@ export function useSavedRoutes<T extends VariantSummary>(
    * hotspot half of the same tap.
    */
   const [candidates, setCandidates] = useState<T[]>([])
+  /**
+   * Which way round the sheet shows the routes under a tap: outbound, or the
+   * way back. One way at a time, each lit with its arrows; ⇄ flips all of
+   * them together. The owner's ask of 2026-09-25.
+   */
+  const [back, setBack] = useState(false)
+  const flip = useCallback(() => setBack((b) => !b), [])
 
   /** Choosing one direction answers the question the chooser was asking. */
   const select = useCallback((id: string | null) => {
@@ -131,7 +149,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': roadWidth(LIT_EXTRA + CASING_EXTRA), 'line-opacity': 1 },
+        paint: { 'line-color': '#ffffff', 'line-width': litWidth(CASING_EXTRA), 'line-opacity': 1 },
         filter: ['==', ['get', 'id'], ''] as never,
       },
       before,
@@ -142,7 +160,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': LINE_BLUE, 'line-width': roadWidth(LIT_EXTRA) },
+        paint: { 'line-color': LINE_BLUE, 'line-width': litWidth() },
         filter: ['==', ['get', 'id'], ''] as never,
       },
       before,
@@ -206,12 +224,28 @@ export function useSavedRoutes<T extends VariantSummary>(
     for (const id of [CASING, LINE, HIT]) map.setFilter(id, filter as never)
   }, [map, opts.hiddenVariantId])
 
-  // What is lit: the chosen direction alone, or every drawn direction under
-  // a tap while the sheet asks which. The rest fade so it reads at a glance.
-  const lit = useMemo(
-    () => (selectedId ? [selectedId] : candidates.filter(isDrawn).map((v) => v.id)),
-    [selectedId, candidates],
+  // What is lit: the chosen direction alone, or, while the sheet asks which,
+  // the routes under the tap the way round it is showing them. The rest fade
+  // so it reads at a glance.
+  const litVariants = useMemo(
+    () =>
+      selectedId
+        ? variants.filter((v) => v.id === selectedId && isDrawn(v))
+        : candidates.filter((v) => v.reversed === back && isDrawn(v)),
+    [selectedId, variants, candidates, back],
   )
+  const lit = useMemo(() => litVariants.map((v) => v.id), [litVariants])
+  // The same routes the other way round, while the sheet shows one: they stay
+  // at rest, so the way back reads as there, and only what the sheet does not
+  // list fades. The owner's pick of 2026-09-25, over fading or hiding it; and
+  // the same for a card opened on its own: its route's other way rests.
+  const resting = useMemo(() => {
+    const chosen = selectedId ? variants.find((v) => v.id === selectedId) : undefined
+    const others = chosen
+      ? variants.filter((v) => v.route_id === chosen.route_id && v.id !== chosen.id)
+      : candidates.filter((v) => v.reversed !== back)
+    return others.filter(isDrawn).map((v) => v.id)
+  }, [selectedId, variants, candidates, back])
   useEffect(() => {
     if (!map || !map.getLayer(SELECTED)) return
     const hidden = ['!=', ['get', 'id'], opts.hiddenVariantId ?? '']
@@ -219,10 +253,15 @@ export function useSavedRoutes<T extends VariantSummary>(
     const filter = ['all', hidden, isLit]
     map.setFilter(SELECTED_CASING, filter as never)
     map.setFilter(SELECTED, filter as never)
-    const level = lit.length > 0 ? FADED : REST
-    map.setPaintProperty(LINE, 'line-opacity', level.line)
-    map.setPaintProperty(CASING, 'line-opacity', level.casing)
-  }, [map, lit, opts.hiddenVariantId])
+    map.setPaintProperty(LINE, 'line-opacity', unlitOpacity('line', lit, resting))
+    map.setPaintProperty(CASING, 'line-opacity', unlitOpacity('casing', lit, resting))
+  }, [map, lit, resting, opts.hiddenVariantId])
+
+  // The click handler is bound once; this is how it reads what is lit now.
+  const litRef = useRef<readonly string[]>([])
+  useEffect(() => {
+    litRef.current = lit
+  }, [lit])
 
   // ----------------------------------------------------------------- events
 
@@ -243,17 +282,30 @@ export function useSavedRoutes<T extends VariantSummary>(
       if (out.kind === 'route') {
         // The line under the finger wins: where a route's two directions run
         // on different roads, tapping the other one must open it (the owner's
-        // check, 2026-09-22). Only where both overlap does the outbound rule
-        // decide.
+        // check, 2026-09-22). Where both overlap, the one already lit stays
+        // (the owner's ask of 2026-09-25: a tap on the lit Novaliches → Tala
+        // opened Tala → Novaliches); with neither lit, the outbound rule
+        // decides.
         const under = out.routeIds.map((id) => byId.current.get(id)).filter((v) => !!v)
         const routeId = under[0]?.route_id
-        const open = under.length === 1 ? under[0]! : directionToOpen(all.filter((v) => v.route_id === routeId))
+        const open =
+          under.length === 1
+            ? under[0]!
+            : (under.find((v) => litRef.current.includes(v.id)) ?? directionToOpen(all.filter((v) => v.route_id === routeId)))
         setSelectedId(open?.id ?? null)
         setCandidates([])
       } else if (out.kind === 'several') {
         const keys = new Set(out.routeKeys)
         setSelectedId(null)
         setCandidates(all.filter((v) => keys.has(v.route_id)))
+        // The way round under the finger, as for one route: outbound where an
+        // outbound line was hit, the way back where only ways back were — so
+        // a tap on the light-blue way back switches to it (the owner's
+        // report, 2026-09-25) — and, where a lit line was hit, the way round
+        // already lit.
+        const hit = out.routeIds.map((id) => byId.current.get(id)).filter((v) => !!v)
+        const litHit = hit.find((v) => litRef.current.includes(v.id))
+        setBack(litHit ? litHit.reversed : hit.length > 0 && hit.every((v) => v.reversed))
       } else {
         setSelectedId(null)
         setCandidates([])
@@ -278,5 +330,5 @@ export function useSavedRoutes<T extends VariantSummary>(
 
   const selected = variants.find((v) => v.id === selectedId) ?? null
 
-  return { variants, error, loading, reload, selected, select, candidates, lit }
+  return { variants, error, loading, reload, selected, select, candidates, back, flip, lit, litVariants, resting }
 }

@@ -36,7 +36,8 @@ function variant(routeKey: string, name: string, direction: string, reversed = f
 
 /**
  * Every direction of every route under the tap, slots included, the way the
- * hooks hand them over: the sheet groups them into one row per route.
+ * hooks hand them over: the sheet shows one way round at a time, grouped by
+ * the place each leaves from.
  */
 const routes: VariantSummary[] = [
   variant('a', 'Tala – SM Fairview', 'Tala → SM Fairview'),
@@ -45,6 +46,14 @@ const routes: VariantSummary[] = [
   variant('b', 'Novaliches – Quiapo', 'Quiapo → Novaliches', true, false),
   variant('c', 'Lagro – Fairview', 'Lagro → Fairview'),
   variant('c', 'Lagro – Fairview', 'Fairview → Lagro', true),
+]
+
+/** The owner's case: two routes out of Tala sharing its road, the second's way back still a slot. */
+const fromTala: VariantSummary[] = [
+  variant('a', 'Tala – SM Fairview', 'Tala → SM Fairview'),
+  variant('a', 'Tala – SM Fairview', 'SM Fairview → Tala', true),
+  variant('d', 'Tala – Novaliches', 'Tala → Novaliches'),
+  variant('d', 'Tala – Novaliches', 'Novaliches → Tala', true, false),
 ]
 
 function stop(id: string, name: string, kind: StopRow['kind']): StopRow {
@@ -87,13 +96,19 @@ const meta = {
     ),
   ],
   parameters: { layout: 'fullscreen' },
-  args: { onRoute: fn(), onStop: fn(), onClose: fn() },
+  args: { onRoute: fn(), onStop: fn(), onClose: fn(), onFlip: fn() },
 } satisfies Meta<typeof Chooser>
 
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** The common case: one tap landed on two routes sharing a road — four directions, two rows, one with its return still a slot. */
+/** Two routes out of Tala on one road: Tala, then → SM Fairview and → Novaliches. */
+export const FromOnePlace: Story = { args: { routes: fromTala } }
+
+/** The same two after ⇄: SM Fairview → Tala, and Novaliches → Tala, not mapped yet. */
+export const TheWayBack: Story = { args: { routes: fromTala, back: true } }
+
+/** The common case: one tap landed on two routes sharing a road, from two different places. */
 export const TwoRoutes: Story = { args: { routes: routes.slice(0, 4) } }
 
 /** A box with a line through it: the hotspot first, then the route. */

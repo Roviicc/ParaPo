@@ -1,12 +1,17 @@
-import { directionToOpen, groupByRoute, isDrawn, type VariantSummary } from './routes'
+import { departures, groupByRoute, type VariantSummary } from './routes'
 import { Sheet } from './Sheet'
 import { stopLabel, type StopSummary } from './stops'
+import { SwitchIcon } from './SwitchIcon'
 
 type Props = {
   /** Every direction of every route under the tap, slots included. */
   routes?: VariantSummary[]
   stops?: StopSummary[]
-  /** Called with the direction the picked route opens with. */
+  /** Whether the routes are shown the way back rather than outbound. */
+  back?: boolean
+  /** Show them the other way round. Without it no switch is offered. */
+  onFlip?: () => void
+  /** Called with the direction picked. */
   onRoute: (v: VariantSummary) => void
   onStop: (s: StopSummary) => void
   onClose: () => void
@@ -27,22 +32,49 @@ function title(routes: number, stops: number): string {
  * more than one route, so a tap that hits two or three lines is the normal
  * case, not the edge case; a terminal has its own route running through it.
  * Rather than guess which one was meant, list them all: hotspots first (a
- * box is small and deliberate), then one row per route, never per direction
- * — picking a road, then a route, then a way is three small steps. A row
- * says when one way is still a slot. Decided with the owner 2026-09-22.
+ * box is small and deliberate), then the routes. Decided with the owner
+ * 2026-09-22.
+ *
+ * The routes are shown one way round at a time, grouped by the place they
+ * leave from — Tala, then → SM Fairview and → Novaliches — with ⇄ to show
+ * them all the way back: SM Fairview → Tala, Novaliches → Tala. The map
+ * lights what the list shows, each with its arrows and a circle at either
+ * end. The owner's layout of 2026-09-25. A row opens that direction's card;
+ * one still a slot says so and opens nothing.
  *
  * It opens pulled up: a chooser that only peeks would hide the very choice it
  * exists to offer. Whoever renders it gives it a key from what it lists, so a
  * fresh tap gets a fresh, open sheet.
  */
-export function Chooser({ routes = [], stops = [], onRoute, onStop, onClose }: Props) {
-  const groups = groupByRoute(routes)
+export function Chooser({ routes = [], stops = [], back = false, onFlip, onRoute, onStop, onClose }: Props) {
+  const routeCount = groupByRoute(routes).length
+  const places = departures(routes, back)
+  const flipLabel = back ? 'Show the way there' : 'Show the way back'
   return (
     <Sheet
       onClose={onClose}
       initial="open"
       testId="chooser"
-      peek={<p className="text-base font-semibold text-neutral-900">{title(groups.length, stops.length)}</p>}
+      peek={
+        <div className="flex items-center gap-2">
+          <p className="min-w-0 flex-1 truncate text-base font-semibold text-neutral-900">
+            {title(routeCount, stops.length)}
+          </p>
+          {onFlip && routeCount > 0 && (
+            <button
+              type="button"
+              data-testid="chooser-flip"
+              aria-pressed={back}
+              onClick={onFlip}
+              aria-label={flipLabel}
+              title={flipLabel}
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-neutral-700 hover:bg-neutral-100"
+            >
+              <SwitchIcon />
+            </button>
+          )}
+        </div>
+      }
     >
       {/* Full-bleed rows: a whole row is the target, not the words inside it. */}
       <ul className="-mx-4 mt-3 border-t border-neutral-200">
@@ -62,26 +94,35 @@ export function Chooser({ routes = [], stops = [], onRoute, onStop, onClose }: P
             </button>
           </li>
         ))}
-        {groups.map((g) => {
-          const open = directionToOpen(g.directions)
-          const slot = g.directions.find((v) => !isDrawn(v))
-          if (!open) return null
-          return (
-            <li key={g.routeId} className="border-b border-neutral-200 last:border-b-0">
-              <button
-                type="button"
-                data-testid="chooser-item"
-                onClick={() => onRoute(open)}
-                className="block w-full px-4 py-2.5 text-left hover:bg-neutral-100"
-              >
-                <span className="block truncate font-medium text-neutral-900">{g.route?.name}</span>
-                <span className="block truncate text-xs text-neutral-500">
-                  {slot ? `${slot.reversed ? 'Return' : 'Outbound'} not mapped yet` : 'Both ways mapped'}
-                </span>
-              </button>
-            </li>
-          )
-        })}
+        {places.map((p) => (
+          <li key={p.from} data-testid="chooser-origin" className="border-b border-neutral-200 last:border-b-0">
+            <p className="px-4 pt-2.5 text-sm font-semibold text-neutral-900">{p.from}</p>
+            <ul className="pb-1">
+              {p.directions.map(({ v, to, drawn }) => (
+                <li key={v.id}>
+                  <button
+                    type="button"
+                    data-testid="chooser-item"
+                    disabled={!drawn}
+                    onClick={() => drawn && onRoute(v)}
+                    className="flex w-full items-baseline gap-2 px-4 py-2 text-left hover:bg-neutral-100
+                               disabled:cursor-default disabled:hover:bg-transparent"
+                  >
+                    <span aria-hidden="true" className="text-neutral-400">
+                      →
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className={'block truncate font-medium ' + (drawn ? 'text-neutral-900' : 'text-neutral-400')}>
+                        {to}
+                      </span>
+                      {!drawn && <span className="block truncate text-xs text-amber-700">Not mapped yet</span>}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
       </ul>
     </Sheet>
   )

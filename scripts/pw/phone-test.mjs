@@ -301,7 +301,10 @@ const REST_OPACITY = 0.45
 const lineOpacity = (p) =>
   p.evaluate(() => {
     const m = window.__map
-    return m.getLayer('saved-routes-line') ? m.getPaintProperty('saved-routes-line', 'line-opacity') : null
+    if (!m.getLayer('saved-routes-line')) return null
+    // A `case` when a lit direction's way back rests: its fallback is what the rest are at.
+    const o = m.getPaintProperty('saved-routes-line', 'line-opacity')
+    return Array.isArray(o) ? o[o.length - 1] : o
   })
 const selectedFilter = (p) =>
   p.evaluate(() => {
@@ -580,12 +583,20 @@ if (!shared) {
   const items = chooser.locator('button[data-testid="chooser-item"]')
   const itemTexts = []
   for (let i = 0; i < (await items.count()); i++) itemTexts.push(await items.nth(i).innerText())
+  // Since 2026-09-25 the sheet lists each route outbound under the place it
+  // leaves from — "Tala", then → SM Fairview — so a route's row is its far
+  // end, under a heading that is its head.
+  const endsOf = (name) => name.replace(/ via .*$/, '').split(' – ')
   check(
-    '  it lists both signboards, one row each',
-    itemTexts.length === 2 && [shared.a.signboard, shared.b.signboard].every((s) => itemTexts.some((t) => t.includes(s))),
+    '  it lists both routes, one row each, under the place each leaves from',
+    itemTexts.length === 2 &&
+      [shared.a.signboard, shared.b.signboard].every((s) => {
+        const [head, tail] = endsOf(s)
+        return chooserText.includes(head) && itemTexts.some((t) => t.includes(tail))
+      }),
     `${itemTexts.length} row(s): ${itemTexts.map((t) => t.replace(/\n/g, ' / ')).join(' | ')}`,
   )
-  const wanted = items.filter({ hasText: shared.b.signboard })
+  const wanted = items.filter({ hasText: endsOf(shared.b.signboard)[1] })
   const wb = (await wanted.count()) ? await wanted.first().boundingBox() : null
   if (wb) {
     await page.touchscreen.tap(wb.x + wb.width / 2, wb.y + wb.height / 2)

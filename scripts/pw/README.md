@@ -7,11 +7,13 @@ public map at `/` and the editor at `/studio/`. Complements `scripts/uitest.mjs`
     npm i -D playwright && npx playwright install chromium   # once
     npm run dev                                              # in another terminal, on :5173
     node scripts/pw/gate-test.mjs             # 15: the studio's sign-in door, ?e2e=1, the reset-link forwarder
-    node scripts/pw/visitor-test.mjs          # 133 today: the public map — no editor, no database, cards, chips, the sheet on a shared tap, rest/lit
+    node scripts/pw/visitor-test.mjs          # 134 today: the public map — no editor, no database, cards, chips, the sheet on a shared tap, rest/lit, names only close in
     node scripts/pw/phone-test.mjs            # 40 (38 run, 2 SKIP today): / at 390×844 — the bottom sheet, the ±20 px tap, the chooser, ?r=
     node scripts/pw/regression-gestures.mjs   # 29: route and hotspot gestures on /studio/?e2e=1
     node scripts/pw/hotspot-test.mjs          # 22: hotspot tracing, draft reload, a routed segment on /studio/?e2e=1
     node scripts/pw/snap-test.mjs             # 20: far clicks go freehand, U-turns at joins shown not changed, street names
+    node scripts/pw/extend-test.mjs           # 16: Extend's join mode, and a right-click on a saved line following it to its end
+    node scripts/pw/group-test.mjs            # 26: a tap where routes share a road — one way round, by place, ⇄, lit with arrows, end circles and names, the other way at rest; clicks that switch, and clicks that keep what is lit
     node scripts/uitest.mjs                   # 26: route gestures through Windows Chrome's DevTools protocol
 
     npm run build                             # also checks import boundaries, that no editor code reaches /, and the installable app's files

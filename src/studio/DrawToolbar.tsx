@@ -30,12 +30,75 @@ export function DrawToolbar({
   draw,
   onDone,
   keys = true,
+  ends = null,
 }: {
   draw: Drawing
   onDone: () => void
   /** Whether the keyboard shortcuts may act. False while a panel is open. */
   keys?: boolean
+  /**
+   * While extending: the places the direction being extended runs from and
+   * to, and whether its stored line runs the other way round, so the two
+   * keep buttons can say which part they keep in the jeep's own order.
+   */
+  ends?: { from: string; to: string; backwards: boolean } | null
 }) {
+  if (draw.picking) return <PickBar draw={draw} ends={ends} />
+  return <Toolbar draw={draw} onDone={onDone} keys={keys} />
+}
+
+/**
+ * Extend, before anything is drawn: tap where the new route leaves the line,
+ * then keep the part before that spot or the part after it.
+ */
+function PickBar({ draw, ends }: { draw: Drawing; ends: { from: string; to: string; backwards: boolean } | null }) {
+  const spot = draw.picking?.spot
+  const from = ends?.from ?? 'the start'
+  const to = ends?.to ?? 'the end'
+  // The keep buttons speak in travel order; `part` is the stored line's order.
+  const options = [
+    { part: 'start' as const, label: `Keep ${from} → here`, hint: 'the new route carries on from here' },
+    { part: 'end' as const, label: `Keep here → ${to}`, hint: 'the new route joins here' },
+  ].map((o) => (ends?.backwards ? { ...o, part: o.part === 'start' ? ('end' as const) : ('start' as const) } : o))
+
+  return (
+    <div className="absolute bottom-6 left-1/2 z-10 w-max max-w-[calc(100%-2rem)] -translate-x-1/2">
+      <p className="mb-2 text-center text-[11px] text-neutral-600 [text-shadow:0_1px_2px_white]">
+        {spot
+          ? `${(spot.metres / 1000).toFixed(2)} km along the line · tap again to move the spot`
+          : 'Tap the blue line where the new route leaves it'}
+      </p>
+      <div className="flex flex-wrap items-center justify-center gap-1 rounded-2xl bg-white p-1.5 shadow-lg ring-1 ring-black/10">
+        {spot ? (
+          options.map((o) => (
+            <button
+              key={o.label}
+              type="button"
+              onClick={() => draw.keep(o.part)}
+              data-testid={`keep-${o.part}`}
+              className="rounded-xl px-3 py-1.5 text-left text-sm text-neutral-800 hover:bg-neutral-100"
+            >
+              <span className="font-medium">{o.label}</span>
+              <span className="block text-[11px] text-neutral-500">{o.hint}</span>
+            </button>
+          ))
+        ) : (
+          <span className="px-3 text-xs text-neutral-500">Extend a route</span>
+        )}
+        <button
+          type="button"
+          onClick={draw.cancel}
+          title="Stop extending"
+          className="rounded-full px-3 py-2 text-sm text-neutral-500 hover:bg-neutral-100"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function Toolbar({ draw, onDone, keys }: { draw: Drawing; onDone: () => void; keys: boolean }) {
   const points = draw.controlPoints.length
   const freehandCount = draw.segments.filter((s) => s?.snap === 'freehand').length
   const area = draw.area
@@ -76,7 +139,7 @@ export function DrawToolbar({
         <p className="mb-2 text-center text-[11px] text-neutral-600 [text-shadow:0_1px_2px_white]">
           {area
             ? 'drag a corner to move · right-click to delete · click an edge to insert a corner'
-            : 'drag a point to move · right-click to delete · click the line to insert · shift-click a stretch to straighten it'}
+            : 'drag a point to move · right-click it to delete · click the line to insert · shift-click a stretch to straighten it · right-click a blue line to follow it to its end'}
         </p>
       )}
 

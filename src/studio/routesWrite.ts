@@ -3,6 +3,7 @@ import { joinSegments } from '../shared/geo'
 import { VARIANT_SELECT } from './live'
 import type { LineStringGeoJSON, TransportMode, UnnamedVariantRow, VariantRow } from '../shared/routes'
 import { requireSupabase } from '../shared/supabase'
+import type { BorrowPart } from './borrow'
 
 /**
  * What the save panel collects. Route fields — the ends, the signboard, the
@@ -25,6 +26,13 @@ export type SaveInput = {
   reversed: boolean
   control_points: LngLat[]
   segments: Segment[]
+  /**
+   * What this line borrowed, when it was started with Extend (0008). Null
+   * when it borrows nothing, including a borrowed part since redrawn away.
+   */
+  borrowed_from: string | null
+  borrowed_part: BorrowPart | null
+  borrowed_m: number | null
 }
 
 const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim())
@@ -45,44 +53,52 @@ const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim())
 const UNIQUE_VIOLATION = '23505'
 
 /**
- * The route with these ends already exists. If it has no directions it is an
- * orphan — a save whose second request failed, before or after the client
- * learned to clean up after itself — and the honest thing is to use it: same
- * ends, same name, nobody can reach it from a card. Its facts are brought up
- * to what was just typed. If it has directions, it is a real duplicate, and
- * the answer is a `via`.
+ * The route with these ends already exists. Three cases:
+ *
+ * - It has no directions: an orphan — a save whose second request failed,
+ *   before or after the client learned to clean up after itself. Use it: same
+ *   ends, same name, nobody can reach it from a card. Its facts are brought up
+ *   to what was just typed, and both directions are inserted as for a new one.
+ * - This direction is still its empty slot: the line fills it. This is how a
+ *   return trip drawn with Extend — from another route's line — lands on the
+ *   route its outbound created, with nothing to pick. The route's facts are
+ *   its own and are left alone.
+ * - This direction is drawn already: a real duplicate, refused.
  */
-async function adoptEmptyRoute(
+async function claimExistingRoute(
   client: ReturnType<typeof requireSupabase>,
   ends: { head_stop_id: string; tail_stop_id: string; via: string | null },
   facts: { signboard: string | null; mode: TransportMode; fare_note: string | null },
-): Promise<string> {
+  reversed: boolean,
+): Promise<{ routeId: string; fillSlot: boolean }> {
   let query = client
     .from('route')
-    .select('id, route_variant(id)')
+    .select('id, route_variant(id, reversed, shape)')
     .eq('head_stop_id', ends.head_stop_id)
     .eq('tail_stop_id', ends.tail_stop_id)
   query = ends.via === null ? query.is('via', null) : query.eq('via', ends.via)
   const { data, error } = await query.maybeSingle()
   if (error) throw new Error(error.message)
   if (!data) throw new Error('A route with these ends already exists, but it could not be read back.')
-  const directions = (data.route_variant as { id: string }[] | null) ?? []
-  if (directions.length > 0) {
-    throw new Error(
-      'A route between these two places already exists. If this one takes a different road, ' +
-        'give it a via — the place that tells them apart.',
-    )
+  const directions = (data.route_variant as { id: string; reversed: boolean; shape: unknown }[] | null) ?? []
+  if (directions.length === 0) {
+    const { error: updateError } = await client.from('route').update(facts).eq('id', data.id)
+    if (updateError) throw new Error(updateError.message)
+    return { routeId: data.id as string, fillSlot: false }
   }
-  const { error: updateError } = await client.from('route').update(facts).eq('id', data.id)
-  if (updateError) throw new Error(updateError.message)
-  return data.id as string
+  const mine = directions.find((d) => d.reversed === reversed)
+  if (mine && mine.shape === null) return { routeId: data.id as string, fillSlot: true }
+  throw new Error(
+    'A route between these two places already has this direction drawn. To change it, open it and ' +
+      'press Edit route.',
+  )
 }
 
 export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> {
   const client = requireSupabase()
 
   let routeId = input.routeId
-  const newRoute = !routeId
+  let newRoute = !routeId
   if (!routeId) {
     const facts = {
       signboard: blankToNull(input.signboard),
@@ -100,7 +116,9 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
       .select('id')
       .single()
     if (error && error.code === UNIQUE_VIOLATION) {
-      routeId = await adoptEmptyRoute(client, ends, facts)
+      const claimed = await claimExistingRoute(client, ends, facts, input.reversed)
+      routeId = claimed.routeId
+      newRoute = !claimed.fillSlot
     } else if (error) {
       throw new Error(error.message)
     } else {
@@ -118,6 +136,9 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
     control_points: input.control_points,
     segments: input.segments,
     shape,
+    borrowed_from: input.borrowed_from,
+    borrowed_part: input.borrowed_from ? input.borrowed_part : null,
+    borrowed_m: input.borrowed_from ? input.borrowed_m : null,
   }
 
   if (newRoute) {
@@ -132,6 +153,9 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
       control_points: [] as LngLat[],
       segments: [] as Segment[],
       shape: null,
+      borrowed_from: null,
+      borrowed_part: null,
+      borrowed_m: null,
     }
     const { data, error } = await client
       .from('route_variant')

@@ -6,7 +6,14 @@ import { loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } 
 import { reloadToUpdate, useNeedRefresh } from './pwa'
 import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
-import { otherDirection, routeTimeline, travelLine, variantLine, type VariantSummary } from '../shared/routes'
+import {
+  directionEnds,
+  otherDirection,
+  routeTimeline,
+  travelLine,
+  variantLine,
+  type VariantSummary,
+} from '../shared/routes'
 import { useDirectionArrows } from '../shared/directionArrows'
 import { usePassStretches } from '../shared/passStretches'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
@@ -31,15 +38,17 @@ export default function CommuterApp() {
   const stops = useSavedStops(map, loadStopsFromFile)
 
   // Where a direction passes a hintuan, the line turns orange for that stretch.
-  usePassStretches(map, saved.variants, stops.stops, saved.lit)
+  usePassStretches(map, saved.variants, stops.stops, saved.lit, saved.resting)
 
-  // Which way the jeep goes, on the chosen direction only: chevrons flowing
-  // inside the line from where the ride starts.
-  const chosenLine = useMemo(
-    () => (saved.selected ? travelLine(saved.selected, stops.stops) : null),
-    [saved.selected, stops.stops],
+  // Which way the jeep goes, on what is lit only — the chosen direction, or
+  // the routes under a tap the way round the sheet shows them: chevrons
+  // flowing inside each line from where the ride starts, and each end a
+  // circle with its place's name.
+  const rides = useMemo(
+    () => saved.litVariants.map((v) => ({ line: travelLine(v, stops.stops), ...directionEnds(v) })),
+    [saved.litVariants, stops.stops],
   )
-  useDirectionArrows(map, chosenLine)
+  useDirectionArrows(map, rides)
 
   useShareLink(map, saved)
   const offline = useOffline()
@@ -154,6 +163,8 @@ export default function CommuterApp() {
           key={choice.map((c) => c.id).join()}
           routes={saved.candidates}
           stops={stops.candidates}
+          back={saved.back}
+          onFlip={saved.flip}
           onRoute={(v) => {
             stops.select(null)
             saved.select(v.id)

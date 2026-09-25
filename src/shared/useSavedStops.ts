@@ -2,13 +2,27 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { HOTSPOT_COLOUR } from './colours'
 import { convexHull, ringToPolygon } from './geo'
-import { siblingsOf, stopRing, type StopLink, type StopSummary } from './stops'
+import { siblingsOf, stopRing, type StopKind, type StopLink, type StopSummary } from './stops'
 import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, resolveTap, tapTargets } from './tap'
 
 const SRC = 'saved-stops'
 const FILL = STOPS_FILL_LAYER
 const OUTLINE = 'saved-stops-outline'
 const LABEL = 'saved-stops-label'
+const HINTUAN_LABEL = 'saved-stops-label-hintuan'
+/**
+ * Hotspot names show only close in. Further out a name, centred on the road
+ * it stands on, sat over the orange stretch it marks. The owner's asks of
+ * 2026-09-25: hintuan names from zoom 16.5 (between a view at 16, names in
+ * the way, and one at 16.7, names kept); then the terminals' the same; then
+ * the names lasting 12/10 as far out — gone once the map shows 1.2 times the
+ * ground it did at 16.5. Two layers, one a kind, so each can be set apart.
+ */
+const NAMES_FROM = 16.5 - Math.log2(1.2)
+
+/** The label points of one kind, less the hotspot being edited. */
+const labelsOf = (kind: StopKind, hidden = '') =>
+  ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'kind'], kind], ['!=', ['get', 'id'], hidden]] as never
 /** The boxes under a tap, or the chosen one, drawn again stronger while they are asked about. */
 const LIT = 'saved-stops-lit'
 /**
@@ -183,24 +197,32 @@ export function useSavedStops<S extends StopSummary>(
       before,
     )
     // Labels go on top of everything: a name is never worth hiding under a line.
-    map.addLayer({
-      id: LABEL,
-      type: 'symbol',
-      source: SRC,
-      filter: ['==', ['geometry-type'], 'Point'],
-      layout: {
-        'text-field': ['get', 'name'],
-        'text-size': 11,
-        'text-font': ['Noto Sans Bold'],
-        'text-anchor': 'center',
-        'text-allow-overlap': false,
-      },
-      paint: {
-        'text-color': colour as never,
-        'text-halo-color': '#ffffff',
-        'text-halo-width': 1.5,
-      },
-    })
+    // The terminals' above the hintuans', so where two collide the terminal
+    // keeps its name.
+    for (const [id, kind] of [
+      [HINTUAN_LABEL, 'hintuan'],
+      [LABEL, 'terminal'],
+    ] as const) {
+      map.addLayer({
+        id,
+        type: 'symbol',
+        source: SRC,
+        minzoom: NAMES_FROM,
+        filter: labelsOf(kind),
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-size': 11,
+          'text-font': ['Noto Sans Bold'],
+          'text-anchor': 'center',
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': colour as never,
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.5,
+        },
+      })
+    }
   }, [map])
 
   useEffect(() => {
@@ -256,7 +278,8 @@ export function useSavedStops<S extends StopSummary>(
     const hidden = opts.hiddenStopId ?? ''
     map.setFilter(FILL, ['all', ['==', ['geometry-type'], 'Polygon'], ['!=', ['get', 'id'], hidden]])
     map.setFilter(OUTLINE, ['all', ['==', ['geometry-type'], 'Polygon'], ['!=', ['get', 'id'], hidden]])
-    map.setFilter(LABEL, ['all', ['==', ['geometry-type'], 'Point'], ['!=', ['get', 'id'], hidden]])
+    map.setFilter(LABEL, labelsOf('terminal', hidden))
+    map.setFilter(HINTUAN_LABEL, labelsOf('hintuan', hidden))
   }, [map, opts.hiddenStopId])
 
   useEffect(() => {

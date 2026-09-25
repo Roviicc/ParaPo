@@ -2,8 +2,8 @@ import { useEffect, useMemo } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { variantLine, type VariantSummary } from './routes'
 import { passStretches, stopRing, type StopSummary } from './stops'
-import { LIT_EXTRA, PASS_ORANGE, roadWidth } from './lineStyle'
-import { LEVELS, SELECTED_CASING_LAYER } from './useSavedRoutes'
+import { PASS_ORANGE, litWidth, roadWidth } from './lineStyle'
+import { LEVELS, SELECTED_CASING_LAYER, unlitOpacity } from './useSavedRoutes'
 import { ROUTES_HIT_LAYER } from './tap'
 
 /**
@@ -28,12 +28,13 @@ function fadingIn(to: number) {
   return ['interpolate', ['linear'], ['zoom'], 14, 0, 15.5, to] as never
 }
 
-/** Draw the orange stretches of every direction; `lit` and `hiddenVariantId` as the line hook has them. */
+/** Draw the orange stretches of every direction; `lit`, `resting` and `hiddenVariantId` as the line hook has them. */
 export function usePassStretches(
   map: MapLibreMap | null,
   variants: readonly VariantSummary[],
   stops: readonly StopSummary[],
   lit: readonly string[],
+  resting: readonly string[],
   hiddenVariantId: string | null = null,
 ): void {
   // Between the resting line and the lit one, and the lit copy under the hit
@@ -59,7 +60,7 @@ export function usePassStretches(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'butt', 'line-join': 'round' },
-        paint: { 'line-color': PASS_ORANGE, 'line-width': roadWidth(LIT_EXTRA), 'line-opacity': fadingIn(1) },
+        paint: { 'line-color': PASS_ORANGE, 'line-width': litWidth(), 'line-opacity': fadingIn(1) },
         filter: ['==', ['get', 'id'], ''] as never,
       },
       ROUTES_HIT_LAYER,
@@ -92,6 +93,6 @@ export function usePassStretches(
     const hidden = ['!=', ['get', 'id'], hiddenVariantId ?? '']
     map.setFilter(PASS, hidden as never)
     map.setFilter(SELECTED_PASS, ['all', hidden, ['in', ['get', 'id'], ['literal', [...lit]]]] as never)
-    map.setPaintProperty(PASS, 'line-opacity', fadingIn(lit.length > 0 ? LEVELS.FADED.line : LEVELS.REST.line))
-  }, [map, lit, hiddenVariantId])
+    map.setPaintProperty(PASS, 'line-opacity', fadingIn(unlitOpacity('line', lit, resting)))
+  }, [map, lit, resting, hiddenVariantId])
 }

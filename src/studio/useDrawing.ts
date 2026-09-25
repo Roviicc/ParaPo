@@ -9,7 +9,9 @@ import {
 } from '../shared/geo'
 import { HOTSPOT_COLOUR } from '../shared/colours'
 import { findUTurns, snapSegments, straightSegment } from './snap'
-import type { VariantRow } from '../shared/routes'
+import { variantLine, type VariantRow } from '../shared/routes'
+import { cutAt, nearestSpot, reverseDrawing, type BorrowPart, type LineSpot } from './borrow'
+import { ROUTES_HIT_LAYER } from '../shared/tap'
 
 const EMPTY = { type: 'FeatureCollection', features: [] } as const
 
@@ -33,6 +35,19 @@ export type HotspotKind = 'terminal' | 'hintuan'
  */
 export type AreaTarget = { kind: HotspotKind; stopId: string | null }
 
+/**
+ * Set once a drawing has taken over part of a saved direction (Extend): which
+ * one, and which part. What the save records, so a later change to the parent
+ * can offer to follow into this line.
+ */
+export type Borrow = { variantId: string; part: BorrowPart }
+
+/**
+ * Set while choosing where a new route leaves a saved direction, before any
+ * of it is taken: the direction, and the spot tapped on it so far.
+ */
+export type Picking = { variant: VariantRow; spot: LineSpot | null }
+
 /** A gap still waiting for the router when the draft was written is marked `pending`. */
 type DraftSegment = Segment & { pending?: boolean }
 
@@ -41,6 +56,9 @@ type Draft = {
   segments: DraftSegment[]
   target: Target
   area?: AreaTarget | null
+  borrow?: Borrow | null
+  /** Index of the join point, when new points go in before a borrowed end. */
+  join?: number | null
 }
 
 function readDraft(): Draft | null {
@@ -58,12 +76,18 @@ const LINE_SRC = 'draw-line'
 const POINT_SRC = 'draw-points'
 const AREA_SRC = 'draw-area'
 const UTURN_SRC = 'draw-uturns'
+const BORROW_SRC = 'draw-borrow'
 const POINT_LAYER = 'draw-point-dots'
 const HIT_LAYER = 'draw-line-hit'
 const AREA_FILL_LAYER = 'draw-area-fill'
 
 const ROUTE_COLOUR = '#e11d48'
 const UTURN_COLOUR = '#f59e0b'
+
+const BORROW_COLOUR = '#2563eb'
+
+/** A tap this many pixels off the line being extended does not pick a spot on it. */
+const PICK_PX = 40
 
 /** The closing edge of an area is a feature in the line source with this index. */
 const CLOSING = -1
@@ -75,7 +99,16 @@ type Request = { standIns: Segment[]; controller: AbortController }
 
 export type Drawing = ReturnType<typeof useDrawing>
 
-export function useDrawing(map: MapLibreMap | null) {
+export function useDrawing(
+  map: MapLibreMap | null,
+  opts: {
+    /**
+     * A right-click on saved lines while drawing a route: the directions under
+     * it and where. The studio decides which one is meant and calls `connect`.
+     */
+    onFollow?: (variantIds: string[], at: LngLat) => void
+  } = {},
+) {
   const [drawing, setDrawing] = useState(false)
   const [controlPoints, setControlPoints] = useState<LngLat[]>([])
   const [segments, setSegments] = useState<Segment[]>([])
@@ -89,6 +122,10 @@ export function useDrawing(map: MapLibreMap | null) {
   })
   /** Non-null while tracing a hotspot rather than a route. */
   const [area, setArea] = useState<AreaTarget | null>(null)
+  /** Non-null once part of a saved direction has been taken over (Extend). */
+  const [borrow, setBorrow] = useState<Borrow | null>(null)
+  /** Non-null while choosing where a new route leaves a saved direction. */
+  const [picking, setPicking] = useState<Picking | null>(null)
 
   // Map event handlers are registered once and must always see current state,
   // so every mutator updates these refs synchronously.
@@ -98,6 +135,27 @@ export function useDrawing(map: MapLibreMap | null) {
   freehandRef.current = freehand
   const areaRef = useRef<AreaTarget | null>(null)
   areaRef.current = area
+  const pickingRef = useRef<Picking | null>(null)
+  pickingRef.current = picking
+  /**
+   * The point where a kept *end* begins, when a new route joins a saved one
+   * there. New clicks go in just before it rather than after the last point,
+   * so the owner draws forwards — from where the jeep starts to where it
+   * joins — and the line stays joined to the borrowed end the whole time.
+   * Held by identity: a drag replaces it (see onDragMove); deleting it
+   * returns the drawing to plain appending.
+   */
+  const joinRef = useRef<LngLat | null>(null)
+  const borrowRef = useRef<Borrow | null>(null)
+  borrowRef.current = borrow
+  const followRef = useRef(opts.onFollow)
+  followRef.current = opts.onFollow
+  /**
+   * The first and last points a right-click added by joining a saved line.
+   * While the last is still the drawing's last, Undo takes the whole join
+   * back in one step rather than one borrowed point at a time.
+   */
+  const connectedRef = useRef<{ spot: LngLat; end: LngLat } | null>(null)
 
   /**
    * Straight stand-ins: drawn while the router is asked, and while a point is
@@ -201,12 +259,27 @@ export function useDrawing(map: MapLibreMap | null) {
 
   const addPoint = useCallback(
     async (point: LngLat) => {
+      const mode: SnapMode = freehandRef.current ? 'freehand' : 'snapped'
+      const join = joinRef.current ? cpRef.current.indexOf(joinRef.current) : -1
+      if (join !== -1 && !areaRef.current) {
+        // Before a borrowed end: the new point goes in just ahead of the join,
+        // and both gaps it touches are new drawing.
+        const pts = [...cpRef.current]
+        pts.splice(join, 0, point)
+        writePoints(pts)
+        const segs = [...segRef.current]
+        if (join === 0) segs.unshift(straightSegment(point, pts[1]))
+        else segs.splice(join - 1, 1, straightSegment(pts[join - 1], point), straightSegment(point, pts[join + 1]))
+        writeSegments(segs)
+        await resolveGaps(join === 0 ? 0 : join - 1, join === 0 ? [mode] : [mode, mode])
+        return
+      }
       const prevLen = cpRef.current.length
       writePoints([...cpRef.current, point])
       if (prevLen === 0) return
-      await resolveGaps(prevLen - 1, [freehandRef.current ? 'freehand' : 'snapped'])
+      await resolveGaps(prevLen - 1, [mode])
     },
-    [resolveGaps, writePoints],
+    [resolveGaps, writePoints, writeSegments],
   )
 
   /** Split a segment by dropping a new control point into it. */
@@ -263,13 +336,38 @@ export function useDrawing(map: MapLibreMap | null) {
   )
 
   const undo = useCallback(() => {
+    // Straight after a join, Undo takes the whole join back.
+    const joined = connectedRef.current
+    const pts = cpRef.current
+    if (joined && pts[pts.length - 1] === joined.end) {
+      const at = pts.indexOf(joined.spot)
+      if (at > 0) {
+        connectedRef.current = null
+        writePoints(pts.slice(0, at))
+        writeSegments(segRef.current.slice(0, at - 1))
+        setBorrow(null)
+        return
+      }
+    }
+    const join = joinRef.current ? cpRef.current.indexOf(joinRef.current) : -1
+    // Before a borrowed end, the last point drawn is the one just ahead of the
+    // join. With none drawn yet there is nothing of the owner's to take back.
+    if (join !== -1) {
+      if (join > 0) void deletePoint(join - 1)
+      return
+    }
     writePoints(cpRef.current.slice(0, -1))
     writeSegments(segRef.current.slice(0, -1))
-  }, [writePoints, writeSegments])
+  }, [deletePoint, writePoints, writeSegments])
 
   const reset = useCallback(() => {
     writePoints([])
     writeSegments([])
+    setBorrow(null)
+    setPicking(null)
+    pickingRef.current = null
+    joinRef.current = null
+    connectedRef.current = null
   }, [writePoints, writeSegments])
 
   /** Begin a new direction — of an existing route when routeId is given. */
@@ -298,6 +396,84 @@ export function useDrawing(map: MapLibreMap | null) {
       setDrawing(true)
     },
     [reset, writePoints, writeSegments],
+  )
+
+  /**
+   * Begin a new route from a saved direction (Extend): the owner taps where
+   * the new route leaves it, then keeps the part before or after that spot.
+   */
+  const startExtend = useCallback(
+    (v: VariantRow) => {
+      reset()
+      setFreehand(false)
+      setArea(null)
+      areaRef.current = null
+      setTarget({ routeId: null, variantId: null })
+      const p = { variant: v, spot: null }
+      setPicking(p)
+      pickingRef.current = p
+      setDrawing(true)
+    },
+    [reset],
+  )
+
+  /**
+   * Take over one side of the picked spot. The kept part becomes ordinary
+   * control points and segments — a copy, editable like any drawing. Keeping
+   * the start, new clicks carry on from the spot; keeping the end, they are
+   * drawn from where the new route starts and join it at the spot.
+   */
+  const keep = useCallback(
+    (part: BorrowPart) => {
+      const p = pickingRef.current
+      if (!p?.spot) return
+      const cut = cutAt(p.variant.control_points ?? [], p.variant.segments ?? [], p.spot, part)
+      writePoints(cut.controlPoints)
+      writeSegments(cut.segments)
+      joinRef.current = part === 'end' ? (cut.controlPoints[0] ?? null) : null
+      setBorrow({ variantId: p.variant.id, part })
+      setPicking(null)
+      pickingRef.current = null
+    },
+    [writePoints, writeSegments],
+  )
+
+  /**
+   * Join a saved direction where the owner right-clicked it, and follow it to
+   * its end: a routed gap from the drawing's last point to the spot, then a
+   * copy of the rest of that line. For a return trip that meets another
+   * route's line and rides it home. `backwards` when that line was stored
+   * from its far end, so the copy is turned to run the way the jeep goes.
+   *
+   * Returns a sentence for the owner when it cannot join, or null.
+   */
+  const connect = useCallback(
+    (v: VariantRow, at: LngLat, backwards: boolean): string | null => {
+      if (areaRef.current || pickingRef.current) return null
+      if (cpRef.current.length === 0) {
+        return 'Draw from where the jeep starts first, then right-click the line it joins.'
+      }
+      if (joinRef.current || borrowRef.current) {
+        return 'This drawing already follows part of another line. One per drawing, for now.'
+      }
+      const cp = v.control_points ?? []
+      const segs = v.segments ?? []
+      const src = backwards ? reverseDrawing(cp, segs) : { controlPoints: cp, segments: segs }
+      const spot = nearestSpot(src.segments, at)
+      if (!spot) return null
+      const cut = cutAt(src.controlPoints, src.segments, spot, 'end')
+      if (cut.segments.length === 0) return 'That is the very end of the line: nothing left to follow.'
+
+      const gap = cpRef.current.length - 1
+      const last = cpRef.current[gap]
+      writePoints([...cpRef.current, ...cut.controlPoints])
+      writeSegments([...segRef.current, straightSegment(last, cut.controlPoints[0]), ...cut.segments])
+      connectedRef.current = { spot: cut.controlPoints[0], end: cut.controlPoints[cut.controlPoints.length - 1] }
+      setBorrow({ variantId: v.id, part: 'end' })
+      void resolveGaps(gap, [freehandRef.current ? 'freehand' : 'snapped'])
+      return null
+    },
+    [resolveGaps, writePoints, writeSegments],
   )
 
   /** Begin tracing a hotspot outline. */
@@ -358,6 +534,8 @@ export function useDrawing(map: MapLibreMap | null) {
     writePoints(d.controlPoints)
     writeSegments(saved.map((s) => (s?.pending ? { snap: s.snap, coordinates: s.coordinates } : s)))
     setTarget(d.target ?? { routeId: null, variantId: null })
+    setBorrow(d.borrow ?? null)
+    joinRef.current = typeof d.join === 'number' ? (d.controlPoints[d.join] ?? null) : null
     setDrawing(true)
 
     // Gaps still waiting for the router when the page went away: their answers
@@ -380,9 +558,10 @@ export function useDrawing(map: MapLibreMap | null) {
         const marked: DraftSegment[] = segments.map((s) =>
           s && standInRef.current.has(s) ? { ...s, pending: true } : s,
         )
+        const join = joinRef.current ? controlPoints.indexOf(joinRef.current) : -1
         localStorage.setItem(
           DRAFT_KEY,
-          JSON.stringify({ controlPoints, segments: marked, target, area }),
+          JSON.stringify({ controlPoints, segments: marked, target, area, borrow, join: join === -1 ? null : join }),
         )
       } else if (!drawing) {
         localStorage.removeItem(DRAFT_KEY)
@@ -390,7 +569,7 @@ export function useDrawing(map: MapLibreMap | null) {
     } catch {
       /* storage unavailable: drafts simply do not persist */
     }
-  }, [drawing, controlPoints, segments, target, area])
+  }, [drawing, controlPoints, segments, target, area, borrow])
 
   // ----------------------------------------------------------------- layers
 
@@ -401,6 +580,7 @@ export function useDrawing(map: MapLibreMap | null) {
     map.addSource(POINT_SRC, { type: 'geojson', data: EMPTY })
     map.addSource(AREA_SRC, { type: 'geojson', data: EMPTY })
     map.addSource(UTURN_SRC, { type: 'geojson', data: EMPTY })
+    map.addSource(BORROW_SRC, { type: 'geojson', data: EMPTY })
 
     // The hotspot fill sits under its own outline and under the route layers.
     map.addLayer({
@@ -408,6 +588,28 @@ export function useDrawing(map: MapLibreMap | null) {
       type: 'fill',
       source: AREA_SRC,
       paint: { 'fill-color': ROUTE_COLOUR, 'fill-opacity': 0.18 },
+    })
+    // The direction being extended, while its spot is picked: wide and pale,
+    // so the tap has something to land on, with the spot as a ringed dot.
+    map.addLayer({
+      id: 'draw-borrow-line',
+      type: 'line',
+      source: BORROW_SRC,
+      filter: ['==', ['geometry-type'], 'LineString'],
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': BORROW_COLOUR, 'line-width': 10, 'line-opacity': 0.35 },
+    })
+    map.addLayer({
+      id: 'draw-borrow-spot',
+      type: 'circle',
+      source: BORROW_SRC,
+      filter: ['==', ['geometry-type'], 'Point'],
+      paint: {
+        'circle-radius': 8,
+        'circle-color': '#ffffff',
+        'circle-stroke-color': BORROW_COLOUR,
+        'circle-stroke-width': 3,
+      },
     })
     map.addLayer({
       id: 'draw-line-casing',
@@ -499,6 +701,19 @@ export function useDrawing(map: MapLibreMap | null) {
 
     // Clicking empty map appends a point; clicking the route itself does not.
     const onMapClick = (e: MapMouseEvent) => {
+      // Choosing where a new route leaves a saved one: a tap near its line
+      // picks the nearest spot on it; a tap elsewhere is ignored.
+      const p = pickingRef.current
+      if (p) {
+        const spot = nearestSpot(p.variant.segments ?? [], [e.lngLat.lng, e.lngLat.lat])
+        if (!spot) return
+        const px = map.project(spot.point)
+        if (Math.hypot(px.x - e.point.x, px.y - e.point.y) > PICK_PX) return
+        const next = { variant: p.variant, spot }
+        pickingRef.current = next
+        setPicking(next)
+        return
+      }
       const hits = map.queryRenderedFeatures(e.point, {
         layers: [POINT_LAYER, HIT_LAYER],
       })
@@ -530,6 +745,25 @@ export function useDrawing(map: MapLibreMap | null) {
       if (typeof idx === 'number') void deletePoint(idx)
     }
 
+    // A right-click on a saved line — not on one of the drawing's points,
+    // which deletes it — asks to join that line and follow it to its end.
+    const onMapContext = (e: MapMouseEvent) => {
+      if (areaRef.current || pickingRef.current || !followRef.current) return
+      if (!map.getLayer(ROUTES_HIT_LAYER)) return
+      if (map.queryRenderedFeatures(e.point, { layers: [POINT_LAYER] }).length > 0) return
+      const ids = [
+        ...new Set(
+          map
+            .queryRenderedFeatures(e.point, { layers: [ROUTES_HIT_LAYER] })
+            .map((f) => f.properties?.id)
+            .filter((id): id is string => typeof id === 'string'),
+        ),
+      ]
+      if (ids.length === 0) return
+      e.preventDefault()
+      followRef.current(ids, [e.lngLat.lng, e.lngLat.lat])
+    }
+
     let dragIdx: number | null = null
     let dragMoved = false
     let dragModes: [SnapMode | undefined, SnapMode | undefined] = [
@@ -543,6 +777,7 @@ export function useDrawing(map: MapLibreMap | null) {
       dragMoved = true
       const point: LngLat = [e.lngLat.lng, e.lngLat.lat]
       const pts = [...cpRef.current]
+      if (pts[i] === joinRef.current) joinRef.current = point
       pts[i] = point
       writePoints(pts)
 
@@ -613,6 +848,7 @@ export function useDrawing(map: MapLibreMap | null) {
     map.on('click', HIT_LAYER, onLineClick)
     map.on('mousedown', POINT_LAYER, onPointDown)
     map.on('contextmenu', POINT_LAYER, onPointContext)
+    map.on('contextmenu', onMapContext)
     map.on('mouseenter', POINT_LAYER, enterPoint)
     map.on('mouseleave', POINT_LAYER, leave)
     map.on('mouseenter', HIT_LAYER, enterLine)
@@ -623,6 +859,7 @@ export function useDrawing(map: MapLibreMap | null) {
       map.off('click', HIT_LAYER, onLineClick)
       map.off('mousedown', POINT_LAYER, onPointDown)
       map.off('contextmenu', POINT_LAYER, onPointContext)
+      map.off('contextmenu', onMapContext)
       map.off('mouseenter', POINT_LAYER, enterPoint)
       map.off('mouseleave', POINT_LAYER, leave)
       map.off('mouseenter', HIT_LAYER, enterLine)
@@ -740,6 +977,27 @@ export function useDrawing(map: MapLibreMap | null) {
     uturnSrc?.setData({ type: 'FeatureCollection', features: [...stubs, ...rings] })
   }, [map, segments, controlPoints, area, uTurns])
 
+  useEffect(() => {
+    if (!map) return
+    const src = map.getSource(BORROW_SRC) as GeoJSONSource | undefined
+    if (!src) return
+    if (!picking) {
+      src.setData(EMPTY)
+      return
+    }
+    const line = {
+      type: 'Feature' as const,
+      properties: {},
+      geometry: { type: 'LineString' as const, coordinates: variantLine(picking.variant) },
+    }
+    const spot = picking.spot && {
+      type: 'Feature' as const,
+      properties: {},
+      geometry: { type: 'Point' as const, coordinates: picking.spot.point },
+    }
+    src.setData({ type: 'FeatureCollection', features: spot ? [line, spot] : [line] })
+  }, [map, picking])
+
   // Route traces are rose; a hotspot trace takes its kind's colour, and its
   // straight edges are drawn solid rather than in the freehand dash.
   useEffect(() => {
@@ -765,6 +1023,13 @@ export function useDrawing(map: MapLibreMap | null) {
     target,
     /** Non-null while tracing a hotspot; null while drawing a route. */
     area,
+    /** Set once part of a saved direction has been taken over (Extend). */
+    borrow,
+    /** Set while choosing where a new route leaves a saved direction. */
+    picking,
+    startExtend,
+    keep,
+    connect,
     /** Control points where the route turns back on itself (see findUTurns). */
     uTurns,
     load,

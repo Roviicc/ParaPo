@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react'
 import type { Drawing } from './useDrawing'
 import { haversine, joinSegments, type LngLat } from '../shared/geo'
+import { sharedMetres } from './borrow'
 import {
   MODES,
   directionName,
+  isDrawn,
   nameVariants,
   routeName,
+  variantLine,
   type RouteRow,
   type TransportMode,
   type VariantRow,
@@ -31,6 +34,11 @@ type Props = {
   slotReversed?: boolean | null
   /** Every hotspot, for the two end pickers and for generating the name. */
   stops: StopRow[]
+  /**
+   * Every saved direction: for what an Extend borrowed from, and for noticing
+   * that the chosen ends already make a route whose empty slot this fills.
+   */
+  variants?: VariantRow[]
   onSaved: (v: VariantRow) => void
   onCancel: () => void
 }
@@ -106,6 +114,7 @@ export function SavePanel({
   route,
   slotReversed = null,
   stops,
+  variants = [],
   onSaved,
   onCancel,
 }: Props) {
@@ -128,8 +137,16 @@ export function SavePanel({
     const place = placeOf(nearestStop(stops, to))
     return place ? boxFor(place, to) : ''
   }
-  const [headId, setHeadId] = useState(parent?.head_stop_id ?? guess(lineStart))
-  const [tailId, setTailId] = useState(parent?.tail_stop_id ?? guess(lineEnd))
+  // The guess reads the line's own order: it starts at the head. A return trip
+  // starts at the tail, so when the guessed pair is already a route the other
+  // way round, that route is the one meant — the head is where its jeeps wait.
+  const [firstGuess] = useState(() => {
+    const [h, t] = [guess(lineStart), guess(lineEnd)]
+    const swapped = variants.some((v) => v.route.head_stop_id === t && v.route.tail_stop_id === h)
+    return swapped ? [t, h] : [h, t]
+  })
+  const [headId, setHeadId] = useState(parent?.head_stop_id ?? firstGuess[0])
+  const [tailId, setTailId] = useState(parent?.tail_stop_id ?? firstGuess[1])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -161,6 +178,38 @@ export function SavePanel({
   // a line can honestly begin nearer the far end than the near one.
   const wrongWayRound =
     !existing && slotReversed !== null && drawnReversed !== null && drawnReversed !== slotReversed
+
+  // A new route whose ends already make a route: the save fills that route's
+  // empty slot, or is refused when the direction is drawn (routesWrite).
+  const sameEnds = useMemo(() => {
+    if (routeLocked || !headId || !tailId) return null
+    const v = variants.find(
+      (x) =>
+        x.route.head_stop_id === headId &&
+        x.route.tail_stop_id === tailId &&
+        (x.route.via ?? '') === via.trim() &&
+        x.reversed === reversed,
+    )
+    return v ? { name: v.route.name, drawn: isDrawn(v) } : null
+  }, [routeLocked, headId, tailId, via, reversed, variants])
+
+  // What an Extend borrowed: measured on the line as it is now, so a borrowed
+  // point dragged away or undone is counted as it really is.
+  const borrowFromId = draw.borrow?.variantId ?? existing?.borrowed_from ?? null
+  const borrowPart = draw.borrow?.part ?? existing?.borrowed_part ?? null
+  const borrowParent = borrowFromId ? (variants.find((v) => v.id === borrowFromId) ?? null) : null
+  const borrowedM = useMemo(() => {
+    if (!borrowParent || !borrowPart) return 0
+    const line = joinSegments(draw.segments)
+    const parentLine = variantLine(borrowParent)
+    // Either way round: a line followed from a right-click is copied in the
+    // jeep's order, which is the other way when its parent was stored from
+    // the far end.
+    return Math.max(
+      sharedMetres(line, parentLine, borrowPart),
+      sharedMetres(line, [...parentLine].reverse(), borrowPart),
+    )
+  }, [borrowParent, borrowPart, draw.segments])
 
   const name = head && tail ? routeName(stopLabel(head), stopLabel(tail), via) : ''
   const direction = head && tail ? directionName(stopLabel(head), stopLabel(tail), reversed) : ''
@@ -196,6 +245,10 @@ export function SavePanel({
         reversed,
         control_points: draw.controlPoints,
         segments: draw.segments,
+        // A parent deleted since, or a borrowed part redrawn away, borrows nothing.
+        borrowed_from: borrowParent && borrowedM > 0 ? borrowParent.id : null,
+        borrowed_part: borrowPart,
+        borrowed_m: borrowedM > 0 ? Math.round(borrowedM) : null,
       })
       // Every hintuan's route list is a fact about geometry, so a changed
       // line re-checks itself against all of them. Terminal links are the
@@ -260,6 +313,37 @@ export function SavePanel({
             {stopLabel(reversed ? head : tail)}. If you drew it from the wrong end, go back and
             redraw it starting at {stopLabel(reversed ? tail : head)}; if the jeep really leaves
             from there, save anyway.
+          </p>
+        )}
+
+        {borrowParent && borrowedM > 0 && (
+          <p data-testid="save-borrowed" className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900">
+            Shares {(borrowedM / 1000).toFixed(2)} km with <strong>{borrowParent.direction_name}</strong>{' '}
+            ({borrowParent.route.name}), copied from it. If that line is changed later, this one can
+            follow.
+          </p>
+        )}
+
+        {sameEnds && (
+          <p
+            data-testid="save-same-ends"
+            className={
+              'mt-3 rounded-lg px-3 py-2 text-xs ' +
+              (sameEnds.drawn ? 'bg-red-50 text-red-800' : 'bg-blue-50 text-blue-900')
+            }
+          >
+            {sameEnds.drawn ? (
+              <>
+                <strong>{sameEnds.name}</strong> already has {direction || 'this direction'} drawn. To
+                change it, open it and press Edit route.
+              </>
+            ) : (
+              <>
+                <strong>{sameEnds.name}</strong> already exists, and {direction || 'this direction'} is
+                still undrawn: this line fills it. The route's signboard, mode and fare stay as they
+                are.
+              </>
+            )}
           </p>
         )}
 

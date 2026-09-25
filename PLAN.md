@@ -1004,7 +1004,7 @@ a route is named, and the four actions that produce every shape he draws.
 | R1 | **The name is generated from the two end hotspots**, never typed: `Tala – SM Fairview`. The owner's "standard name": pick a head, it must have a tail | A route already *is* a head and a tail. Rename "SM Terraccess" to "SM Terraces" once and every route through it reads right forever; a typed name would need the same fix hunted across rows |
 | R2 | **The staging terminal comes first** — where the jeeps are based and wait | `Tala – SM Fairview`, `Bagong Silang – Philcoa`: the owner's own word order. Alphabetical needs no judgment but reads wrong out loud, and a route name is read out loud |
 | R3 | **The separator is ` – `**, a spaced en dash, applied by the app | Never typed, so it cannot vary between a hyphen, a dash and a slash |
-| R4 | **`via` only when the pair repeats.** Same two ends by different roads → `Tala – Novaliches via Zabarte` and `… via Camarin` | The kanan/kaliwa case (idea 8). The `via` names the one place that *differs*, not the path. Uniqueness becomes (head, tail, via), enforced by the database |
+| R4 | *(Parked 2026-09-25: the owner is dropping the word, not the job — see "Step 0 answers".)* **`via` only when the pair repeats.** Same two ends by different roads → `Tala – Novaliches via Zabarte` and `… via Camarin` | The kanan/kaliwa case (idea 8). The `via` names the one place that *differs*, not the path. Uniqueness becomes (head, tail, via), enforced by the database |
 | R5 | **The signboard stays separate, and stays observed** | The signboard is what is painted on that jeep, in its own words, and two jeeps on one route may disagree. The name is the tidy pair. One field cannot hold both honestly — and idea 5 later generates the signboard from the hotspot list, which only works if it was never the name |
 | R6 | **`route_code` carries real LTFRB/DOTC codes only**, filled later from reference data (M12); `short_name` stays empty until something needs it | An invented code looks official, which is worse than having none |
 
@@ -1040,7 +1040,7 @@ Everything in the sketches reduces to these. Only the fourth is real new work.
 | **Draw** | The route and its first direction. Head and tail are hotspots; the name follows from them | Built, minus the hotspot pickers |
 | **Draw the return trip** | The other direction, drawn fresh against its own roads — never the outbound reversed (idea 3), which is what the owner's red line shows | **Built** — `StudioApp.tsx:342`, offered the moment a direction is saved |
 | **Ends early here** | A short turn. Pick a hotspot the line already passes; it stores no geometry, only a window onto its parent (M10). Fix the parent and every short turn under it is fixed | New, small. The metre needs no typing: `entryDistance()` in `geo.ts:185` already measures where a line enters a hotspot's ring |
-| **Extend at either end** | A **new route** that borrows an existing direction's line and adds road at one end only, so the borrowed kilometres are never redrawn. Either end: a new tail from the same head (`Tala – SM Fairview` → `Tala – Novaliches`), or a new head to the same tail (`SM Fairview – Tala` → `Novaliches – Tala`), which is how the sketches of 2026-09-21 actually draw it | New. This is Phase 3 step 2 (idea 9's magnet) as a button, which is the better shape — a magnet is a suggestion, a button is an intention |
+| **Extend at either end** | A **new route** that borrows an existing direction's line and adds road at one end only, so the borrowed kilometres are never redrawn. Either end: a new tail from the same head (`Tala – SM Fairview` → `Tala – Novaliches`), or a new head to the same tail (`SM Fairview – Tala` → `Novaliches – Tala`), which is how the sketches of 2026-09-21 actually draw it | **Built 2026-09-25** — see "Extend — built". This is Phase 3 step 2 (idea 9's magnet) as a button, which is the better shape — a magnet is a suggestion, a button is an intention |
 
 Decided with them:
 
@@ -1766,15 +1766,250 @@ visitor-test 133/133 (the arrows' check is now "chevrons ride the lit line,
 each as wide as it", measured on screen against `lineStyle.ts`), phone-test
 38/38 (2 SKIP, as before).
 
+### Step 0 answers. 2026-09-25
+
+The owner's answers to four of the five open questions:
+
+- **`via` (R4): parked.** He finds most riders do not know the word and
+  wants it gone. The job stays (two routes with the same ends by different
+  roads still need telling apart); the word and its form wait on his own
+  research. Options put to him: `Tala – Novaliches (Zabarte)`, `· Zabarte`,
+  `dadaan sa Zabarte`.
+- **Spellings: I propose, he corrects.** A proposed list goes to him; each
+  accepted spelling is typed into the hotspot's informal name in the studio.
+- **Side of road: the 2026-09-18 rule is accepted.** On a divided stretch the
+  box keeps to one carriageway; on a single centreline both directions share
+  it; applied per stretch (Quirino Highway is both).
+- **`confidence`: two ways a route is proven.** First, we decide: the owner
+  and his team mark a route checked. Second, visitors approve and rate it.
+  The second needs visitor input, which the app does not take today (it is
+  read-only and has no accounts), so it lands with "Accounts, later". Until
+  then `drawn` / `verified` stands, and `verified` means the team's word.
+- **Mode: jeepney only for now.** E-jeepneys are to be considered later. The
+  enum's other values stay unused; nothing is dropped.
+
+**A design shown, not to build yet.** The same day he showed an example of
+the place list: full-width bands, one per place (TALA on maroon, CAPITOL on
+light gray, BIGTE on black), the place in heavy caps and each route out of it
+beneath with a turn-arrow icon (SM FAIRVIEW, NOVALICHES, PHILCOA). "Don't do
+it, wait for me": it waits for his Figma file.
+
+### Extend — built. 2026-09-25
+
+The owner's scenario: Tala → Novaliches runs the first ~15 km of Tala → SM
+Fairview, then goes its own way; its balikan may or may not share SM Fairview
+→ Tala, and should connect to it on its own. That is "Extend at either end"
+(the four actions, above). Asked what "connected" should mean, he took
+**option A**: the borrowed part is *copied* and the borrow *remembered*, so a
+later change to the parent can offer, one tap, to follow into the lines that
+borrowed it. Option B, one stored piece of road shared by every route on it,
+stays refused: harder, and a fix meant for one route would silently move
+others.
+
+How it works:
+
+- **Extend** on a drawn direction's card (owner only). The line turns wide
+  and blue; a tap within 40 px of it picks the nearest spot on it, and a tap
+  again moves the spot.
+- **Two buttons, in the jeep's order**: `Keep Tala → here` (the new route
+  carries on from the spot) or `Keep here → Tala` (the new route joins at
+  the spot). The labels read the direction's travel order even when its
+  stored line runs the other way.
+- The kept part becomes ordinary control points and segments — the segment
+  the spot falls in is cut there, keeping its snap mode and the street runs
+  that fit — and is editable like any drawing.
+- **Keeping the end, the owner still draws forwards**: each click goes in
+  just ahead of the join, never after the last point, so the line is joined
+  the whole time and the router is asked in the jeep's direction (one-way
+  streets). Undo takes back the click next to the join and stops there.
+- **The save lands on its own.** A new route whose ends already make a route
+  fills that route's empty slot instead of being refused (`claimExistingRoute`
+  in `routesWrite.ts`); the panel says so beforehand, or says the direction
+  is drawn already. The ends are guessed the right way round: a guessed pair
+  that is an existing route backwards is swapped, so a balikan drawn from
+  Novaliches reads `Tala – Novaliches`, not `Novaliches – Tala`.
+- **The record (0008)**: `borrowed_from`, `borrowed_part` ('start' / 'end' of
+  this line) and `borrowed_m`. The metres are measured at save time — the
+  coordinates the two lines still share exactly, plus the cut point — so a
+  borrowed point dragged away is counted as it is; a line that shares nothing
+  any more saves no borrow. The panel shows "Shares 14.80 km with Tala → SM
+  Fairview".
+
+So the owner's case: open Tala → SM Fairview, Extend, tap the fork, `Keep
+Tala → here`, draw to Novaliches, save as Tala – Novaliches. Then open SM
+Fairview → Tala, Extend, tap where the balikan meets it, `Keep here → Tala`,
+draw from Novaliches to the join, save: it fills Tala – Novaliches' balikan.
+A balikan that shares nothing is drawn with "Draw the return trip" as before.
+
+Checked: type check and build; `borrow.ts` against a synthetic street (spot,
+cut both ways, streets trimmed, shared metres, a cut on a control point);
+`extend-test.mjs` 10/10 (join mode, from a restored draft, since the button is
+behind sign-in); regression-gestures 29/29 and hotspot-test clean. **Not yet
+seen by the owner**, and not run end to end with a save, which needs his
+account.
+
+**Right-click a saved line to follow it — built the same afternoon.** The
+owner, drawing Novaliches → Tala with "Draw the return trip", reached the
+blue SM Fairview → Tala line on Belfast Avenue and asked to right-click it
+and connect. So, while drawing a route: a right-click on a saved line (not
+on one of the drawing's own points, which still deletes it) adds a routed
+gap from the last point to that spot and copies the rest of that line, to
+its end. Undo straight after takes the whole join back.
+
+- **Which line**, when the click lands on several (the two directions of a
+  route often share a road): the one running the way the drawing goes, read
+  from its last point towards the spot, or its own last stretch when it
+  already ends there. A line that ends where the drawing is headed — the far
+  end of the direction being edited, or of the slot a return trip fills —
+  wins unless it plainly runs the other way (under 135°), which is what
+  settles a drawing arriving square from a side street. Nothing within 90°
+  says "SM Fairview → Tala runs the other way here" and changes nothing.
+  `lineToFollow` in `borrow.ts`.
+- A line stored from its far end is copied turned round (`reverseDrawing`),
+  and the save panel measures the shared metres either way round.
+- One borrow per drawing, for now: a drawing that already borrows (Extend,
+  or a join) says so rather than joining a second line.
+- Checked on the owner's own case, in a headless browser with a stand-in
+  session and every write blocked: the return-trip draft for Tala –
+  Novaliches with one point at Novaliches, a right-click on SM Fairview →
+  Tala near Lagro: 5 points, 13.35 km, ends at Tala; the panel reads "Draw
+  the return trip · Novaliches → Tala · Shares 8.06 km with SM Fairview →
+  Tala"; Undo leaves the one point. `extend-test.mjs` 16/16 (the delete
+  guard, the "draw first" message, the join point for point, Undo),
+  regression-gestures 29/29, build.
+- Found on the way: `fitBounds([p, q])` reads a pair as south-west,
+  north-east; two points the other way round frame the whole planet. The
+  test frames by min/max now.
+
+**Next, in this order:**
+1. **Follow the parent** — the rest of option A: when a direction that others
+   borrowed from is saved changed, the studio lists them — "Tala – Novaliches
+   borrowed this. Update it too?" — and one tap replaces each one's borrowed
+   part with the parent's new one, at the same end.
+2. **The rest of the magnet** (step 2's idea 9): a balikan that shares a
+   stretch in the *middle* of another line — joining it, riding part of it,
+   and leaving it again — rather than following it to its end.
+
+### The sheet shows one way round, grouped by where each leaves. 2026-09-25
+
+The owner, tapping where Tala – SM Fairview and Tala – Novaliches share a
+road: the sheet listed the two routes ("Both ways mapped") and lit all four
+directions, with no arrows. His ask, and "Yess" to the proposal:
+
+- **One way round at a time**, outbound first, grouped by the place each
+  leaves from — his layout:
+  ```
+  Tala                     (⇄)   SM Fairview        Novaliches
+   → SM Fairview                   → Tala             → Tala
+   → Novaliches
+  ```
+  ⇄ in the sheet's top line flips every route under the tap together. The
+  sheet opens the way round that is under the finger: outbound where an
+  outbound line was hit, the way back where only ways back were. (Until the
+  owner's report the same evening — "I can't tap, it's not switching" — it
+  opened outbound whenever any route there had one drawn, so a click on the
+  light-blue way back, where SM Fairview → Tala and Novaliches → Tala share
+  Belfast Avenue, reopened the papunta.) A
+  direction still a slot is listed, greyed, "Not mapped yet", and opens
+  nothing. `departures()` in `routes.ts`; the labels are the generated
+  direction names, so the list reads what the card's title will.
+- **The map lights exactly what the list shows**, each with the flowing
+  chevrons and **a circle at both ends** (white, a 2 px ring in the line's
+  blue, half the lit line plus 2 px — plain until his Figma). **The same
+  routes the other way round stay at rest**, light blue, so the way back
+  reads as there without competing; only a route the list does not show
+  fades. The owner's pick (B) of three offered the same day: keep it faded,
+  rest it, or hide it until ⇄. The orange hintuan stretches follow the same
+  levels (`unlitOpacity` in `useSavedRoutes.ts`). A card opened on its own
+  does the same since the owner's "2B" that evening: its route's other way
+  rests, everything else fades. And "1A": a fresh tap where only ways back
+  run opens the list on the way back — kept "for now".
+- **Where two lit lines share a road they flow as one stream**: a later
+  line leaves its chevrons out wherever an earlier one runs within 8 m the
+  same way (bearings within 45°), worked out once per change of what is lit.
+  Tala → SM Fairview and Tala → Novaliches share Quirino and part at SM
+  Fairview; one train of chevrons to the fork, two after it.
+- **A row opens that direction's card**, the way round it was listed. A
+  chosen direction gets its two circles too, so one lit line always looks the
+  same.
+- **Each end is named** (his next ask, the same afternoon): the place's name
+  beside its circle, in the list's own words (`directionEnds`), 13 px bold
+  near-black with a white halo, on whichever side is free. A place two rides
+  share — Tala — is named once (same name within 150 m). The names sit on
+  top of every other label, so a street or hotspot label near an end gives
+  way while the route is lit: "Tala Jeepney Terminal" steps aside for
+  "Tala" and comes back when the route closes. `group-test` checks the
+  names both ways round (19/19).
+- Both surfaces: the public map and the studio share the sheet, the hooks
+  and the arrows.
+
+Checked: `group-test.mjs` 17/17 on the studio's live tables (the owner's two
+routes: outbound "Tala → Novaliches, SM Fairview", 2 lit, 4 circles, 0
+doubled chevrons; ⇄ gives "Novaliches → Tala | SM Fairview → Tala", the lit
+lines change over; a row opens "Novaliches → Tala" alone with its 2 circles);
+visitor-test 133/133 and phone-test 38/38 (2 SKIP as before — the published
+file still holds one route, so the phone's two-route check waits for the
+next publish; it now expects the grouped rows); extend-test 16/16,
+regression-gestures 29/29, build. Seen at 1280×800 and 390×844.
+
+The way back at rest, and a click on it switching: `group-test` 23/23,
+reading what each line is drawn at, line by line (the other way rests, both
+ways round; "a route the list does not show fades" SKIPs while every saved
+route passes that tap), checking the sheet opens the way round under the
+tap, and clicking the light-blue way back with the list on the outbound;
+visitor-test 133/133 (its "the rest fades" check reads the level a `case`
+falls back to), phone-test 38/38, extend-test 16/16, build.
+
+### Seeing the orange zoomed out, and a click that keeps what is lit. 2026-09-25, evening
+
+The owner, looking at Novaliches → Tala at about zoom 16 (measured off the
+screenshot: Bestlink to Bistek Village, and Nova Mall to Bayan Simbahan) and
+at the SM Fairview terminal at about 16.7:
+
+- **Hotspot names only close in** ("lessen the range that shows the
+  hintuan title"). A name is centred on the road it stands on, so further
+  out it sat over the very orange stretch it marks — Bistek Village's hid
+  its stretch completely. First the hintuans' from zoom 16.5, between the
+  two views (gone at 16, kept at 16.7); then, the same evening, "the same
+  with terminal", and the names lasting "12" where 16.5 was "10": 12/10 as
+  far out, gone once the map shows 1.2 times the ground it did at 16.5 —
+  zoom 16.24 (`16.5 − log2 1.2`, `NAMES_FROM` in `useSavedStops.ts`).
+  Checked there: none at 16 or 16.2, all six around SM Fairview from 16.3.
+  Two layers, one a kind (`saved-stops-label`, `saved-stops-label-hintuan`),
+  so either can be set apart again; the terminals' sits above, so where a
+  terminal's name and a hintuan's collide the terminal keeps its name. A
+  layer's `minzoom` can be fractional, where a zoom test in a filter only
+  ever sees whole zooms.
+- **The lit line 12/10 as wide zoomed out** ("right now it's 10/10, make
+  12/10"), its casing, orange stretches, end circles and chevrons with it:
+  12/10 at zoom 16 and out, easing back to the settled 9 px by 18, so about
+  11/10 at 16.7 and never thinner as the map zooms in. `litWidth` /
+  `litWidthAt` in `lineStyle.ts`; the resting and faded lines are as they
+  were.
+- **A click on a lit line keeps it lit.** With the list on the way back, a
+  click on the lit Novaliches → Tala where Tala → Novaliches runs on the
+  same road opened Tala → Novaliches: where both directions of one route
+  were under the click, the outbound rule decided. Now the one already lit
+  wins, and the outbound rule decides only when neither is lit. In the list
+  the same: where a lit line is among those clicked, the list keeps its way
+  round.
+
+Checked: `group-test` 25/25 (a click on the lit way back where both ways
+run opened "Novaliches → Tala"; a click on a lit stretch shared with the
+other route and an outbound kept the list on the way back), visitor-test
+133/133 (the chevrons now measured against `litWidthAt`: 8.47 px at 17,
+was 7.71; both label layers above the routes' hit layer), phone-test
+38/38, extend-test 16/16, build. Seen at zoom 16 and 16.7 over Bestlink.
+With the terminals' names and the 12/10: visitor-test 134/134 (no hotspot
+name at 16, some at 17), group-test 25/25, phone-test 38/38,
+hotspot-test 22/22, build.
+
 ### Still open in step 0
 
-Decided today: the route's name, the four actions, how a direction behaves
-before it is drawn, and how a hotspot is named. Still to settle before drawing
-resumes — how a *direction* is named (`to SM Fairview` today, and whether
-"kanan"/"kaliwa" is a direction name, a `via`, or neither); the spellings on
-the owner's own list, now that each has a place to go; side of road for a
-hintuan, now partly answered by the Overpass measurements; the field method
-behind `confidence`; and the mode enum, open since M0.
+Still to settle before drawing resumes: how a *direction* is named (`to SM
+Fairview` today, and whether "kanan"/"kaliwa" is a direction name); the
+form `via` takes, after the owner's research; the spellings, once he has
+corrected the proposed list.
 
 Deferred past step 0 on the owner's call: the signboard, and the "where to?"
 list that would have been built on it.
@@ -2589,6 +2824,12 @@ tracking table. Do not re-apply.
 - [x] 0007_stop_names — written and applied 2026-09-21 (two columns and the
       partial unique index verified after apply; probed in a rolled-back block:
       second terminal under one informal name refused, hintuans accepted)
+- [x] 0008_route_borrow — written and applied 2026-09-25 through the MCP
+      (three nullable columns on `route_variant`, two checks, a partial index;
+      probed in a block that raised to roll back: a part without metres, a
+      line borrowing from itself and a part of 'middle' all refused; deleting
+      the parent left the child whole with `borrowed_from` null; 2 rows, none
+      borrowing, afterwards)
 
 0004 and 0005 went through the Supabase MCP, which records them in
 `supabase_migrations.schema_migrations` (`stop_hotspot`, `editor_role`);
@@ -2598,8 +2839,8 @@ tracking table. Do not re-apply.
 enums match 0004, and TRUNCATE, TRIGGER and REFERENCES are off `anon` and
 `authenticated`. 0006 and 0007 followed later the same day (their sections
 above); the live `route_variant` columns and indexes were read back on
-2026-09-22 and match 0006 exactly. Nothing in `supabase/migrations/` is left
-to apply; the next number is 0008.
+2026-09-22 and match 0006 exactly. 0008 followed on 2026-09-25. Nothing in
+`supabase/migrations/` is left to apply; the next number is 0009.
 
 ## Open items
 

@@ -6,8 +6,18 @@ import { HotspotCard } from '../shared/HotspotCard'
 import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
 import { listVariants, loadStopsFromSupabase } from './live'
-import { otherDirection, routeTimeline, travelLine, type VariantRow } from '../shared/routes'
-import { stopLabel, stopRing, type StopRow } from '../shared/stops'
+import {
+  directionEnds,
+  isDrawn,
+  otherDirection,
+  routeTimeline,
+  travelLine,
+  variantLine,
+  type VariantRow,
+} from '../shared/routes'
+import { placeKey, stopLabel, stopRing, type StopRow } from '../shared/stops'
+import type { LngLat } from '../shared/geo'
+import { lineToFollow } from './borrow'
 import { getSupabase, supabaseConfigError } from '../shared/supabase'
 import { useDirectionArrows } from '../shared/directionArrows'
 import { usePassStretches } from '../shared/passStretches'
@@ -87,7 +97,9 @@ function Workshop({
   const [justSavedStop, setJustSavedStop] = useState<StopRow | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
-  const draw = useDrawing(map)
+  // A right-click on a saved line while drawing: decided below, once the
+  // saved lines and hotspots are loaded (onFollow).
+  const draw = useDrawing(map, { onFollow: (ids, at) => onFollow(ids, at) })
   // Full rows: the editor reopens a direction from its control points.
   const saved = useSavedRoutes(map, listVariants, {
     drawing: draw.drawing,
@@ -99,15 +111,17 @@ function Workshop({
   })
 
   // Where a direction passes a hintuan, the line turns orange for that stretch.
-  usePassStretches(map, saved.variants, stops.stops, saved.lit, draw.target.variantId)
+  usePassStretches(map, saved.variants, stops.stops, saved.lit, saved.resting, draw.target.variantId)
 
-  // Which way the jeep goes, on the chosen direction only: chevrons flowing
-  // inside the line from where the ride starts.
-  const chosenLine = useMemo(
-    () => (saved.selected ? travelLine(saved.selected, stops.stops) : null),
-    [saved.selected, stops.stops],
+  // Which way the jeep goes, on what is lit only — the chosen direction, or
+  // the routes under a tap the way round the sheet shows them: chevrons
+  // flowing inside each line from where the ride starts, and each end a
+  // circle with its place's name.
+  const rides = useMemo(
+    () => saved.litVariants.map((v) => ({ line: travelLine(v, stops.stops), ...directionEnds(v) })),
+    [saved.litVariants, stops.stops],
   )
-  useDirectionArrows(map, chosenLine)
+  useDirectionArrows(map, rides)
 
   const signedIn = !!session
   const userId = session?.user.id ?? null
@@ -136,6 +150,65 @@ function Workshop({
     ? (saved.variants.find((v) => v.route_id === parentRoute.id && v.shape === null)?.reversed ??
       null)
     : null
+
+  // While extending: the places the chosen direction runs between, in travel
+  // order, and whether its stored line runs the other way round.
+  const extendEnds = useMemo(() => {
+    const v = draw.picking?.variant
+    if (!v) return null
+    const head = stops.stops.find((s) => s.id === v.route.head_stop_id)
+    const tail = stops.stops.find((s) => s.id === v.route.tail_stop_id)
+    if (!head || !tail) return null
+    const [from, to] = v.reversed ? [tail, head] : [head, tail]
+    const travel = travelLine(v, stops.stops)
+    return { from: stopLabel(from), to: stopLabel(to), backwards: travel[0] !== variantLine(v)[0] }
+  }, [draw.picking?.variant, stops.stops])
+
+  // Where the line being drawn is going, when that is known: the far end of
+  // the direction being edited, or of the route's slot a return trip fills.
+  const destinationStopId = editing
+    ? editing.reversed
+      ? editing.route.head_stop_id
+      : editing.route.tail_stop_id
+    : parentRoute && slotReversed !== null
+      ? slotReversed
+        ? parentRoute.head_stop_id
+        : parentRoute.tail_stop_id
+      : null
+  const placeOfStop = (id: string | null) => {
+    const s = id ? stops.stops.find((x) => x.id === id) : undefined
+    return s ? placeKey(s) : null
+  }
+
+  /**
+   * A right-click on saved lines while drawing: join the one going the way
+   * the drawing goes — preferring one that ends where the drawing is headed —
+   * and follow it to its end. The two directions of a route often share a
+   * road, so the click may land on both.
+   */
+  const onFollow = (ids: string[], at: LngLat) => {
+    const home = placeOfStop(destinationStopId)
+    const options = ids
+      .map((id) => saved.variants.find((v) => v.id === id))
+      .filter((v): v is VariantRow => !!v && isDrawn(v))
+      .map((v) => ({
+        v,
+        travel: travelLine(v, stops.stops),
+        endsAtDestination:
+          home !== null && placeOfStop(v.reversed ? v.route.head_stop_id : v.route.tail_stop_id) === home,
+      }))
+    const choice = lineToFollow(options, draw.line, at)
+    if (!choice) return
+    if ('against' in choice) {
+      setNotice(
+        `${choice.against.v.direction_name} runs the other way here. Right-click a line going the way you are drawing.`,
+      )
+      return
+    }
+    const v = choice.follow.v
+    const problem = draw.connect(v, at, choice.follow.travel[0] !== variantLine(v)[0])
+    if (problem) setNotice(problem)
+  }
 
   const onDone = () => {
     if (!signedIn) setSigningIn(true)
@@ -209,6 +282,8 @@ function Workshop({
           key={choice.map((c) => c.id).join()}
           routes={saved.candidates}
           stops={stops.candidates}
+          back={saved.back}
+          onFlip={saved.flip}
           onRoute={(v) => {
             stops.select(null)
             saved.select(v.id)
@@ -249,6 +324,16 @@ function Workshop({
                 onDelete={() => {
                   if (saved.selected) void onDelete(saved.selected)
                 }}
+                onExtend={
+                  isDrawn(saved.selected)
+                    ? () => {
+                        const v = saved.selected
+                        if (!v) return
+                        saved.select(null)
+                        draw.startExtend(v)
+                      }
+                    : undefined
+                }
               />
             )
           }
@@ -398,6 +483,7 @@ function Workshop({
           draw={draw}
           onDone={onDone}
           keys={!saving && !signingIn && !changingPassword && !resetting}
+          ends={extendEnds}
         />
       ) : (
         /* Drawing needs no account; saving does, and asks for it at Done. */
@@ -490,6 +576,7 @@ function Workshop({
           route={parentRoute}
           slotReversed={slotReversed}
           stops={stops.stops}
+          variants={saved.variants}
           onSaved={onSaved}
           onCancel={() => setSaving(false)}
         />
