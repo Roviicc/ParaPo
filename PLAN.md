@@ -164,7 +164,35 @@ needs a look": opened or brought up to date by a run that failed (with its
 log) or published with warnings (with the report), a comment only when the
 body changed, closed by the first run with nothing to report. Until then a
 failed publish was an email from GitHub while the live map went quietly
-stale. Agreed next: a domain,
+stale. **The studio at scale, measured, not changed.** The same 1,000
+directions and 510 hotspots, this time as the database sends them to the
+editor — full lines (471 points a direction on average today), control
+points, segments, 15-decimal coordinates, 25 KB a row measured on the live
+table — served to `/studio/?e2e=1` by a stand-in for Supabase's REST API
+(`scratchpad`, not kept). Opening: the map ready at 3.3 s, the lines on
+the screen at 5.7 s, idle at 7 s, 4 s of it with the main thread in long
+tasks, 235 MB of JS heap; the shared hooks carry steps 5 and 6, so the
+stretches cost nothing now and MapLibre's layout and the JSON parsing are
+what is left. A click on a line at zoom 14 lit it in about 0.8 s here,
+most of it MapLibre's worker writing the state into the tiles' paint
+buffers and garbage collection. What would hurt first, in order: (1) the
+download — the editor fetches every column of every direction on open,
+about 25 MB at 500 routes before compression, and in this run the variant
+table was read four times: two are StrictMode's double effects in
+development, the other pair came two seconds later, after the session
+resolved, and is worth a look in a signed-in production studio's network
+panel; the fix is to select the columns the map needs (no `segments`, no
+`control_points`) and fetch a direction's full row when it is opened for
+editing, and to save coordinates with 6 decimals, which together cut the
+open to about a fifth; (2) the links table is read a page at a time, 14
+round trips at 500 routes — after the first page says the count, the rest
+can go out at once; (3) every hotspot save walks every direction's full
+line (`linksThrough`: 1.0 s at 1,000 directions here) and every direction
+save and save-panel preview walks every hotspot (`hintuansAlong`: 0.55 s)
+— both are step 6's problem without step 6's answer, and `passBounds` and
+`bboxOf` give it to them in a few lines each, with a bbox per direction
+computed once per load. None of it is needed at 4 routes, or at 40.
+Agreed next: a domain,
 parapo.app, when the owner is ready — the code side is the README link and
 a redirect.
 
