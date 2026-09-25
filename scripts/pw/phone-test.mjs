@@ -256,6 +256,25 @@ const mapTap = async (x, y) => {
     el.dispatchEvent(new PointerEvent('click', { pointerType: 'touch', clientX: px, clientY: py, bubbles: true, cancelable: true }))
   }, [x, y])
 }
+/**
+ * A finger on a button (a chooser row): a real touch, and, when `done()` is
+ * still false 1.5 s later, a click on the button, since the runner drops a
+ * touch on a button the same way (the sixth CI run). False when there is no
+ * such button.
+ */
+const buttonTap = async (locator, done) => {
+  const b = (await locator.count()) ? await locator.first().boundingBox() : null
+  if (!b) return false
+  await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2)
+  const until = Date.now() + 1500
+  while (!(await done()) && Date.now() < until) await page.waitForTimeout(100)
+  if (!(await done())) {
+    tapsByHand++
+    await locator.first().click({ timeout: 1500 }).catch(() => {})
+  }
+  await page.waitForTimeout(600)
+  return true
+}
 
 check('no zoom buttons on a touch screen', (await page.locator('.maplibregl-ctrl-zoom-in').count()) === 0)
 check(
@@ -683,11 +702,7 @@ if (!shared) {
     `${itemTexts.length} row(s): ${itemTexts.map((t) => t.replace(/\n/g, ' / ')).join(' | ')}`,
   )
   const wanted = items.filter({ hasText: endsOf(shared.b.signboard)[1] })
-  const wb = (await wanted.count()) ? await wanted.first().boundingBox() : null
-  if (wb) {
-    await page.touchscreen.tap(wb.x + wb.width / 2, wb.y + wb.height / 2)
-    await page.waitForTimeout(600)
-  }
+  await buttonTap(wanted, async () => (await chooser.count()) === 0)
   check(
     `  tapping "${shared.b.signboard}" opens that route and closes the chooser`,
     (await cardText()).includes(shared.b.signboard) && (await chooser.count()) === 0,
@@ -749,9 +764,7 @@ if (!inside) {
         : `no chooser; card "${(await cardText()).split('\n')[0] ?? ''}"; the box drawn under the tap: ${drawn === 1 ? 'yes' : drawn}`,
     )
     const row = chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: poly.name })
-    const rb = (await row.count()) ? await row.first().boundingBox() : null
-    if (rb) await page.touchscreen.tap(rb.x + rb.width / 2, rb.y + rb.height / 2)
-    await page.waitForTimeout(600)
+    await buttonTap(row, async () => (await chooser.count()) === 0)
     const text = await cardText()
     check(`  choosing "${poly.name}" opens its card, with its badge`, text.includes(poly.name) && text.includes(badgeOf(poly)) && (await chooser.count()) === 0, text.split('\n')[0] ?? '(no card)')
   } else {
@@ -934,7 +947,7 @@ if (!routeA) {
 }
 
 // --------------------------------------------------------- 8. housekeeping
-if (tapsByHand) console.log(`\n(${tapsByHand} tap(s) on the map needed the click sent by hand: the runner dropped the touch)\n`)
+if (tapsByHand) console.log(`\n(${tapsByHand} tap(s) needed the click sent by hand: the runner dropped the touch)\n`)
 check('no request to router.project-osrm.org', !osrmHit)
 check('no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
 
