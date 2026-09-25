@@ -135,7 +135,7 @@ export function HotspotPanel({
         <p className="mt-1 text-xs text-neutral-500">{ring.length} corners</p>
 
         <label className="mt-4 block text-xs font-medium text-neutral-700">
-          Name <span className="text-neutral-400">(as written on the ground)</span>
+          Ground name <span className="text-neutral-400">(as written on the ground)</span>
           <input
             required
             autoFocus
@@ -147,7 +147,7 @@ export function HotspotPanel({
         </label>
 
         <label className="mt-3 block text-xs font-medium text-neutral-700">
-          Informal name <span className="text-neutral-400">(what people say — optional)</span>
+          Stop name <span className="text-neutral-400">(what people say — optional)</span>
           <input
             value={informal}
             onChange={(e) => setInformal(e.target.value)}
@@ -161,8 +161,8 @@ export function HotspotPanel({
             ))}
           </datalist>
           <span className="mt-1 block text-[11px] font-normal text-neutral-400">
-            Route names read this. Boxes that share it are one place to a commuter
-            {kind === 'terminal' ? '; a place has one terminal.' : '.'}
+            Boxes that share a stop name are one stop, whatever is written on each. Route names read it
+            {kind === 'terminal' ? '; a stop has one terminal.' : '.'}
           </span>
         </label>
 

@@ -291,6 +291,31 @@ Agreed next: a domain,
 parapo.app, when the owner is ready — the code side is the README link and
 a redirect.
 
+**The owner's answers on hintuans, 2026-09-26.** Asked after the data
+check's first finding. (1) *SM Fairview:* the Tala jeeps were moved out
+to the SM Fairview Public Transport Terminal, so the line that ends there
+is right and the route's tail is wrong: that box becomes the terminal and
+the route's tail, and the SM City Fairview Jeepney Terminal box is a
+hintuan or goes. Done in the studio by the owner; the next publish closes
+the issue. (2) *A jeep stops anywhere:* a hintuan is a place people know,
+not the only place the jeep stops. The app must never read as "these are
+the stops": a hintuan is a landmark on the timeline, and the timeline is
+a string of places, not a stop list. (3) *One box across the road:* the
+owner does not want a box per side. A box drawn across both carriageways
+already links both directions (a line inside the box passes it); what is
+missing is which side each direction uses, so the card can say "wait on
+the east side for Tala → SM Fairview". That is readable from the line's
+position inside the box, no second box needed — an open item, not built.
+(4) *Two names, formalised:* the **ground name** is what is written on the
+ground (`name`), the **stop name** is what people say (`informal`), and
+boxes that share a stop name are one stop, whatever is written on each.
+The model already worked so (0007's informal name and `placeKey`); the
+studio's form and the code's comments now use the two words. (5) *The
+routes on a hotspot card* are listed the way the chooser under a tap lists
+them — Tala, then → SM Fairview and → Novaliches, ⇄ for the way back
+(`Departures` in `src/shared/`, one component for both) — instead of a
+route name with two direction chips under it.
+
 **Next.** The design foundation before the owner designs in Figma: tokens in
 one place and a screen inventory in Storybook. Then slices 3 and 4 (short
 turn, extension), the shortcut after the extension, then the rest of step 0:

@@ -1,4 +1,5 @@
-import { departures, groupByRoute, type VariantSummary } from './routes'
+import { Departures } from './Departures'
+import { groupByRoute, type VariantSummary } from './routes'
 import { Sheet } from './Sheet'
 import { stopLabel, type StopSummary } from './stops'
 import { SwitchIcon } from './SwitchIcon'
@@ -36,8 +37,9 @@ function title(routes: number, stops: number): string {
  * 2026-09-22.
  *
  * The routes are shown one way round at a time, grouped by the place they
- * leave from — Tala, then → SM Fairview and → Novaliches — with ⇄ to show
- * them all the way back: SM Fairview → Tala, Novaliches → Tala. The map
+ * leave from — Tala, then → SM Fairview and → Novaliches (Departures) —
+ * with ⇄ to show them all the way back: SM Fairview → Tala, Novaliches →
+ * Tala. The map
  * lights what the list shows, each with its arrows and a circle at either
  * end. The owner's layout of 2026-09-25. A row opens that direction's card;
  * one still a slot says so and opens nothing.
@@ -48,7 +50,6 @@ function title(routes: number, stops: number): string {
  */
 export function Chooser({ routes = [], stops = [], back = false, onFlip, onRoute, onStop, onClose }: Props) {
   const routeCount = groupByRoute(routes).length
-  const places = departures(routes, back)
   const flipLabel = back ? 'Show the way there' : 'Show the way back'
   return (
     <Sheet
@@ -94,35 +95,7 @@ export function Chooser({ routes = [], stops = [], back = false, onFlip, onRoute
             </button>
           </li>
         ))}
-        {places.map((p) => (
-          <li key={p.from} data-testid="chooser-origin" className="border-b border-neutral-200 last:border-b-0">
-            <p className="px-4 pt-2.5 text-sm font-semibold text-neutral-900">{p.from}</p>
-            <ul className="pb-1">
-              {p.directions.map(({ v, to, drawn }) => (
-                <li key={v.id}>
-                  <button
-                    type="button"
-                    data-testid="chooser-item"
-                    disabled={!drawn}
-                    onClick={() => drawn && onRoute(v)}
-                    className="flex w-full items-baseline gap-2 px-4 py-2 text-left hover:bg-neutral-100
-                               disabled:cursor-default disabled:hover:bg-transparent"
-                  >
-                    <span aria-hidden="true" className="text-neutral-400">
-                      →
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className={'block truncate font-medium ' + (drawn ? 'text-neutral-900' : 'text-neutral-400')}>
-                        {to}
-                      </span>
-                      {!drawn && <span className="block truncate text-xs text-amber-700">Not mapped yet</span>}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </li>
-        ))}
+        <Departures routes={routes} back={back} onRoute={onRoute} testId="chooser" />
       </ul>
     </Sheet>
   )
