@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "node scripts/check-boundaries.mjs && tsc --noEmit && vite build && node scripts/check-build.mjs",
-    "check": "npm run build && npm run test:reader",
+    "check": "npm run build && npm run test:unit",
+    "test:unit": "npm run test:reader && npm run test:mapfile",
     "test:reader": "node --experimental-strip-types scripts/read-all-test.mjs",
+    "test:mapfile": "node --experimental-strip-types scripts/map-file-test.mjs",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"

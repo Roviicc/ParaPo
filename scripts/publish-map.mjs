@@ -55,6 +55,8 @@ const PAGE = 1000
 const TIMEOUT_MS = 30_000
 
 /** The data's licence, written into the file itself. See README.md, "Data and licence". */
+/** The file's shape; must equal MAP_FILE_SCHEMA in src/shared/mapFile.ts, which has the rules for changing it. */
+const SCHEMA = 1
 const LICENSE = 'ODbL-1.0'
 const ATTRIBUTION =
   'Route data © ParaPo contributors, ODbL (https://opendatacommons.org/licenses/odbl/1-0/). ' +
@@ -297,8 +299,11 @@ const same =
   previous && JSON.stringify({ variants: previous.variants, stops: previous.stops, links: previous.links }) === JSON.stringify(body)
 const published_at = same ? previous.published_at : new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
 
-// The terms travel inside the file, so no copy can arrive without them.
-const file = JSON.stringify({ published_at, license: LICENSE, attribution: ATTRIBUTION, ...body }) + '\n'
+// The terms travel inside the file, so no copy can arrive without them. The
+// shape number first: an installed app reads whatever this path serves, and
+// checks the number against the one it knows (src/shared/mapFile.ts has the
+// rules for changing it — a new shape goes to a new path).
+const file = JSON.stringify({ schema: SCHEMA, published_at, license: LICENSE, attribution: ATTRIBUTION, ...body }) + '\n'
 mkdirSync(dirname(OUT), { recursive: true })
 writeFileSync(OUT, file)
 

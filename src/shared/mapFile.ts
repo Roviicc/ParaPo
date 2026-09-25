@@ -8,6 +8,11 @@ import type { StopLink, StopSummary } from './stops'
  * ask the database; the studio keeps reading the live tables.
  */
 export type MapFile = {
+  /**
+   * The shape of this file, `MAP_FILE_SCHEMA` when written. Absent on files
+   * published before 2026-09-25, which have shape 1. See `MAP_FILE_SCHEMA`.
+   */
+  schema?: number
   /** When this content was published. Step 6's offline notice reads it. */
   published_at: string
   /** The data's licence, `ODbL-1.0`. Carried in the file so every copy has it. */
@@ -21,6 +26,31 @@ export type MapFile = {
 
 /** No hash in the name, so it keeps revalidating headers; never make it immutable. */
 export const MAP_FILE_URL = '/data/map.json'
+
+/**
+ * The shape of the map file this app reads: the numbers a reader must know
+ * to make sense of the file. An installed app keeps running for months with
+ * the code it was installed with, and fetches whatever this URL serves; so
+ * the file says what shape it is, and a reader that meets a number it does
+ * not know says so (`MAP_FILE_TOO_NEW`) instead of drawing nonsense or a
+ * blank map.
+ *
+ * The rules, so the number means something:
+ *   - Adding a field is not a new shape: readers ignore fields they do not
+ *     know, and a file with extra fields is still `1`.
+ *   - Renaming or removing a field, or changing what a value means, is a
+ *     new shape. Bump this number, and publish the new shape to a new path
+ *     (`/data/map.v2.json`) while the old path keeps the old shape for as
+ *     long as installed apps might still read it — a month at least. The
+ *     service worker's map-file rule and the publish workflow's `git add`
+ *     both name the path.
+ *   - A file with no number is shape 1: every file published before the
+ *     number existed, including copies stored offline on visitors' phones.
+ */
+export const MAP_FILE_SCHEMA = 1
+
+/** The load error for a file of a shape this app does not know. The banner reads it. */
+export const MAP_FILE_TOO_NEW = 'This map was published for a newer version of the app.'
 
 /**
  * Set by the service worker (vite.config.ts, the map-file rule) on a copy it
@@ -51,6 +81,11 @@ export function loadMapFile(): Promise<MapFile> {
         !Array.isArray(file.links)
       ) {
         throw new Error(`${MAP_FILE_URL} is not a published map`)
+      }
+      // Checked after the shape: a file that is not a map at all is that
+      // error, whatever number it carries.
+      if (file.schema !== undefined && file.schema !== MAP_FILE_SCHEMA) {
+        throw new Error(MAP_FILE_TOO_NEW)
       }
       return file as MapFile
     })

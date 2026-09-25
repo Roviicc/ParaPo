@@ -57,8 +57,11 @@ jobs:
       - name: Build, with the boundary and build checks
         run: npm run build
 
-      - name: The studio's paged table reader, against a capped fake server
-        run: npm run test:reader
+      # Node's own test runner, no browser: the studio's paged table reader
+      # against a capped fake server, and the map file reader against every
+      # shape of file it can meet.
+      - name: The unit checks
+        run: npm run test:unit
 
       # gate-test opens /studio/, whose door needs the database address.
       - name: Give the dev server the public database address and key

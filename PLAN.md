@@ -85,8 +85,13 @@ day:** the studio's three table reads go through one paged reader
 (`src/studio/readAll.ts`, 8 checks in `npm run test:reader`): Supabase answers
 at most 1,000 rows a request and says nothing when it cuts, which the links
 table crosses at about 40 routes, and the editor would have drawn directions
-with hotspots missing and no error anywhere. Agreed next, in order: a schema number in the map file so an installed app never
-reads a shape it does not know; a smaller file at publish time; feature state
+with hotspots missing and no error anywhere. **Step 3, same day:** the map file
+carries `"schema": 1` and the reader checks it (`src/shared/mapFile.ts` has
+the rules: adding a field is not a new shape, renaming or removing one is,
+and a new shape goes to a new path while the old path keeps the old shape for
+installed apps; 9 checks in `npm run test:mapfile`). A file of a shape the
+installed app does not know gets a banner that says so and a Reload, not a
+blank map. Agreed next, in order: a smaller file at publish time; feature state
 for the tap instead of rebuilding the layer; and a domain, parapo.app, when
 the owner is ready — the code side is the README link and a redirect.
 
