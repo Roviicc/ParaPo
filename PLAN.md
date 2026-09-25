@@ -192,6 +192,101 @@ save and save-panel preview walks every hotspot (`hintuansAlong`: 0.55 s)
 — both are step 6's problem without step 6's answer, and `passBounds` and
 `bboxOf` give it to them in a few lines each, with a bbox per direction
 computed once per load. None of it is needed at 4 routes, or at 40.
+**Stage 2, the same night: the studio at scale, changed.** The three, in
+that order, each pushed and proven green before the next. (1) The list of
+directions names its columns (`VARIANT_SELECT` in `src/studio/live.ts`): no
+`control_points`, no `segments`. The type says the same — `VariantRow` is
+the list row, `VariantDrawing` the row with its drawing — and the drawing
+hook takes only the latter, so a direction's drawing is read in one small
+request when it is opened to edit, extend or follow (`withDrawing`); a
+right-click to follow hears "draw first" before that request, not after
+(`joinGate`). Saves round every coordinate to 6 decimals, the publish
+script's own rounding, so a published point is the saved one (2 checks in
+`npm run test:precision`). (2) The paged reader asks the pages after the
+first for together, stepping by what the server actually answered
+(`src/studio/readAll.ts`; 11 checks now, two of them the pages in flight at
+once and a short page followed up whole). (3) The one rule for "this
+direction passes this hotspot" asks the cheap question first: does the
+line's box reach the ring's at all, and then only the segments whose own
+box does (`firstTouchIndex`, `firstNearIndex` in `src/shared/geo.ts`, with
+`lineBounds` computing a line's box once per array). Same answers for every
+direction past every box in the committed map (4 checks in `npm run
+test:index`); on the 1,000 directions and 510 hotspots, linking one box
+went from 1.0 s to 1 ms, one line from 0.55 s to 4 ms. (4) All of it is held
+by `scripts/pw/studio-scale-test.mjs` in CI: the same 1,000 directions as
+the database keeps them, served by a stand-in for its REST API that honours
+`select`, paging, `id=eq.` and single-row asks — the list asks for no
+drawings and is under two thirds of the rows whole (23 MB for 46 here), the
+links table's 14 pages go out together, a click lights within 5 s (0.3 s
+here), following a line reads its drawing in one request (0.0 MB), and the
+first line is on the screen within 45 s (5.8 s here). The suite found one
+thing of its own: the new reader asked for one page more than it needed
+when a server gave no count and the first page was short; fixed, with a
+check. The variant table read twice per load that the measurement flagged
+is StrictMode: with the stand-in exposing its count header as Supabase
+does, a load is exactly one list request, two of the hotspots (both hooks
+read them), and one links request a page — everything twice in
+development, once in the build.
+
+**Stage 3, on paper: the file split, measured, for the owner to decide.**
+Today's file is 43 KB, 7 KB gzipped: 2 routes, 4 directions (247 points
+each at 0.3 m), 30 hotspots, 53 links. Made bigger the way the scale suites
+do it (copies of today's, shifted; hotspots at about five a route, which is
+a guess — today has fifteen a route, but a hotspot at scale is shared), the
+one file as shape 1 comes to:
+
+| routes | directions | hotspots | links | one file, raw | gzipped, honest* |
+|---|---|---|---|---|---|
+| 100 | 200 | 510 | 2,650 | 1.7 MB | ~0.3 MB |
+| 250 | 500 | 1,260 | 6,625 | 4.4 MB | ~0.75 MB |
+| 500 | 1,000 | 2,490 | 13,250 | 8.8 MB | ~1.5 MB |
+
+\*Shifted copies gzip 14× because they repeat; today's real file gzips
+6.5× (lines), 4.4× (hotspots), 7.4× (links), and those are the ratios used.
+Of the 8.8 MB at 500 routes, the lines are 5.5 MB and the hotspots and links
+3.3 MB: **a split of the lines alone leaves an index of about 0.6 MB
+gzipped**, so the split is two moves, not one. What shape 2 is, concretely:
+
+- `/data/v2/map.json`, the index: `schema: 2`, `published_at`, licence,
+  attribution; each route once with its two directions under it (today
+  each direction repeats its route: 430 characters, twice); each direction
+  with `bbox` and a *coarse* line thinned to 10 m (46 points instead of
+  247; 1.1 MB raw at 1,000 directions, about 0.16 MB gzipped) — enough to
+  draw every direction at rest and to hit-test a tap, since at zoom 15 a
+  pixel is 4.6 m and ten metres about two of them; hotspots as today;
+  links as one array per direction, `[stop_id, sequence]` pairs, instead
+  of a row that repeats two UUIDs (13,250 rows × 128 characters → about
+  half). Measured, today's data restructured so (20.5 KB, 4.6 KB gzipped,
+  4.5×) and made bigger the same way: the index is 0.6 MB raw at 100
+  routes, 1.5 MB at 250, 3.0 MB at 500 (a third of it hotspots), about
+  0.13, 0.33 and 0.67 MB gzipped — in place of 0.3, 0.75 and 1.5 MB for
+  the one file, with the precise lines then fetched a route at a time.
+- `/data/v2/lines/<route_id>.json`, one file per route: both directions'
+  lines at 0.3 m, 11 KB raw and 3 KB gzipped each (they share their common
+  road, which gzips), fetched when a route is lit, or when the zoom passes
+  15 for the directions in view, and swapped into the source in place of
+  the coarse line. Named with `?v=<published_at>` from the index, so the
+  service worker can keep them `CacheFirst` and a new publish fetches new
+  ones; the index stays `NetworkFirst` as the file is today.
+- What changes: `scripts/publish-map.mjs` writes v2 beside v1 (v1 kept for
+  installed apps, a month at least, then dropped); `scripts/check-map-data.mjs`
+  reads v2; `src/shared/mapFile.ts` gains the index and the line loader
+  (`MAP_FILE_SCHEMA` stays 1 for v1's path; v2 has its own); the two hooks
+  in `src/shared/` take a direction whose `shape` can be replaced;
+  `vite.config.ts`'s worker rules and `publish-map.yml`'s `git add` name
+  the new paths; scale-test, visitor, phone and pwa follow. About an
+  evening, all of it inside the boundaries the build checks.
+- When: not before 250 routes. At 100 the one file is a photo's worth and
+  parses in under 100 ms; at 250 it is 0.75 MB on a phone's first open,
+  borderline; at 500 it is 1.5 MB and the layout of a thousand full lines
+  is what the scale suite times (5.9 s to the first line here, on software
+  rendering). The 1 MB gzipped mark from step 4 is around 350 routes. The
+  owner decides when; the numbers above are what he decides with.
+- Not this: vector tiles (PMTiles) for the lines. They solve the same
+  problem for ten thousand routes and cost a tile build in the publish, a
+  protocol handler in the app and a second cache rule; nothing here needs
+  them before a thousand routes.
+
 Agreed next: a domain,
 parapo.app, when the owner is ready — the code side is the README link and
 a redirect.
