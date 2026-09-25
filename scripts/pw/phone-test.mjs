@@ -253,9 +253,22 @@ const ZOOM = 16
 
 // --------------------------------------------------------------- page helpers
 const canvasBox = () => page.locator('canvas.maplibregl-canvas').boundingBox()
+// A jump is done when the map is idle again, not half a second later: on a
+// GitHub runner the zoom-18 tiles were still arriving 500 ms after the jump,
+// and a tap then hit a route beside a hotspot instead of the hotspot (the
+// second CI run, 2026-09-25). The desktop suite has always waited for `idle`.
 const jumpTo = async (p, center, zoom = ZOOM) => {
-  await p.evaluate(([c, z]) => window.__map.jumpTo({ center: c, zoom: z }), [center, zoom])
-  await p.waitForTimeout(500)
+  await p.evaluate(
+    ([c, z]) =>
+      new Promise((r) => {
+        const m = window.__map
+        m.jumpTo({ center: c, zoom: z })
+        m.once('idle', r)
+        setTimeout(r, 4000)
+      }),
+    [center, zoom],
+  )
+  await p.waitForTimeout(300)
 }
 const project = (p, lngLat) =>
   p.evaluate((c) => {
