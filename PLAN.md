@@ -300,6 +300,29 @@ Agreed next: a domain,
 parapo.app, when the owner is ready — the code side is the README link and
 a redirect.
 
+**"Where am I", 2026-09-26.** The visitor's own position on the public
+map, shown as a small walking figure the owner drew with an image
+generator (`docs/figure/`, with the prompts) instead of a dot. Off until
+asked: a button under the map-design button, the browser's own prompt, and
+the position never leaves the phone (`src/commuter/whereAmI.ts`; nothing
+talks to a server). The pose is read off the speed, so it is honest rather
+than decorative — standing under 0.5 m/s, walking at a walk and facing the
+way it goes, and above 15 km/h *flying*, the app's way of saying "I can
+tell you're on a jeep" (the owner's pick over a jeep pose). A soft halo the
+size of the fix's accuracy sits under its feet, because GPS here is often
+20–50 m out and the figure alone would claim a certainty the phone does
+not have. The map follows until the visitor drags it; a tap follows again;
+a tap while following turns it off. The figure is a DOM marker with CSS
+animations (`Walker.tsx`, `index.css`), which cost the map nothing, and
+`prefers-reduced-motion` stills them. A refusing browser gets a note under
+the button. One real thing learned while building: the browser fires
+"position unavailable" between fixes (indoors, under a flyover, and on
+every emulated GPS), and only a refusal may end the watch. 22 checks in
+`scripts/pw/where-test.mjs`, in CI, driving the browser's own
+`watchPosition` with an emulated GPS; `PARAPO_VIDEO=dir` records the run.
+Next for it, when wanted: the nearest hintuan, "walk here", and the
+visitor's place on a route's timeline.
+
 **The owner's answers on hintuans, 2026-09-26.** Asked after the data
 check's first finding. (1) *SM Fairview:* the Tala jeeps were moved out
 to the SM Fairview Public Transport Terminal, so the line that ends there

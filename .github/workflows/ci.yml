@@ -5,7 +5,7 @@
 #
 #   public  — the pages anyone opens. `npm run build` (import boundaries, no
 #             editor code on /, the installable app's files), then gate,
-#             visitor, phone and scale against `vite` on :5173, then pwa-test against
+#             visitor, phone, where and scale against `vite` on :5173, then pwa-test against
 #             the build in its own `vite preview`. Needs only the published map
 #             file and OpenFreeMap's tiles.
 #   studio  — the editor. First studio-scale: /studio/?e2e=1 with 1,000
@@ -87,6 +87,10 @@ jobs:
 
       - name: phone-test — the public map at 390×844
         run: node scripts/pw/phone-test.mjs
+
+      # "Where am I": the walking figure, driven by an emulated GPS.
+      - name: where-test — the visitor's own position on the public map
+        run: node scripts/pw/where-test.mjs
 
       # 1,000 directions and 500 hotspots made from today's map, no tiles:
       # the first line must reach the screen within its budget.

@@ -52,7 +52,7 @@ const ATTRIBUTION = [
  * would cover a bottom-right attribution, which the OpenStreetMap licence
  * requires to stay visible -- so on touch the attribution moves to the top.
  */
-const coarse =
+export const coarse =
   typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
 
 /** Metro Manila. */

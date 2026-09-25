@@ -4,7 +4,7 @@ import { Chooser } from '../shared/Chooser'
 import { HotspotCard } from '../shared/HotspotCard'
 import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from '../shared/mapFile'
 import { reloadToUpdate, useNeedRefresh } from './pwa'
-import { MapView } from '../shared/MapView'
+import { MapView, coarse } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
 import {
   directionEnds,
@@ -18,6 +18,9 @@ import { useDirectionArrows } from '../shared/directionArrows'
 import { usePassStretches } from '../shared/passStretches'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
 import { useSavedStops } from '../shared/useSavedStops'
+import { Walker } from './Walker'
+import { WhereAmIButton } from './WhereAmI'
+import { useWhereAmI } from './whereAmI'
 
 /** The query key a shared link carries: `/?r=<direction id>`. A query, not a path, so no SPA fallback is needed. */
 const SHARE_KEY = 'r'
@@ -52,6 +55,8 @@ export default function CommuterApp() {
   useDirectionArrows(map, rides)
 
   useShareLink(map, saved)
+  // The visitor's own position, when they ask for it: a walking figure.
+  const where = useWhereAmI(map)
   const offline = useOffline()
   const age = useMapAge()
   const needRefresh = useNeedRefresh()
@@ -68,6 +73,8 @@ export default function CommuterApp() {
   return (
     <div className="@container relative h-full w-full overflow-hidden">
       <MapView onReady={setMap} />
+      {map && <WhereAmIButton where={where} coarse={coarse} />}
+      {map && where.fix && <Walker map={map} fix={where.fix} pose={where.pose} facing={where.facing} />}
 
       {/*
         A load problem is a banner, never a blank page. On a phone it sits at
