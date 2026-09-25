@@ -264,11 +264,30 @@ const jumpTo = async (p, center, zoom = ZOOM) => {
         const m = window.__map
         m.jumpTo({ center: c, zoom: z })
         m.once('idle', r)
-        setTimeout(r, 4000)
+        setTimeout(r, 10000)
       }),
     [center, zoom],
   )
   await p.waitForTimeout(300)
+}
+/**
+ * How many features `layer` draws at canvas point `xy` once it draws any,
+ * polled for up to `ms`; 0 if it never does, -1 if there is no such layer.
+ * A tap is made on what is on the screen: on a GitHub runner, a phone at
+ * three device pixels per CSS pixel draws so slowly that a hotspot's box was
+ * not there yet when the finger came, and the tap hit only the route beside
+ * it (the third CI run, 2026-09-25).
+ */
+const drawnAt = async (layer, xy, ms = 10000) => {
+  const until = Date.now() + ms
+  for (;;) {
+    const n = await page.evaluate(
+      ([l, q]) => (window.__map.getLayer(l) ? window.__map.queryRenderedFeatures(q, { layers: [l] }).length : -1),
+      [layer, xy],
+    )
+    if (n !== 0 || Date.now() > until) return n
+    await page.waitForTimeout(150)
+  }
 }
 const project = (p, lngLat) =>
   p.evaluate((c) => {
@@ -320,6 +339,11 @@ const sheetState = async () =>
   (await card().count()) ? await card().first().getAttribute('data-sheet') : null
 const closeCard = async () => {
   await page.getByRole('button', { name: 'Close' }).first().click({ timeout: 1500 }).catch(() => {})
+  // The ✕ can be missed while the page is busy drawing; Escape closes a sheet too.
+  for (let i = 0; i < 20 && (await card().count()) > 0; i++) {
+    if (i === 5) await page.keyboard.press('Escape')
+    await page.waitForTimeout(100)
+  }
   await page.waitForTimeout(300)
 }
 // Every direction rests in a light blue; a tap fades the rest further (2026-09-22).
@@ -598,6 +622,7 @@ if (!shared) {
   await jumpTo(page, shared.point)
   const anchor = await project(page, shared.point)
   const box = await canvasBox()
+  await drawnAt('saved-routes-hit', anchor)
   await page.touchscreen.tap(box.x + anchor[0], box.y + anchor[1])
   await page.waitForTimeout(600)
 
@@ -675,6 +700,7 @@ if (!inside) {
   await jumpTo(page, point, Z_HOT)
   const anchor = await project(page, point)
   const box = await canvasBox()
+  const drawn = await drawnAt('saved-stops-fill', anchor)
   await page.touchscreen.tap(box.x + anchor[0], box.y + anchor[1])
   await page.waitForTimeout(600)
   const chooser = page.locator('[data-testid="chooser"]')
@@ -683,7 +709,9 @@ if (!inside) {
     check(
       `a tap inside "${poly.name}" beside its route offers both`,
       cText.includes('1 hotspot here') && cText.includes(`${routesInBox.length} route`) && cText.includes(poly.name),
-      cText ? cText.split('\n')[0] : `no chooser; card "${(await cardText()).split('\n')[0] ?? ''}"`,
+      cText
+        ? cText.split('\n')[0]
+        : `no chooser; card "${(await cardText()).split('\n')[0] ?? ''}"; the box drawn under the tap: ${drawn === 1 ? 'yes' : drawn}`,
     )
     const row = chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: poly.name })
     const rb = (await row.count()) ? await row.first().boundingBox() : null
@@ -730,11 +758,16 @@ if (snapshot.polys.length === 0) {
   const dy = anchor[1] - inward[1]
   const len = Math.hypot(dx, dy) || 1
   const box = await canvasBox()
+  const drawn = await drawnAt('saved-stops-fill', inward)
   await page.touchscreen.tap(box.x + anchor[0] + (dx / len) * 15, box.y + anchor[1] + (dy / len) * 15)
   await page.waitForTimeout(600)
 
   const text = await cardText()
-  check(`a tap 15 px outside "${poly.name}" still opens it`, text.includes(poly.name), text.split('\n')[0] ?? '(no card)')
+  check(
+    `a tap 15 px outside "${poly.name}" still opens it`,
+    text.includes(poly.name),
+    `${text.split('\n')[0] || '(no card)'}; the box drawn at its centre: ${drawn === 1 ? 'yes' : drawn}`,
+  )
   check(`  the card shows its "${badgeOf(poly).split(' ·')[0]}" badge`, text.includes(badgeOf(poly)))
   await closeCard()
 }
