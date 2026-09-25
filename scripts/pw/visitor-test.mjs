@@ -65,14 +65,33 @@ const findVertexInsideAnyHotspot = (routeLines, polys) => {
   }
   return null
 }
-// A route vertex a finger's width clear of every box: ~110 m, so no box edge
-// falls inside the tap and the tap means the route alone.
-const findVertexOutsideHotspots = (routeLines, polys) => {
+// Metres from a point to a line, on a flat patch of Metro Manila.
+const metresToLine = (p, coords) => {
+  const k = 111320
+  const toM = (a, b) => [(a[0] - b[0]) * k * Math.cos((b[1] * Math.PI) / 180), (a[1] - b[1]) * k]
+  let best = Infinity
+  for (let i = 1; i < coords.length; i++) {
+    const ap = toM(p, coords[i - 1])
+    const ab = toM(coords[i], coords[i - 1])
+    const t = Math.max(0, Math.min(1, (ap[0] * ab[0] + ap[1] * ab[1]) / (ab[0] ** 2 + ab[1] ** 2 || 1)))
+    best = Math.min(best, Math.hypot(ap[0] - t * ab[0], ap[1] - t * ab[1]))
+  }
+  return best
+}
+// A route vertex a finger's width clear of every box (~110 m, so no box edge
+// falls inside the tap) and 30 m clear of every other route's line (the tap
+// takes ±20 px, ~24 m at zoom 17), so the tap means this route alone. Where
+// two routes share a road — Tala's, since 2026-09-25 — the app rightly asks
+// which, and that is 4a's check, not this one's.
+const findVertexOutsideHotspots = (routes, polys) => {
   const clear = 0.001
-  for (const coords of routeLines) {
-    for (const c of coords) {
-      const near = polys.some((p) => p.ring.some((v) => Math.hypot(v[0] - c[0], v[1] - c[1]) < clear))
-      if (!near) return c
+  for (const r of routes) {
+    const others = routes.filter((o) => o.route_id !== r.route_id)
+    for (const c of r.coords) {
+      const nearBox = polys.some((p) => p.ring.some((v) => Math.hypot(v[0] - c[0], v[1] - c[1]) < clear))
+      if (nearBox) continue
+      if (others.some((o) => metresToLine(c, o.coords) < 30)) continue
+      return c
     }
   }
   return null
@@ -119,11 +138,24 @@ const cardKind = async () => {
   return { kind: 'unknown', text }
 }
 
+// The features of one of our GeoJSON sources once the page has some, asked
+// every 100 ms from here for up to `ms`; [] when none came in time. Not
+// `page.waitForFunction` with an async function: under Playwright's default
+// polling that resolves after the function's first call whatever it returned,
+// so a slow database (GitHub's runners are far from it) let the checks start
+// on an empty map. Seen on the first CI run, 2026-09-25.
+const waitForSource = async (id, ms = 20000) => {
+  const until = Date.now() + ms
+  for (;;) {
+    const fs = await page.evaluate(async (id) => (await window.__src(id))?.features ?? [], id)
+    if (fs.length > 0 || Date.now() > until) return fs
+    await page.waitForTimeout(100)
+  }
+}
+
 await page.goto(`${BASE}/`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
-await page
-  .waitForFunction(async () => ((await window.__src('saved-stops'))?.features?.length ?? 0) > 0, null, { timeout: 20000 })
-  .catch(() => {})
+await waitForSource('saved-stops')
 await page.waitForTimeout(1200)
 
 // 1. No editor chrome on the visitor page.
@@ -154,6 +186,7 @@ const snapshot = await page.evaluate(async () => {
     })),
     labelCount: pointFeatures.length,
     routeLines: (routesFC?.features ?? []).map((f) => f.geometry.coordinates),
+    routes: (routesFC?.features ?? []).map((f) => ({ route_id: f.properties.route_id, coords: f.geometry.coordinates })),
     routeCount: routesFC?.features?.length ?? 0,
     order,
     pillText: pillEl ? pillEl.innerText.trim() : null,
@@ -316,9 +349,9 @@ if (!hit) {
     })
   const rest = await opacity()
   check('the lines rest in a light blue (opacity under 0.6)', typeof rest === 'number' && rest > 0 && rest < 0.6, String(rest))
-  const clean = findVertexOutsideHotspots(snapshot.routeLines, snapshot.polys)
+  const clean = findVertexOutsideHotspots(snapshot.routes, snapshot.polys)
   if (!clean) {
-    skip('a tap on one route opens its card straight away', 'every route vertex lies inside a hotspot today')
+    skip('a tap on one route opens its card straight away', 'every route vertex lies inside a hotspot or on a road another route shares today')
   } else {
     await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 17 }), clean)
     await page.waitForTimeout(700)

@@ -29,9 +29,24 @@ page.on('pageerror', (e) => errors.push(String(e)))
 await page.addInitScript(() => {
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
 })
+// The features of one of our GeoJSON sources once the page has some, asked
+// every 100 ms from here for up to `ms`; [] when none came in time. Not
+// `page.waitForFunction` with an async function: under Playwright's default
+// polling that resolves after the function's first call whatever it returned,
+// so a slow database (GitHub's runners are far from it) let the checks start
+// on an empty map. Seen on the first CI run, 2026-09-25.
+const waitForSource = async (id, ms = 20000) => {
+  const until = Date.now() + ms
+  for (;;) {
+    const fs = await page.evaluate(async (id) => (await window.__src(id))?.features ?? [], id)
+    if (fs.length > 0 || Date.now() > until) return fs
+    await page.waitForTimeout(100)
+  }
+}
+
 await page.goto(`${BASE}/studio/?e2e=1`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
-await page.waitForFunction(async () => ((await window.__src('saved-routes'))?.features?.length ?? 0) > 0, null, { timeout: 20000 })
+if ((await waitForSource('saved-routes')).length === 0) throw new Error('no saved routes arrived in 20 s')
 
 const lines = await page.evaluate(async () =>
   (await window.__src('saved-routes')).features.map((f) => ({ id: f.properties.id, route: f.properties.route_id, coords: f.geometry.coordinates })),

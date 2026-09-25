@@ -132,20 +132,20 @@ jobs:
         run: |
           set +e
           status=0
-          for suite in group regression-gestures hotspot snap extend; do
-            echo "::group::$suite-test"
-            if node "scripts/pw/$suite-test.mjs"; then
+          for suite in group-test regression-gestures hotspot-test snap-test extend-test; do
+            echo "::group::$suite"
+            if node "scripts/pw/$suite.mjs"; then
               echo "::endgroup::"
               continue
             fi
-            echo "$suite-test failed; waiting a minute for the router, then once more"
+            echo "$suite failed; waiting a minute for the router, then once more"
             sleep 60
-            if node "scripts/pw/$suite-test.mjs"; then
+            if node "scripts/pw/$suite.mjs"; then
               echo "::endgroup::"
               continue
             fi
             echo "::endgroup::"
-            echo "::error::$suite-test failed twice"
+            echo "::error::$suite failed twice"
             status=1
           done
           exit $status
