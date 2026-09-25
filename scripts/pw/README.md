@@ -16,15 +16,16 @@ public map at `/` and the editor at `/studio/`. Complements `scripts/uitest.mjs`
     node scripts/pw/group-test.mjs            # 26: a tap where routes share a road — one way round, by place, ⇄, lit with arrows, end circles and names, the other way at rest; clicks that switch, and clicks that keep what is lit
     node scripts/uitest.mjs                   # 26: route gestures through Windows Chrome's DevTools protocol
 
-    npm run test:unit                         # 42, Node's own test runner, no browser: the studio's paged table reader against a capped fake server (10), the map file reader against every shape of file it can meet, and the committed file's decimals (10), the orange stretches with their bounds checks against the walk without them (4), the pass index the saves link by with its bounds checks against the walks without them (4), the map data check against small maps with one thing wrong each and the committed map (12), what a save keeps of a coordinate (2)
+    npm run test:unit                         # 43, Node's own test runner, no browser: the studio's paged table reader against a capped fake server (11), the map file reader against every shape of file it can meet, and the committed file's decimals (10), the orange stretches with their bounds checks against the walk without them (4), the pass index the saves link by with its bounds checks against the walks without them (4), the map data check against small maps with one thing wrong each and the committed map (12), what a save keeps of a coordinate (2)
     npm run check:data                        # the committed map against the app's own rules: problems stop a publish, warnings are for the owner (scripts/check-map-data.mjs)
     npm run build                             # also checks import boundaries, that no editor code reaches /, and the installable app's files
+    node scripts/pw/studio-scale-test.mjs     # 12: /studio/?e2e=1 with 1,000 directions and 500 hotspots as the database keeps them, served by a stand-in for its REST API, no tiles, no router — the list carries no drawings, a followed line's drawing is read on its own, the links pages are asked for together, the first line and a click's lighting within their budgets
     node scripts/pw/scale-test.mjs            # 5: / with 1,000 directions and 500 hotspots made from today's map, no tiles — the first line on the screen within 30 s, the main thread busy under 20 s; prints where the opening went
     node scripts/pw/pwa-test.mjs              # 41: the installable app, against the build in its own `vite preview` on :4173 — manifest, worker, offline, slow network, update
 
 **On GitHub, every push runs these** (`.github/workflows/ci.yml`): one job builds
-and runs gate, visitor, phone and pwa; a second runs the drawing suites one at a
-time, with one retry after a minute for the shared router. A red check on a
+and runs gate, visitor, phone, scale and pwa; a second runs studio-scale, then the
+drawing suites one at a time, with one retry after a minute for the shared router. A red check on a
 branch means the push broke something; the failing suite's screenshots are
 kept as the run's artifact.
 

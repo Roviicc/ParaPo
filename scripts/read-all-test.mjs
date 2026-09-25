@@ -83,6 +83,12 @@ test('a page that comes back short of its share is followed up one page at a tim
   assert.deepEqual(ids(await readAll(page)), all(2500))
 })
 
+test('with no count, a first page that is short is the end: one request', async () => {
+  const s = server(53, { count: false })
+  assert.deepEqual(ids(await readAll(s.page)), all(53))
+  assert.equal(s.calls.length, 1)
+})
+
 test('with no count, a short page is the end', async () => {
   const s = server(1500, { count: false })
   assert.deepEqual(ids(await readAll(s.page)), all(1500))

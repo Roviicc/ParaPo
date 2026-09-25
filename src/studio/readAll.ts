@@ -37,7 +37,7 @@ export async function readAll<T>(page: (from: number, to: number) => PromiseLike
   if (first.error) throw new Error(first.error.message)
   const rows: T[] = first.data ?? []
   if (rows.length === 0) return rows
-  if (first.count !== null && rows.length >= first.count) return rows
+  if (first.count !== null ? rows.length >= first.count : rows.length < PAGE) return rows
 
   if (first.count !== null) {
     // The rest, together. The server answered `step` rows: that is its cap
