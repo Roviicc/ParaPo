@@ -155,6 +155,10 @@ await page.getByRole('button', { name: 'Dismiss' }).first().click()
 await page.mouse.click(Ax, Ay)
 await page.waitForTimeout(300)
 await page.mouse.click(Bx, By, { button: 'right' })
+// The line's drawing is read from the database when it is followed (one
+// request; the list carries no drawings since 2026-09-25): wait for the join
+// to land in the draft before waiting for its gap to be routed.
+await page.waitForFunction(() => !!JSON.parse(localStorage.getItem('parapo.draft.v1') ?? '{}').borrow, null, { timeout: 15000 }).catch(() => {})
 await page.waitForTimeout(400)
 await waitRouted()
 await page.waitForTimeout(400)

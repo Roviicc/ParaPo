@@ -33,6 +33,17 @@ export function joinSegments(segments: Segment[]): LngLat[] {
   return out
 }
 
+/**
+ * Six decimals, about 0.1 m: what a save keeps of a coordinate. The router
+ * and the mouse give 15 or more, and those digits were half of every row
+ * (2026-09-25, future-proofing stage 2). The publish script rounds the same
+ * way, so a published point is the saved one.
+ */
+export const round6 = (n: number): number => Math.round(n * 1e6) / 1e6
+
+/** The point with both coordinates rounded to 6 decimals. */
+export const roundLngLat = (p: LngLat): LngLat => [round6(p[0]), round6(p[1])]
+
 const EARTH_RADIUS_M = 6_371_000
 
 function toRad(deg: number) {

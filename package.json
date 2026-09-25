@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "node scripts/check-boundaries.mjs && tsc --noEmit && vite build && node scripts/check-build.mjs",
     "check": "npm run build && npm run test:unit",
-    "test:unit": "npm run test:reader && npm run test:mapfile && npm run test:pass && npm run test:data",
+    "test:unit": "npm run test:reader && npm run test:mapfile && npm run test:pass && npm run test:data && npm run test:precision",
     "test:reader": "node --experimental-strip-types scripts/read-all-test.mjs",
     "test:mapfile": "node --experimental-strip-types scripts/map-file-test.mjs",
     "test:pass": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/pass-stretches-test.mjs",
@@ -15,7 +15,8 @@
     "check:data": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/check-map-data.mjs",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "test:precision": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/precision-test.mjs"
   },
   "repository": {
     "type": "git",

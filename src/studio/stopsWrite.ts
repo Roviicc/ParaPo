@@ -3,6 +3,7 @@ import {
   firstTouchIndex,
   ringCentroid,
   ringToPolygon,
+  roundLngLat,
   type Ring,
 } from '../shared/geo'
 import { variantLine, type VariantRow } from '../shared/routes'
@@ -88,14 +89,17 @@ export async function saveStop(input: SaveStopInput): Promise<StopRow> {
   const name = normaliseName(input.name)
   const informal = normaliseName(input.informal)
   if (!name) throw new Error('A hotspot needs a name')
+  // Six decimals, about 0.1 m, as a direction's points are saved: a traced
+  // corner carried 15 or more, and the publish script rounded them anyway.
+  const ring = input.ring.map(roundLngLat)
   const row = {
     name,
     informal: informal && informal.toLowerCase() !== name.toLowerCase() ? informal : null,
     aliases: input.aliases,
     kind: input.kind,
     note: blankToNull(input.note),
-    area: ringToPolygon(input.ring),
-    point: { type: 'Point', coordinates: ringCentroid(input.ring) } as PointGeoJSON,
+    area: ringToPolygon(ring),
+    point: { type: 'Point', coordinates: roundLngLat(ringCentroid(ring)) } as PointGeoJSON,
   }
 
   const query = input.stopId
@@ -118,7 +122,7 @@ export async function saveStop(input: SaveStopInput): Promise<StopRow> {
   const byId = new Map(input.variants.map((v) => [v.id, v]))
   const links: StopLink[] =
     input.kind === 'hintuan'
-      ? linksThrough(input.ring, input.variants).map((l) => ({
+      ? linksThrough(ring, input.variants).map((l) => ({
           route_variant_id: l.variantId,
           stop_id: stop.id,
           stop_sequence: l.sequence,
@@ -128,7 +132,7 @@ export async function saveStop(input: SaveStopInput): Promise<StopRow> {
           .map((id) => ({
             route_variant_id: id,
             stop_id: stop.id,
-            stop_sequence: Math.max(0, firstTouchIndex(variantLine(byId.get(id)!), input.ring)),
+            stop_sequence: Math.max(0, firstTouchIndex(variantLine(byId.get(id)!), ring)),
           }))
 
   await replaceLinks(stop.id, links)

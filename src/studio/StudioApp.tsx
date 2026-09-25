@@ -5,7 +5,7 @@ import { Chooser } from '../shared/Chooser'
 import { HotspotCard } from '../shared/HotspotCard'
 import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
-import { listVariants, loadStopsFromSupabase } from './live'
+import { listVariants, loadStopsFromSupabase, withDrawing } from './live'
 import {
   directionEnds,
   isDrawn,
@@ -13,6 +13,7 @@ import {
   routeTimeline,
   travelLine,
   variantLine,
+  type VariantDrawing,
   type VariantRow,
 } from '../shared/routes'
 import { placeKey, stopLabel, stopRing, type StopRow } from '../shared/stops'
@@ -100,7 +101,7 @@ function Workshop({
   // A right-click on a saved line while drawing: decided below, once the
   // saved lines and hotspots are loaded (onFollow).
   const draw = useDrawing(map, { onFollow: (ids, at) => onFollow(ids, at) })
-  // Full rows: the editor reopens a direction from its control points.
+  // The list rows: a direction's drawing is read when it is opened (opening, below).
   const saved = useSavedRoutes(map, listVariants, {
     drawing: draw.drawing,
     hiddenVariantId: draw.target.variantId,
@@ -187,6 +188,11 @@ function Workshop({
    * road, so the click may land on both.
    */
   const onFollow = (ids: string[], at: LngLat) => {
+    const gate = draw.joinGate()
+    if (!gate.go) {
+      if (gate.problem) setNotice(gate.problem)
+      return
+    }
     const home = placeOfStop(destinationStopId)
     const options = ids
       .map((id) => saved.variants.find((v) => v.id === id))
@@ -206,8 +212,24 @@ function Workshop({
       return
     }
     const v = choice.follow.v
-    const problem = draw.connect(v, at, choice.follow.travel[0] !== variantLine(v)[0])
-    if (problem) setNotice(problem)
+    const backwards = choice.follow.travel[0] !== variantLine(v)[0]
+    void opening(v, (d) => {
+      const problem = draw.connect(d, at, backwards)
+      if (problem) setNotice(problem)
+    })
+  }
+
+  /**
+   * A direction's drawing is not in the list (live.ts VARIANT_SELECT): read
+   * it for the one being opened, then hand it to the tool. A read that fails
+   * is a notice, and the tool is never started on an empty drawing.
+   */
+  const opening = async (v: VariantRow, then: (d: VariantDrawing) => void) => {
+    try {
+      then(await withDrawing(v))
+    } catch (e) {
+      setNotice(`Couldn't open ${v.direction_name ?? 'this direction'}: ${e instanceof Error ? e.message : String(e)}`)
+    }
   }
 
   const onDone = () => {
@@ -319,7 +341,7 @@ function Workshop({
                   const v = saved.selected
                   if (!v) return
                   saved.select(null)
-                  draw.load(v)
+                  void opening(v, draw.load)
                 }}
                 onDelete={() => {
                   if (saved.selected) void onDelete(saved.selected)
@@ -330,7 +352,7 @@ function Workshop({
                         const v = saved.selected
                         if (!v) return
                         saved.select(null)
-                        draw.startExtend(v)
+                        void opening(v, draw.startExtend)
                       }
                     : undefined
                 }
