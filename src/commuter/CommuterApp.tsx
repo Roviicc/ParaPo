@@ -16,6 +16,7 @@ import {
 } from '../shared/routes'
 import { useDirectionArrows } from '../shared/directionArrows'
 import { usePassStretches } from '../shared/passStretches'
+import { useBabaanSides } from '../shared/babaanSides'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
 import { useSavedStops } from '../shared/useSavedStops'
 import { Walker } from './Walker'
@@ -53,6 +54,8 @@ export default function CommuterApp() {
     [saved.litVariants, stops.stops],
   )
   useDirectionArrows(map, rides)
+  // The chosen direction's side of each hintuan it cuts across: its right.
+  useBabaanSides(map, saved.selected, stops.stops)
 
   useShareLink(map, saved)
   // The visitor's own position, when they ask for it: a walking figure.
