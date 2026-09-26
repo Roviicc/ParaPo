@@ -20,7 +20,7 @@ import { useSavedRoutes } from '../shared/useSavedRoutes'
 import { useSavedStops } from '../shared/useSavedStops'
 import { Walker } from './Walker'
 import { WhereAmIButton } from './WhereAmI'
-import { useWhereAmI } from './whereAmI'
+import { useWhereAmI } from './useWhereAmI'
 
 /** The query key a shared link carries: `/?r=<direction id>`. A query, not a path, so no SPA fallback is needed. */
 const SHARE_KEY = 'r'

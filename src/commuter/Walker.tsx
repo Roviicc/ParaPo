@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
-import type { Facing, Fix, Pose } from './whereAmI'
+import type { Facing, Fix, Pose } from './useWhereAmI'
 
 type Props = {
   map: MapLibreMap

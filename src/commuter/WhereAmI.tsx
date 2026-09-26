@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { WhereAmI as State } from './whereAmI'
+import type { WhereAmI as State } from './useWhereAmI'
 
 type Props = {
   where: State
