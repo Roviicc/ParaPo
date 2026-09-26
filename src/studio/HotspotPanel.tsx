@@ -57,8 +57,9 @@ export function HotspotPanel({
 
   const [name, setName] = useState(existing?.name ?? '')
   const [informal, setInformal] = useState(existing?.informal ?? '')
-  const [aliasText, setAliasText] = useState(existing?.aliases?.join(', ') ?? '')
-  const [note, setNote] = useState(existing?.note ?? '')
+  // Also called and Note are off the form for now; a box that has them keeps them.
+  const [aliasText] = useState(existing?.aliases?.join(', ') ?? '')
+  const [note] = useState(existing?.note ?? '')
 
   // The informal names already in use, offered as suggestions so a second box
   // for the same place joins the group instead of starting "SM  Fairview".
@@ -164,31 +165,6 @@ export function HotspotPanel({
             Boxes that share a stop name are one stop, whatever is written on each. Route names read it
             {kind === 'terminal' ? '; a stop has one terminal.' : '.'}
           </span>
-        </label>
-
-        <label className="mt-3 block text-xs font-medium text-neutral-700">
-          Also called <span className="text-neutral-400">(optional, comma-separated)</span>
-          <input
-            value={aliasText}
-            onChange={(e) => setAliasText(e.target.value)}
-            placeholder="Fairview, SM City Fairview"
-            className={field}
-          />
-        </label>
-
-        <label className="mt-3 block text-xs font-medium text-neutral-700">
-          Note <span className="text-neutral-400">(optional)</span>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={2}
-            placeholder={
-              kind === 'terminal'
-                ? 'Loading bays along the east side; dispatcher after 5 am'
-                : 'Jeeps wait here until full, especially after 6 pm'
-            }
-            className={field}
-          />
         </label>
 
         {kind === 'terminal' ? (
