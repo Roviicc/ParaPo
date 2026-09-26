@@ -332,6 +332,16 @@ context and three.js on every visitor's phone for a 50-pixel marker. The
 two files fell from 61 to 47 KB, written as 256-colour PNGs by the
 script itself.
 
+**The walker live in 3D, an experiment, 2026-09-26.** At the owner's
+request, `/?figure=3d` draws the same model live with three.js in a
+canvas inside the marker (`src/commuter/figure3d/`), not as a map layer,
+so the map never repaints for it. It faces the true heading, turns with
+the map and tilts with it. The cost, measured: 145 kB gzipped more to
+download (lazy, but precached by the installed app), and about 3% of the
+main thread while standing where the sprite costs nothing. The numbers
+are in `docs/figure/README.md`. Without the query nothing changes. Kept or
+dropped on the owner's word.
+
 **The owner's answers on hintuans, 2026-09-26.** Asked after the data
 check's first finding. (1) *SM Fairview:* the Tala jeeps were moved out
 to the SM Fairview Public Transport Terminal, so the line that ends there

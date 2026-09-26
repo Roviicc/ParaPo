@@ -29,6 +29,28 @@ The script quantises to 256 colours and writes indexed PNGs itself (median
 cut, then `zlib`), because the installed app precaches both files and a
 full-colour sheet was 185 KB.
 
+## Experiment: the figure live in 3D, `/?figure=3d`
+
+The same model, ported to `src/commuter/figure3d/commuterModel.ts`, drawn
+live by three.js in a small canvas inside the walker's marker
+(`liveFigure.ts`). It faces the exact heading, including diagonals, turns
+with the map's bearing and is seen from higher as the map tilts. It blends
+smoothly between standing, walking and flying. Without the query the app
+is unchanged. With it, the sprite shows while the 3D chunk loads, and stays
+if the browser has no WebGL.
+
+Measured 2026-09-26, headless Chromium with software GL, no basemap, main
+thread busy over 10 s: standing, sprites 0.0%, 3D 2.9% (drawn at 15 fps);
+walking, both 3.5% (the map following dominates; 3D at 30 fps). The 3D
+chunk is 570 kB, 145 kB gzipped, next to the public page's 334 kB shared
+chunk. The installed app precaches it even for visitors who never use the
+query, because `scripts/check-build.mjs` requires every chunk the public
+page can load to be precached.
+
+The model now lives in two places, this folder's HTML (for the sprites)
+and the TypeScript module (for the live figure). Change one, change the
+other, or render the sprites from the module.
+
 ## Before: the first figure, from an image generator
 
 Drawn by the owner with an image generator on 2026-09-26 from the prompts

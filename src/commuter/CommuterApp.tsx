@@ -25,6 +25,8 @@ import { useWhereAmI } from './useWhereAmI'
 
 /** The query key a shared link carries: `/?r=<direction id>`. A query, not a path, so no SPA fallback is needed. */
 const SHARE_KEY = 'r'
+/** `/?figure=3d`: the walker drawn live in 3D, an experiment beside the sprite sheet (figure3d/). */
+const LIVE_3D = new URLSearchParams(window.location.search).get('figure') === '3d'
 
 /**
  * The public map at /. Everything published so far and a card for whatever is
@@ -77,7 +79,7 @@ export default function CommuterApp() {
     <div className="@container relative h-full w-full overflow-hidden">
       <MapView onReady={setMap} />
       {map && <WhereAmIButton where={where} coarse={coarse} />}
-      {map && where.fix && <Walker map={map} fix={where.fix} pose={where.pose} facing={where.facing} />}
+      {map && where.fix && <Walker map={map} fix={where.fix} pose={where.pose} facing={where.facing} live3d={LIVE_3D} />}
 
       {/*
         A load problem is a banner, never a blank page. On a phone it sits at

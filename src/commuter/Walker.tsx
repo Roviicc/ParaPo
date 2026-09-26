@@ -1,12 +1,15 @@
 import { useEffect, useRef } from 'react'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
 import type { Facing, Fix, Pose } from './useWhereAmI'
+import type { LiveFigure, LiveState } from './figure3d/liveFigure'
 
 type Props = {
   map: MapLibreMap
   fix: Fix
   pose: Pose
   facing: Facing
+  /** The `?figure=3d` experiment: draw the figure live in 3D (figure3d/). */
+  live3d?: boolean
 }
 
 /** Metres one pixel covers at this zoom and latitude (Web Mercator). */
@@ -24,12 +27,19 @@ function metresPerPixel(lat: number, zoom: number): number {
  *
  * The halo matters: GPS in Metro Manila is often 20–50 m out, and the
  * figure alone would claim a certainty the phone does not have.
+ *
+ * With `live3d` the sprite shows while three.js loads, and stays if the
+ * browser has no WebGL; once the 3D figure is up it takes the sprite's place.
  */
-export function Walker({ map, fix, pose, facing }: Props) {
+export function Walker({ map, fix, pose, facing, live3d = false }: Props) {
   const markerRef = useRef<Marker | null>(null)
   const haloRef = useRef<HTMLDivElement | null>(null)
+  const liveRef = useRef<LiveFigure | null>(null)
   const fixRef = useRef(fix)
   fixRef.current = fix
+  const liveState: LiveState = { pose, speed: fix.speed, heading: fix.heading }
+  const liveStateRef = useRef(liveState)
+  liveStateRef.current = liveState
 
   useEffect(() => {
     const el = document.createElement('div')
@@ -52,7 +62,32 @@ export function Walker({ map, fix, pose, facing }: Props) {
     }
     size()
     map.on('zoom', size)
+
+    let cancelled = false
+    if (live3d) {
+      const canvas = document.createElement('canvas')
+      canvas.className = 'walker-3d'
+      import('./figure3d/liveFigure')
+        .then(({ mountLiveFigure, CANVAS_W, CANVAS_H }) => {
+          if (cancelled) return
+          canvas.style.width = `${CANVAS_W}px`
+          canvas.style.height = `${CANVAS_H}px`
+          el.append(canvas)
+          liveRef.current = mountLiveFigure(canvas, map)
+          liveRef.current.update(liveStateRef.current)
+          el.dataset.figure = '3d'
+        })
+        .catch((e: unknown) => {
+          // No WebGL, or the chunk did not load (offline, first visit): keep the sprite.
+          canvas.remove()
+          console.warn('[walker] 3D figure unavailable, keeping the sprite:', e)
+        })
+    }
+
     return () => {
+      cancelled = true
+      liveRef.current?.dispose()
+      liveRef.current = null
       map.off('zoom', size)
       marker.remove()
       markerRef.current = null
@@ -60,7 +95,7 @@ export function Walker({ map, fix, pose, facing }: Props) {
     }
     // Made once per map; the fix flows through the effects below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map])
+  }, [map, live3d])
 
   useEffect(() => {
     const marker = markerRef.current
@@ -72,6 +107,7 @@ export function Walker({ map, fix, pose, facing }: Props) {
     // Flying is a side view: it faces right for any eastward heading, left for westward.
     if (fix.heading !== null) el.dataset.side = fix.heading < 180 ? 'right' : 'left'
     el.dataset.accuracyM = String(Math.round(fix.accuracy))
+    liveRef.current?.update({ pose, speed: fix.speed, heading: fix.heading })
     const halo = haloRef.current
     if (halo) {
       const px = Math.max(28, Math.min(480, (2 * fix.accuracy) / metresPerPixel(fix.at[1], map.getZoom())))
