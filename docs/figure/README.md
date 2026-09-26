@@ -1,12 +1,40 @@
 # The walker
 
 The figure that stands for the visitor on the public map when they ask
-"Where am I" (`src/commuter/whereAmI.ts`, `Walker.tsx`). Drawn by the
-owner with an image generator on 2026-09-26 from the prompts below; the
-masters here are the generator's output, cleaned (transparent pixels
-cleared, cells cut onto one baseline by a script, not kept). What the app
+"Where am I" (`src/commuter/useWhereAmI.ts`, `Walker.tsx`). What the app
 loads is `public/figure/`: the sheet and the flying frame at 2× display
-size, 256 colours, 61 KB together.
+size, 256 colours, 47 KB together.
+
+## Now: the commuter, rendered from a 3D model
+
+Since 2026-09-26 the figure is a chibi commuter in a dark cap, white tee,
+black trousers and white sneakers, with a backpack and a phone, drawn from
+the owner's reference sheet `commuter-reference.png`. It is a 3D model
+built from primitives in `commuter-3d.html` (three.js r128), and the
+sprites are rendered from it, so every facing and every step comes from
+the same figure:
+
+    node scripts/render-figure.mjs
+
+writes `public/figure/walker@2x.png` and `flying@2x.png`. Open
+`commuter-3d.html` in a browser to see the same output without writing
+anything. The sheet keeps the old layout, so the CSS did not change: 5
+columns × 4 rows of 100 × 130, column 1 standing and columns 2–5 a walk
+cycle a quarter-step apart; rows facing down, up, left, right; the soles 8
+px above each cell's bottom and one scale for every cell. The flying frame
+is the same figure level in the air, facing right, with three speed lines
+behind.
+
+The script quantises to 256 colours and writes indexed PNGs itself (median
+cut, then `zlib`), because the installed app precaches both files and a
+full-colour sheet was 185 KB.
+
+## Before: the first figure, from an image generator
+
+Drawn by the owner with an image generator on 2026-09-26 from the prompts
+below. The masters here are the generator's output, cleaned (transparent
+pixels cleared, cells cut onto one baseline by a script, not kept); the app
+no longer loads them.
 
 - `standing.png` — the character, front, 1017 × 1321.
 - `walker-sheet.png` — 5 columns × 4 rows of 200 × 260: column 1 standing,

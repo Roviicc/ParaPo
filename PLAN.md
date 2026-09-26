@@ -323,6 +323,15 @@ every emulated GPS), and only a refusal may end the watch. 22 checks in
 Next for it, when wanted: the nearest hintuan, "walk here", and the
 visitor's place on a route's timeline.
 
+**The walker in 3D, 2026-09-26.** The figure is now a chibi commuter
+(cap, backpack, phone) from the owner's reference sheet, built as a 3D
+model (`docs/figure/commuter-3d.html`) and rendered into the same sprite
+sheet and flying frame by `scripts/render-figure.mjs`. The map still
+draws sprites with CSS: a live 3D figure would mean a second WebGL
+context and three.js on every visitor's phone for a 50-pixel marker. The
+two files fell from 61 to 47 KB, written as 256-colour PNGs by the
+script itself.
+
 **The owner's answers on hintuans, 2026-09-26.** Asked after the data
 check's first finding. (1) *SM Fairview:* the Tala jeeps were moved out
 to the SM Fairview Public Transport Terminal, so the line that ends there
