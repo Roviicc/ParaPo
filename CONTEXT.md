@@ -102,6 +102,13 @@ direction. On the map, the stretch of the line that passes a hintuan is
 painted orange.
 _Avoid_: near (without the number), serves, links to
 
+**Babaan side** (of a direction at a hintuan):
+The right-hand side of the road in the direction's travel, papunta and
+balikan alike. A box drawn across both sides of the road serves both
+directions; each uses the half on its own right. No second box, and nothing
+to record per direction — the side follows from which way the line runs.
+_Avoid_: east side, north side (compass sides change with the road)
+
 **Timeline**:
 A direction as its string of places in travel order: where it leaves from,
 every hintuan it passes, where it is going. What a signboard lists, generated.

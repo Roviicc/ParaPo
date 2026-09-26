@@ -336,8 +336,11 @@ a string of places, not a stop list. (3) *One box across the road:* the
 owner does not want a box per side. A box drawn across both carriageways
 already links both directions (a line inside the box passes it); what is
 missing is which side each direction uses, so the card can say "wait on
-the east side for Tala → SM Fairview". That is readable from the line's
-position inside the box, no second box needed — an open item, not built.
+the east side for Tala → SM Fairview". **Answered the same day:** the
+babaan is on the right side of the road in the direction of travel,
+papunta or balikan, so the side is a rule, not data — each direction uses
+the half of the box on its own right (the **babaan side**, CONTEXT.md).
+Not built: splitting the box along the line on the map.
 (4) *Two names, formalised:* the **ground name** is what is written on the
 ground (`name`), the **stop name** is what people say (`informal`), and
 boxes that share a stop name are one stop, whatever is written on each.
