@@ -231,15 +231,15 @@ development, once in the build.
 **Stage 3, on paper: the file split, measured, for the owner to decide.**
 Today's file is 43 KB, 7 KB gzipped: 2 routes, 4 directions (247 points
 each at 0.3 m), 30 hotspots, 53 links. Made bigger the way the scale suites
-do it (copies of today's, shifted; hotspots at about five a route, which is
-a guess — today has fifteen a route, but a hotspot at scale is shared), the
-one file as shape 1 comes to:
+do it (copies of today's, shifted), the one file as shape 1 comes to — at
+five hotspots a route, the first guess, and at fifteen to twenty, which is
+what the owner expects of a long route (2026-09-26; today has fifteen):
 
-| routes | directions | hotspots | links | one file, raw | gzipped, honest* |
+| routes | directions | links | hotspots at 5 / 15–20 | one file, raw | gzipped, honest* |
 |---|---|---|---|---|---|
-| 100 | 200 | 510 | 2,650 | 1.7 MB | ~0.3 MB |
-| 250 | 500 | 1,260 | 6,625 | 4.4 MB | ~0.75 MB |
-| 500 | 1,000 | 2,490 | 13,250 | 8.8 MB | ~1.5 MB |
+| 100 | 200 | 2,650 | 510 / 1,500 | 1.7 / 2.2 MB | ~0.3 / 0.4 MB |
+| 250 | 500 | 6,625 | 1,260 / 3,750 | 4.4 / 5.4 MB | ~0.75 / 0.9 MB |
+| 500 | 1,000 | 13,250 | 2,490 / 7,500 | 8.8 / 10.9 MB | ~1.5 / 1.8 MB |
 
 \*Shifted copies gzip 14× because they repeat; today's real file gzips
 6.5× (lines), 4.4× (hotspots), 7.4× (links), and those are the ratios used.
@@ -257,10 +257,18 @@ gzipped**, so the split is two moves, not one. What shape 2 is, concretely:
   links as one array per direction, `[stop_id, sequence]` pairs, instead
   of a row that repeats two UUIDs (13,250 rows × 128 characters → about
   half). Measured, today's data restructured so (20.5 KB, 4.6 KB gzipped,
-  4.5×) and made bigger the same way: the index is 0.6 MB raw at 100
-  routes, 1.5 MB at 250, 3.0 MB at 500 (a third of it hotspots), about
-  0.13, 0.33 and 0.67 MB gzipped — in place of 0.3, 0.75 and 1.5 MB for
-  the one file, with the precise lines then fetched a route at a time.
+  4.5×) and made bigger the same way: at five hotspots a route the index
+  is 0.6 MB raw at 100 routes, 1.5 MB at 250, 3.0 MB at 500 (a third of
+  it hotspots), about 0.13, 0.33 and 0.67 MB gzipped — in place of 0.3,
+  0.75 and 1.5 MB for the one file, with the precise lines then fetched a
+  route at a time. At fifteen to twenty a route it is 1.0, 2.5 and 5.0 MB
+  raw (0.22, 0.56 and 1.1 MB gzipped), and three fifths of it is
+  hotspots: at that density the lines are not the bulk, the boxes are,
+  and the split has a third move — the hotspots by area, a file per cell
+  of a grid over the city, fetched for the cells on the screen the way
+  the lines are fetched a route at a time — or a slimmer hotspot first
+  (no `created_at`, no `point` when the box gives it; about 400
+  characters each today), before any split at all.
 - `/data/v2/lines/<route_id>.json`, one file per route: both directions'
   lines at 0.3 m, 11 KB raw and 3 KB gzipped each (they share their common
   road, which gzips), fetched when a route is lit, or when the zoom passes
@@ -278,10 +286,11 @@ gzipped**, so the split is two moves, not one. What shape 2 is, concretely:
   evening, all of it inside the boundaries the build checks.
 - When: not before 250 routes. At 100 the one file is a photo's worth and
   parses in under 100 ms; at 250 it is 0.75 MB on a phone's first open,
-  borderline; at 500 it is 1.5 MB and the layout of a thousand full lines
-  is what the scale suite times (5.9 s to the first line here, on software
-  rendering). The 1 MB gzipped mark from step 4 is around 350 routes. The
-  owner decides when; the numbers above are what he decides with.
+  borderline; at 500 it is 1.5 to 1.8 MB and the layout of a thousand
+  full lines is what the scale suite times (5.9 s to the first line here,
+  on software rendering). The 1 MB gzipped mark from step 4 is around 350
+  routes at five hotspots a route, around 280 at twenty. The owner decides
+  when; the numbers above are what he decides with.
 - Not this: vector tiles (PMTiles) for the lines. They solve the same
   problem for ten thousand routes and cost a tile build in the publish, a
   protocol handler in the app and a second cache rule; nothing here needs
@@ -290,6 +299,57 @@ gzipped**, so the split is two moves, not one. What shape 2 is, concretely:
 Agreed next: a domain,
 parapo.app, when the owner is ready — the code side is the README link and
 a redirect.
+
+**"Where am I", 2026-09-26.** The visitor's own position on the public
+map, shown as a small walking figure the owner drew with an image
+generator (`docs/figure/`, with the prompts) instead of a dot. Off until
+asked: a button under the map-design button, the browser's own prompt, and
+the position never leaves the phone (`src/commuter/whereAmI.ts`; nothing
+talks to a server). The pose is read off the speed, so it is honest rather
+than decorative — standing under 0.5 m/s, walking at a walk and facing the
+way it goes, and above 15 km/h *flying*, the app's way of saying "I can
+tell you're on a jeep" (the owner's pick over a jeep pose). A soft halo the
+size of the fix's accuracy sits under its feet, because GPS here is often
+20–50 m out and the figure alone would claim a certainty the phone does
+not have. The map follows until the visitor drags it; a tap follows again;
+a tap while following turns it off. The figure is a DOM marker with CSS
+animations (`Walker.tsx`, `index.css`), which cost the map nothing, and
+`prefers-reduced-motion` stills them. A refusing browser gets a note under
+the button. One real thing learned while building: the browser fires
+"position unavailable" between fixes (indoors, under a flyover, and on
+every emulated GPS), and only a refusal may end the watch. 22 checks in
+`scripts/pw/where-test.mjs`, in CI, driving the browser's own
+`watchPosition` with an emulated GPS; `PARAPO_VIDEO=dir` records the run.
+Next for it, when wanted: the nearest hintuan, "walk here", and the
+visitor's place on a route's timeline.
+
+**The owner's answers on hintuans, 2026-09-26.** Asked after the data
+check's first finding. (1) *SM Fairview:* the Tala jeeps were moved out
+to the SM Fairview Public Transport Terminal, so the line that ends there
+is right and the route's tail is wrong: that box becomes the terminal and
+the route's tail, and the SM City Fairview Jeepney Terminal box is a
+hintuan or goes. Done in the studio by the owner; the next publish closes
+the issue. (2) *A jeep stops anywhere:* a hintuan is a place people know,
+not the only place the jeep stops. The app must never read as "these are
+the stops": a hintuan is a landmark on the timeline, and the timeline is
+a string of places, not a stop list. (3) *One box across the road:* the
+owner does not want a box per side. A box drawn across both carriageways
+already links both directions (a line inside the box passes it); what is
+missing is which side each direction uses, so the card can say "wait on
+the east side for Tala → SM Fairview". **Answered the same day:** the
+babaan is on the right side of the road in the direction of travel,
+papunta or balikan, so the side is a rule, not data — each direction uses
+the half of the box on its own right (the **babaan side**, CONTEXT.md).
+Not built: splitting the box along the line on the map.
+(4) *Two names, formalised:* the **ground name** is what is written on the
+ground (`name`), the **stop name** is what people say (`informal`), and
+boxes that share a stop name are one stop, whatever is written on each.
+The model already worked so (0007's informal name and `placeKey`); the
+studio's form and the code's comments now use the two words. (5) *The
+routes on a hotspot card* are listed the way the chooser under a tap lists
+them — Tala, then → SM Fairview and → Novaliches, ⇄ for the way back
+(`Departures` in `src/shared/`, one component for both) — instead of a
+route name with two direction chips under it.
 
 **Next.** The design foundation before the owner designs in Figma: tokens in
 one place and a screen inventory in Storybook. Then slices 3 and 4 (short

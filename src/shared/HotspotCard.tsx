@@ -1,7 +1,9 @@
-import type { ReactNode } from 'react'
-import type { VariantSummary } from './routes'
+import { useState, type ReactNode } from 'react'
+import { Departures } from './Departures'
+import { departures, type VariantSummary } from './routes'
 import { Sheet } from './Sheet'
 import { placeSummary, siblingsOf, stopLabel, type StopSummary } from './stops'
+import { SwitchIcon } from './SwitchIcon'
 
 type Props = {
   stop: StopSummary
@@ -42,14 +44,18 @@ export function HotspotCard({
   const linked = linkedVariantIds
     .map((id) => byId.get(id))
     .filter((v): v is VariantSummary => !!v)
-
-  // Group by route so both directions of one route read as one entry.
-  const groups = new Map<string, { signboard: string; directions: VariantSummary[] }>()
-  for (const v of linked) {
-    const g = groups.get(v.route_id) ?? { signboard: v.route?.name ?? '(unnamed)', directions: [] }
-    g.directions.push(v)
-    groups.set(v.route_id, g)
-  }
+  // The routes through here, listed as the chooser under a tap lists them:
+  // one way round, by the place each leaves from, ⇄ for the way back. Both
+  // directions of a route are linked to a box on a two-way road, so each
+  // route shows once either way round; a route linked one way only is a
+  // slot the other way, and reads "not mapped yet" there.
+  // A box on a one-way street, or beside one carriageway, is passed one way
+  // only: then that way is the one shown, and there is nothing to flip to.
+  const [flipped, setFlipped] = useState(false)
+  const there = departures(linked, false).length > 0
+  const backToo = departures(linked, true).length > 0
+  const back = there && backToo ? flipped : backToo
+  const flipLabel = back ? 'Show the way there' : 'Show the way back'
 
   return (
     <Sheet
@@ -105,35 +111,31 @@ export function HotspotCard({
         </div>
       )}
 
-      <p className="mt-3 text-xs font-medium text-neutral-500">
-        {isTerminal ? 'Routes that stage here' : 'Routes that pass through'}
-      </p>
-      {groups.size === 0 ? (
+      <div className="mt-3 flex items-center gap-2">
+        <p className="min-w-0 flex-1 text-xs font-medium text-neutral-500">
+          {isTerminal ? 'Routes that stage here' : 'Routes that pass through'}
+        </p>
+        {there && backToo && (
+          <button
+            type="button"
+            data-testid="card-flip"
+            aria-pressed={back}
+            onClick={() => setFlipped((b) => !b)}
+            aria-label={flipLabel}
+            title={flipLabel}
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-neutral-700 hover:bg-neutral-100"
+          >
+            <SwitchIcon />
+          </button>
+        )}
+      </div>
+      {linked.length === 0 ? (
         <p className="mt-1 text-sm text-neutral-500">
           {isTerminal ? 'None recorded yet.' : 'No saved route passes through here yet.'}
         </p>
       ) : (
-        <ul className="mt-1 space-y-2">
-          {[...groups.values()].map((g) => (
-            <li key={g.signboard}>
-              <p className="text-sm font-medium text-neutral-900">{g.signboard}</p>
-              <ul className="mt-0.5 flex flex-wrap gap-1">
-                {g.directions.map((v) => (
-                  <li key={v.id}>
-                    <button
-                      type="button"
-                      onClick={() => onSelectVariant(v)}
-                      title="Show this direction on the map"
-                      className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700
-                                 hover:bg-neutral-900 hover:text-white"
-                    >
-                      {v.direction_name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </li>
-          ))}
+        <ul className="-mx-4 mt-1 border-t border-neutral-200">
+          <Departures routes={linked} back={back} onRoute={onSelectVariant} testId="card" />
         </ul>
       )}
 

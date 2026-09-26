@@ -98,7 +98,7 @@ export default defineConfig({
         // .vite/, data/ and _headers by construction; the transform below
         // then drops every chunk the public page does not load, so a studio-only
         // chunk (the editor, the Supabase client) is never stored on a phone.
-        globPatterns: ['index.html', 'manifest.webmanifest', 'assets/*.{js,css}', 'icons/icon-*.png'],
+        globPatterns: ['index.html', 'manifest.webmanifest', 'assets/*.{js,css}', 'icons/icon-*.png', 'figure/*.png'],
         manifestTransforms: [
           (entries) => {
             // Written by Vite with the bundle; the worker is generated after.

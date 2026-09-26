@@ -9,12 +9,14 @@ export type PointGeoJSON = { type: 'Point'; coordinates: LngLat }
 /** A hotspot as the public map shows it. `area` is null only for legacy point-only stops (none exist). */
 export type StopSummary = {
   id: string
-  /** What is written on the ground: "SM Fairview Terminal B". */
+  /** The ground name: what is written on the ground, "SM Fairview Terminal B". */
   name: string
   /**
-   * What people say: "SM Fairview". Optional; `stopLabel` falls back to `name`.
-   * The route name reads this (R1), and boxes that share it are one place to
-   * a commuter — a terminal and two hintuans under one informal name. 0007.
+   * The stop name: what people say, "SM Fairview". Optional; `stopLabel`
+   * falls back to the ground name. The route name reads this (R1), and
+   * boxes that share it are one stop to a commuter, whatever is written on
+   * each — a terminal and two hintuans under one stop name. 0007; the
+   * owner's two words for the two names, 2026-09-26.
    */
   informal: string | null
   /** Other ways people say the same place, for a search or a suggestion list. */
@@ -221,7 +223,7 @@ export function placeSizes(stops: readonly StopSummary[]): Map<string, number> {
  * How a hotspot reads on a timeline: its place, and its own name after a
  * dash when the place has several boxes and the box has a name of its own —
  * "SM Fairview – Main Babaan" tells a rider which side of the mall. A box
- * whose informal name is its name, or the only box of its place, is just
+ * whose stop name is its ground name, or the only box of its place, is just
  * its label. The owner's rule, 2026-09-22.
  */
 export function timelineLabel(s: StopSummary, sizes: Map<string, number>): string {

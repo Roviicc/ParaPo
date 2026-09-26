@@ -7,7 +7,8 @@ public map at `/` and the editor at `/studio/`. Complements `scripts/uitest.mjs`
     npm i -D playwright && npx playwright install chromium   # once
     npm run dev                                              # in another terminal, on :5173
     node scripts/pw/gate-test.mjs             # 15: the studio's sign-in door, ?e2e=1, the reset-link forwarder
-    node scripts/pw/visitor-test.mjs          # 134 today: the public map — no editor, no database, cards, chips, the sheet on a shared tap, rest/lit, names only close in
+    node scripts/pw/visitor-test.mjs          # 225 today: the public map — no editor, no database, cards, chips, the sheet on a shared tap, rest/lit, names only close in
+    node scripts/pw/where-test.mjs            # 22: "Where am I" on / at 390×844 with an emulated GPS — off until asked, the figure standing over its accuracy halo, walking and facing its way, flying at jeep speed, the map following until dragged, a tap following again, off, and a browser that refuses (PARAPO_NO_TILES=1 where tiles are blocked; PARAPO_VIDEO=dir records it)
     node scripts/pw/phone-test.mjs            # 40 (38 run, 2 SKIP today): / at 390×844 — the bottom sheet, the ±20 px tap, the chooser, ?r=
     node scripts/pw/regression-gestures.mjs   # 29: route and hotspot gestures on /studio/?e2e=1
     node scripts/pw/hotspot-test.mjs          # 22: hotspot tracing, draft reload, a routed segment on /studio/?e2e=1
@@ -24,7 +25,7 @@ public map at `/` and the editor at `/studio/`. Complements `scripts/uitest.mjs`
     node scripts/pw/pwa-test.mjs              # 41: the installable app, against the build in its own `vite preview` on :4173 — manifest, worker, offline, slow network, update
 
 **On GitHub, every push runs these** (`.github/workflows/ci.yml`): one job builds
-and runs gate, visitor, phone, scale and pwa; a second runs studio-scale, then the
+and runs gate, visitor, phone, where, scale and pwa; a second runs studio-scale, then the
 drawing suites one at a time, with one retry after a minute for the shared router. A red check on a
 branch means the push broke something; the failing suite's screenshots are
 kept as the run's artifact.

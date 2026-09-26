@@ -303,14 +303,21 @@ for (const [i, p] of snapshot.polys.entries()) {
     (await page.locator('[data-testid="card"]').getByRole('button', { name: /^(Edit\b.*|Delete)$/ }).count()) === 0,
   )
 
-  const chips = page.locator('[data-testid="card"]').locator('button[title="Show this direction on the map"]')
-  const chipCount = await chips.count()
-  if (chipCount > 0) {
-    const label = await chips.first().innerText()
-    await chips.first().click()
+  // The routes through here read as the chooser's list: the place each
+  // leaves from, then → where it goes; ⇄ shows them the way back.
+  const rows = page.locator('[data-testid="card"]').locator('button[data-testid="card-item"]:enabled')
+  const rowCount = await rows.count()
+  if (rowCount > 0) {
+    const origins = await page.locator('[data-testid="card"]').locator('[data-testid="card-origin"] > p').allInnerTexts()
+    check(`  its routes are listed by the place they leave from`, origins.length > 0 && origins.every((o) => o.trim().length > 0), origins.join(' | '))
+    // ⇄ only where both ways pass: a box passed one way only has nothing to flip to.
+    const flip = page.locator('[data-testid="card-flip"]')
+    check(`  and ⇄ offers the way back, or the box is passed one way only`, (await flip.count()) <= 1)
+    const label = (await rows.first().innerText()).replace(/\s+/g, ' ').trim()
+    await rows.first().click()
     await page.waitForTimeout(350)
     const after = await cardKind()
-    check(`  its first direction chip opens a route card`, after.kind === 'route', `chip "${label}" -> ${after.kind}`)
+    check(`  its first route row opens a route card`, after.kind === 'route', `row "${label}" -> ${after.kind}`)
   } else {
     const noneMsg = isTerminal ? 'None recorded yet.' : 'No saved route passes through here yet.'
     check(`  no linked routes: shows "${noneMsg}"`, opened.includes(noneMsg))

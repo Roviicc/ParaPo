@@ -16,8 +16,10 @@ Ground-truthed jeepney routes for Metro Manila, on a map anyone can open.
 and draws every direction of every route, the hotspots (terminals and
 hintuans, where people board), and where a direction passes a hintuan its
 line turns orange for that stretch. A tap on a line or a box opens a card; a
-tap where several things meet opens a chooser. It installs as an app and
-keeps the last file it saw, so it works offline.
+tap where several things meet opens a chooser. "Where am I" shows the
+visitor as a small walking figure, flying at jeep speed, over a halo the
+size of the fix's accuracy; the position never leaves the phone. It installs
+as an app and keeps the last file it saw, so it works offline.
 
 **`/studio/` is the editor**, for the owner and the accounts on the editor
 list. It reads the live tables, draws lines snapped to the road with OSRM,
