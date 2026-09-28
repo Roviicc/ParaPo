@@ -104,9 +104,13 @@ function sourceModules(files) {
 const commuterModules = sourceModules(commuterFiles)
 const studioModules = sourceModules(studioFiles)
 
-const leakedModules = commuterModules.filter((m) => !m.startsWith('src/shared/') && !m.startsWith('src/commuter/'))
+// The design system is domain-free and imports only itself, so it is the
+// public page's as much as the studio's: the route list brought its first
+// primitives there on 2026-09-28.
+const PUBLIC_AREAS = ['src/shared/', 'src/commuter/', 'src/design-system/']
+const leakedModules = commuterModules.filter((m) => !PUBLIC_AREAS.some((a) => m.startsWith(a)))
 check(
-  `public page (${commuterFiles.length} chunk(s), ${commuterModules.length} of our modules) holds only shared/ and commuter/ code`,
+  `public page (${commuterFiles.length} chunk(s), ${commuterModules.length} of our modules) holds only shared/, commuter/ and design-system/ code`,
   commuterModules.length > 0 && leakedModules.length === 0,
   leakedModules.join(', '),
 )

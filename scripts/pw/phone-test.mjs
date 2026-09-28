@@ -13,8 +13,8 @@
 // Covers (43 checks today): touch chrome — no zoom buttons, attribution moved
 // to the top right, no horizontal scroll; the forgiving ±20 px tap, with a
 // negative control well outside the box; the bottom sheet — tap and drag the
-// handle, peek → open → peek → gone; the "N routes here" chooser where two
-// routes share a road; a tap just outside a hotspot; the ?r=<id> share link,
+// handle, peek → open → peek → gone; the route list where two routes share
+// a road ("N Routes", a card per place); a tap just outside a hotspot; the ?r=<id> share link,
 // the view it restores and its copy button; the fine-pointer desktop control
 // (±5 px, zoom buttons back, attribution bottom right); and housekeeping.
 import { chromium } from 'playwright'
@@ -700,7 +700,6 @@ if (!shared) {
   const has = (await chooser.count()) > 0
   check('a tap where two routes share a road opens the chooser', has && (await card().count()) === 0, has ? '' : `[data-testid="chooser"] count 0; card count ${await card().count()}`)
   const chooserText = has ? await chooser.first().innerText() : ''
-  check('  the chooser says "2 routes here"', chooserText.includes('2 routes here'), chooserText.split('\n')[0] ?? '')
   const items = chooser.locator('button[data-testid="chooser-item"]')
   const itemTexts = []
   for (let i = 0; i < (await items.count()); i++) itemTexts.push(await items.nth(i).innerText())
@@ -708,6 +707,11 @@ if (!shared) {
   // leaves from — "Tala", then → SM Fairview — so a route's row is its far
   // end, under a heading that is its head.
   const endsOf = (name) => name.replace(/ via .*$/, '').split(' – ')
+  // The owner's route list (2026-09-28) counts its cards, one per place the
+  // routes leave from: two routes out of Tala are "1 Route".
+  const places = new Set([shared.a.signboard, shared.b.signboard].map((s) => endsOf(s)[0].toLowerCase())).size
+  const title = `${places} ${places === 1 ? 'Route' : 'Routes'}`
+  check(`  the list is headed "${title}", a card per place`, chooserText.split('\n').includes(title), chooserText.split('\n')[0] ?? '')
   check(
     '  it lists both routes, one row each, under the place each leaves from',
     itemTexts.length === 2 &&

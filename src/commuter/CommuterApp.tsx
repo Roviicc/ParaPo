@@ -5,6 +5,7 @@ import { HotspotCard } from '../shared/HotspotCard'
 import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from '../shared/mapFile'
 import { reloadToUpdate, useNeedRefresh } from './pwa'
 import { MapView, coarse } from '../shared/MapView'
+import { RouteCardList } from '../shared/RouteCardList'
 import { RouteSheet } from '../shared/RouteSheet'
 import { useRideTo } from '../shared/rideTo'
 import {
@@ -187,7 +188,25 @@ export default function CommuterApp() {
         />
       )}
 
-      {choosing && (
+      {/*
+        Routes alone under the tap: the owner's route list (2026-09-28). With a
+        hotspot among them, the Chooser still asks, until he redraws it.
+      */}
+      {choosing && stops.candidates.length === 0 && (
+        <RouteCardList
+          key={choice.map((c) => c.id).join()}
+          routes={saved.candidates}
+          back={saved.back}
+          onFlip={saved.flip}
+          onRoute={(v) => {
+            stops.select(null)
+            saved.select(v.id)
+          }}
+          onClose={closeChooser}
+        />
+      )}
+
+      {choosing && stops.candidates.length > 0 && (
         <Chooser
           key={choice.map((c) => c.id).join()}
           routes={saved.candidates}
