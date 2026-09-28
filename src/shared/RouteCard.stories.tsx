@@ -175,3 +175,24 @@ export const TimelineWithNoHintuans: Story = {
     },
   },
 }
+
+/**
+ * A ride cut short at Malaria — tapping its row did it. The length and fare
+ * speak about the stretch, and the rows past Malaria fade.
+ */
+export const RideToPicked: Story = {
+  args: {
+    onRideTo: fn(),
+    rideTo: { stopId: 'h-malaria', metres: 2100 },
+    timeline: {
+      from: { id: 'sample-tala', label: 'Tala', kind: 'terminal' },
+      between: [
+        { id: 'h-barracks', label: 'Barracks', kind: 'hintuan' },
+        { id: 'h-malaria', label: 'Malaria', kind: 'hintuan' },
+        { id: 'h-pangarap', label: 'Pangarap', kind: 'hintuan' },
+        { id: 'h-lagro', label: 'Lagro', kind: 'hintuan' },
+      ],
+      to: { id: 'sample-fairview', label: 'SM Fairview', kind: 'terminal' },
+    },
+  },
+}
