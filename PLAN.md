@@ -325,15 +325,17 @@ visitor's place on a route's timeline.
 
 **Fares on the route card, 2026-09-28.** The owner resumed fares and asked
 for the card. `src/shared/fares.ts` holds LTFRB's add-on rule as dated rows
-(8 Oct 2023: 13 + 1.80; 28 Sep 2026: 14 + 2.00, from news reports — the
-LTFRB guide PDF was unreachable and should replace the `source` when read),
+(8 Oct 2023: 13 + 1.80; 28 Sep 2026: 14 + 2.00 — first from news, then the
+owner supplied LTFRB's own guide the same day, and every one of its 50
+rows reproduces, both columns, in `fares-test`),
 in centavos, discount before the ₱0.25 rounding, checked against the
 guide's own rows in `scripts/fares-test.mjs`. A jeepney route's card shows
 the rule, the ride's estimate as a floor/ceil-km range (nobody publishes
 how a part km counts), the discounted fare beside it, a 30-day note that
 some jeeps still charge the old fare, and the source line. Traditional
 jeeps only, the owner's call: an e-jeepney's LTFRB class hangs on aircon,
-which the route does not record.
+which the route does not record — e-jeeps deferred on his word, jeeps
+first. The card leads with the ride's pesos; the rule reads beneath.
 
 **One hintuan, its boxes mini stops, 2026-09-28.** The owner saw "Bestlink"
 twice — a box each side of the road — and drew the model: a *hintuan* is

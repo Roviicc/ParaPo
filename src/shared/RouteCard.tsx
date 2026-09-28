@@ -134,15 +134,17 @@ export function RouteCard({ variant, timeline, rideTo, onRideTo, sibling, onSwit
           <>
             <dt className="text-neutral-500">Fare</dt>
             <dd data-testid="card-fare" className="text-neutral-900">
-              {peso(fare.rule.minimum)} for the first {fare.rule.minimumKm} km, then {peso(fare.rule.perKm)} per km
+              {/* The ride's pesos lead and the rule follows — the owner's ask
+                  of 2026-09-28. "From Tala": the estimate boards at the head,
+                  and a rider standing mid-route must not read it as theirs
+                  (§4.2 C). */}
+              {rideLabel
+                ? `${timeline?.from ? `From ${timeline.from.label} to` : 'To'} ${rideLabel}, about`
+                : 'Whole ride about'}{' '}
+              {pesoRange(fare.whole.low.regular, fare.whole.high.regular)}
               <p className="mt-0.5 text-xs text-neutral-600">
-                {/* "From Tala": the estimate boards at the head, and a rider
-                    standing mid-route must not read it as theirs (§4.2 C). */}
-                {rideLabel
-                  ? `${timeline?.from ? `From ${timeline.from.label} to` : 'To'} ${rideLabel}, about`
-                  : 'Whole ride about'}{' '}
-                {pesoRange(fare.whole.low.regular, fare.whole.high.regular)} · students, seniors, PWDs{' '}
-                {pesoRange(fare.whole.low.discounted, fare.whole.high.discounted)}
+                Students, seniors, PWDs {pesoRange(fare.whole.low.discounted, fare.whole.high.discounted)} ·{' '}
+                {peso(fare.rule.minimum)} first {fare.rule.minimumKm} km, then {peso(fare.rule.perKm)} per km
               </p>
               {fare.previous && (
                 <p className="mt-0.5 text-xs text-amber-700">

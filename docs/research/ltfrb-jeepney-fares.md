@@ -24,6 +24,19 @@ Researched 26 September 2026. Fares change often. Check the history section befo
 - **Today's rows** are read directly from LTFRB's three official fare guides (see [Fare guides](#the-2023-fare-guides-primary)).
 - **The 28 September rows** come from news reports of the DOTr approval. I could not reach LTFRB's new fare guide PDFs, because the site blocks automated access. Those reports also do not say what happens to *non-aircon* modern jeeps.
 
+## Update, 28 September 2026: the official guide, read
+
+The owner supplied LTFRB's new **PUJ General Fare Guide** (effective 28
+September 2026) on the day itself. It confirms **₱14.00 for the first 4 km
+and ₱2.00 per succeeding km**, prints the discount rule unrounded ("First
+Four (4) kilometers = P 11.20 / Succeeding kilometers = Additional P 1.60
+per kilometer" — 80% of the regular rule; the table's own rows round to
+₱0.25, first 4 km **₱11.25**), and repeats hotline 1342 and the MC 2017-024
+everyday-discount note. §1.1's formula reproduces **all 50 printed rows
+exactly**, both columns; `scripts/fares-test.mjs` carries the table. The
+modern-PUJ guide is still unread (₱2.30/₱2.40 unsettled) and parked: the
+owner scoped fares to traditional jeeps (28 Sep 2026).
+
 ## 1. The fare rules
 
 ### 1.1 How a fare is built

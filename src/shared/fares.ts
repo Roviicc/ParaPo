@@ -25,9 +25,10 @@ export type FareRule = {
  */
 export const TRADITIONAL: FareRule[] = [
   { from: '2023-10-08', minimum: 1300, minimumKm: 4, perKm: 180, source: 'LTFRB fare guide of 8 Oct 2023' },
-  // From news reports of the DOTr approval of 25 Sep 2026; LTFRB's own guide
-  // was out of reach. Swap the source for the guide once it is read.
-  { from: '2026-09-28', minimum: 1400, minimumKm: 4, perKm: 200, source: 'LTFRB rates from 28 Sep 2026' },
+  // The owner supplied the official guide on 2026-09-28, the day it took
+  // effect; fares-test holds its whole table and every row reproduces. The
+  // guide prints the discount rule unrounded (11.20 + 1.60); its rows round.
+  { from: '2026-09-28', minimum: 1400, minimumKm: 4, perKm: 200, source: 'LTFRB fare guide effective 28 Sep 2026' },
 ]
 
 const DISCOUNT = 0.2

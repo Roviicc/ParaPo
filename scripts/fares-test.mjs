@@ -52,3 +52,19 @@ test('pesos as the card writes them', () => {
   assert.equal(pesoRange(2400, 2600), '₱24–26')
   assert.equal(pesoRange(1400, 1400), '₱14')
 })
+
+test("the official guide of 28 Sep 2026: all 50 printed rows reproduce", () => {
+  // Transcribed from LTFRB's PUJ General Fare Guide effective 28 Sep 2026
+  // (the owner's copy). The regular column is exactly 14 + 2 x (km - 4);
+  // the discount column is where the round-to-P0.25 rule shows its work.
+  const DISC = [
+    1275, 1450, 1600, 1750, 1925, 2075, 2250, 2400, 2550, 2725, 2875, 3050,
+    3200, 3350, 3525, 3675, 3850, 4000, 4150, 4325, 4475, 4650, 4800, 4950,
+    5125, 5275, 5450, 5600, 5750, 5925, 6075, 6250, 6400, 6550, 6725, 6875,
+    7050, 7200, 7350, 7525, 7675, 7850, 8000, 8150, 8325, 8475,
+  ]
+  for (let k = 1; k <= 50; k++) {
+    const want = { regular: k <= 4 ? 1400 : 1400 + 200 * (k - 4), discounted: k <= 4 ? 1125 : DISC[k - 5] }
+    assert.deepEqual(fareForKm(k, y2026), want, `km ${k}`)
+  }
+})
