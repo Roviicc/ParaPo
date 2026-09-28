@@ -25,7 +25,7 @@ type Story = StoryObj<typeof meta>
  */
 export const Special: Story = {}
 
-/** Brand blue, SN Pro Medium, bevelled. Hover shades the top; press darkens and sinks it. */
+/** Brand blue, SN Pro Medium, bevelled. Hover lights it from the top; press darkens and sinks it. */
 export const Primary: Story = { args: { variant: 'primary' } }
 
 /** The destructive red, on Primary's shadows. Press darkens to Error/surface-secondary. */

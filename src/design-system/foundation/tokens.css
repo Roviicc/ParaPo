@@ -193,7 +193,7 @@
     inset 0 -0.6px 0 0 rgb(0 0 0 / 0.4), inset 0.6px 0 0 0 rgb(0 0 0 / 0.4),
     inset -0.6px 0 0 0 rgb(0 0 0 / 0.4), inset 0 0.6px 0 0 rgb(0 0 0 / 0.4);
   --shadow-primary-button-hover:
-    inset 0 -1px 2px 0 rgb(0 0 0 / 0.4), inset 0 11px 10.3px 0 rgb(0 0 0 / 0.6),
+    inset 0 -1px 2px 0 rgb(0 0 0 / 0.4), inset 0 11px 10.3px 0 rgb(255 255 255 / 0.36),
     inset 0 -0.6px 0 0 rgb(0 0 0 / 0.32), inset 0.6px 0 0 0 rgb(0 0 0 / 0.32),
     inset -0.6px 0 0 0 rgb(0 0 0 / 0.32), inset 0 0.6px 0 0 rgb(0 0 0 / 0.32);
   --shadow-primary-button-pressed:
