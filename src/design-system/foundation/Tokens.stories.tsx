@@ -97,6 +97,11 @@ function TokensPage() {
         <Swatch box="bg-card-yellow-surface border-3 border-card-yellow-border-primary" token="Card/yellow" cls="bg-card-yellow-surface" />
       </Group>
 
+      <Group title="Error actions">
+        <Swatch box="bg-error-surface" token="Error/surface" cls="bg-error-surface" />
+        <Swatch box="bg-error-surface-secondary" token="Error/surface-secondary" cls="bg-error-surface-secondary" />
+      </Group>
+
       <Group title="Brand">
         <Swatch box="bg-brand-surface" token="Brand/surface" cls="bg-brand-surface" />
         <Swatch box="bg-brand-surface-secondary" token="Brand/surface-secondary" cls="bg-brand-surface-secondary" />

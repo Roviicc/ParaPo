@@ -114,6 +114,11 @@
   --card-yellow-surface: var(--color-yellow-300);
   --card-yellow-border-primary: var(--color-yellow-500);
 
+  /* Error actions — the destructive button. Figma: Error/… (2026-09-28,
+     added for the Button so its fill stopped being the one primitive). */
+  --error-surface: var(--color-red-700);
+  --error-surface-secondary: var(--color-red-800);
+
   /* Brand. Figma: Brand/… */
   --brand-surface: var(--color-blue-700);
   --brand-surface-secondary: var(--color-blue-800);
@@ -155,6 +160,9 @@
   --color-card-mist-border-primary: var(--card-mist-border-primary);
   --color-card-yellow-surface: var(--card-yellow-surface);
   --color-card-yellow-border-primary: var(--card-yellow-border-primary);
+
+  --color-error-surface: var(--error-surface);
+  --color-error-surface-secondary: var(--error-surface-secondary);
 
   --color-brand-surface: var(--brand-surface);
   --color-brand-surface-secondary: var(--brand-surface-secondary);
