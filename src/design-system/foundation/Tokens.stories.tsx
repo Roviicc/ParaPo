@@ -103,6 +103,18 @@ function TokensPage() {
         <Swatch box="border-3 border-brand-border bg-surface" token="Brand/border" cls="border-brand-border" />
       </Group>
 
+      <Group title="Type — the two families">
+        <div className="w-full rounded-lg border border-border-primary bg-surface p-4">
+          <p className="font-cubao text-2xl text-content-primary">Cubao Free — PARA PO · BUTTON · SM FAIRVIEW</p>
+          <p className="mt-1 font-mono text-[11px] text-content-quaternary">font-cubao</p>
+          <p className="mt-3 font-sn-pro text-lg text-content-primary">SN Pro Regular — Tala to SM Fairview, ₱14 the first 4 km</p>
+          <p className="font-sn-pro text-lg font-medium text-content-primary">SN Pro Medium — Tala to SM Fairview</p>
+          <p className="font-sn-pro text-lg font-semibold text-content-primary">SN Pro SemiBold — Tala to SM Fairview</p>
+          <p className="font-sn-pro text-lg font-bold text-content-primary">SN Pro Bold — Tala to SM Fairview</p>
+          <p className="mt-1 font-mono text-[11px] text-content-quaternary">font-sn-pro · font-medium · font-semibold · font-bold</p>
+        </div>
+      </Group>
+
       <Group title="Custom primitives — the families Tailwind lacks">
         <div className="flex flex-col gap-4">
           {/* Literal class lists: Tailwind only generates classes it can read. */}

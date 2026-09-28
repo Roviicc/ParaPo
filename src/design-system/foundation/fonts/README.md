@@ -1,12 +1,10 @@
 # PalimosPoDesignSystem fonts
 
-Drop the font files straight into this folder — that is what it is for:
+The owner's files, dropped 2026-09-28: SN Pro's sixteen static cuts in
+`SNPro/`, Cubao Free's three (narrow, regular, wide) in `Cubao/`.
 
-- **Cubao Free** — Regular. One file.
-- **SN Pro** — the variable file, or Regular (400) + Medium (500).
-
-`.woff2` preferred; `.woff`, `.ttf` or `.otf` are fine too, any filename.
-Then say so, and the `@font-face` rules, the fallback stacks and the
-`--font-*` tokens (Figma's `font/family/Cubao` and `font/family/SNPRO`)
-get wired to whatever landed here. Until then the app's system stack
-stands in, and no token pretends otherwise.
+**Wired** (fonts.css, as woff2 converted from these sources): SN Pro
+400 / 500 / 600 / 700 and Cubao Free Regular. Everything else stays here
+unwired — italics, the extra weights, Cubao narrow and wide — until a
+design uses one; wiring a face is one @font-face block and, if new to
+the scale, one token.
