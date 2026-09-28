@@ -203,6 +203,7 @@ const snapshot = await page.evaluate(async () => {
       ring: f.geometry.coordinates[0],
     })),
     labelCount: pointFeatures.length,
+    labelledIds: pointFeatures.flatMap((f) => String(f.properties.ids).split(',')),
     routeLines: (routesFC?.features ?? []).map((f) => f.geometry.coordinates),
     routes: (routesFC?.features ?? []).map((f) => ({ route_id: f.properties.route_id, coords: f.geometry.coordinates })),
     routeCount: routesFC?.features?.length ?? 0,
@@ -211,10 +212,16 @@ const snapshot = await page.evaluate(async () => {
   }
 })
 
+// One label per hintuan, not per box: a box on each side of the road shares
+// one (labelGroups, 2026-09-28). So every box is named by exactly one label.
+const labelled = snapshot.labelledIds
 check(
-  'hotspot polygons and label points match, and at least one exists',
-  snapshot.polys.length === snapshot.labelCount && snapshot.polys.length > 0,
-  `${snapshot.polys.length} polygons, ${snapshot.labelCount} labels`,
+  'every hotspot polygon is named by exactly one label point, and at least one exists',
+  snapshot.polys.length > 0 &&
+    labelled.length === snapshot.polys.length &&
+    new Set(labelled).size === labelled.length &&
+    snapshot.polys.every((p) => labelled.includes(p.id)),
+  `${snapshot.polys.length} polygons, ${snapshot.labelCount} labels naming ${labelled.length} boxes`,
 )
 
 const fillIdx = snapshot.order.indexOf('saved-stops-fill')
@@ -253,10 +260,17 @@ const pill = parsePill(snapshot.pillText)
 if (snapshot.routeCount === 0) {
   check('no summary pill when no routes are drawn', snapshot.pillText === null, snapshot.pillText ?? '')
 } else {
+  // Hotspots as a rider counts them (hotspotCount, 2026-09-28): each terminal,
+  // and each place's hintuan once, however many boxes — its mini stops — it has.
+  const file = await (await fetch(`${BASE}/data/map.json`)).json()
+  const place = (s) => (s.informal?.trim() || s.name).trim().toLowerCase()
+  const hotspots =
+    file.stops.filter((s) => s.kind === 'terminal').length +
+    new Set(file.stops.filter((s) => s.kind === 'hintuan').map(place)).size
   check(
-    'summary pill counts match what is drawn',
-    !!pill && pill.routes === snapshot.routeCount && pill.hotspots === snapshot.polys.length,
-    `pill "${snapshot.pillText}" vs ${snapshot.routeCount} routes / ${snapshot.polys.length} hotspots drawn`,
+    'summary pill counts match what is drawn, a hintuan once however many boxes',
+    !!pill && pill.routes === snapshot.routeCount && pill.hotspots === hotspots,
+    `pill "${snapshot.pillText}" vs ${snapshot.routeCount} routes / ${hotspots} hotspots (${snapshot.polys.length} boxes)`,
   )
 }
 

@@ -202,35 +202,58 @@ export function siblingsOf<S extends StopSummary>(stop: StopSummary, all: readon
     .sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'terminal' ? -1 : 1))
 }
 
-/** "terminal + 2 hintuans", "3 hintuans", "terminal": what a place is made of. */
+/**
+ * "terminal + hintuan · 2 mini stops", "hintuan · 2 mini stops": what a place
+ * is made of. A place's hintuan boxes are one hintuan to a rider; each box is
+ * a mini stop, there for information. The owner's model, 2026-09-28.
+ */
 export function placeSummary(boxes: readonly StopSummary[]): string {
   const terminals = boxes.filter((s) => s.kind === 'terminal').length
-  const hintuans = boxes.length - terminals
+  const minis = boxes.length - terminals
   const parts: string[] = []
   if (terminals > 0) parts.push(terminals === 1 ? 'terminal' : `${terminals} terminals`)
-  if (hintuans > 0) parts.push(`${hintuans} ${hintuans === 1 ? 'hintuan' : 'hintuans'}`)
+  if (minis > 0) parts.push(minis === 1 ? 'hintuan' : `hintuan · ${minis} mini stops`)
   return parts.join(' + ')
 }
 
-/** How many boxes each place has, by place key. */
-export function placeSizes(stops: readonly StopSummary[]): Map<string, number> {
-  const sizes = new Map<string, number>()
-  for (const s of stops) sizes.set(placeKey(s), (sizes.get(placeKey(s)) ?? 0) + 1)
-  return sizes
+/**
+ * How many hotspots there are, as a rider counts them: each terminal, and
+ * each place's hintuan once however many mini stops it has. The owner's
+ * rule of 2026-09-28; the pill reads it.
+ */
+export function hotspotCount(stops: readonly StopSummary[]): number {
+  const hintuans = new Set(stops.filter((s) => s.kind === 'hintuan').map(placeKey))
+  return stops.filter((s) => s.kind === 'terminal').length + hintuans.size
 }
 
+/** How far apart two boxes of one name may be and still be one hintuan: both sides of a road. */
+export const SAME_HINTUAN_M = 100
+
 /**
- * How a hotspot reads on a timeline: its place, and its own name after a
- * dash when the place has several boxes and the box has a name of its own —
- * "SM Fairview – Main Babaan" tells a rider which side of the mall. A box
- * whose stop name is its ground name, or the only box of its place, is just
- * its label. The owner's rule, 2026-09-22.
+ * One map label per hintuan: boxes of the same kind and name within
+ * SAME_HINTUAN_M of each other — one traced on each side of the road — share
+ * a label halfway between them, so one hintuan does not read as two. The
+ * owner's ask of 2026-09-28, with Bestlink. Farther apart, each keeps its own.
  */
-export function timelineLabel(s: StopSummary, sizes: Map<string, number>): string {
-  const label = stopLabel(s)
-  const own = s.name.trim()
-  const several = (sizes.get(placeKey(s)) ?? 0) > 1
-  return several && own && own.toLowerCase() !== label.toLowerCase() ? `${label} – ${own}` : label
+export function labelGroups<S extends StopSummary>(stops: readonly S[]): { ids: string[]; kind: StopKind; name: string; point: LngLat }[] {
+  const groups: { key: string; boxes: S[] }[] = []
+  for (const s of stops) {
+    const key = `${s.kind}|${s.name.trim().toLowerCase()}`
+    const near = groups.find(
+      (g) => g.key === key && g.boxes.some((b) => haversine(b.point.coordinates, s.point.coordinates) <= SAME_HINTUAN_M),
+    )
+    if (near) near.boxes.push(s)
+    else groups.push({ key, boxes: [s] })
+  }
+  return groups.map(({ boxes }) => ({
+    ids: boxes.map((b) => b.id),
+    kind: boxes[0].kind,
+    name: boxes[0].name,
+    point: [
+      boxes.reduce((a, b) => a + b.point.coordinates[0], 0) / boxes.length,
+      boxes.reduce((a, b) => a + b.point.coordinates[1], 0) / boxes.length,
+    ],
+  }))
 }
 
 // ----------------------------------------------------------------- timeline
@@ -246,32 +269,33 @@ export type Timeline = { from: TimelineStop | null; to: TimelineStop | null; bet
 
 /**
  * The timeline of a direction with these ends. `along` is the hintuans in
- * the order the line reaches them; `all` is every hotspot, so a place with
- * several boxes can name each. The ends' own boxes are dropped from the
- * middle; a place's other boxes stay, since "SM Fairview – Main Babaan" on
- * the way to the terminal is what a rider wants to see. When the line was
- * drawn from the far end (the save panel allows it with a warning) and
- * `lineStart` says so, the middle is turned round to read in travel order.
+ * the order the line reaches them. A row is a hintuan, named by its stop
+ * name: the boxes of one place passed one after another — a mini stop on
+ * each side of the road, or the several of SM Fairview — are one row, and a
+ * box's own ground name is for the hotspot card, not the route. The ends'
+ * places are left out of the middle: the rider is already getting off
+ * there. The owner's model of 2026-09-28, replacing "SM Fairview – Main
+ * Babaan" rows. When the line was drawn from the far end (the save panel
+ * allows it with a warning) and `lineStart` says so, the middle is turned
+ * round to read in travel order. The row keeps the first box's id.
  */
 export function timelineFor(
   head: StopSummary | null | undefined,
   tail: StopSummary | null | undefined,
   reversed: boolean,
   along: readonly StopSummary[],
-  all: readonly StopSummary[] = along,
   lineStart?: LngLat,
 ): Timeline {
-  const sizes = placeSizes(all)
-  const row = (s: StopSummary): TimelineStop => ({ id: s.id, label: timelineLabel(s, sizes), kind: s.kind })
   // An end is its place, never a box: "SM Fairview", not the terminal's long name.
-  const end = (s: StopSummary): TimelineStop => ({ id: s.id, label: stopLabel(s), kind: s.kind })
+  const row = (s: StopSummary): TimelineStop => ({ id: s.id, label: stopLabel(s), kind: s.kind })
   const [from, to] = reversed ? [tail, head] : [head, tail]
-  const ends = new Set([head?.id, tail?.id])
-  let between = along.filter((s) => s.kind === 'hintuan' && !ends.has(s.id)).map(row)
+  const endPlaces = new Set([head, tail].filter((s) => !!s).map((s) => placeKey(s!)))
+  let between = along.filter((s) => s.kind === 'hintuan' && !endPlaces.has(placeKey(s)))
   if (lineStart && from && to) {
     const toFrom = haversine(lineStart, from.point.coordinates)
     const toTo = haversine(lineStart, to.point.coordinates)
     if (toTo < toFrom) between = between.reverse()
   }
-  return { from: from ? end(from) : null, to: to ? end(to) : null, between }
+  const rows = between.filter((s, i) => i === 0 || placeKey(s) !== placeKey(between[i - 1])).map(row)
+  return { from: from ? row(from) : null, to: to ? row(to) : null, between: rows }
 }

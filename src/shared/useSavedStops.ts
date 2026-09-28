@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { HOTSPOT_COLOUR } from './colours'
 import { convexHull, ringToPolygon } from './geo'
-import { siblingsOf, stopRing, type StopKind, type StopLink, type StopSummary } from './stops'
+import { labelGroups, siblingsOf, stopRing, type StopKind, type StopLink, type StopSummary } from './stops'
 import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, resolveTap, tapTargets } from './tap'
 
 const SRC = 'saved-stops'
@@ -22,9 +22,18 @@ const NAMES_FROM = 16.5 - Math.log2(1.2)
 
 /** A flag of the feature state a tap sets on a box: `lit`, `sibling` or `chosen`. */
 const state = (name: 'lit' | 'sibling' | 'chosen') => ['boolean', ['feature-state', name], false] as const
-/** The label points of one kind, less the hotspot being edited. */
+/**
+ * The label points of one kind, less the one of the hotspot being edited. A
+ * label's `ids` are its boxes' ids joined by commas: a GeoJSON array property
+ * reaches the style as a string anyway, and an id is a UUID, so `in` is exact.
+ */
 const labelsOf = (kind: StopKind, hidden = '') =>
-  ['all', ['==', ['geometry-type'], 'Point'], ['==', ['get', 'kind'], kind], ['!=', ['get', 'id'], hidden]] as never
+  [
+    'all',
+    ['==', ['geometry-type'], 'Point'],
+    ['==', ['get', 'kind'], kind],
+    ...(hidden ? [['!', ['in', hidden, ['get', 'ids']]]] : []),
+  ] as never
 /** The boxes under a tap, or the chosen one, drawn again stronger while they are asked about. */
 const LIT = 'saved-stops-lit'
 /**
@@ -252,10 +261,11 @@ export function useSavedStops<S extends StopSummary>(
           properties: { id: s.id, kind: s.kind, name: s.name },
           geometry: s.area!,
         })),
-        ...withArea.map((s) => ({
+        // One label per hintuan: a box on each side of the road shares one (labelGroups).
+        ...labelGroups(withArea).map((g) => ({
           type: 'Feature' as const,
-          properties: { id: s.id, kind: s.kind, name: s.name },
-          geometry: s.point,
+          properties: { id: g.ids[0], ids: g.ids.join(','), kind: g.kind, name: g.name },
+          geometry: { type: 'Point' as const, coordinates: g.point },
         })),
       ],
     })

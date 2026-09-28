@@ -6,6 +6,7 @@ import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile,
 import { reloadToUpdate, useNeedRefresh } from './pwa'
 import { MapView, coarse } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
+import { useRideTo } from '../shared/rideTo'
 import {
   directionEnds,
   otherDirection,
@@ -19,6 +20,7 @@ import { usePassStretches } from '../shared/passStretches'
 import { useBabaanSides } from '../shared/babaanSides'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
 import { useSavedStops } from '../shared/useSavedStops'
+import { hotspotCount } from '../shared/stops'
 import { Walker } from './Walker'
 import { WhereAmIButton } from './WhereAmI'
 import { useWhereAmI } from './useWhereAmI'
@@ -40,6 +42,7 @@ export default function CommuterApp() {
   // One file, fetched once, shared by both hooks.
   const saved = useSavedRoutes(map, loadVariantsFromFile)
   const stops = useSavedStops(map, loadStopsFromFile)
+  const ride = useRideTo(map, saved.selected, stops.stops)
   const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW
 
   // Where a direction passes a hintuan, the line turns orange for that stretch.
@@ -160,10 +163,8 @@ export default function CommuterApp() {
         <RouteCard
           variant={saved.selected}
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
-          onPickStop={(id) => {
-            saved.select(null)
-            stops.show(id)
-          }}
+          rideTo={ride.rideTo}
+          onRideTo={ride.pick}
           sibling={otherDirection(saved.variants, saved.selected)}
           onSwitch={(v) => saved.select(v.id)}
           actions={<ShareButton variant={saved.selected} />}
@@ -216,7 +217,7 @@ export default function CommuterApp() {
         >
           {saved.variants.length} {saved.variants.length === 1 ? 'route' : 'routes'}
           {stops.stops.length > 0 && (
-            <> · {stops.stops.length} {stops.stops.length === 1 ? 'hotspot' : 'hotspots'}</>
+            <> · {hotspotCount(stops.stops)} {hotspotCount(stops.stops) === 1 ? 'hotspot' : 'hotspots'}</>
           )}
         </div>
       )}
