@@ -10,9 +10,9 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 function Swatch({ box, token, cls }: { box: string; token: string; cls: string }) {
   return (
     <div className="w-36">
-      {/* Bordered swatches bring their own colour; only fills get the outline. */}
-      <div className={'h-14 rounded-lg ' + (box.includes('border-') ? box : 'border border-border-primary ' + box)} />
-      <p className="mt-1.5 text-xs font-medium text-content-primary">{token}</p>
+      {/* Bordered and shadowed swatches bring their own edge; only plain fills get the outline. */}
+      <div className={'h-14 rounded-lg ' + (/border-|shadow-/.test(box) ? box : 'border border-border-primary ' + box)} />
+      <p className="mt-1.5 text-xs font-medium break-all text-content-primary">{token}</p>
       <p className="font-mono text-[11px] text-content-quaternary">{cls}</p>
     </div>
   )
@@ -106,6 +106,18 @@ function TokensPage() {
         <Swatch box="bg-brand-surface" token="Brand/surface" cls="bg-brand-surface" />
         <Swatch box="bg-brand-surface-secondary" token="Brand/surface-secondary" cls="bg-brand-surface-secondary" />
         <Swatch box="border-3 border-brand-border bg-surface" token="Brand/border" cls="border-brand-border" />
+      </Group>
+
+      <Group title="Shadow — the Figma effect styles">
+        {/* Each tile wears its shadow on the fill it was drawn for. */}
+        <Swatch box="rounded-full bg-surface-tertiary shadow-special-button-rest" token="InnerShadow/SpecialButtonRest" cls="shadow-special-button-rest" />
+        <Swatch box="rounded-full bg-surface-tertiary shadow-special-button-hover" token="InnerShadow/SpecialButtonHover" cls="shadow-special-button-hover" />
+        <Swatch box="rounded-full bg-surface-quaternary shadow-special-button-pressed" token="InnerShadow/SpecialButtonPressed" cls="shadow-special-button-pressed" />
+        <Swatch box="rounded-full bg-brand-surface shadow-primary-button-rest" token="PrimaryButton/PrimaryButtonRest" cls="shadow-primary-button-rest" />
+        <Swatch box="rounded-full bg-brand-surface shadow-primary-button-hover" token="PrimaryButton/PrimaryButtonHover" cls="shadow-primary-button-hover" />
+        <Swatch box="rounded-full bg-brand-surface-secondary shadow-primary-button-pressed" token="PrimaryButton/PrimaryButtonPressed" cls="shadow-primary-button-pressed" />
+        <Swatch box="bg-card-red-surface shadow-route-card-primary" token="Route/RouteCardPrimary" cls="shadow-route-card-primary" />
+        <Swatch box="bg-surface shadow-route-card-inverse" token="Route/RouteCardInverse" cls="shadow-route-card-inverse" />
       </Group>
 
       <Group title="Type — the two families">

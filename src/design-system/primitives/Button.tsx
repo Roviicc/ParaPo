@@ -5,10 +5,14 @@ import type { ComponentPropsWithoutRef, ReactNode } from 'react'
  * (node 3668:2812): a pill in three voices. Special is the jeepney one —
  * Cubao Free on the quiet surface with an edge and a soft shadow; Primary
  * speaks brand blue and Error the destructive red, both in SN Pro Medium.
- * Hover is drawn identical to Default in the set, so no hover style here;
- * Pressed darkens (and Special loses its edge); Disabled is the design's
- * opacity/60. No focus state is designed yet, so the browser's own focus
- * ring stands until the owner draws one.
+ * Each state wears the set's effect style of the same name (tokens.css):
+ * Rest, Hover (drawn 2026-09-28 — until then it matched Default), Pressed
+ * (which also darkens the fill, and Special loses its edge). Error borrows
+ * Primary's shadows, as the set does. Hover and press are `enabled:` only,
+ * so a disabled button keeps its Rest look at the design's opacity/60.
+ * Tailwind puts hover behind `(hover: hover)`, so phones never stick on it.
+ * No focus state is designed yet, so the browser's own focus ring stands
+ * until the owner draws one.
  */
 
 type Size = 'base' | 'small'
@@ -36,10 +40,17 @@ type Props = Omit<
 
 const VARIANT = {
   special:
-    'border border-border-secondary bg-surface-tertiary font-cubao text-content-primary shadow-sm ' +
-    'active:border-transparent active:bg-surface-quaternary active:shadow-none',
-  primary: 'bg-brand-surface font-sn-pro font-medium text-content-inverse active:bg-brand-surface-secondary',
-  error: 'bg-error-surface font-sn-pro font-medium text-content-inverse active:bg-error-surface-secondary',
+    'bg-surface-tertiary font-cubao text-content-primary shadow-special-button-rest ' +
+    'enabled:hover:shadow-special-button-hover ' +
+    'enabled:active:bg-surface-quaternary enabled:active:shadow-special-button-pressed',
+  primary:
+    'bg-brand-surface font-sn-pro font-medium text-content-inverse shadow-primary-button-rest ' +
+    'enabled:hover:shadow-primary-button-hover ' +
+    'enabled:active:bg-brand-surface-secondary enabled:active:shadow-primary-button-pressed',
+  error:
+    'bg-error-surface font-sn-pro font-medium text-content-inverse shadow-primary-button-rest ' +
+    'enabled:hover:shadow-primary-button-hover ' +
+    'enabled:active:bg-error-surface-secondary enabled:active:shadow-primary-button-pressed',
 } satisfies Record<Props['variant'], string>
 
 // Small carries the set's font/weight/medium; Cubao has one cut, so on

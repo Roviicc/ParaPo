@@ -168,3 +168,41 @@
   --color-brand-surface-secondary: var(--brand-surface-secondary);
   --color-brand-border: var(--brand-border);
 }
+
+/*
+ * Shadows. Figma keeps these as effect styles, not variables (2026-09-28);
+ * each is named here by its style's own name — PrimaryButton/PrimaryButtonRest
+ * → shadow-primary-button-rest — so the Figma panel and the class read the
+ * same. Layers are listed in Figma's CSS order (its effects array, reversed).
+ * Special's edge is an inset hairline in Border/secondary, not a stroke, so
+ * it follows the semantic. `inline` so that var() resolves where it is used.
+ */
+@theme inline {
+  --shadow-special-button-rest:
+    inset 0 0.4px 0 0 var(--border-secondary), 0 2px 8px 0 rgb(0 0 0 / 0.08),
+    inset 0 3px 3px 0 rgb(255 255 255 / 0.8), inset 0 -1px 1px 0 rgb(0 0 0 / 0.32);
+  --shadow-special-button-hover:
+    inset 0 0.4px 0 0 var(--border-secondary), 0 2px 8px 0 rgb(0 0 0 / 0.08),
+    inset 0 16px 11.3px 0 rgb(217 217 217 / 0.72), inset 0 -1px 1px 0 rgb(0 0 0 / 0.32);
+  --shadow-special-button-pressed:
+    0 2px 8px 0 rgb(0 0 0 / 0.08), inset 1.5px 3px 2px 0 rgb(0 0 0 / 0.43),
+    inset 0 -0.6px 0 0 rgb(0 0 0 / 0.08);
+
+  --shadow-primary-button-rest:
+    inset 0 -1px 2px 0 rgb(0 0 0 / 0.4), inset 0 2px 3px 0 rgb(255 255 255 / 0.32),
+    inset 0 -0.6px 0 0 rgb(0 0 0 / 0.4), inset 0.6px 0 0 0 rgb(0 0 0 / 0.4),
+    inset -0.6px 0 0 0 rgb(0 0 0 / 0.4), inset 0 0.6px 0 0 rgb(0 0 0 / 0.4);
+  --shadow-primary-button-hover:
+    inset 0 -1px 2px 0 rgb(0 0 0 / 0.4), inset 0 11px 10.3px 0 rgb(0 0 0 / 0.6),
+    inset 0 -0.6px 0 0 rgb(0 0 0 / 0.32), inset 0.6px 0 0 0 rgb(0 0 0 / 0.32),
+    inset -0.6px 0 0 0 rgb(0 0 0 / 0.32), inset 0 0.6px 0 0 rgb(0 0 0 / 0.32);
+  --shadow-primary-button-pressed:
+    inset -1px -1px 0 0 rgb(11 11 11 / 0.32), inset 1.5px 3px 2px 0 rgb(0 0 0 / 0.5),
+    inset 0 -0.6px 0 0 rgb(0 0 0 / 0.24), inset 0.6px 0 0 0 rgb(0 0 0 / 0.24),
+    inset -0.6px 0 0 0 rgb(0 0 0 / 0.24), inset 0 0.6px 0 0 rgb(0 0 0 / 0.24);
+
+  --shadow-route-card-primary:
+    inset 0 3px 2px 0 rgb(255 255 255 / 0.28), inset 0 -3px 4px 0 rgb(0 0 0 / 0.28);
+  --shadow-route-card-inverse:
+    inset 0 3px 2px 0 rgb(255 255 255 / 0.4), inset 0 -3px 3px 0 rgb(0 0 0 / 0.2);
+}

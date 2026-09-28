@@ -18,13 +18,17 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** The jeepney pill: Cubao Free on the quiet surface, edged and softly shadowed. */
+/**
+ * The jeepney pill: Cubao Free on the quiet surface, lit from above with a
+ * hairline edge. Hover deepens the glow; press sinks it. The three shadows
+ * sit side by side on Foundation/Tokens.
+ */
 export const Special: Story = {}
 
-/** Brand blue, SN Pro Medium. Hover is designed identical to default; press darkens it. */
+/** Brand blue, SN Pro Medium, bevelled. Hover shades the top; press darkens and sinks it. */
 export const Primary: Story = { args: { variant: 'primary' } }
 
-/** The destructive red. Press darkens to Error/surface-secondary. */
+/** The destructive red, on Primary's shadows. Press darkens to Error/surface-secondary. */
 export const Error: Story = { args: { variant: 'error' } }
 
 /** Small exists only for Special — on the other variants it is a compile error. */
