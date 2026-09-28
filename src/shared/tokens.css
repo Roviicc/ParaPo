@@ -1,0 +1,154 @@
+/*
+ * The design tokens, mirroring the Figma file's variables ("Para Po" →
+ * Primitive and Semantics collections). One place, as PLAN.md's design
+ * foundation asks. Tailwind v4 already ships every primitive the Figma file
+ * copied from it (gray/slate/neutral/stone, the hues, spacing, radius, type
+ * scale — the hex values match v4 exactly), so only what is OURS lives here:
+ *
+ *  1. Custom primitives — colour families Figma has that Tailwind lacks.
+ *  2. Semantics — the meanings, each an alias of a primitive, exactly the
+ *     aliases the Figma Semantics collection holds. They resolve through
+ *     :root custom properties so a dark mode later is one more block
+ *     redefining them (the same one-column job as a new Figma mode), and
+ *     `@theme inline` turns each into utilities: text-content-primary,
+ *     bg-surface, border-border-primary, bg-card-red-surface…
+ *
+ * The map's own working colours (route blue #406AF5, pass orange…) are NOT
+ * here yet: the owner is still choosing their naming (2026-09-28).
+ */
+
+@theme {
+  /* Primitive: between neutral-100 and neutral-200; Figma's color/neutral/150. */
+  --color-neutral-150: #f0f0f0;
+
+  /* Primitive: the desaturated families Figma adds beside Tailwind's. */
+  --color-mauve-50: #fafafa;
+  --color-mauve-100: #f3f1f3;
+  --color-mauve-200: #e7e4e7;
+  --color-mauve-300: #d7d0d7;
+  --color-mauve-400: #a89ea9;
+  --color-mauve-500: #79697b;
+  --color-mauve-600: #594c5b;
+  --color-mauve-700: #463947;
+  --color-mauve-800: #2a212c;
+  --color-mauve-900: #1d161e;
+  --color-mauve-950: #0c090c;
+
+  --color-olive-50: #fbfbf9;
+  --color-olive-100: #f4f4f0;
+  --color-olive-200: #e8e8e3;
+  --color-olive-300: #d8d8d0;
+  --color-olive-400: #abab9c;
+  --color-olive-500: #7c7c67;
+  --color-olive-600: #5b5b4b;
+  --color-olive-700: #474739;
+  --color-olive-800: #2b2b22;
+  --color-olive-900: #1d1d16;
+  --color-olive-950: #0c0c09;
+
+  --color-mist-50: #f9fbfb;
+  --color-mist-100: #f1f3f3;
+  --color-mist-200: #e3e7e8;
+  --color-mist-300: #d0d6d8;
+  --color-mist-400: #9ca8ab;
+  --color-mist-500: #67787c;
+  --color-mist-600: #4b585b;
+  --color-mist-700: #394447;
+  --color-mist-800: #22292b;
+  --color-mist-900: #161b1d;
+  --color-mist-950: #090b0c;
+
+  --color-taupe-50: #fbfaf9;
+  --color-taupe-100: #f3f1f1;
+  --color-taupe-200: #e8e4e3;
+  --color-taupe-300: #d8d2d0;
+  --color-taupe-400: #aba09c;
+  --color-taupe-500: #7c6d67;
+  --color-taupe-600: #5b4f4b;
+  --color-taupe-700: #473c39;
+  --color-taupe-800: #2b2422;
+  --color-taupe-900: #1d1816;
+  --color-taupe-950: #0c0a09;
+}
+
+/*
+ * Semantics, Light mode — the values of the Figma Semantics collection.
+ * A dark mode later redefines exactly these properties in its own block.
+ */
+:root {
+  /* Content — what is written. Figma: Content/… */
+  --content-primary: var(--color-neutral-900);
+  --content-secondary: var(--color-neutral-800);
+  --content-tertiary: var(--color-neutral-700);
+  --content-quaternary: var(--color-neutral-600);
+  --content-disabled: var(--color-neutral-500);
+  --content-inverse: var(--color-white);
+  --content-inverse-secondary: var(--color-neutral-200);
+  --content-error: var(--color-red-800);
+
+  /* Border. Figma: Border/… */
+  --border-primary: var(--color-neutral-200);
+  --border-secondary: var(--color-neutral-300);
+  --border-tertiary: var(--color-neutral-400);
+  --border-error: var(--color-red-700);
+
+  /* Background. Figma: Background/… */
+  --surface: var(--color-white);
+  --surface-secondary: var(--color-neutral-100);
+  --surface-tertiary: var(--color-neutral-150);
+  --surface-quaternary: var(--color-neutral-200);
+  --surface-error: var(--color-red-100);
+
+  /* The jeepney-livery cards. Figma: Card/… */
+  --card-red-surface: var(--color-red-800);
+  --card-red-surface-pale: var(--color-red-700);
+  --card-red-border-primary: var(--color-red-900);
+  --card-orange-surface: var(--color-orange-700);
+  --card-orange-border-primary: var(--color-orange-800);
+  --card-mist-surface: var(--color-mist-300);
+  --card-mist-border-primary: var(--color-mist-400);
+  --card-yellow-surface: var(--color-yellow-300);
+  --card-yellow-border-primary: var(--color-yellow-500);
+
+  /* Brand. Figma: Brand/… */
+  --brand-surface: var(--color-blue-700);
+  --brand-surface-secondary: var(--color-blue-800);
+  --brand-border: var(--color-blue-800);
+}
+
+/* The semantics as utilities: text-content-primary, bg-surface, border-border-primary… */
+@theme inline {
+  --color-content-primary: var(--content-primary);
+  --color-content-secondary: var(--content-secondary);
+  --color-content-tertiary: var(--content-tertiary);
+  --color-content-quaternary: var(--content-quaternary);
+  --color-content-disabled: var(--content-disabled);
+  --color-content-inverse: var(--content-inverse);
+  --color-content-inverse-secondary: var(--content-inverse-secondary);
+  --color-content-error: var(--content-error);
+
+  --color-border-primary: var(--border-primary);
+  --color-border-secondary: var(--border-secondary);
+  --color-border-tertiary: var(--border-tertiary);
+  --color-border-error: var(--border-error);
+
+  --color-surface: var(--surface);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-surface-tertiary: var(--surface-tertiary);
+  --color-surface-quaternary: var(--surface-quaternary);
+  --color-surface-error: var(--surface-error);
+
+  --color-card-red-surface: var(--card-red-surface);
+  --color-card-red-surface-pale: var(--card-red-surface-pale);
+  --color-card-red-border-primary: var(--card-red-border-primary);
+  --color-card-orange-surface: var(--card-orange-surface);
+  --color-card-orange-border-primary: var(--card-orange-border-primary);
+  --color-card-mist-surface: var(--card-mist-surface);
+  --color-card-mist-border-primary: var(--card-mist-border-primary);
+  --color-card-yellow-surface: var(--card-yellow-surface);
+  --color-card-yellow-border-primary: var(--card-yellow-border-primary);
+
+  --color-brand-surface: var(--brand-surface);
+  --color-brand-surface-secondary: var(--brand-surface-secondary);
+  --color-brand-border: var(--brand-border);
+}
