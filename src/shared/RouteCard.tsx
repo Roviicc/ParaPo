@@ -136,7 +136,12 @@ export function RouteCard({ variant, timeline, rideTo, onRideTo, sibling, onSwit
             <dd data-testid="card-fare" className="text-neutral-900">
               {peso(fare.rule.minimum)} for the first {fare.rule.minimumKm} km, then {peso(fare.rule.perKm)} per km
               <p className="mt-0.5 text-xs text-neutral-600">
-                {rideLabel ? `To ${rideLabel} about` : 'Whole ride about'} {pesoRange(fare.whole.low.regular, fare.whole.high.regular)} · students, seniors, PWDs{' '}
+                {/* "From Tala": the estimate boards at the head, and a rider
+                    standing mid-route must not read it as theirs (§4.2 C). */}
+                {rideLabel
+                  ? `${timeline?.from ? `From ${timeline.from.label} to` : 'To'} ${rideLabel}, about`
+                  : 'Whole ride about'}{' '}
+                {pesoRange(fare.whole.low.regular, fare.whole.high.regular)} · students, seniors, PWDs{' '}
                 {pesoRange(fare.whole.low.discounted, fare.whole.high.discounted)}
               </p>
               {fare.previous && (
