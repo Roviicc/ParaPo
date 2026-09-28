@@ -84,7 +84,8 @@
   --content-disabled: var(--color-neutral-500);
   --content-inverse: var(--color-white);
   --content-inverse-secondary: var(--color-neutral-200);
-  --content-error: var(--color-red-800);
+  --content-error: var(--color-red-700);
+  --content-success: var(--color-green-700);
 
   /* Border. Figma: Border/… */
   --border-primary: var(--color-neutral-200);
@@ -98,13 +99,16 @@
   --surface-tertiary: var(--color-neutral-150);
   --surface-quaternary: var(--color-neutral-200);
   --surface-error: var(--color-red-100);
+  --surface-success: var(--color-green-100);
 
   /* The jeepney-livery cards. Figma: Card/… */
   --card-red-surface: var(--color-red-800);
   --card-red-surface-pale: var(--color-red-700);
   --card-red-border-primary: var(--color-red-900);
+  --card-red-timeline-surface: var(--color-red-900);
   --card-orange-surface: var(--color-orange-700);
   --card-orange-border-primary: var(--color-orange-800);
+  --card-orange-timeline-surface: var(--color-orange-900);
   --card-mist-surface: var(--color-mist-300);
   --card-mist-border-primary: var(--color-mist-400);
   --card-yellow-surface: var(--color-yellow-300);
@@ -126,6 +130,7 @@
   --color-content-inverse: var(--content-inverse);
   --color-content-inverse-secondary: var(--content-inverse-secondary);
   --color-content-error: var(--content-error);
+  --color-content-success: var(--content-success);
 
   --color-border-primary: var(--border-primary);
   --color-border-secondary: var(--border-secondary);
@@ -137,12 +142,15 @@
   --color-surface-tertiary: var(--surface-tertiary);
   --color-surface-quaternary: var(--surface-quaternary);
   --color-surface-error: var(--surface-error);
+  --color-surface-success: var(--surface-success);
 
   --color-card-red-surface: var(--card-red-surface);
   --color-card-red-surface-pale: var(--card-red-surface-pale);
   --color-card-red-border-primary: var(--card-red-border-primary);
+  --color-card-red-timeline-surface: var(--card-red-timeline-surface);
   --color-card-orange-surface: var(--card-orange-surface);
   --color-card-orange-border-primary: var(--card-orange-border-primary);
+  --color-card-orange-timeline-surface: var(--card-orange-timeline-surface);
   --color-card-mist-surface: var(--card-mist-surface);
   --color-card-mist-border-primary: var(--card-mist-border-primary);
   --color-card-yellow-surface: var(--card-yellow-surface);

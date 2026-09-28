@@ -61,6 +61,7 @@ function TokensPage() {
           <p className="text-content-quaternary">Content/quaternary · text-content-quaternary</p>
           <p className="text-content-disabled">Content/disabled · text-content-disabled</p>
           <p className="text-content-error">Content/error · text-content-error</p>
+          <p className="text-content-success">Content/success · text-content-success</p>
         </div>
         <div className="w-full rounded-lg bg-neutral-900 p-4">
           <p className="text-content-inverse">Content/inverse · text-content-inverse</p>
@@ -83,12 +84,15 @@ function TokensPage() {
         <Swatch box="bg-surface-tertiary" token="…/surface-tertiary" cls="bg-surface-tertiary" />
         <Swatch box="bg-surface-quaternary" token="…/surface-quaternary" cls="bg-surface-quaternary" />
         <Swatch box="bg-surface-error" token="…/surface-error" cls="bg-surface-error" />
+        <Swatch box="bg-surface-success" token="…/surface-success" cls="bg-surface-success" />
       </Group>
 
       <Group title="Card — the jeepney liveries">
         <Swatch box="bg-card-red-surface border-3 border-card-red-border-primary" token="Card/red" cls="bg-card-red-surface" />
         <Swatch box="bg-card-red-surface-pale" token="Card/red/surface-pale" cls="bg-card-red-surface-pale" />
+        <Swatch box="bg-card-red-timeline-surface" token="Card/red/Timeline" cls="bg-card-red-timeline-surface" />
         <Swatch box="bg-card-orange-surface border-3 border-card-orange-border-primary" token="Card/orange" cls="bg-card-orange-surface" />
+        <Swatch box="bg-card-orange-timeline-surface" token="Card/orange/Timeline" cls="bg-card-orange-timeline-surface" />
         <Swatch box="bg-card-mist-surface border-3 border-card-mist-border-primary" token="Card/mist" cls="bg-card-mist-surface" />
         <Swatch box="bg-card-yellow-surface border-3 border-card-yellow-border-primary" token="Card/yellow" cls="bg-card-yellow-surface" />
       </Group>
