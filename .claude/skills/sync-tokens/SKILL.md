@@ -1,12 +1,12 @@
 ---
 name: sync-tokens
-description: Diff the Figma file's variables against src/shared/tokens.css and apply the changes, the same way every time. Use when the owner says the variables changed, or before building a component whose design uses tokens the code may lack.
+description: Diff the Figma file's variables against src/design-system/foundation/tokens.css and apply the changes, the same way every time. Use when the owner says the variables changed, or before building a component whose design uses tokens the code may lack.
 ---
 
 # Sync the Figma variables into tokens.css
 
-The Figma file is PalismoPoDesignSystem's source of truth for tokens; `src/shared/tokens.css`
-is its mirror; `src/shared/Tokens.stories.tsx` is the visible check. This
+The Figma file is PalimosPoDesignSystem's source of truth for tokens; `src/design-system/foundation/tokens.css`
+is its mirror; `src/design-system/foundation/Tokens.stories.tsx` is the visible check. This
 skill reads Figma, diffs, applies, and proves it.
 
 ## 1. Read Figma

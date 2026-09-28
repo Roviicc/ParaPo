@@ -150,7 +150,7 @@ function TokensPage() {
 }
 
 const meta = {
-  title: 'Foundations/Tokens',
+  title: 'Foundation/Tokens',
   component: TokensPage,
 } satisfies Meta<typeof TokensPage>
 

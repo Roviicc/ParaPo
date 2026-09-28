@@ -1,8 +1,12 @@
 // The line between the two front doors, checked rather than hoped for.
 //
-//   src/shared/    imports nothing from commuter/ or studio/
-//   src/commuter/  imports shared/ only
-//   src/studio/    imports shared/ only
+//   src/design-system/  PalimosPoDesignSystem: imports itself only — it is
+//                       domain-free, so never shared/, commuter/ or studio/.
+//                       Inside it, foundation ← primitives ← patterns: a
+//                       lower layer never imports a higher one.
+//   src/shared/    imports shared/ and the design system
+//   src/commuter/  imports shared/, the design system and itself
+//   src/studio/    imports shared/, the design system and itself
 //
 // Reads every import in src/ and fails, naming the file and line, on any that
 // crosses. A source file outside the three folders fails too.
@@ -17,9 +21,17 @@ const src = join(root, 'src')
 
 /** Which areas each area may import from. */
 const ALLOWED = {
-  shared: ['shared'],
-  commuter: ['commuter', 'shared'],
-  studio: ['studio', 'shared'],
+  'design-system': ['design-system'],
+  shared: ['shared', 'design-system'],
+  commuter: ['commuter', 'shared', 'design-system'],
+  studio: ['studio', 'shared', 'design-system'],
+}
+
+/** The design system's inner layers, lowest first; each imports itself and lower. */
+const DS_LAYERS = ['foundation', 'primitives', 'patterns']
+const dsLayerOf = (file) => {
+  const parts = relative(src, file).split(sep)
+  return parts[0] === 'design-system' ? parts[1] : null
 }
 /** Files allowed at the top of src/. */
 const LOOSE = new Set(['vite-env.d.ts'])
@@ -48,7 +60,7 @@ for (const file of walk(src)) {
   const area = areaOf(file)
 
   if (!(area in ALLOWED)) {
-    if (!LOOSE.has(relative(src, file))) problems.push(`${rel}: outside shared/, commuter/ and studio/`)
+    if (!LOOSE.has(relative(src, file))) problems.push(`${rel}: outside design-system/, shared/, commuter/ and studio/`)
     continue
   }
   files++
@@ -67,6 +79,12 @@ for (const file of walk(src)) {
 
     if (!ALLOWED[area].includes(targetArea)) {
       problems.push(`${rel}:${line}: ${area}/ imports ${targetArea}/ ('${spec}')`)
+    } else if (area === 'design-system' && targetArea === 'design-system') {
+      const from = dsLayerOf(file)
+      const to = dsLayerOf(target)
+      if (from && to && DS_LAYERS.indexOf(to) > DS_LAYERS.indexOf(from)) {
+        problems.push(`${rel}:${line}: ${from}/ imports ${to}/ ('${spec}') — a lower layer never imports a higher one`)
+      }
     }
   }
 }

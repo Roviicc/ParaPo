@@ -3,7 +3,7 @@ name: ds-component
 description: Build or restyle one ParaPo component, end to end — the owner's Figma design to code, tokens, stories, verification and an independent ds-reviewer pass. Use when building or restyling a component during the visitor redesign. Runs in the main session because it stops to ask the owner.
 ---
 
-# Build one PalismoPoDesignSystem component
+# Build one PalimosPoDesignSystem component
 
 Follow in order. Do not skip step 6.
 
@@ -36,7 +36,7 @@ nearly impossible to remove.
 
 ## 3. Every colour is a token name
 
-Colour comes from `src/shared/tokens.css`: `text-content-primary`,
+Colour comes from `src/design-system/foundation/tokens.css`: `text-content-primary`,
 `bg-surface`, `bg-card-red-surface`. Never hex. Never the raw palette
 (`text-neutral-900`) in restyled code — it works silently here, which is
 exactly why it drifts. Sizes and spacing use Tailwind's scale (the Figma
@@ -46,11 +46,15 @@ something fit.
 
 ## 4. Files, the house way
 
-`<Name>.tsx` beside `<Name>.stories.tsx`, in the area that owns it
-(`shared/` if both apps use it). No barrels, no types file — types live
+`<Name>.tsx` beside `<Name>.stories.tsx`. A design-system component
+lives in its PalimosPoDesignSystem layer — `src/design-system/primitives/`
+for single elements, `patterns/` for compositions of them — and is
+domain-free: no routes, no hintuans. An app component that merely uses
+the system stays in its area. No barrels, no types file — types live
 with the component. Comments say why, with dates and the owner's
-decisions, in the voice of the files around them. Boundaries hold:
-shared imports shared only (`node scripts/check-boundaries.mjs`).
+decisions, in the voice of the files around them. Boundaries hold —
+foundation ← primitives ← patterns ← the apps
+(`node scripts/check-boundaries.mjs`).
 
 **Class maps are literal**, and checked:
 
