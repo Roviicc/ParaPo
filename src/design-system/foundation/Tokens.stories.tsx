@@ -44,6 +44,21 @@ function Ramp({ name, boxes }: { name: string; boxes: { step: string; cls: strin
   )
 }
 
+/** A motion token, played: hovering the row sends the dot across the track. */
+function MotionRow({ token, cls, dot }: { token: string; cls: string; dot: string }) {
+  return (
+    <div className="group flex items-center gap-4 py-1.5">
+      <div className="w-48">
+        <p className="text-xs font-medium text-content-primary">{token}</p>
+        <p className="font-mono text-[11px] text-content-quaternary">{cls}</p>
+      </div>
+      <div className="h-6 w-80 rounded-full bg-surface-secondary">
+        <div className={'size-6 rounded-full bg-content-primary transition-transform group-hover:translate-x-74 ' + dot} />
+      </div>
+    </div>
+  )
+}
+
 function TokensPage() {
   return (
     <div className="max-w-4xl bg-surface p-8">
@@ -106,6 +121,25 @@ function TokensPage() {
         <Swatch box="bg-brand-surface" token="Brand/surface" cls="bg-brand-surface" />
         <Swatch box="bg-brand-surface-secondary" token="Brand/surface-secondary" cls="bg-brand-surface-secondary" />
         <Swatch box="border-3 border-brand-border bg-surface" token="Brand/border" cls="border-brand-border" />
+      </Group>
+
+      <Group title="Components">
+        <Swatch box="bg-components-tooltip-surface" token="Components/Tooltip/surface" cls="bg-components-tooltip-surface" />
+      </Group>
+
+      <Group title="Motion — hover a row to play it">
+        {/* Classes written out whole: Tailwind cannot see a built name. */}
+        <div className="w-full rounded-lg border border-border-primary bg-surface p-4">
+          <MotionRow token="ease/enter" cls="ease-enter" dot="duration-slow ease-enter" />
+          <MotionRow token="ease/exit" cls="ease-exit" dot="duration-slow ease-exit" />
+          <MotionRow token="ease/move" cls="ease-move" dot="duration-slow ease-move" />
+          <MotionRow token="duration/instant · 100ms" cls="duration-instant" dot="duration-instant ease-enter" />
+          <MotionRow token="duration/quick · 150ms" cls="duration-quick" dot="duration-quick ease-enter" />
+          <MotionRow token="duration/base · 200ms" cls="duration-base" dot="duration-base ease-enter" />
+          <MotionRow token="duration/gentle · 300ms" cls="duration-gentle" dot="duration-gentle ease-enter" />
+          <MotionRow token="duration/slow · 450ms" cls="duration-slow" dot="duration-slow ease-enter" />
+          <MotionRow token="delay/tooltip · 800ms" cls="delay-tooltip" dot="delay-tooltip duration-base ease-enter" />
+        </div>
       </Group>
 
       <Group title="Shadow — the Figma effect styles">

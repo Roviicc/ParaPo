@@ -123,6 +123,9 @@
   --brand-surface: var(--color-blue-700);
   --brand-surface-secondary: var(--color-blue-800);
   --brand-border: var(--color-blue-800);
+
+  /* One component's own colour. Figma: Components/… (the Tooltip, 2026-09-28). */
+  --components-tooltip-surface: var(--color-neutral-900);
 }
 
 /* The semantics as utilities: text-content-primary, bg-surface, border-border-primary… */
@@ -167,6 +170,30 @@
   --color-brand-surface: var(--brand-surface);
   --color-brand-surface-secondary: var(--brand-surface-secondary);
   --color-brand-border: var(--brand-border);
+
+  --color-components-tooltip-surface: var(--components-tooltip-surface);
+}
+
+/*
+ * Motion. Figma: the Motion collection (drafted with the owner and passed
+ * "good" on 2026-09-28; the Motion page there plays each one). Tailwind
+ * turns these namespaces into duration-quick, delay-tooltip, ease-enter.
+ * Every transition takes one duration and one ease from here, nothing in
+ * between; an exit runs about two thirds of its enter (tooltip: base in,
+ * quick out). Animate opacity and transform only.
+ */
+@theme {
+  --transition-duration-instant: 100ms; /* press */
+  --transition-duration-quick: 150ms; /* hover, colour, shadow */
+  --transition-duration-base: 200ms; /* tooltips, small things appearing */
+  --transition-duration-gentle: 300ms; /* cards, panels, sheets */
+  --transition-duration-slow: 450ms; /* big moves, full screen */
+
+  --transition-delay-tooltip: 800ms; /* hover before a tooltip shows */
+
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1); /* arriving: fast start, soft landing */
+  --ease-exit: cubic-bezier(0.55, 0, 1, 0.45); /* leaving: gentle start, clean finish */
+  --ease-move: cubic-bezier(0.65, 0, 0.35, 1); /* already on screen, changing place */
 }
 
 /*
