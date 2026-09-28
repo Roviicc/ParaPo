@@ -217,7 +217,7 @@ export function SavePanel({
   // still counts, and this is the line the save will check.
   const preview = useMemo(() => {
     const line = joinSegments(draw.segments)
-    return timelineFor(head, tail, reversed, hintuansAlong(line, stops).map((a) => a.stop), stops, line[0])
+    return timelineFor(head, tail, reversed, hintuansAlong(line, stops).map((a) => a.stop), line[0])
   }, [head, tail, reversed, draw.segments, stops])
 
   async function submit(e: React.FormEvent) {

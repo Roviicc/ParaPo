@@ -5,6 +5,7 @@ import { Chooser } from '../shared/Chooser'
 import { HotspotCard } from '../shared/HotspotCard'
 import { MapView } from '../shared/MapView'
 import { RouteCard } from '../shared/RouteCard'
+import { useRideTo } from '../shared/rideTo'
 import { listVariants, loadStopsFromSupabase, withDrawing } from './live'
 import {
   directionEnds,
@@ -16,7 +17,7 @@ import {
   type VariantDrawing,
   type VariantRow,
 } from '../shared/routes'
-import { placeKey, stopLabel, stopRing, type StopRow } from '../shared/stops'
+import { hotspotCount, placeKey, stopLabel, stopRing, type StopRow } from '../shared/stops'
 import type { LngLat } from '../shared/geo'
 import { lineToFollow } from './borrow'
 import { getSupabase, supabaseConfigError } from '../shared/supabase'
@@ -110,6 +111,7 @@ function Workshop({
     drawing: draw.drawing,
     hiddenStopId: draw.area?.stopId ?? null,
   })
+  const ride = useRideTo(map, saved.selected, stops.stops)
 
   // Where a direction passes a hintuan, the line turns orange for that stretch.
   usePassStretches(map, saved.variants, stops.stops, saved.lit, saved.resting, draw.target.variantId)
@@ -326,10 +328,8 @@ function Workshop({
         <RouteCard
           variant={saved.selected}
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
-          onPickStop={(id) => {
-            saved.select(null)
-            stops.show(id)
-          }}
+          rideTo={ride.rideTo}
+          onRideTo={ride.pick}
           sibling={otherDirection(saved.variants, saved.selected)}
           onSwitch={(v) => saved.select(v.id)}
           actions={
@@ -402,7 +402,7 @@ function Workshop({
             <span className="text-neutral-500">
               {saved.variants.length} {saved.variants.length === 1 ? 'route' : 'routes'}
               {stops.stops.length > 0 && (
-                <> · {stops.stops.length} {stops.stops.length === 1 ? 'hotspot' : 'hotspots'}</>
+                <> · {hotspotCount(stops.stops)} {hotspotCount(stops.stops) === 1 ? 'hotspot' : 'hotspots'}</>
               )}{' '}
               ·
             </span>

@@ -150,7 +150,7 @@ export const WithTimeline: Story = {
   args: {
     sibling: back,
     onSwitch: fn(),
-    onPickStop: fn(),
+    onRideTo: fn(),
     timeline: {
       from: { id: 'sample-tala', label: 'Tala', kind: 'terminal' },
       between: [

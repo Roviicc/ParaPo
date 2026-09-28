@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { fareFor, hasFareRule, manilaDate, peso, pesoRange, ruleOn } from './fares'
 import { lineLength } from './geo'
 import { MODES, routeName, variantLine, type VariantSummary } from './routes'
 import { Sheet } from './Sheet'
@@ -11,10 +12,14 @@ type Props = {
   /**
    * The direction as a string of places, when the caller has the links:
    * shown collapsed under the title, the way a train app lists a line's
-   * stops. Tapping one shows that box on the map.
+   * stops. Tapping a hintuan previews the ride up to it — the owner's ask
+   * of 2026-09-28 — with the length and fare of that stretch.
    */
   timeline?: Timeline
-  onPickStop?: (stopId: string) => void
+  /** The ride-to preview (useRideTo): the row ridden to, and that stretch's metres. */
+  rideTo?: { stopId: string; metres: number } | null
+  /** A timeline row was tapped: preview the ride up to it, or null for the whole route. */
+  onRideTo?: (stopId: string | null) => void
   /**
    * The route's other direction, when the caller knows it: drawn or not.
    * `undefined` when the caller has no idea (no switch is offered); `null`
@@ -44,9 +49,17 @@ type Props = {
  * direction; when that one has no line yet the card says so instead of
  * offering an empty one.
  */
-export function RouteCard({ variant, timeline, onPickStop, sibling, onSwitch, actions, onClose }: Props) {
+export function RouteCard({ variant, timeline, rideTo, onRideTo, sibling, onSwitch, actions, onClose }: Props) {
   const r = variant.route
-  const km = (lineLength(variantLine(variant)) / 1000).toFixed(1)
+  const metres = lineLength(variantLine(variant))
+  const km = (metres / 1000).toFixed(1)
+  // The ride being looked at: the whole route, or the stretch up to the
+  // picked hintuan. Length and fare both speak about this ride.
+  const rideLabel = (rideTo && timeline?.between.find((s) => s.id === rideTo.stopId)?.label) || null
+  const rideMetres = rideLabel && rideTo ? rideTo.metres : metres
+  // LTFRB's rule for a traditional jeepney, and this ride priced by it.
+  const today = hasFareRule(r?.mode) ? ruleOn(manilaDate()) : null
+  const fare = today && { ...today, whole: fareFor(rideMetres, today.rule) }
   const mode = MODES.find((m) => m.value === r?.mode)?.label ?? r?.mode ?? ''
   const siblingDrawn = !!sibling && variantLine(sibling).length > 1
   const hintuanCount = timeline?.between.length ?? 0
@@ -107,19 +120,41 @@ export function RouteCard({ variant, timeline, onPickStop, sibling, onSwitch, ac
           <summary className="cursor-pointer select-none text-xs font-medium text-neutral-600">
             {hintuanCount === 0 ? 'No hintuan on the way yet' : passesThrough(hintuanCount)}
           </summary>
-          <StopTimeline timeline={timeline} onPick={onPickStop} />
+          <StopTimeline timeline={timeline} onPick={onRideTo} pickedId={rideTo?.stopId ?? null} />
         </details>
       )}
       <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
         <dt className="text-neutral-500">Mode</dt>
         <dd className="text-neutral-900">{mode}</dd>
         <dt className="text-neutral-500">Length</dt>
-        <dd className="text-neutral-900">{km} km</dd>
-        {r?.fare_note && (
+        <dd className="text-neutral-900">
+          {rideLabel ? `${(rideMetres / 1000).toFixed(1)} km to ${rideLabel} · ${km} km end to end` : `${km} km`}
+        </dd>
+        {fare ? (
           <>
             <dt className="text-neutral-500">Fare</dt>
-            <dd className="text-neutral-900">{r.fare_note}</dd>
+            <dd data-testid="card-fare" className="text-neutral-900">
+              {peso(fare.rule.minimum)} for the first {fare.rule.minimumKm} km, then {peso(fare.rule.perKm)} per km
+              <p className="mt-0.5 text-xs text-neutral-600">
+                {rideLabel ? `To ${rideLabel} about` : 'Whole ride about'} {pesoRange(fare.whole.low.regular, fare.whole.high.regular)} · students, seniors, PWDs{' '}
+                {pesoRange(fare.whole.low.discounted, fare.whole.high.discounted)}
+              </p>
+              {fare.previous && (
+                <p className="mt-0.5 text-xs text-amber-700">
+                  Some jeeps still charge the old {peso(fare.previous.minimum)} until they post the new fare guide.
+                </p>
+              )}
+              {r?.fare_note && <p className="mt-0.5 text-xs text-neutral-600">{r.fare_note}</p>}
+              <p className="mt-0.5 text-xs text-neutral-400">Estimate · {fare.rule.source} · length of this line</p>
+            </dd>
           </>
+        ) : (
+          r?.fare_note && (
+            <>
+              <dt className="text-neutral-500">Fare</dt>
+              <dd className="text-neutral-900">{r.fare_note}</dd>
+            </>
+          )
         )}
         <dt className="text-neutral-500">Status</dt>
         <dd>
