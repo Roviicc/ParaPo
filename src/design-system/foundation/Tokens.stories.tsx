@@ -162,7 +162,8 @@ function TokensPage() {
           <p className="font-sn-pro text-lg font-medium text-content-primary">SN Pro Medium — Tala to SM Fairview</p>
           <p className="font-sn-pro text-lg font-semibold text-content-primary">SN Pro SemiBold — Tala to SM Fairview</p>
           <p className="font-sn-pro text-lg font-bold text-content-primary">SN Pro Bold — Tala to SM Fairview</p>
-          <p className="mt-1 font-mono text-[11px] text-content-quaternary">font-sn-pro · font-medium · font-semibold · font-bold</p>
+          <p className="font-sn-pro text-lg font-black text-content-primary">SN Pro Black — Novaliches (Bayan)</p>
+          <p className="mt-1 font-mono text-[11px] text-content-quaternary">font-sn-pro · font-medium · font-semibold · font-bold · font-black</p>
         </div>
       </Group>
 
