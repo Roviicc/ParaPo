@@ -72,7 +72,7 @@ the same crossing in disguise.
 **5. Stories.** One story per variant, plus the states the component
 actually has (disabled, error, empty, picked…), plus at least one specimen
 at phone size — the `@container` decorator pattern in
-`src/shared/RouteCard.stories.tsx` is the house way. An unstoried state is
+`src/shared/RouteSheet.stories.tsx` is the house way. An unstoried state is
 never looked at by anyone.
 
 **6. Markup honesty.** Interactive things are real interactive elements or
@@ -99,7 +99,7 @@ repo's tests live in `scripts/` and run through `npm run test:unit`.
 
 1. Read the component's stories first — they are the contract.
 2. Read the component.
-3. Read a settled peer (`src/shared/RouteCard.tsx`, `StopTimeline.tsx`)
+3. Read a settled peer (`src/shared/RouteSheet.tsx`, `StopTimeline.tsx`)
    for the house style you are comparing against.
 4. Run `npx tsc --noEmit` and `node scripts/check-boundaries.mjs`.
 5. Report.

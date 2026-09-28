@@ -5,7 +5,7 @@ import { HotspotCard } from '../shared/HotspotCard'
 import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from '../shared/mapFile'
 import { reloadToUpdate, useNeedRefresh } from './pwa'
 import { MapView, coarse } from '../shared/MapView'
-import { RouteCard } from '../shared/RouteCard'
+import { RouteSheet } from '../shared/RouteSheet'
 import { useRideTo } from '../shared/rideTo'
 import {
   directionEnds,
@@ -160,7 +160,7 @@ export default function CommuterApp() {
       )}
 
       {saved.selected && (
-        <RouteCard
+        <RouteSheet
           variant={saved.selected}
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
           rideTo={ride.rideTo}

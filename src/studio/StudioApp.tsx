@@ -4,7 +4,7 @@ import type { MapLibreMap } from 'maplibre-gl'
 import { Chooser } from '../shared/Chooser'
 import { HotspotCard } from '../shared/HotspotCard'
 import { MapView } from '../shared/MapView'
-import { RouteCard } from '../shared/RouteCard'
+import { RouteSheet } from '../shared/RouteSheet'
 import { useRideTo } from '../shared/rideTo'
 import { listVariants, loadStopsFromSupabase, withDrawing } from './live'
 import {
@@ -325,7 +325,7 @@ function Workshop({
 
       {/* Top-left: the card for a tapped route, or the account pill. */}
       {!draw.drawing && saved.selected && (
-        <RouteCard
+        <RouteSheet
           variant={saved.selected}
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
           rideTo={ride.rideTo}

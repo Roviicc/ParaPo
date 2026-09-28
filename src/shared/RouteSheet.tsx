@@ -49,7 +49,7 @@ type Props = {
  * direction; when that one has no line yet the card says so instead of
  * offering an empty one.
  */
-export function RouteCard({ variant, timeline, rideTo, onRideTo, sibling, onSwitch, actions, onClose }: Props) {
+export function RouteSheet({ variant, timeline, rideTo, onRideTo, sibling, onSwitch, actions, onClose }: Props) {
   const r = variant.route
   const metres = lineLength(variantLine(variant))
   const km = (metres / 1000).toFixed(1)

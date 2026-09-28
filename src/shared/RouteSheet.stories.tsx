@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { fn } from 'storybook/test'
-import { RouteCard } from './RouteCard'
+import { RouteSheet } from './RouteSheet'
 import type { VariantSummary } from './routes'
 
 /** Sample data only, shaped like a saved direction. Not read from Supabase. */
@@ -35,8 +35,8 @@ const variant: VariantSummary = {
 }
 
 const meta = {
-  title: 'Shared/RouteCard',
-  component: RouteCard,
+  title: 'Shared/RouteSheet',
+  component: RouteSheet,
   // The card is placed against the map, so give it a map-sized box to sit in.
   // `@container` is what the card's `@wide:` classes measure, and the `phone`
   // parameter shrinks that box to a handset so the bottom sheet shows instead.
@@ -55,7 +55,7 @@ const meta = {
   ],
   parameters: { layout: 'fullscreen' },
   args: { variant, onClose: fn() },
-} satisfies Meta<typeof RouteCard>
+} satisfies Meta<typeof RouteSheet>
 
 export default meta
 type Story = StoryObj<typeof meta>

@@ -72,7 +72,7 @@ ramps on 2026-09-28; only a screenshot caught it).
 ## 5. Stories, then look at them
 
 One story per variant, plus the component's real states, plus one phone
-specimen (`@container` decorator, as `RouteCard.stories.tsx` does).
+specimen (`@container` decorator, as `RouteSheet.stories.tsx` does).
 
 ```bash
 npm run build-storybook
