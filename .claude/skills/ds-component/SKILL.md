@@ -3,7 +3,7 @@ name: ds-component
 description: Build or restyle one ParaPo component, end to end — the owner's Figma design to code, tokens, stories, verification and an independent ds-reviewer pass. Use when building or restyling a component during the visitor redesign. Runs in the main session because it stops to ask the owner.
 ---
 
-# Build one ParaPo component
+# Build one PalismoPoDesignSystem component
 
 Follow in order. Do not skip step 6.
 

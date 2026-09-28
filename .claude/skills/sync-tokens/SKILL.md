@@ -5,7 +5,7 @@ description: Diff the Figma file's variables against src/shared/tokens.css and a
 
 # Sync the Figma variables into tokens.css
 
-The Figma file is the source of truth for tokens; `src/shared/tokens.css`
+The Figma file is PalismoPoDesignSystem's source of truth for tokens; `src/shared/tokens.css`
 is its mirror; `src/shared/Tokens.stories.tsx` is the visible check. This
 skill reads Figma, diffs, applies, and proves it.
 
