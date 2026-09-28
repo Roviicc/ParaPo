@@ -7,7 +7,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { timelineFor, hintuansAlong, labelGroups, placeSummary } from '../src/shared/stops.ts'
+import { SAME_HINTUAN_M, timelineFor, hintuansAlong, labelGroups, placeSummary } from '../src/shared/stops.ts'
 import { variantLine } from '../src/shared/routes.ts'
 
 let n = 0
@@ -69,16 +69,27 @@ test('the same name far apart, or another kind: labels of their own', () => {
   assert.equal(labelGroups([at('Tala', 121.0, 14.7), at('Tala', 121.0, 14.7, 'terminal')]).length, 2)
 })
 
-test('the committed map: every same-name pair a road apart has one label', () => {
+test('the committed map: every box named by exactly one label, same-name boxes a road apart sharing it', () => {
+  // By the rule, not by a named stop: the owner edits the live map between
+  // publishes, and a test naming Bestlink broke the day he deleted it.
   const m = JSON.parse(readFileSync('public/data/map.json', 'utf8'))
-  const bestlink = labelGroups(m.stops).filter((g) => g.name === 'Bestlink')
-  assert.equal(bestlink.length, 1)
-  assert.equal(bestlink[0].ids.length, 2)
+  const groups = labelGroups(m.stops)
+  const labelled = groups.flatMap((g) => g.ids)
+  assert.equal(labelled.length, m.stops.length)
+  assert.equal(new Set(labelled).size, labelled.length)
+  const groupOf = (id) => groups.findIndex((g) => g.ids.includes(id))
+  for (const a of m.stops)
+    for (const b of m.stops) {
+      if (a.id >= b.id || a.kind !== 'hintuan' || b.kind !== 'hintuan') continue
+      if (a.name.trim().toLowerCase() !== b.name.trim().toLowerCase()) continue
+      if (haversine(a.point.coordinates, b.point.coordinates) <= SAME_HINTUAN_M)
+        assert.equal(groupOf(a.id), groupOf(b.id), `${a.name}: one hintuan, two labels`)
+    }
 })
 
 // The ride-to preview's cut (src/shared/routes.ts, rideCut).
 import { rideCut } from '../src/shared/routes.ts'
-import { lineLength } from '../src/shared/geo.ts'
+import { haversine, lineLength } from '../src/shared/geo.ts'
 
 const pt = (lng, lat = 0) => ({ type: 'Point', coordinates: [lng, lat] })
 const ringAt = (lng, r = 0.0002) => ({ type: 'Polygon', coordinates: [[[lng - r, -r], [lng + r, -r], [lng + r, r], [lng - r, r], [lng - r, -r]]] })
