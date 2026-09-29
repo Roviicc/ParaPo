@@ -13,12 +13,14 @@
 // Covers: touch chrome — no zoom buttons, attribution moved to the top right,
 // no horizontal scroll; the forgiving ±20 px tap, with a negative control well
 // outside the box; the trip card a lone route opens (the owner's
-// RouteTripDetail, 2026-09-29) — its ends, its fold, SWITCH, no ‹ with no list
-// behind it; the route list where two routes share a road ("N Routes", a card
-// per place), the trip a row opens and ‹ back to the list as it was; a tap
+// RouteTripDetail, 2026-09-29) — its ends, its fold, SWITCH keeping its
+// colour, ‹ only where another route sharing an end runs its way; the route list
+// where two routes share a road ("N Routes", a card per place), the trip a
+// row opens in its card's colour and ‹ back to the list as it was; a tap
 // just outside a hotspot, and the bottom sheet on a hotspot's card — tap and
 // drag the handle, peek → open → peek → gone; the ?r=<id> share link and the
-// view it restores; the fine-pointer desktop control (±5 px, zoom buttons
+// view it restores; a trip opened on its own whose ‹ lists the routes sharing
+// an end with its own; the fine-pointer desktop control (±5 px, zoom buttons
 // back, attribution bottom right); and housekeeping.
 import { chromium } from 'playwright'
 
@@ -329,6 +331,24 @@ const snapshot = await page.evaluate(async () => {
 for (const r of snapshot.routes) r.bbox = bboxOf(r.coords)
 console.log(`\n(${snapshot.routes.length} route directions, ${snapshot.polys.length} hotspots on the map today)\n`)
 
+// What the features do not carry — each direction's way round, its name and
+// its route's two end hotspots — from the published file the page reads.
+const published = await page.evaluate(() => fetch('/data/map.json').then((r) => r.json()).catch(() => null))
+const fileDirections = published?.variants ?? []
+/**
+ * What a trip on direction `id` lists behind its ‹ when it was opened on its
+ * own (the owner's ask, 2026-09-29): the directions, drawn and the same way
+ * round, of its route and of every route sharing its head or its tail — its
+ * own included. The trip has ‹ when that is more than itself.
+ */
+const fanOf = (id) => {
+  const v = fileDirections.find((d) => d.id === id)
+  if (!v) return []
+  const { head_stop_id: head, tail_stop_id: tail } = v.route
+  const shares = (d) => d.route_id === v.route_id || (!!head && d.route.head_stop_id === head) || (!!tail && d.route.tail_stop_id === tail)
+  return fileDirections.filter((d) => d.reversed === v.reversed && (d.shape?.coordinates?.length ?? 0) > 1 && shares(d))
+}
+
 /** Every tap below is made at this zoom, so the map keeps one scale throughout. */
 const ZOOM = 16
 
@@ -454,10 +474,14 @@ const tripChecks = async () => {
     skip('  SWITCH turns the trip round', (await sw.count()) === 0 ? 'no SWITCH on the card' : "this route's other way is not drawn yet")
   } else {
     const before = await tripLabel()
+    const colour = await trip().first().getAttribute('data-livery')
     await buttonTap(sw, async () => (await tripLabel()) !== before)
     const after = await tripLabel()
     const same = (s) => s.split(' → ').sort().join(' | ')
     check('  SWITCH turns the trip round', after !== before && same(after) === same(before), `"${before}" → "${after}"`)
+    // Turned round, it is the same card: its colour stays (the owner, 2026-09-29).
+    const now = await trip().first().getAttribute('data-livery')
+    check('  and keeps its colour', !!colour && now === colour, `${colour} → ${now}`)
   }
 }
 const cardText = async () => ((await card().count()) ? (await card().first().innerText()) : '')
@@ -584,12 +608,20 @@ if (routeA) {
   // Dropped by the owner for now, to design later (2026-09-28).
   const gone = ['Length', 'Mode', 'Status', 'Share', 'Signboard'].filter((s) => text.includes(s))
   check("  the old card's extras are gone: no Length, Mode, Status, Share or signboard", text !== '' && gone.length === 0, gone.join(', '))
-  check('  no list behind it, so no ‹', (await card().getByRole('button', { name: 'Back' }).count()) === 0)
 
   // The tap opens the route's drawn outbound, whichever direction was under the finger (2026-09-22).
   const sameRoute = snapshot.routes.filter((o) => o.routeId === r.routeId).map((o) => o.id)
   const lit = (await litIds(page)) ?? []
   check('  one direction of that route is lit', lit.length === 1 && sameRoute.includes(lit[0]), JSON.stringify(lit))
+  // No list is behind it: ‹ only where another route sharing an end is drawn
+  // its way round, to list them (the owner's ask, 2026-09-29).
+  const fanned = fanOf(lit[0]).length > 1
+  const backShown = (await card().getByRole('button', { name: 'Back' }).count()) > 0
+  check(
+    fanned ? '  another route sharing an end runs its way, so it has ‹' : '  no other route sharing an end runs its way, so no ‹',
+    backShown === fanned,
+    `‹ ${backShown ? 'shown' : 'not shown'}`,
+  )
   check('  the other lines fade below the light rest', (await lineOpacity(page)) < REST_OPACITY, String(await lineOpacity(page)))
 
   await tripChecks()
@@ -677,6 +709,10 @@ if (!shared) {
   )
   const wanted = items.filter({ hasText: endsOf(shared.b.signboard)[1] })
   const listShown = async () => (await chooser.count()) > 0 && (await chooser.first().isVisible())
+  // The colour of the card the row sits on: the trip it opens wears it.
+  const cardColour = (await wanted.count())
+    ? await wanted.first().locator('xpath=ancestor::*[@data-livery][1]').getAttribute('data-livery')
+    : null
   await buttonTap(wanted, async () => (await trip().count()) > 0)
   // The trip card takes the list's place, and the list stays behind it,
   // hidden, for the trip's ‹ (the owner's frames, 2026-09-28).
@@ -687,6 +723,8 @@ if (!shared) {
     picked.includes(bHead) && picked.includes(bTail) && !(await listShown()),
     `card "${picked}", list shown ${await listShown()}`,
   )
+  const tripColour = (await trip().count()) ? await trip().first().getAttribute('data-livery') : null
+  check('  the trip wears the colour of the card it was picked from', !!cardColour && tripColour === cardColour, `card ${cardColour}, trip ${tripColour}`)
   await tripChecks()
   const back = card().getByRole('button', { name: 'Back' })
   if ((await back.count()) === 0) {
@@ -972,14 +1010,68 @@ if (!routeA) {
   const spanKm = ((e - w) * mPerDegLng(view.lat) * 0.001).toFixed(1)
   check('  it zooms in from the metro-wide view (≥ 12)', view.zoom >= 12, `zoom ${view.zoom.toFixed(2)} for a route ${spanKm} km wide`)
 
-  // Opened by a link, there is no list behind the trip, so no ‹; and no
+  // Opened by a link, no list is behind the trip: ‹ only where another route
+  // sharing an end is drawn its way round (the owner's ask, 2026-09-29). No
   // Share button since the owner dropped it for now (2026-09-28) — the
   // address bar is the link.
+  const fannedR = fanOf(r.id).length > 1
   check(
-    '  opened by a link, the trip has no ‹',
-    (await trip().count()) > 0 && (await card().getByRole('button', { name: 'Back' }).count()) === 0,
+    fannedR
+      ? '  opened by a link, the trip has ‹: another route sharing an end runs its way'
+      : '  opened by a link, the trip has no ‹: no other route sharing an end runs its way',
+    (await trip().count()) > 0 && ((await card().getByRole('button', { name: 'Back' }).count()) > 0) === fannedR,
     `trip ${await trip().count()}`,
   )
+}
+
+// ------------------------------------------ 5b. ‹ on a trip opened on its own
+// A trip opened by a link has no list behind it. Where other routes sharing
+// its head or its tail are drawn its way round, ‹ lists them the way the trip
+// goes, as a tap where they all run would: Tala → Novaliches ‹ to Tala's
+// card, "1 Route", Novaliches and SM Fairview (the owner's ask, 2026-09-29).
+// A drawn direction: a link to a slot opens nothing to test, and its fan would leave it out.
+const fannedOne = fileDirections.find((d) => (d.shape?.coordinates?.length ?? 0) > 1 && fanOf(d.id).length > 1)
+if (!fannedOne) {
+  skip(
+    'a trip opened on its own lists, behind its ‹, the routes sharing an end',
+    published ? 'no two routes sharing an end are drawn the same way round today' : 'the published file could not be read',
+  )
+} else {
+  const fan = fanOf(fannedOne.id)
+  await page.goto(`${BASE}/?r=${encodeURIComponent(fannedOne.id)}`, { waitUntil: 'load' })
+  await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
+  await page.waitForTimeout(2000)
+  const opened = await tripLabel()
+  const openedColour = (await trip().count()) ? await trip().first().getAttribute('data-livery') : null
+  const back = card().getByRole('button', { name: 'Back' })
+  const chooser = page.locator('[data-testid="chooser"]')
+  const listShown = async () => (await chooser.count()) > 0 && (await chooser.first().isVisible())
+  const tapped = (await back.count()) > 0 && (await buttonTap(back, listShown))
+  check(
+    `a trip opened on its own, "${opened}", lists behind its ‹ the routes sharing an end`,
+    tapped && (await listShown()) && (await trip().count()) === 0,
+    tapped ? `list shown ${await listShown()}, trip ${await trip().count()}` : 'no ‹ on the trip',
+  )
+  if (await listShown()) {
+    // A card per place they leave from, the way the trip went; a row for each.
+    const ends = fan.map((d) => (d.direction_name ?? '').split(' → '))
+    const places = new Set(ends.map(([from = '']) => from.toLowerCase())).size
+    const title = `${places} ${places === 1 ? 'Route' : 'Routes'}`
+    const text = await chooser.first().innerText()
+    check(`  headed "${title}", a card per place`, text.split('\n').includes(title), text.split('\n')[0] ?? '')
+    const items = chooser.locator('button[data-testid="chooser-item"]')
+    const rows = []
+    for (let i = 0; i < (await items.count()); i++) rows.push((await items.nth(i).innerText()).trim())
+    check("  a row for each, where it goes, the trip's own among them", rows.length === fan.length && ends.every(([, to = '']) => rows.some((t) => t.includes(to))), rows.join(' | '))
+    const lit = ((await litIds(page)) ?? []).sort()
+    check('  and lit, as a tap where they all run would light them', JSON.stringify(lit) === JSON.stringify(fan.map((d) => d.id).sort()), JSON.stringify(lit))
+    // One place, one card: it wears the colour the trip wore, its place's.
+    if (places === 1) {
+      const listColour = await chooser.locator('[data-livery]').first().getAttribute('data-livery')
+      check("  its card wears the trip's colour", !!openedColour && listColour === openedColour, `trip ${openedColour}, card ${listColour}`)
+    }
+  }
+  await closeCard()
 }
 
 // -------------------------------------------- 6. the desktop control, ±5 px

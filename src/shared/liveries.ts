@@ -6,7 +6,9 @@
  *
  * A colour belongs to the place a card leaves from, because a card is a
  * place: Tala → SM Fairview and Tala → Novaliches share Tala's card, and
- * whichever of them is opened wears it.
+ * whichever of them is opened wears it. Once open, a trip's card keeps that
+ * colour until it closes, even SWITCHed to leave from another place: turned
+ * round, it is the same card (the owner, 2026-09-29; CommuterApp's TripCard).
  */
 export const LIVERIES = ['red', 'orange', 'mist', 'yellow'] as const
 export type Livery = (typeof LIVERIES)[number]

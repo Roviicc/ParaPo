@@ -21,9 +21,11 @@ type Props = {
     }
   | {
       /**
-       * Figma's Variant2, over a trip: ‹ back to the list the trip was
-       * picked from; null when there is none behind it (a tap on one route,
-       * a shared link) — then nothing stands in its place.
+       * Figma's Variant2, over a trip: ‹ back to a list — the one the trip
+       * was picked from, or, opened on its own, its route with those sharing
+       * an end; null when there is none (no other route sharing an end has a
+       * direction drawn the trip's way round) — then nothing stands in its
+       * place.
        */
       onBackToList: (() => void) | null
       routeCount?: never

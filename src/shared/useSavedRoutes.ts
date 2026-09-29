@@ -139,6 +139,18 @@ export function useSavedRoutes<T extends VariantSummary>(
     if (!opts.keepList) setCandidates([])
   }, [])
 
+  /**
+   * Lists `directions` as a tap where they all run would, the way round
+   * `way`, with nothing chosen: the ‹ of a trip opened on its own, whose
+   * route shares its head or its tail with others (the public map's, since
+   * the owner's ask of 2026-09-29; CommuterApp says which).
+   */
+  const openList = useCallback((directions: readonly T[], way: boolean) => {
+    setSelectedId(null)
+    setCandidates([...directions])
+    setBack(way)
+  }, [])
+
   const drawingRef = useRef(opts.drawing ?? false)
   drawingRef.current = opts.drawing ?? false
   // A chooser left open when drawing starts would come back, stale, after it.
@@ -385,5 +397,5 @@ export function useSavedRoutes<T extends VariantSummary>(
 
   const selected = variants.find((v) => v.id === selectedId) ?? null
 
-  return { variants, error, loading, reload, selected, select, candidates, back, flip, lit, litVariants, resting }
+  return { variants, error, loading, reload, selected, select, openList, candidates, back, flip, lit, litVariants, resting }
 }

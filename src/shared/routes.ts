@@ -252,6 +252,25 @@ export function otherDirection<V extends VariantSummary>(all: readonly V[], of: 
 }
 
 /**
+ * Every direction of the routes sharing an end with `of`'s — the same head or
+ * the same tail — its own route's included: PLAN.md's fan, an extension being
+ * "grouped by the end it shares" (decided 2026-09-21; no screen groups them
+ * that way yet but this), Tala – SM Fairview beside Tala – Novaliches. A
+ * route that only starts where this one ends is not among them: that is a
+ * change of jeep, not another way. An old file's route may carry no ends; it
+ * then shares none.
+ */
+export function sharingAnEnd<V extends VariantSummary>(all: readonly V[], of: V): V[] {
+  const { head_stop_id: head, tail_stop_id: tail } = of.route
+  return all.filter(
+    (v) =>
+      v.route_id === of.route_id ||
+      (!!head && v.route.head_stop_id === head) ||
+      (!!tail && v.route.tail_stop_id === tail),
+  )
+}
+
+/**
  * A saved direction as a string of places, for its card: its route's two ends
  * resolved to hotspots, and the hotspots its links say it passes, in order.
  */
