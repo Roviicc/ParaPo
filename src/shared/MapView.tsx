@@ -62,8 +62,19 @@ const ZOOM = 11
 /** How long to wait before assuming the style is never arriving. */
 const LOAD_TIMEOUT_MS = 12_000
 
-/** Fires once the style is loaded, so callers may add sources immediately. */
-export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
+type Props = {
+  /** Fires once the style is loaded, so callers may add sources immediately. */
+  onReady?: (map: MapLibreMap) => void
+  /**
+   * MapLibre's +, − and compass, top right, for a mouse (never a finger:
+   * `coarse`). The studio keeps them; the public map has none since the
+   * owner's "annoying for users" of 2026-09-29 — the wheel, a double click
+   * and the keys zoom it. Read once, as the map is made.
+   */
+  zoomButtons?: boolean
+}
+
+export function MapView({ onReady, zoomButtons = true }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const onReadyRef = useRef(onReady)
   onReadyRef.current = onReady
@@ -134,7 +145,7 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
         })
       }
 
-      if (!coarse) map.addControl(new NavigationControl(), 'top-right')
+      if (zoomButtons && !coarse) map.addControl(new NavigationControl(), 'top-right')
       map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-left')
       map.addControl(
         new AttributionControl({ compact: true, customAttribution: ATTRIBUTION }),
@@ -196,7 +207,7 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
       setReady(null)
       map?.remove()
     }
-    // `basemap` is read once at mount and never changes afterwards.
+    // `basemap` and `zoomButtons` are read once at mount and never change afterwards.
   }, [])
 
   return (
@@ -216,7 +227,13 @@ export function MapView({ onReady }: { onReady?: (map: MapLibreMap) => void }) {
         <div ref={containerRef} className="h-full w-full" />
       </div>
 
-      {ready && !error && <BasemapControl map={ready} initial={basemap} coarse={coarse} />}
+      {ready && !error && (
+        <BasemapControl
+          map={ready}
+          initial={basemap}
+          under={coarse ? 'attribution' : zoomButtons ? 'zoom' : 'nothing'}
+        />
+      )}
 
       {!loaded && !error && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">

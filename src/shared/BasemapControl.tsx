@@ -6,16 +6,29 @@ type Props = {
   map: MapLibreMap
   /** The design the map was built with. */
   initial: Basemap
-  /** Where to sit: under the zoom buttons on a desktop, under the attribution on a phone. */
-  coarse: boolean
+  /** What MapLibre has in the top-right corner above it; the button rests under that. */
+  under: Above
 }
+
+/**
+ * What can sit above the button: the attribution on a phone (it moves to the
+ * top there), MapLibre's +, − and compass for a mouse in the studio, or, for
+ * a mouse on the public map, nothing since the owner took those off
+ * (2026-09-29) — then the button takes the corner itself.
+ */
+type Above = 'attribution' | 'zoom' | 'nothing'
+const TOP = {
+  attribution: 'top-12',
+  zoom: 'top-[7.5rem]',
+  nothing: 'top-2.5',
+} satisfies Record<Above, string>
 
 /**
  * One round button at the top right; tap it for the three designs. It draws
  * nothing on the map itself — `applyBasemap` does the switch and carries the
  * routes and hotspots across — so both pages get it from MapView for free.
  */
-export function BasemapControl({ map, initial, coarse }: Props) {
+export function BasemapControl({ map, initial, under }: Props) {
   const [current, setCurrent] = useState<Basemap>(initial)
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -41,7 +54,7 @@ export function BasemapControl({ map, initial, coarse }: Props) {
   return (
     <div
       ref={rootRef}
-      className={`absolute right-2.5 z-10 flex flex-col items-end gap-1 ${coarse ? 'top-12' : 'top-[7.5rem]'}`}
+      className={`absolute right-2.5 z-10 flex flex-col items-end gap-1 ${TOP[under]}`}
     >
       <button
         type="button"

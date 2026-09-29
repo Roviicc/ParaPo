@@ -23,7 +23,7 @@ import { usePassStretches } from '../shared/passStretches'
 import { useBabaanSides } from '../shared/babaanSides'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
 import { useSavedStops } from '../shared/useSavedStops'
-import { hotspotCount, type Timeline } from '../shared/stops'
+import type { Timeline } from '../shared/stops'
 import { Walker } from './Walker'
 import { WhereAmIButton } from './WhereAmI'
 import { useWhereAmI } from './useWhereAmI'
@@ -118,8 +118,16 @@ export default function CommuterApp() {
         : null
 
   return (
-    <div className="@container relative h-full w-full overflow-hidden">
-      <MapView onReady={setMap} />
+    // `data-directions`: how many the map file brought, for the suites on a
+    // production build, where the map itself is out of their reach — the
+    // count pill that told them went on 2026-09-29.
+    <div data-directions={saved.variants.length} className="@container relative h-full w-full overflow-hidden">
+      {/*
+        No count of routes and hotspots in a corner, and no +, − or compass:
+        the owner's notes on his screenshot, "annoying for users"
+        (2026-09-29).
+      */}
+      <MapView onReady={setMap} zoomButtons={false} />
       {map && <WhereAmIButton where={where} coarse={coarse} />}
       {map && where.fix && <Walker map={map} fix={where.fix} pose={where.pose} facing={where.facing} />}
 
@@ -170,17 +178,17 @@ export default function CommuterApp() {
       {/*
         Honesty about age. With no signal, or a network too slow to answer in
         time, the map is whatever the phone kept, and the date comes from inside
-        the file itself, so it is exact. Above the pill: bottom left on a phone
-        (the credit line opens across the top there), under the pill on a wide
-        map.
+        the file itself, so it is exact. Where the count pill was until the
+        owner took it off (2026-09-29): bottom left above the scale on a phone
+        (the credit line opens across the top there), top left on a wide map.
       */}
       {(offline || age.stale) && (
         <div
           data-testid="offline"
-          className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom))]
+          className="absolute bottom-[calc(2.5rem+env(safe-area-inset-bottom))]
                      left-[calc(1rem+env(safe-area-inset-left))] z-10 rounded-full bg-neutral-800/90
                      px-3 py-1.5 text-xs text-white shadow backdrop-blur
-                     @wide:bottom-auto @wide:top-[calc(3.25rem+env(safe-area-inset-top))]"
+                     @wide:bottom-auto @wide:top-[calc(1rem+env(safe-area-inset-top))]"
         >
           {offline ? 'Offline' : 'Not refreshed'}
           {age.publishedAt && <> · map as of {shortDate(age.publishedAt)}</>}
@@ -266,21 +274,6 @@ export default function CommuterApp() {
         />
       )}
 
-      {!saved.selected && !stops.selected && !choosing && saved.variants.length > 0 && (
-        <div
-          // On a phone, bottom left above the scale: the credit line opens to
-          // three lines across the top there, and the pill would cover it.
-          className="absolute bottom-[calc(2.5rem+env(safe-area-inset-bottom))]
-                     left-[calc(1rem+env(safe-area-inset-left))] z-10 rounded-full bg-white/90 px-3
-                     py-1.5 text-xs text-neutral-500 shadow ring-1 ring-black/5 backdrop-blur
-                     @wide:bottom-auto @wide:top-[calc(1rem+env(safe-area-inset-top))]"
-        >
-          {saved.variants.length} {saved.variants.length === 1 ? 'route' : 'routes'}
-          {stops.stops.length > 0 && (
-            <> · {hotspotCount(stops.stops)} {hotspotCount(stops.stops) === 1 ? 'hotspot' : 'hotspots'}</>
-          )}
-        </div>
-      )}
     </div>
   )
 }

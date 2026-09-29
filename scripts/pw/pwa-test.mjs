@@ -118,11 +118,13 @@ try {
   })
   check('service worker ready on / with scope /', !sw.error && sw.scope === `${base}/` && sw.active, JSON.stringify(sw))
 
-  // Wait for the routes and the basemap, so both reach the caches.
-  const pill = page.getByText(new RegExp(`^${routeCount} routes?`))
-  await pill.waitFor({ timeout: 20000 })
-  const pillText = (await pill.innerText()).trim()
-  check(`online: pill shows the published map ("${pillText}")`, pillText.startsWith(`${routeCount} route`))
+  // Wait for the routes and the basemap, so both reach the caches. The page
+  // says how many directions its map file brought (`data-directions`): the
+  // count pill that showed it went on 2026-09-29, the owner's "annoying for
+  // users".
+  const arrived = page.locator(`[data-directions="${routeCount}"]`)
+  const online = await arrived.waitFor({ state: 'attached', timeout: 20000 }).then(() => true, () => false)
+  check(`online: the published map's ${routeCount} directions arrive`, online)
   await page.waitForSelector('canvas.maplibregl-canvas', { timeout: 20000 })
   await page.waitForFunction(() => !document.body.innerText.includes('Loading map…'), null, { timeout: 30000 })
   await page.waitForTimeout(4000)
@@ -169,7 +171,7 @@ try {
     )
   }
   await page.goto(`${base}/`, { waitUntil: 'load' })
-  await pill.waitFor({ timeout: 20000 })
+  await arrived.waitFor({ state: 'attached', timeout: 20000 })
 
   // Now with no network at all: the phone keeps everything it needs.
   await ctx.setOffline(true)
@@ -179,8 +181,7 @@ try {
   }
   page.on('response', countTiles)
   await page.reload({ waitUntil: 'load' }).catch(() => {})
-  const offlinePill = page.getByText(new RegExp(`^${routeCount} routes?`))
-  const offlineOk = await offlinePill.waitFor({ timeout: 20000 }).then(() => true, () => false)
+  const offlineOk = await arrived.waitFor({ state: 'attached', timeout: 20000 }).then(() => true, () => false)
   check(`offline: reload of / still shows the routes (${routeCount})`, offlineOk)
   const notice = page.locator('[data-testid="offline"]')
   const noticeOk = await notice.waitFor({ timeout: 10000 }).then(() => true, () => false)
@@ -222,7 +223,7 @@ try {
   }
 
   await ctx.setOffline(false)
-  // Back to the bare address: with `?r=` a card is open and the pill hidden.
+  // Back to the bare address, with no card open.
   await page.goto(`${base}/`, { waitUntil: 'load' })
   await page.waitForTimeout(2000)
   check('back online: the notice is gone', (await page.locator('[data-testid="offline"]').count()) === 0)
@@ -237,11 +238,11 @@ try {
   }
   await ctx.route('**/data/map.json', slow)
   await page.reload({ waitUntil: 'load' })
-  const slowPill = await page.getByText(new RegExp(`^${routeCount} routes?`)).waitFor({ timeout: 20000 }).then(() => true, () => false)
+  const slowMap = await arrived.waitFor({ state: 'attached', timeout: 20000 }).then(() => true, () => false)
   const slowNotice = page.locator('[data-testid="offline"]')
   const slowOk = await slowNotice.waitFor({ timeout: 10000 }).then(() => true, () => false)
   const slowText = slowOk ? (await slowNotice.innerText()).trim() : '(none)'
-  check(`slow network: the stored map shows with "Not refreshed · map as of ${expectedDate}"`, slowPill && slowText === `Not refreshed · map as of ${expectedDate}`, slowText)
+  check(`slow network: the stored map shows with "Not refreshed · map as of ${expectedDate}"`, slowMap && slowText === `Not refreshed · map as of ${expectedDate}`, slowText)
   await ctx.unroute('**/data/map.json', slow)
   await page.reload({ waitUntil: 'load' })
   await page.waitForTimeout(2000)

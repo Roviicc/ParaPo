@@ -125,5 +125,5 @@ export const WithAHotspotFloating: Story = { args: { stops: [talaTerminal] }, pa
 /** Two boxes and no line: "2 Hotspots", with no route to count (the owner, 2026-09-29), and nothing to SWITCH. */
 export const TwoHotspots: Story = { args: { routes: [], stops: twoBoxes } }
 
-/** Both boxes of one hintuan and no line: a row each, and "1 Hotspot", as the map's pill counts it (the owner, 2026-09-29). */
+/** Both boxes of one hintuan and no line: a row each, and "1 Hotspot", as a rider counts it (hotspotCount; the owner, 2026-09-29). */
 export const OneHintuanTwoBoxes: Story = { args: { routes: [], stops: oneHintuan } }

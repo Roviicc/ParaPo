@@ -7,8 +7,7 @@
 //   node scripts/pw/visitor-test.mjs
 //
 // Everything asserted here is read from the map itself first — source
-// features, layer order, the summary pill's own text — and only then
-// checked for internal consistency. Nothing is hard-coded about which or
+// features, layer order — and only then checked for internal consistency. Nothing is hard-coded about which or
 // how many routes/hotspots exist, what they are named, or which vertex
 // lands where; a check that needs a shape the data doesn't happen to have
 // today (e.g. a route line passing through a hotspot) SKIPs instead of
@@ -96,15 +95,6 @@ const findVertexOutsideHotspots = (routes, polys) => {
   }
   return null
 }
-const parsePill = (text) => {
-  if (!text) return null
-  const both = text.match(/^(\d+) routes? · (\d+) hotspots?$/)
-  if (both) return { routes: Number(both[1]), hotspots: Number(both[2]) }
-  const routeOnly = text.match(/^(\d+) routes?$/)
-  if (routeOnly) return { routes: Number(routeOnly[1]), hotspots: 0 }
-  return null
-}
-
 const b = await chromium.launch()
 const page = await b.newPage({ viewport: { width: 1280, height: 800 } })
 // PARAPO_NODE_FETCH=1: serve every https request through Node fetch. Needed only
@@ -184,6 +174,13 @@ check('no Done button', (await page.getByRole('button', { name: 'Done' }).count(
 check('no "Sign in" text or button', (await page.getByText('Sign in').count()) === 0)
 check('no "Sign out" text or button', (await page.getByText('Sign out').count()) === 0)
 check('no "Password" text or button', (await page.getByText('Password').count()) === 0)
+// Nor anything the owner found annoying for users (2026-09-29): no count of
+// routes and hotspots in a corner, no +, − or compass.
+check('no count pill ("4 routes · 14 hotspots")', (await page.getByText(/^\d+ routes?\b/).count()) === 0)
+check(
+  'no +, − or compass buttons',
+  (await page.locator('.maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out, .maplibregl-ctrl-compass').count()) === 0,
+)
 
 // 2. Read the map's own data before asserting anything about it.
 const snapshot = await page.evaluate(async () => {
@@ -193,9 +190,6 @@ const snapshot = await page.evaluate(async () => {
   const polyFeatures = (stopsFC?.features ?? []).filter((f) => f.geometry.type === 'Polygon')
   const pointFeatures = (stopsFC?.features ?? []).filter((f) => f.geometry.type === 'Point')
   const order = m.getStyle().layers.map((l) => l.id)
-  const pillEl = [...document.querySelectorAll('div')].find(
-    (d) => d.className.includes('rounded-full') && d.className.includes('bg-white/90'),
-  )
   return {
     polys: polyFeatures.map((f) => ({
       id: f.properties.id,
@@ -209,7 +203,6 @@ const snapshot = await page.evaluate(async () => {
     routes: (routesFC?.features ?? []).map((f) => ({ route_id: f.properties.route_id, coords: f.geometry.coordinates })),
     routeCount: routesFC?.features?.length ?? 0,
     order,
-    pillText: pillEl ? pillEl.innerText.trim() : null,
   }
 })
 
@@ -256,24 +249,6 @@ const [namesFar, namesNear] = [await namesAt(16), await namesAt(17)]
 check('hotspot names only close in: none at zoom 16, some at 17', namesFar === 0 && namesNear > 0, `${namesFar} at 16, ${namesNear} at 17`)
 const drawLayers = snapshot.order.filter((id) => id.startsWith('draw-'))
 check('no editor (draw-*) layers on the public page', drawLayers.length === 0, drawLayers.join(', '))
-
-const pill = parsePill(snapshot.pillText)
-if (snapshot.routeCount === 0) {
-  check('no summary pill when no routes are drawn', snapshot.pillText === null, snapshot.pillText ?? '')
-} else {
-  // Hotspots as a rider counts them (hotspotCount, 2026-09-28): each terminal,
-  // and each place's hintuan once, however many boxes — its mini stops — it has.
-  const file = await (await fetch(`${BASE}/data/map.json`)).json()
-  const place = (s) => (s.informal?.trim() || s.name).trim().toLowerCase()
-  const hotspots =
-    file.stops.filter((s) => s.kind === 'terminal').length +
-    new Set(file.stops.filter((s) => s.kind === 'hintuan').map(place)).size
-  check(
-    'summary pill counts match what is drawn, a hintuan once however many boxes',
-    !!pill && pill.routes === snapshot.routeCount && pill.hotspots === hotspots,
-    `pill "${snapshot.pillText}" vs ${snapshot.routeCount} routes / ${hotspots} hotspots (${snapshot.polys.length} boxes)`,
-  )
-}
 
 // 3. Tap each hotspot: fly to a point inside it, click, read the card.
 for (const [i, p] of snapshot.polys.entries()) {

@@ -41,7 +41,7 @@ type Props = {
  * with routeStackCard list since they are the same UI"): a box is small and
  * deliberate (2026-09-22). They are the Chooser's rows until his hintuan
  * design, a row a box, and the count stays the routes'; only with no route
- * to count does it count the hotspots, "2 Hotspots", as the map's pill does
+ * to count does it count the hotspots, "2 Hotspots", as a rider counts them
  * (hotspotCount): both boxes of one hintuan, either side of the road, are
  * "1 Hotspot" over two rows. All three his picks, the same day.
  *

@@ -20,8 +20,9 @@
 // just outside a hotspot, and the bottom sheet on a hotspot's card — tap and
 // drag the handle, peek → open → peek → gone; the ?r=<id> share link and the
 // view it restores; a trip opened on its own whose ‹ lists the routes sharing
-// an end with its own; the fine-pointer desktop control (±5 px, zoom buttons
-// back, attribution bottom right); and housekeeping.
+// an end with its own; the fine-pointer desktop control (±5 px, no zoom
+// buttons for a mouse either since 2026-09-29, attribution bottom right);
+// and housekeeping.
 import { chromium } from 'playwright'
 
 const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
@@ -1138,7 +1139,9 @@ await dpage.goto(`${BASE}/`, { waitUntil: 'load' })
 await dpage.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
 await dpage.waitForTimeout(1500)
 
-check('a fine pointer keeps the zoom buttons', (await dpage.locator('.maplibregl-ctrl-zoom-in').count()) > 0)
+// The public map has no +, − or compass for a mouse either since 2026-09-29
+// (the owner: "annoying for users"); the studio keeps them.
+check('a fine pointer gets no zoom buttons either', (await dpage.locator('.maplibregl-ctrl-zoom-in, .maplibregl-ctrl-compass').count()) === 0)
 check(
   'a fine pointer keeps the attribution bottom right',
   (await dpage.locator('.maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib').count()) > 0,

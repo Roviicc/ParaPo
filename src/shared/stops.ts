@@ -219,7 +219,7 @@ export function placeSummary(boxes: readonly StopSummary[]): string {
 /**
  * How many hotspots there are, as a rider counts them: each terminal, and
  * each place's hintuan once however many mini stops it has. The owner's
- * rule of 2026-09-28; the pill reads it.
+ * rule of 2026-09-28; the studio's pill and the route list's header read it.
  */
 export function hotspotCount(stops: readonly StopSummary[]): number {
   const hintuans = new Set(stops.filter((s) => s.kind === 'hintuan').map(placeKey))
