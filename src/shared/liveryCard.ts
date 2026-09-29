@@ -77,3 +77,17 @@ export const TIMELINE_SURFACE = {
   mist: 'bg-card-mist-timeline-surface',
   yellow: 'bg-card-yellow-timeline-surface',
 } satisfies Record<Livery, string>
+
+/**
+ * A picked hintuan's pill, with the pesos to it (the owner's Timeline
+ * State=Selected, 3769:2847; his yellow and mist cards, 3785:4462 and
+ * 3785:4575): the card's own colour on Content/inverse where its words are
+ * white, on Content/primary where they are dark. Orange follows red: he drew
+ * no orange trip.
+ */
+export const TIMELINE_PILL = {
+  red: 'bg-content-inverse text-card-red-surface',
+  orange: 'bg-content-inverse text-card-orange-surface',
+  mist: 'bg-content-primary text-card-mist-surface',
+  yellow: 'bg-content-primary text-card-yellow-surface',
+} satisfies Record<Livery, string>

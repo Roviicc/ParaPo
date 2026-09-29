@@ -147,8 +147,9 @@ page.on('request', (req) => {
   if (/\.supabase\.co/.test(req.url())) supabaseHit = true
 })
 // Responses, not requests: a 404 is a request too, and would count as a load.
+// The pick checks read the file again for their sums, marked so as not to count.
 page.on('response', (res) => {
-  if (/\/data\/map\.json/.test(res.url())) mapFileStatuses.push(res.status())
+  if (/\/data\/map\.json/.test(res.url()) && !res.request().headers()['x-parapo-test']) mapFileStatuses.push(res.status())
 })
 
 const closeCard = () => page.getByRole('button', { name: 'Close' }).first().click().catch(() => {})
@@ -216,9 +217,36 @@ const litNow = async () => (await page.evaluate(() => window.__lit('saved-routes
 /** The directions a RouteCard's rows open, as the card names them. */
 const cardDirections = (card) => card.locator('button[data-testid$="-item"]').evaluateAll((els) => els.map((e) => e.dataset.direction))
 const sameIds = (a, b) => a.length === b.length && a.every((id) => b.includes(id))
-const twoLooks = (p) =>
+const twoLooks = (p, lit = MAP?.['Map/RouteLine/surface-selected']) =>
   !!p && p.shaded.length === 0 &&
-  (MAP ? p.rest === MAP['Map/RouteLine/surface-default'] && p.lit === MAP['Map/RouteLine/surface-selected'] : !!p.rest && p.rest !== p.lit)
+  (MAP ? p.rest === MAP['Map/RouteLine/surface-default'] && p.lit === lit : !!p.rest && p.rest !== p.lit)
+
+// What is lit wears the colour of the card it answers — a picked RouteCard's,
+// an open trip's — its chevrons in the card's words' colour and its end
+// circles ringed in the line's; with no card picked, the selected blue (the
+// owner's ask, 2026-09-29). The looks are liveryLine.ts's, read from the dev
+// server; a server that cannot serve it skips the colour.
+const LOOKS = await page.evaluate(async () => {
+  try {
+    const m = await import('/src/shared/liveryLine.ts')
+    return { byLivery: m.LIVERY_LINE, lit: m.LIT_LINE }
+  } catch {
+    return null
+  }
+})
+/** The lit line's paint now: its colour, its chevrons', and its end circles' ring. */
+const rideLook = () =>
+  page.evaluate(() => {
+    const m = window.__map
+    const get = (layer, prop) => (m.getLayer(layer) ? m.getPaintProperty(layer, prop) : null)
+    return {
+      line: get('saved-routes-selected', 'line-color'),
+      arrow: get('direction-arrow-chevrons', 'fill-color'),
+      ends: get('direction-end-circles', 'circle-stroke-color'),
+    }
+  })
+/** Whether the lit line wears `want` (a LineLook), chevrons and rings too; true when the looks cannot be read. */
+const wears = (seen, want) => !LOOKS || (!!want && seen.line === want.line && seen.arrow === want.arrow && seen.ends === want.line)
 
 const snapshot = await page.evaluate(async () => {
   const m = window.__map
@@ -441,7 +469,7 @@ if (!hit) {
     const title = `${cardCount} ${cardCount === 1 ? 'Route' : 'Routes'}`
     check(`  headed "${title}": the routes' count, not the hotspot's`, text.split('\n').includes(title), text.split('\n')[0])
     // A list lights every route it shows; a tap on a card off its rows
-    // narrows the lights to its routes, dark blue over the rest, and a
+    // narrows the lights to its routes, in its colour over the rest, and a
     // second lets it go; a row opens its trip straight away, and ‹ comes
     // back to every card at rest (the owner, 2026-09-29).
     const listedNow = async () => (await cardDirections(chooser.first())).filter(Boolean)
@@ -457,7 +485,14 @@ if (!hit) {
     const cardIds = await cardDirections(card)
     const picked = await litNow()
     const looks = await paintNow()
-    check('  a tap on a card selects it, dark blue over the rest', (await card.getAttribute('data-state')) === 'selected' && twoLooks(looks), JSON.stringify(looks))
+    const cardLook = LOOKS?.byLivery[colour]
+    check(
+      "  a tap on a card selects it, its routes drawn over the rest in the card's colour",
+      (await card.getAttribute('data-state')) === 'selected' && twoLooks(looks, cardLook?.line ?? MAP?.['Map/RouteLine/surface-selected']),
+      JSON.stringify(looks),
+    )
+    const seenPicked = await rideLook()
+    check("  its chevrons in the card's words' colour, its end circles ringed in its own", wears(seenPicked, cardLook), `${colour}: ${JSON.stringify(seenPicked)}`)
     // Narrower than the list only where the list has other cards.
     if (cardIds.length < listed.length) check('  and lights just its routes', sameIds(picked, cardIds), `${picked.length} lit for ${cardIds.length} row(s) of ${listed.length}`)
     else skip('  and lights just its routes', 'one card lists every route this way round under this tap')
@@ -470,6 +505,8 @@ if (!hit) {
     if (state.kind === 'route') {
       const tripColour = await page.locator('[data-testid="trip"]').first().getAttribute('data-livery')
       check('  in the colour of the card it was picked from', !!colour && tripColour === colour, `card ${colour}, trip ${tripColour}`)
+      const seenTrip = await rideLook()
+      check("  its line in the trip card's colour too", wears(seenTrip, LOOKS?.byLivery[tripColour]), `${tripColour}: ${JSON.stringify(seenTrip)}`)
       // The list stays behind the trip, hidden, for its ‹, and its hotspot
       // goes dark under the trip till then (the owner, 2026-09-29).
       const stopsLit = async () => (await page.evaluate(() => window.__lit('saved-stops'))) ?? []
@@ -487,6 +524,8 @@ if (!hit) {
       const relit = await litNow()
       const stillSelected = await chooser.locator('[data-state="selected"]').count()
       check('  ‹ brings it back at rest: no card picked, every route lit', stillSelected === 0 && sameIds(relit, listed), `${stillSelected} Selected; ${relit.length} lit, ${listed.length} listed`)
+      const seenRest = await rideLook()
+      check('  in the selected blue again', wears(seenRest, LOOKS?.lit), JSON.stringify(seenRest))
       // Picked, a second tap lets it go.
       await name.click()
       await page.waitForTimeout(250)
@@ -528,7 +567,7 @@ if (!hit) {
 }
 
 // 4b. Rest and lit: every direction rests in one light blue, opaque; one
-// route alone under the tap opens its card directly, drawn dark blue over
+// route alone under the tap opens its card directly, drawn in its trip card's colour over
 // the rest; closing the card lights nothing again. Nothing fades and nothing
 // is see-through (the owner's two looks, 2026-09-29).
 {
@@ -581,6 +620,39 @@ if (!hit) {
       })
       const fit = chevrons.all.every((c) => Math.abs(c.across - c.meant) < 0.5 && (chevrons.line == null || Math.abs(c.meant - chevrons.line) < 0.01))
       check('  chevrons ride the lit line, each as wide as it', chevrons.all.length > 0 && fit, `${chevrons.all.length} chevrons, ${chevrons.all[0]?.across.toFixed(2)} px across; the lit line ${chevrons.line?.toFixed(2) ?? 'unread'} px`)
+      // They flow as the route lights, then rest where they are: a flow
+      // redraws the whole map every frame, which kept a phone's main thread
+      // nine-tenths busy (the owner's pick of 2026-09-29, "flow, then rest").
+      // Three seconds and more after the card opened, two looks half a
+      // second apart find them in the same place.
+      const where = () =>
+        page.evaluate(async () => ((await window.__src('direction-arrows'))?.features ?? []).map((f) => f.geometry.coordinates[0][0].map((v) => v.toFixed(7)).join()).join('|'))
+      await page.waitForTimeout(3200)
+      const restA = await where()
+      // Nor redrawn in place: no new data for the map to draw over half a
+      // second, which is what leaves the map idle.
+      const sets = await page.evaluate(
+        () =>
+          new Promise((resolve) => {
+            const src = window.__map.getSource('direction-arrows')
+            const set = src.setData
+            let n = 0
+            src.setData = function (...a) {
+              n++
+              return set.apply(this, a)
+            }
+            setTimeout(() => {
+              src.setData = set
+              resolve(n)
+            }, 500)
+          }),
+      )
+      const restB = await where()
+      check(
+        '  and after their flow they rest, the map left idle',
+        restA !== '' && restA === restB && sets === 0,
+        `${restA === restB ? 'still' : 'still moving'}; ${sets} redraw(s) in 500 ms`,
+      )
       // The orange stretches: where this direction passes a hintuan, on the same "passes" rule as the card's count.
       const litId = litIds[0] ?? ''
       const stretches = await page.evaluate(async (id) => ((await window.__src('saved-routes-pass'))?.features ?? []).filter((f) => f.properties.id === id).length, litId)
@@ -590,10 +662,134 @@ if (!hit) {
       // other direction's stretches lit, and no layer left painting them all.
       const alwaysOn = await page.evaluate(() => !!window.__map.getLayer('saved-routes-pass'))
       check('  and on no other line', passLit.length === 1 && !alwaysOn, `lit on the stretches: ${JSON.stringify(passLit)}; the old layer for every line ${alwaysOn ? 'still there' : 'gone'}`)
+      // A hintuan's row picks it (the owner's Timeline State=Selected,
+      // 2026-09-29), here with the card in the top-left corner: the pill's
+      // pesos are the app's own sums over rideCut's metres, the map is dark
+      // only that far, and the camera glides the hintuan to the right of the
+      // card; a second tap lets it go, and ✕ lets a pick go.
+      const cardEl = page.locator('[data-testid="card"]').first()
+      const rows = cardEl.locator('[data-testid="trip-hintuan"]')
+      if ((await rows.count()) === 0) {
+        skip('  a hintuan row picks it, priced from the start, the map dark that far', 'no hintuan on this direction yet')
+      } else {
+        const fold = cardEl.locator('button[data-testid="trip-fold"]')
+        if ((await fold.count()) > 0) {
+          await fold.first().click()
+          await page.waitForTimeout(450)
+        }
+        const row = rows.nth(Math.floor(((await rows.count()) - 1) / 2))
+        const rowId = await row.getAttribute('data-hintuan')
+        const want = await page.evaluate(async ([id, rowId]) => {
+          try {
+            const [{ rideFare }, { rideCut }] = await Promise.all([import('/src/shared/fares.ts'), import('/src/shared/routes.ts')])
+            const m = await fetch('/data/map.json', { headers: { 'x-parapo-test': 'sums' } }).then((r) => r.json())
+            const v = m.variants.find((x) => x.id === id)
+            const cut = v && rideCut(v, m.stops, rowId)
+            return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, at: cut.at, rest: cut.rest.length } : null
+          } catch {
+            return null
+          }
+        }, [litId, rowId])
+        const tilesBefore = await cardEl.locator('dl').innerText()
+        const pick = row.locator('button[data-testid="trip-hintuan-pick"]')
+        await pick.scrollIntoViewIfNeeded()
+        await pick.click()
+        await page.waitForTimeout(250)
+        await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+        const pill = (await row.locator('[data-testid="trip-hintuan-fare"]').count()) ? (await row.locator('[data-testid="trip-hintuan-fare"]').innerText()).trim() : null
+        const seen = await page.evaluate(async (at) => {
+          const m = window.__map
+          const fs = (await window.__src('ride-rest'))?.features ?? []
+          const c = m.getCanvas().getBoundingClientRect()
+          const d = document.querySelector('[data-testid="card"]').getBoundingClientRect()
+          const q = at && m.project(at)
+          return {
+            lit: (await window.__lit('saved-routes')) ?? [],
+            rest: fs.length === 1 ? fs[0].geometry.coordinates.length : 0,
+            line: m.getLayer('ride-rest-line') ? m.getPaintProperty('ride-rest-line', 'line-color') : null,
+            dots: document.querySelectorAll('[data-testid="ride-dot"]').length,
+            x: q ? c.left + q.x : null, y: q ? c.top + q.y : null, cardRight: d.right, top: c.top, bottom: c.bottom, right: c.right,
+            padding: Object.values(m.getPadding()).every((v) => v === 0),
+          }
+        }, want?.at ?? null)
+        check(
+          '  a hintuan row picks it: Selected, its pill the pesos from the start to there',
+          (await row.getAttribute('data-state')) === 'selected' && (!want || pill === want.fare),
+          `"${pill}"${want ? `, the sums "${want.fare}"` : ''}`,
+        )
+        check('  the tiles keep the whole ride', (await cardEl.locator('dl').innerText()) === tilesBefore)
+        check(
+          '  the map dark only that far: the trip still lit, the way past at rest over it, no get-off circles',
+          seen.lit.length === 1 && seen.lit[0] === litId && seen.rest > 1 && (!want || seen.rest === want.rest) &&
+            (MAP ? seen.line === MAP['Map/RouteLine/surface-default'] : !!seen.line) && seen.dots === 0,
+          `${seen.lit.length} lit; ${seen.rest} point(s) at rest in ${seen.line}; ${seen.dots} circle(s)`,
+        )
+        if (want) {
+          check(
+            '  the camera glides it right of the card in the corner, no padding left',
+            seen.x > seen.cardRight + 24 && seen.x < seen.right - 16 && seen.y > seen.top + 16 && seen.y < seen.bottom - 16 && seen.padding,
+            `at ${Math.round(seen.x)},${Math.round(seen.y)}; the card's right edge ${Math.round(seen.cardRight)}`,
+          )
+        }
+        await pick.click()
+        await page.waitForTimeout(250)
+        const letGo = await page.evaluate(async () => ((await window.__src('ride-rest'))?.features ?? []).length)
+        check('  a second tap lets it go', (await row.getAttribute('data-state')) === 'rest' && letGo === 0, `${letGo} at rest`)
+        // Where the trip goes is a button too (the owner's ask, 2026-09-29):
+        // picked again, a tap there lets the pick go and glides the map to
+        // the line's end, right of the card in the corner.
+        const end = await page.evaluate(async (id) => {
+          try {
+            const { travelLine } = await import('/src/shared/routes.ts')
+            const m = await fetch('/data/map.json', { headers: { 'x-parapo-test': 'sums' } }).then((r) => r.json())
+            const line = travelLine(m.variants.find((x) => x.id === id), m.stops)
+            return line.length > 1 ? line[line.length - 1] : null
+          } catch {
+            return null
+          }
+        }, litId)
+        await pick.click()
+        await page.waitForTimeout(250)
+        const wasPicked = (await row.getAttribute('data-state')) === 'selected'
+        await cardEl.locator('[data-testid="trip-destination"] button').click()
+        const destination = await cardEl.locator('[data-testid="trip-destination"]').getAttribute('data-state')
+        await page.waitForTimeout(250)
+        await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+        const atEnd = await page.evaluate(async (at) => {
+          const m = window.__map
+          const c = m.getCanvas().getBoundingClientRect()
+          const d = document.querySelector('[data-testid="card"]').getBoundingClientRect()
+          const q = at && m.project(at)
+          return {
+            rest: ((await window.__src('ride-rest'))?.features ?? []).length,
+            right: q ? c.left + q.x > d.right + 24 && q.x < c.width - 16 && q.y > 16 && q.y < c.height - 16 : null,
+          }
+        }, end)
+        check(
+          "  where the trip goes, tapped, is picked in the hintuan's place, its line whole, gliding there right of the card",
+          wasPicked && (await row.getAttribute('data-state')) === 'rest' && destination === 'selected' && atEnd.rest === 0 && atEnd.right !== false,
+          `picked first ${wasPicked}; the destination ${destination}; ${atEnd.rest} at rest; right of the card ${atEnd.right ?? 'not measured'}`,
+        )
+        // Where it leaves from is picked in the destination's place, no hintuan picked.
+        await cardEl.locator('[data-testid="trip-origin"] button').click()
+        await page.waitForTimeout(250)
+        const destinationAfter = await cardEl.locator('[data-testid="trip-destination"]').getAttribute('data-state')
+        const originAfter = await cardEl.locator('[data-testid="trip-origin"]').getAttribute('data-state')
+        check(
+          "  where it leaves from, tapped, is picked in the destination's place",
+          destination === 'selected' && destinationAfter === 'rest' && originAfter === 'selected',
+          `the destination ${destination} → ${destinationAfter}, the origin ${originAfter}`,
+        )
+        // Picked again, for ✕ to let go.
+        await pick.click()
+        await page.waitForTimeout(250)
+      }
       await closeCard()
       await page.waitForTimeout(300)
       const after = (await page.evaluate(() => window.__lit('saved-routes'))) ?? []
       check('  closing the card lights nothing again', after.length === 0, JSON.stringify(after))
+      const restAfter = await page.evaluate(async () => ((await window.__src('ride-rest'))?.features ?? []).length)
+      check('  and lets a picked hintuan go', restAfter === 0, `${restAfter} at rest`)
     }
   }
 }

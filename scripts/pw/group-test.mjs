@@ -106,14 +106,14 @@ const offLine = (p, coords) => {
 // in …/surface-selected, and no layer shading a line. The hexes are
 // mapColours.ts's, read from the dev server; a server that cannot serve it
 // is held to two different colours.
+const MAP = await page.evaluate(async () => {
+  try {
+    return (await import('/src/design-system/foundation/mapColours.ts')).MAP_COLOURS
+  } catch {
+    return null
+  }
+})
 {
-  const MAP = await page.evaluate(async () => {
-    try {
-      return (await import('/src/design-system/foundation/mapColours.ts')).MAP_COLOURS
-    } catch {
-      return null
-    }
-  })
   const p = await page.evaluate(() => window.__paint())
   const twoLooks = p.shaded.length === 0 &&
     (MAP ? p.rest === MAP['Map/RouteLine/surface-default'] && p.lit === MAP['Map/RouteLine/surface-selected'] : !!p.rest && p.rest !== p.lit)
@@ -369,6 +369,57 @@ if (!spot) {
     const one = await levels()
     const others = Object.keys(one).filter((id) => id !== openId)
     check('  its way back, and the rest, stay as they rest', opaque(one, [...twins, ...others]), `${twins.length} way back, ${others.length} other line(s)`)
+    // The studio keeps its ride-to preview as the public map gains the
+    // hintuan pick (the owner, 2026-09-29): a hintuan row draws the way not
+    // ridden at rest over the lit line, opaque in its white casing, with the
+    // get-off circles the public map goes without; a second tap puts the
+    // whole route back. The first row the line reaches is the one checked.
+    const rideRows = page.locator('[data-testid="card"] button[data-testid="timeline-row"][title="Show the ride up to here"]')
+    const rideCount = await rideRows.count()
+    // The way between the ends is folded away until asked for.
+    const between = page.locator('[data-testid="card"] [data-testid="card-timeline"]').first()
+    if (rideCount && !(await between.evaluate((d) => d.open))) {
+      await between.locator('summary').click()
+      await page.waitForTimeout(200)
+    }
+    let ridden = null
+    for (let i = 0; i < rideCount && !ridden; i++) {
+      const rowEl = await rideRows.nth(i).elementHandle()
+      await rowEl.scrollIntoViewIfNeeded()
+      await rowEl.click()
+      await page.waitForTimeout(900)
+      const seen = await page.evaluate(async () => {
+        const m = window.__map
+        const fs = (await window.__src('ride-rest'))?.features ?? []
+        const has = !!m.getLayer('ride-rest-line') && !!m.getLayer('ride-rest-casing')
+        return {
+          rest: fs.length,
+          line: has ? m.getPaintProperty('ride-rest-line', 'line-color') : null,
+          casing: has ? m.getPaintProperty('ride-rest-casing', 'line-color') : null,
+          dots: document.querySelectorAll('[data-testid="ride-dot"]').length,
+        }
+      })
+      if (seen.rest > 0) ridden = { rowEl, seen }
+      else await rowEl.click() // the line misses its box: nothing to show; let it go
+    }
+    if (!ridden) {
+      skip('  a hintuan row shows the ride up to it, get-off circles and all', rideCount ? "the line reaches none of its hintuans' boxes" : 'no hintuan on this direction')
+    } else {
+      const { seen } = ridden
+      check(
+        '  a hintuan row shows the ride up to it, get-off circles and all',
+        (await ridden.rowEl.getAttribute('aria-pressed')) === 'true' && seen.dots > 0 &&
+          (MAP ? seen.line === MAP['Map/RouteLine/surface-default'] : !!seen.line) && seen.casing === '#ffffff',
+        `${seen.rest} stretch at rest in ${seen.line}, cased ${seen.casing}; ${seen.dots} circle(s)`,
+      )
+      await ridden.rowEl.click()
+      await page.waitForTimeout(400)
+      const back = await page.evaluate(async () => ({
+        rest: ((await window.__src('ride-rest'))?.features ?? []).length,
+        dots: document.querySelectorAll('[data-testid="ride-dot"]').length,
+      }))
+      check('  and a second tap puts the whole route back', back.rest === 0 && back.dots === 0, `${back.rest} at rest, ${back.dots} circle(s)`)
+    }
     await page.locator('[data-testid="card"] button[aria-label="Close"]').first().click()
     await page.waitForTimeout(400)
     const endsNone = await page.evaluate(async () => ((await window.__src('direction-ends'))?.features ?? []).length)

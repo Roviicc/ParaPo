@@ -85,6 +85,17 @@ test("one ride's pesos: the trip's Expected fare", () => {
   assert.equal(rideFare('jeepney', 5_000, '2020-01-01'), undefined)
 })
 
+test("a ride's pesos never fall as it grows: a picked hintuan's pill stays within the whole ride's", () => {
+  // Compared by their dearer end, 0 to 30 km in 100 m steps.
+  const dearest = (f) => Number(f.replace('₱', '').split('–').at(-1))
+  let last = 0
+  for (let m = 0; m <= 30_000; m += 100) {
+    const now = dearest(rideFare('jeepney', m, '2026-09-29'))
+    assert.ok(now >= last, `${m} m: ₱${now} after ₱${last}`)
+    last = now
+  }
+})
+
 test('the Kilometer tile: to a tenth, no space', () => {
   assert.equal(kmLabel(12_800), '12.8km')
   assert.equal(kmLabel(12_849), '12.8km')

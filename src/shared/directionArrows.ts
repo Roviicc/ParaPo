@@ -3,6 +3,7 @@ import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { haversine, type LngLat } from './geo'
 import { MAP_COLOURS } from '../design-system/foundation/mapColours'
 import { endRadius, litWidthAt } from './lineStyle'
+import type { LineLook } from './liveryLine'
 import { ROUTES_HIT_LAYER } from './tap'
 
 /**
@@ -20,12 +21,13 @@ import { ROUTES_HIT_LAYER } from './tap'
  * (since 2026-09-25), or a hotspot's cards do (2026-09-29). Where two of
  * those share a road they flow as one stream, not two.
  *
- * The mark is a white chevron, one to a place and all alike, with no trail:
- * his call the night of 2026-09-23, after white arrows, a train of four
- * fading chevrons ("not good visually") and jeepneys (parked for a Simulate
- * button, PLAN.md). It is a chevron bigger than the line and cut off by it:
- * its arms run out to the line's edges and stop there, so none of it shows
- * outside the line.
+ * The mark is a white chevron (near-black, Arrow/Inverse, on a mist or yellow
+ * line since 2026-09-29: useRideColours), one to a place and all alike, with
+ * no trail: his call the night of 2026-09-23, after white arrows, a train of
+ * four fading chevrons ("not good visually") and jeepneys (parked for a
+ * Simulate button, PLAN.md). It is a chevron bigger than the line and cut off
+ * by it: its arms run out to the line's edges and stop there, so none of it
+ * shows outside the line.
  *
  * MapLibre can neither slide a mark along a line nor clip one to a line's
  * width, so each chevron is a small polygon we draw ourselves: every frame,
@@ -72,6 +74,16 @@ const FEWER_ZOOMED_IN = 0.8
 const ZOOMED_OUT_BELOW = 14
 const ZOOMED_IN_FROM = 16
 const SPEED_PX_PER_S = 28
+
+/**
+ * How long they flow once a route lights, before they rest where they are:
+ * a flow makes MapLibre draw the whole map again every frame, and on a phone
+ * that alone kept the main thread nine-tenths busy at under 20 frames a
+ * second, whatever the route (measured 2026-09-29, a CPU slowed 4×: 17 fps
+ * flowing, 60 at rest). The owner's pick that day: "flow, then rest". They
+ * flow again whenever what is lit changes.
+ */
+const FLOW_MS = 3000
 
 /**
  * The spacing at `zoom`, in steps rather than smoothly: where each chevron
@@ -257,9 +269,23 @@ function stillPlease(): boolean {
 }
 
 /**
- * Draw flowing chevrons along each ride's line, and a circle at both ends of
- * each with the place's name beside it; nothing when there are none. Pass the
- * same array while what is lit is unchanged (a memo), or the flow restarts.
+ * The chevrons' colour, and the end circles' ring: the selected blue's white
+ * chevrons and blue ring unless the public map says otherwise — a picked
+ * card's or an open trip's (liveryLine.ts), the ring in the line's colour.
+ */
+export function useRideColours(map: MapLibreMap | null, look: LineLook) {
+  useEffect(() => {
+    if (!map || !map.getLayer(CHEVRONS) || !map.getLayer(ENDS)) return
+    map.setPaintProperty(CHEVRONS, 'fill-color', look.arrow)
+    map.setPaintProperty(ENDS, 'circle-stroke-color', look.line)
+  }, [map, look.line, look.arrow])
+}
+
+/**
+ * Draw chevrons along each ride's line, flowing for FLOW_MS and then at
+ * rest, and a circle at both ends of each with the place's name beside it;
+ * nothing when there are none. Pass the same array while what is lit is
+ * unchanged (a memo), or the flow restarts.
  */
 export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride[]): void {
   const lines = useMemo(() => rides.map((r) => r.line), [rides])
@@ -273,7 +299,13 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     if (!map || map.getSource(SRC) || !map.getLayer(ROUTES_HIT_LAYER)) return
     map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
     map.addLayer(
-      { id: CHEVRONS, type: 'fill', source: SRC, paint: { 'fill-color': MAP_COLOURS['Map/RouteLine/Arrow/Rest'] } },
+      {
+        id: CHEVRONS,
+        type: 'fill',
+        source: SRC,
+        // No fade between colours: they change with what is lit, in its frame.
+        paint: { 'fill-color': MAP_COLOURS['Map/RouteLine/Arrow/Rest'], 'fill-color-transition': { duration: 0, delay: 0 } },
+      },
       ROUTES_HIT_LAYER,
     )
     map.addSource(ENDS_SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
@@ -286,6 +318,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
           'circle-radius': endRadius(),
           'circle-color': '#ffffff',
           'circle-stroke-color': MAP_COLOURS['Map/RouteLine/surface-selected'],
+          'circle-stroke-color-transition': { duration: 0, delay: 0 },
           'circle-stroke-width': 2,
         },
       },
@@ -362,12 +395,25 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       for (const m of measured) {
         const mpp = metresPerPixel(m.lat, zoom)
         const spacing = spacingPx(zoom) * mpp
-        const offset = still ? spacing / 2 : (((now - start) / 1000) * SPEED_PX_PER_S * mpp) % spacing
+        // At rest they stay where the flow left them, at any zoom.
+        const flowed = Math.min(now - start, FLOW_MS)
+        const offset = still ? spacing / 2 : ((flowed / 1000) * SPEED_PX_PER_S * mpp) % spacing
         chevronsAt(m, offset, spacing, across, map, features)
       }
       src.setData({ type: 'FeatureCollection', features })
     }
+    // Kept still, they are drawn once, and again whenever the map moves: a
+    // zoom changes their size and spacing, a pan brings new line on screen.
+    const redraw = () => draw(performance.now())
+    const rest = () => {
+      redraw()
+      map.on('move', redraw)
+    }
     const tick = (now: number) => {
+      if (now - start >= FLOW_MS) {
+        rest()
+        return
+      }
       // Thirty frames a second is smooth for a flow and half the work of sixty.
       if (now - last >= 1000 / 30) {
         last = now
@@ -375,15 +421,8 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       }
       frame.current = requestAnimationFrame(tick)
     }
-    // Kept still, they are drawn once, and again whenever the map moves: a
-    // zoom changes their size and spacing, a pan brings new line on screen.
-    const redraw = () => draw(performance.now())
-    if (still) {
-      redraw()
-      map.on('move', redraw)
-    } else {
-      frame.current = requestAnimationFrame(tick)
-    }
+    if (still) rest()
+    else frame.current = requestAnimationFrame(tick)
     return () => {
       cancelAnimationFrame(frame.current)
       map.off('move', redraw)

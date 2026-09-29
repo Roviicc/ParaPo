@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, type ReactNode, type Ref } from 'react'
 
 type Props = {
   /** What a screen reader calls it: the list by its count, a trip by its direction. */
@@ -15,6 +15,8 @@ type Props = {
    * colours. Escape is the trip's then, not the list's.
    */
   hidden?: boolean
+  /** The dock itself, for the map to keep what it glides to clear of it (clearOfDock). */
+  ref?: Ref<HTMLDivElement>
   children: ReactNode
 }
 
@@ -26,7 +28,7 @@ type Props = {
  * Taller than the room, the body scrolls under the header, with no scrollbar
  * drawn (his ask, 2026-09-28).
  */
-export function RouteDock({ label, testId, header, onClose, hidden = false, children }: Props) {
+export function RouteDock({ label, testId, header, onClose, hidden = false, ref, children }: Props) {
   // Escape closes, as it does any dialog.
   useEffect(() => {
     if (hidden) return
@@ -39,6 +41,7 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, chil
 
   return (
     <div
+      ref={ref}
       role="dialog"
       aria-label={label}
       data-testid={testId}
@@ -52,4 +55,21 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, chil
       <div className="min-h-0 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden">{children}</div>
     </div>
   )
+}
+
+/**
+ * Where a point the camera glides to should sit, from the map's centre, so
+ * the dock does not cover it: in the middle of the map left showing — to the
+ * dock's right from `@float:`, where it sits in the top-left corner, above it
+ * where it is docked along the bottom. For MapLibre's `offset`, measured as
+ * the glide starts: the dock's height changes with a trip's fold.
+ */
+export function clearOfDock(map: HTMLElement, dock: HTMLElement | null): [number, number] {
+  if (!dock || dock.hidden) return [0, 0]
+  const m = map.getBoundingClientRect()
+  const d = dock.getBoundingClientRect()
+  // In the corner, short of the map's right edge: the room is to its right.
+  if (d.right < m.right - 1) return [Math.max(0, d.right - m.left) / 2, 0]
+  // Along the bottom: the room is above it.
+  return [0, -Math.max(0, m.bottom - d.top) / 2]
 }

@@ -14,14 +14,20 @@ type SheetState = 'peek' | 'open'
  * with the old rows and the RouteCards alike). Caught at the capture phase on
  * the document, before MapLibre or React sees it, and only where the finger
  * lifted: a tap on the sheet's ✕ right after lands elsewhere, and is one the
- * visitor meant. Forgotten after a moment if none comes. Armed after a drag
- * too: a finger's sends no click, and the watch lapses; a mouse's clicks the
- * handle it was held on, which toggled the sheet straight back — pulled up,
- * it fell to peek (the reviewer's note, fixed on the owner's word,
- * 2026-09-29).
+ * visitor meant. Forgotten when the next gesture starts, if none came — not
+ * after a set time: on a busy page the click came a second after the finger
+ * lifted, long after the 300 ms this once waited, and landed on the RouteCard
+ * the sheet had pulled up under it (a phone-sized page slowed 20×, and the
+ * Philcoa card on GitHub's runners once its routes flowed, 2026-09-29).
+ * Armed after a drag too: a finger's sends no click, and the next touch ends
+ * the watch; a mouse's clicks the handle it was held on, which toggled the
+ * sheet straight back — pulled up, it fell to peek (the reviewer's note,
+ * fixed on the owner's word, 2026-09-29).
  */
 function swallowTheTapsClick(x: number, y: number) {
   const stop = (e: MouseEvent) => {
+    // No pointer's: Enter or Space, or a script. Left for the watch's own click.
+    if (e.detail === 0) return
     cleanup()
     // As far as a finger may travel and still tap.
     if (Math.hypot(e.clientX - x, e.clientY - y) > DRAG_PX) return
@@ -30,10 +36,10 @@ function swallowTheTapsClick(x: number, y: number) {
   }
   const cleanup = () => {
     document.removeEventListener('click', stop, true)
-    window.clearTimeout(timer)
+    document.removeEventListener('pointerdown', cleanup, true)
   }
-  const timer = window.setTimeout(cleanup, 300)
   document.addEventListener('click', stop, true)
+  document.addEventListener('pointerdown', cleanup, true)
 }
 
 type Props = {

@@ -4,11 +4,12 @@ import { directionToOpen, isDrawn, variantLine, type VariantSummary } from './ro
 import { ROUTES_HIT_LAYER, resolveTap, tapTargets } from './tap'
 import { MAP_COLOURS } from '../design-system/foundation/mapColours'
 import { CASING_EXTRA, litWidth, roadWidth } from './lineStyle'
+import type { Livery } from './liveries'
 
 const SRC = 'saved-routes'
 const CASING = 'saved-routes-casing'
 const LINE = 'saved-routes-line'
-/** The lit directions, drawn again on top: thick, and in the selected blue. */
+/** The lit directions, drawn again on top: thick, in the selected blue, or on the public map in a picked card's or an open trip's colour. */
 const SELECTED_CASING = 'saved-routes-selected-casing'
 const SELECTED = 'saved-routes-selected'
 const HIT = ROUTES_HIT_LAYER
@@ -18,7 +19,9 @@ const HIT = ROUTES_HIT_LAYER
  * rests in Map/RouteLine/surface-default, opaque, in its white casing; the
  * lit ones — the trip open, the Selected card's directions, or else every
  * direction a list or a hotspot's card shows — are drawn again on top in
- * Map/RouteLine/surface-selected, thicker. See-through lines
+ * Map/RouteLine/surface-selected, thicker; on the public map a picked
+ * card's, or an open trip's, wear that card's Card/<livery>/surface instead
+ * (useLitLineColour, his ask of 2026-09-29). See-through lines
  * stacked on a shared road and read as one muddle (his words: "it can stack
  * and confuse the user"), so nothing fades any more: the three levels of
  * 2026-09-22 (rest, faded, lit) and the resting way back of 2026-09-25 went
@@ -61,10 +64,24 @@ export function useLighting(map: MapLibreMap | null, source: string, lit: readon
 
 /**
  * The RouteCard picked in a list of them — the route list's, or a hotspot's
- * card's (`where`) — by its place, and the directions its rows list: what
- * the map lights while no trip is open (the owner, 2026-09-29).
+ * card's (`where`) — by its place, the directions its rows list, and the
+ * colour it wears: what the map lights while no trip is open, and in what
+ * (the owner, 2026-09-29).
  */
-export type Highlight = { where: 'list' | 'hotspot'; from: string; ids: readonly string[] }
+export type Highlight = { where: 'list' | 'hotspot'; from: string; ids: readonly string[]; livery: Livery }
+
+/**
+ * The colour the lit directions are drawn in, over the rest: the selected
+ * blue unless the public map says otherwise — a picked card's, an open
+ * trip's (liveryLine.ts). A paint property, set once per change: every lit
+ * line wears the same colour at a time.
+ */
+export function useLitLineColour(map: MapLibreMap | null, colour: string) {
+  useEffect(() => {
+    if (!map || !map.getLayer(SELECTED)) return
+    map.setPaintProperty(SELECTED, 'line-color', colour)
+  }, [map, colour])
+}
 
 /**
  * Every saved route direction, drawn for everyone. This is the public half of
@@ -212,11 +229,11 @@ export function useSavedRoutes<T extends VariantSummary>(
       before,
     )
     // The lit directions — the one chosen, the Selected card's, or else
-    // everything a list or a hotspot's card shows — drawn once more above
-    // the rest, in the selected blue: over a shared road, they are the line
-    // that shows. Every direction is in these layers, the unlit ones switched
-    // off: a filter naming the lit ones would lay the whole source out again
-    // at every tap (see `useLighting`).
+    // everything a list or a hotspot's card shows — drawn once more above the
+    // rest, in the selected blue (or a card's, useLitLineColour): over a
+    // shared road, they are the line that shows. Every direction is in these
+    // layers, the unlit ones switched off: a filter naming the lit ones would
+    // lay the whole source out again at every tap (see `useLighting`).
     map.addLayer(
       {
         id: SELECTED_CASING,
@@ -233,7 +250,15 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': MAP_COLOURS['Map/RouteLine/surface-selected'], 'line-width': litWidth(), 'line-opacity': litOpacity() },
+        paint: {
+          'line-color': MAP_COLOURS['Map/RouteLine/surface-selected'],
+          // A new colour shows with the lighting it goes with, in the same
+          // frame: MapLibre's default 300 ms fade would draw the next card's
+          // routes in the last card's colour for a moment.
+          'line-color-transition': { duration: 0, delay: 0 },
+          'line-width': litWidth(),
+          'line-opacity': litOpacity(),
+        },
       },
       before,
     )

@@ -1,61 +1,144 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Marker, type GeoJSONSource, type MapLibreMap } from 'maplibre-gl'
+import { MAP_COLOURS } from '../design-system/foundation/mapColours'
 import { haversine } from './geo'
 import { CASING_EXTRA, litWidth } from './lineStyle'
-import { rideCut, type VariantSummary } from './routes'
+import { rideCut, travelLine, type VariantSummary } from './routes'
 import type { StopSummary } from './stops'
 
 const SRC = 'ride-rest'
-const WASH = 'ride-rest-wash'
+const REST_CASING = 'ride-rest-casing'
+const REST_LINE = 'ride-rest-line'
 
 /**
- * The ride-to preview: tap a hintuan on the route card's timeline and the
- * lit line ends there — the way not ridden fades under a white wash — while
- * the card stays open with the stretch's own length and fare. The owner's
- * ask of 2026-09-28: the row answers "what if I get off here?", not "what
- * is this hotspot?". Each mini stop of the hintuan gets a get-off circle
- * (drawn like a route's end circle); the ride ends at the last one, and
- * tapping another moves the get-off side without moving the hintuan. The
- * circles are DOM markers, like the walker: their taps stay their own and
- * never fall through to the route or the box below. Tapping the row again,
- * an end row, another route or the card away puts the whole route back.
+ * The ride-to preview: tap a hintuan on the trip's timeline and the lit line
+ * ends there, the card staying open. The owner's ask of 2026-09-28: the row
+ * answers "what if I get off here?", not "what is this hotspot?". The way
+ * not ridden goes back to how a line rests — Map/RouteLine/surface-default,
+ * opaque, in its white casing, drawn at the lit line's width over it — since
+ * nothing on the map is see-through any more (his two looks, 2026-09-29);
+ * the white wash it had until then went with them. It lies over the lit
+ * line's chevrons and orange stretches past the hintuan, and under the far
+ * end's circle, so the dark stretch alone is the ride.
+ *
+ * The public map picks a hintuan on its trip card since 2026-09-29 (his
+ * Timeline State=Selected), with no get-off circles (`dots: false`); the
+ * studio keeps them. Each mini stop of the hintuan gets one (drawn like a
+ * route's end circle); the ride ends at the last one, and tapping another
+ * moves the get-off side without moving the hintuan. The circles are DOM
+ * markers, like the walker: their taps stay their own and never fall
+ * through to the route or the box below. Tapping the row again, an end row,
+ * another route or the card away puts the whole route back. On the public
+ * map an end row also glides there (`toEnd`), so a rider can look along the
+ * route from end to end (the owner's ask, 2026-09-29).
  */
 export function useRideTo(
   map: MapLibreMap | null,
   selected: VariantSummary | null,
   stops: readonly StopSummary[],
+  opts: {
+    /** The studio's get-off circles; the public map has none. Default true. */
+    dots?: boolean
+    /**
+     * Where the glide puts the hintuan, from the map's centre, in pixels —
+     * clear of a card over the map. Read as the glide starts.
+     */
+    offset?: () => [number, number]
+  } = {},
 ) {
-  const [picked, setPicked] = useState<{ rowId: string; endId: string | null } | null>(null)
+  // Which direction the pick was made on: a pick belongs to its ride, so the
+  // first render of another one — SWITCH, a new trip — never cuts its line
+  // at the old row.
+  const [picked, setPicked] = useState<{ variantId: string; rowId: string; endId: string | null } | null>(null)
+  const live = picked && picked.variantId === selected?.id ? picked : null
 
-  // A different direction is a different ride: start it whole.
-  useEffect(() => setPicked(null), [selected?.id])
+  // An end of the trip, picked from its row: the line stays whole, its dot
+  // green like a picked hintuan's (the owner's asks, 2026-09-29: "tapping
+  // Novaliches should indicate green circle too", then the origin: "it
+  // should have!"). One pick at a time with the hintuans; kept by
+  // direction, as a pick is.
+  const [atEnd, setAtEnd] = useState<{ variantId: string; end: 'from' | 'to' } | null>(null)
+  const endPicked = selected && atEnd?.variantId === selected.id ? atEnd.end : null
+
+  // A different direction is a different ride, and so is the same one opened
+  // again: start it whole.
+  useEffect(() => {
+    setPicked(null)
+    setAtEnd(null)
+  }, [selected?.id])
+
+  // Read as a glide starts, so a fresh function each render moves nothing.
+  const offset = useRef(opts.offset)
+  offset.current = opts.offset
 
   const cut = useMemo(
-    () => (selected && picked ? rideCut(selected, stops, picked.rowId, picked.endId) : null),
-    [selected, stops, picked],
+    () => (selected && live ? rideCut(selected, stops, live.rowId, live.endId) : null),
+    [selected, stops, live],
   )
 
   /** A hintuan row picks its ride (again puts it back); an end row passes null. */
-  const pick = useCallback((id: string | null) => {
-    setPicked((cur) => (id === null || cur?.rowId === id ? null : { rowId: id, endId: null }))
-  }, [])
+  const selectedId = selected?.id
+  const pick = useCallback(
+    (id: string | null) => {
+      setAtEnd(null)
+      setPicked((cur) =>
+        id === null || !selectedId || (cur?.variantId === selectedId && cur.rowId === id)
+          ? null
+          : { variantId: selectedId, rowId: id, endId: null },
+      )
+    },
+    [selectedId],
+  )
 
-  // The wash over the way not ridden. Added on first use — long after the
-  // style loaded — and under the hotspot labels, so a name is never washed.
+  /**
+   * An end row: the whole ride again, that end picked, and the map gliding
+   * to it at the height it is at. A second tap lets it go, the map staying
+   * put.
+   */
+  const toEnd = useCallback(
+    (end: 'from' | 'to') => {
+      setPicked(null)
+      const on = endPicked !== end
+      setAtEnd(on && selectedId ? { variantId: selectedId, end } : null)
+      if (!on) return
+      if (!map || !selected) return
+      const line = travelLine(selected, stops)
+      if (line.length < 2) return
+      map.easeTo({ center: end === 'from' ? line[0] : line[line.length - 1], offset: offset.current?.() ?? [0, 0], duration: 700 })
+    },
+    [map, selected, selectedId, stops, endPicked],
+  )
+
+  // The way not ridden, as a line at rest. Added on first use — long after
+  // the style loaded, the lit line's chevrons and orange included — just
+  // under the end circles, so the far end keeps its circle and its name.
+  // Butt caps: a round one would lay a light half-disc back over the dark
+  // line where the ride ends.
   useEffect(() => {
     if (!map) return
     if (!map.getSource(SRC)) {
       if (!cut) return
       map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+      const before = ['direction-end-circles', 'saved-stops-label-hintuan'].find((id) => map.getLayer(id))
       map.addLayer(
         {
-          id: WASH,
+          id: REST_CASING,
           type: 'line',
           source: SRC,
-          layout: { 'line-cap': 'round', 'line-join': 'round' },
-          paint: { 'line-color': '#ffffff', 'line-width': litWidth(CASING_EXTRA), 'line-opacity': 0.8 },
+          layout: { 'line-cap': 'butt', 'line-join': 'round' },
+          paint: { 'line-color': '#ffffff', 'line-width': litWidth(CASING_EXTRA) },
         },
-        map.getLayer('saved-stops-label-hintuan') ? 'saved-stops-label-hintuan' : undefined,
+        before,
+      )
+      map.addLayer(
+        {
+          id: REST_LINE,
+          type: 'line',
+          source: SRC,
+          layout: { 'line-cap': 'butt', 'line-join': 'round' },
+          paint: { 'line-color': MAP_COLOURS['Map/RouteLine/surface-default'], 'line-width': litWidth() },
+        },
+        before,
       )
     }
     const src = map.getSource(SRC) as GeoJSONSource
@@ -68,12 +151,13 @@ export function useRideTo(
   }, [map, cut])
 
   // The get-off circles, one a mini stop, remade whenever the cut changes.
+  const dots = opts.dots ?? true
   const markers = useRef<Marker[]>([])
   useEffect(() => {
     if (!map) return
     for (const m of markers.current) m.remove()
     markers.current = []
-    if (!cut) return
+    if (!cut || !dots) return
     for (const d of cut.dots) {
       const here = d.stopId === cut.endStopId
       // Two mini stops can share a stretch of line (Bestlink's boxes overlap
@@ -106,7 +190,7 @@ export function useRideTo(
         // The tap is the dot's own: it must not fall through to the route line
         // or the hintuan box underneath and open their cards.
         e.stopPropagation()
-        setPicked((cur) => cur && { rowId: cur.rowId, endId: d.stopId })
+        setPicked((cur) => cur && { ...cur, endId: d.stopId })
       })
       markers.current.push(new Marker({ element: el, anchor: 'center', offset }).setLngLat(d.at).addTo(map))
     }
@@ -114,17 +198,25 @@ export function useRideTo(
       for (const m of markers.current) m.remove()
       markers.current = []
     }
-  }, [map, cut, stops])
+  }, [map, cut, stops, dots])
 
   // Glide to where the rider would get off, at the height the map is at:
-  // the owner tried the stretch fitted whole and it zoomed far out (2026-09-28).
+  // the owner tried the stretch fitted whole and it zoomed far out
+  // (2026-09-28). `offset`, never `padding`: MapLibre keeps a padding for
+  // every later move, and a shared link's fit or "Where am I" would land off
+  // centre ever after.
   useEffect(() => {
     if (!map || !cut) return
-    map.easeTo({ center: cut.at, duration: 700 })
+    map.easeTo({ center: cut.at, offset: offset.current?.() ?? [0, 0], duration: 700 })
   }, [map, cut])
 
   return {
-    rideTo: cut && picked ? { stopId: picked.rowId, metres: cut.metres } : null,
+    rideTo: cut && live ? { stopId: live.rowId, metres: cut.metres } : null,
+    /** The row picked, cut or not: a row whose box the line misses is still shown picked, with nothing to price. */
+    pickedId: live?.rowId ?? null,
     pick,
+    /** The end picked from its row (`toEnd`), or null. */
+    endPicked,
+    toEnd,
   }
 }

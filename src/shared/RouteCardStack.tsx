@@ -3,8 +3,8 @@ import { liveriesFor, type Livery } from './liveries'
 import { RouteCard } from './RouteCard'
 import { drawnDepartures, type VariantSummary } from './routes'
 
-/** A card picked: the place it stands for, and the directions its rows list, for the map to light. */
-export type PickedPlace = { from: string; ids: readonly string[] }
+/** A card picked: the place it stands for, the directions its rows list, and its colour, for the map to light them in. */
+export type PickedPlace = { from: string; ids: readonly string[]; livery: Livery }
 
 type Props = {
   /** Every direction of every route to show, slots included, as the hooks hand them over. */
@@ -53,7 +53,9 @@ export function RouteCardStack({ routes, back, selected, onSelect, onRoute, test
           state={selected === p.from ? 'selected' : 'rest'}
           routeOrigin={p.from}
           endPoints={p.directions.map((d) => ({ id: d.v.id, routeDirection: d.to }))}
-          onSelect={() => onSelect(selected === p.from ? null : { from: p.from, ids: p.directions.map((d) => d.v.id) })}
+          onSelect={() =>
+            onSelect(selected === p.from ? null : { from: p.from, ids: p.directions.map((d) => d.v.id), livery: liveries[i] })
+          }
           onPick={(id) => {
             const v = byId.get(id)
             if (v) onRoute(v, liveries[i])

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Ref } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { HotspotCard } from '../shared/HotspotCard'
 import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from '../shared/mapFile'
@@ -9,6 +9,8 @@ import { lineLength } from '../shared/geo'
 import { liveriesFor, type Livery } from '../shared/liveries'
 import { RouteCardList } from '../shared/RouteCardList'
 import { RouteTripDetail } from '../shared/RouteTripDetail'
+import { clearOfDock } from '../shared/RouteDock'
+import { useRideTo } from '../shared/rideTo'
 import {
   directionEnds,
   isDrawn,
@@ -19,10 +21,11 @@ import {
   variantLine,
   type VariantSummary,
 } from '../shared/routes'
-import { useDirectionArrows } from '../shared/directionArrows'
+import { useDirectionArrows, useRideColours } from '../shared/directionArrows'
 import { usePassStretches } from '../shared/passStretches'
 import { useBabaanSides } from '../shared/babaanSides'
-import { useSavedRoutes } from '../shared/useSavedRoutes'
+import { useLitLineColour, useSavedRoutes } from '../shared/useSavedRoutes'
+import { LIT_LINE, LIVERY_LINE } from '../shared/liveryLine'
 import { useSavedStops } from '../shared/useSavedStops'
 import type { Timeline } from '../shared/stops'
 import { Walker } from './Walker'
@@ -63,6 +66,14 @@ export default function CommuterApp() {
   useDirectionArrows(map, rides)
   // The chosen direction's side of each hintuan it cuts across: its right.
   useBabaanSides(map, saved.selected, stops.stops)
+  // A hintuan picked on the trip card: the ride drawn dark only that far,
+  // the camera gliding there clear of the card, and no get-off circles (the
+  // owner's Timeline State=Selected, 2026-09-29).
+  const tripDock = useRef<HTMLDivElement>(null)
+  const ride = useRideTo(map, saved.selected, stops.stops, {
+    dots: false,
+    offset: () => (map ? clearOfDock(map.getContainer(), tripDock.current) : [0, 0]),
+  })
 
   useShareLink(map, saved)
   // The visitor's own position, when they ask for it: a walking figure.
@@ -94,6 +105,27 @@ export default function CommuterApp() {
   // owner, 2026-09-29).
   const [worn, setWorn] = useState<{ id: string; livery: Livery } | null>(null)
   const wornBehind = choosing || !!stops.selected
+
+  // The trip's colour, decided as it opens — its RouteCard's, in the list or
+  // a hotspot's card, else its place's for the visit (liveries.ts: drawn
+  // when first met, kept after) — and kept until it closes, through SWITCH.
+  // Kept here, not in the trip card, since its line wears it too (the
+  // owner's ask, 2026-09-29).
+  const [tripWears, setTripWears] = useState<{ routeId: string; livery: Livery } | null>(null)
+  const open = saved.selected
+  let tripLivery = open && tripWears?.routeId === open.route_id ? tripWears.livery : null
+  if (open && !tripLivery) {
+    tripLivery = (wornBehind && worn?.id === open.id ? worn.livery : undefined) ?? liveriesFor([directionEnds(open).from])[0]
+    setTripWears({ routeId: open.route_id, livery: tripLivery })
+  } else if (!open && tripWears) {
+    setTripWears(null)
+  }
+  // What is lit wears the colour of the card it answers: the open trip's, or
+  // the picked RouteCard's; a list with none picked lights its routes in the
+  // selected blue (the owner's ask, 2026-09-29).
+  const look = tripLivery ? LIVERY_LINE[tripLivery] : saved.highlight ? LIVERY_LINE[saved.highlight.livery] : LIT_LINE
+  useLitLineColour(map, look.line)
+  useRideColours(map, look)
 
   // The trip's ‹: back to what it was picked from, kept behind it as it was
   // left, every card at rest — the route list, a hotspot's card (the
@@ -210,7 +242,7 @@ export default function CommuterApp() {
         </button>
       )}
 
-      {saved.selected && (
+      {saved.selected && tripLivery && (
         // Keyed on the route: SWITCH leaves the hintuans open or folded as
         // they were, in the colour the trip opened in; another route opens
         // folded, in its own.
@@ -219,10 +251,16 @@ export default function CommuterApp() {
           variant={saved.selected}
           variants={saved.variants}
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
-          worn={wornBehind && worn?.id === saved.selected.id ? worn.livery : undefined}
+          livery={tripLivery}
           onBackToList={backToList}
           onSwitch={(v) => saved.select(v.id, { keepList: true })}
           onClose={closeAll}
+          picked={ride.pickedId}
+          pickedMetres={ride.rideTo?.metres}
+          onPick={ride.pick}
+          onEnd={ride.toEnd}
+          endPicked={ride.endPicked}
+          dockRef={tripDock}
         />
       )}
 
@@ -388,8 +426,11 @@ function useShareLink(
  * it was picked from staying behind it, and the card keeps the colour it
  * opened in: turned round, it is still the same card (the owner, 2026-09-29).
  *
- * Share, the length, the mode, the status and the ride-to preview went with
- * the old card: the owner dropped them for now, to design later (2026-09-28).
+ * Share, the length, the mode and the status went with the old card: the
+ * owner dropped them for now, to design later (2026-09-28). The ride-to
+ * preview went too, and came back as his picked hintuan (2026-09-29): its
+ * pill prices the ride from the trip's start to there, as the tile prices
+ * the whole.
  * So did the old card's fare details — the students/seniors/PWDs price, the
  * fare rule line, the route's fare_note, the estimate's source line and the
  * "old ₱13" grace warning (fare.previous): his frames carry only the pesos,
@@ -403,25 +444,36 @@ function TripCard({
   variant,
   variants,
   timeline,
-  worn,
+  livery,
   onBackToList,
   onSwitch,
   onClose,
+  picked,
+  pickedMetres,
+  onPick,
+  onEnd,
+  endPicked,
+  dockRef,
 }: {
   variant: VariantSummary
   variants: readonly VariantSummary[]
   timeline: Timeline
-  worn: Livery | undefined
+  /** The colour it opened in, kept through SWITCH; its line wears it too. */
+  livery: Livery
   onBackToList: (() => void) | null
   onSwitch: (sibling: VariantSummary) => void
   onClose: () => void
+  /** The hintuan picked on the timeline (useRideTo), and how far the ride to it runs, when its line reaches it. */
+  picked: string | null
+  pickedMetres: number | undefined
+  onPick: (id: string) => void
+  /** The origin's or the destination's row: the whole ride, and that end on the map. */
+  onEnd: (end: 'from' | 'to') => void
+  /** The end picked from its row (useRideTo's `endPicked`), or null. */
+  endPicked: 'from' | 'to' | null
+  dockRef: Ref<HTMLDivElement>
 }) {
   const { from, to } = directionEnds(variant)
-  // Decided as the card opens — its RouteCard's, in the list or a hotspot's
-  // card, else its place's for the visit (liveries.ts: drawn when first met,
-  // kept after) — and kept until it closes, through SWITCH. `worn` is read
-  // only here.
-  const [livery] = useState(() => worn ?? liveriesFor([from])[0])
   const sibling = otherDirection(variants, variant)
   const switchable = !!sibling && isDrawn(sibling)
   // The whole ride, measured once: its Kilometer and its Expected fare.
@@ -433,6 +485,12 @@ function TripCard({
       fare={rideFare(variant.route?.mode, metres)}
       routeOrigin={from}
       hintuans={timeline.between}
+      picked={picked}
+      pickedFare={pickedMetres === undefined ? undefined : rideFare(variant.route?.mode, pickedMetres)}
+      onPick={onPick}
+      onEnd={onEnd}
+      endPicked={endPicked}
+      dockRef={dockRef}
       routeDirection={to}
       switchable={switchable}
       back={variant.reversed}
