@@ -681,7 +681,7 @@ if (!hit) {
         const rowId = await row.getAttribute('data-hintuan')
         const want = await page.evaluate(async ([id, rowId]) => {
           try {
-            const [{ rideFare }, { rideCut }] = await Promise.all([import('/src/shared/model/fares.ts'), import('/src/shared/model/routes.ts')])
+            const [{ rideFare }, { rideCut }] = await Promise.all([import('/src/shared/model/fares.ts'), import('/src/shared/model/ride.ts')])
             const { loadMapFile, loadLine } = await import('/src/commuter/mapFile.ts')
             const m = await loadMapFile()
             const found = m.variants.find((x) => x.id === id)
@@ -742,7 +742,7 @@ if (!hit) {
         // the line's end, right of the card in the corner.
         const end = await page.evaluate(async (id) => {
           try {
-            const { travelLine } = await import('/src/shared/model/routes.ts')
+            const { travelLine } = await import('/src/shared/model/ride.ts')
             const { loadMapFile, loadLine } = await import('/src/commuter/mapFile.ts')
             const m = await loadMapFile()
             const found = m.variants.find((x) => x.id === id)

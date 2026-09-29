@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import type { Drawing } from '../drawing/useDrawing'
-import { travelLine, variantLine, type VariantRow } from '../../shared/model/routes'
+import { travelLine } from '../../shared/model/ride'
+import { variantLine, type VariantRow } from '../../shared/model/routes'
 import { placeKey, stopLabel, type StopRow } from '../../shared/model/stops'
 
 /**

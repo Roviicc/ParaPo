@@ -7,14 +7,9 @@ import { RouteCardList } from '../shared/cards/RouteCardList'
 import { RouteSheet } from '../shared/cards/RouteSheet'
 import { useRideTo } from '../shared/map/rideTo'
 import { lineOf, listVariants, loadStopsFromSupabase } from './data/live'
-import {
-  directionEnds,
-  isDrawn,
-  otherDirection,
-  routeTimeline,
-  travelLine,
-  type VariantRow,
-} from '../shared/model/routes'
+import { directionEnds, isDrawn, type VariantRow } from '../shared/model/routes'
+import { otherDirection } from '../shared/model/departures'
+import { routeTimeline, travelLine } from '../shared/model/ride'
 import { hotspotCount, stopLabel, stopRing, type StopRow } from '../shared/model/stops'
 import { getSupabase, supabaseConfigError } from './data/supabase'
 import { useDirectionArrows } from '../shared/map/directionArrows'

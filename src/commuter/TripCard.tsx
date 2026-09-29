@@ -3,7 +3,8 @@ import { RouteTripDetail } from '../shared/cards/RouteTripDetail'
 import { lineLength } from '../shared/geo/geo'
 import { rideFare } from '../shared/model/fares'
 import { liveriesFor, type Livery } from '../shared/model/liveries'
-import { directionEnds, isDrawn, otherDirection, variantLine, type VariantSummary } from '../shared/model/routes'
+import { directionEnds, isDrawn, variantLine, type VariantSummary } from '../shared/model/routes'
+import { otherDirection } from '../shared/model/departures'
 import type { Timeline } from '../shared/model/stops'
 
 /**
