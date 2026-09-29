@@ -107,24 +107,28 @@ export async function lineOf(id: string): Promise<LineStringGeoJSON | null> {
   return (data as { shape: LineStringGeoJSON | null }).shape
 }
 
+/** How many ids one read of full lines names: its request line stays short (finding 4). */
+const LINES_PER_READ = 50
+
 /**
- * These directions with their full lines, in one request: the few a hotspot's
- * outline reaches, before its links are worked out on them. A stop's
- * `stop_sequence` is an index into the full line, so an overview must never
- * be what it is counted on.
+ * These directions with their full lines: the few a hotspot's outline
+ * reaches, before its links are worked out on them, read LINES_PER_READ at
+ * a time. A stop's `stop_sequence` is an index into the full line, so an
+ * overview must never be what it is counted on.
  */
 export async function linesOf<T extends VariantRow>(variants: readonly T[]): Promise<T[]> {
   const client = getSupabase()
   if (!client || variants.length === 0) return [...variants]
-  const { data, error } = await client
-    .from('route_variant')
-    .select('id, shape')
-    .in(
-      'id',
-      variants.map((v) => v.id),
-    )
-  if (error) throw new Error(error.message)
-  const byId = new Map((data as { id: string; shape: LineStringGeoJSON | null }[]).map((r) => [r.id, r.shape]))
+  const ids = variants.map((v) => v.id)
+  const reads = []
+  for (let i = 0; i < ids.length; i += LINES_PER_READ) {
+    reads.push(client.from('route_variant').select('id, shape').in('id', ids.slice(i, i + LINES_PER_READ)))
+  }
+  const byId = new Map<string, LineStringGeoJSON | null>()
+  for (const { data, error } of await Promise.all(reads)) {
+    if (error) throw new Error(error.message)
+    for (const r of data as { id: string; shape: LineStringGeoJSON | null }[]) byId.set(r.id, r.shape)
+  }
   return variants.map((v) => ({ ...v, shape: byId.has(v.id) ? (byId.get(v.id) ?? null) : v.shape }))
 }
 

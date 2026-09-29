@@ -3318,8 +3318,9 @@ in the index is some 60% more index at a thousand directions.
 
 **Stage 8 — the studio's data shape, 2026-09-29.** Migration 0009 adds
 `route_variant.overview` (jsonb, nullable, no default): the line thinned at
-5 m, five decimals (`overviewOf` in `geo.ts`, the same thinning the public
-index uses). The save writes it beside `shape`; emptying a direction clears
+5 m, five decimals (`overviewOf` in `geo.ts`, the public index's tolerance
+and decimals; the publish thins with its own measure until stage 10 makes
+it this one). The save writes it beside `shape`; emptying a direction clears
 it. The editor's list selects `overview` instead of `shape`, and a drawn row
 with no overview yet (saved before 0009) has its full line read in its
 place, in one request for those rows alone — so nothing waits on a

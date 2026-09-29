@@ -106,12 +106,22 @@ export function HotspotPanel({
   const through = useMemo(() => linksThrough(ring, lines), [ring, lines])
   const throughIds = useMemo(() => new Set(through.map((l) => l.variantId)), [through])
 
-  // A terminal's checklist is pre-ticked from the full lines, once they are in.
-  const [picked, setTicked] = useState<Set<string> | null>(() => (existing ? new Set(existingLinks) : null))
+  // A terminal's checklist is pre-ticked from the full lines, once they are
+  // in; a box the owner ticks or unticks before then keeps the owner's
+  // choice over the pre-tick.
+  const [startTicks, setStartTicks] = useState<Set<string> | null>(() => (existing ? new Set(existingLinks) : null))
   useEffect(() => {
-    if (lined && picked === null) setTicked(new Set(variantsStartingIn(ring, lined)))
-  }, [lined, picked, ring])
-  const ticked = picked ?? new Set<string>()
+    if (lined && startTicks === null) setStartTicks(new Set(variantsStartingIn(ring, lined)))
+  }, [lined, startTicks, ring])
+  const [chosen, setChosen] = useState<ReadonlyMap<string, boolean>>(() => new Map())
+  const ticked = useMemo(() => {
+    const t = new Set(startTicks ?? [])
+    for (const [id, on] of chosen) {
+      if (on) t.add(id)
+      else t.delete(id)
+    }
+    return t
+  }, [startTicks, chosen])
 
   const groups = useMemo(() => groupBySignboard(lines), [lines])
   const hintuanGroups = useMemo(
@@ -120,12 +130,7 @@ export function HotspotPanel({
   )
 
   function toggle(id: string) {
-    setTicked((s) => {
-      const next = new Set(s ?? [])
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+    setChosen((m) => new Map(m).set(id, !ticked.has(id)))
   }
 
   async function submit(e: React.FormEvent) {

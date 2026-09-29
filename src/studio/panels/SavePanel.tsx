@@ -222,10 +222,10 @@ export function SavePanel({
       live = false
     }
   }, [borrowFromId])
-  const borrowedM = useMemo(() => {
-    if (!borrowParent || !borrowPart) return 0
+  /** How much of this line runs on the parent's line. */
+  const borrowedOn = (parentLine: LngLat[]) => {
+    if (!borrowPart) return 0
     const line = joinSegments(draw.segments)
-    const parentLine = parentFull?.id === borrowParent.id ? parentFull.line : variantLine(borrowParent)
     // Either way round: a line followed from a right-click is copied in the
     // jeep's order, which is the other way when its parent was stored from
     // the far end.
@@ -233,6 +233,13 @@ export function SavePanel({
       sharedMetres(line, parentLine, borrowPart),
       sharedMetres(line, [...parentLine].reverse(), borrowPart),
     )
+  }
+  // What the panel shows while the parent's full line is on its way: its
+  // overview's figure. The save itself measures on the full line.
+  const borrowedM = useMemo(() => {
+    if (!borrowParent || !borrowPart) return 0
+    return borrowedOn(parentFull?.id === borrowParent.id ? parentFull.line : variantLine(borrowParent))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [borrowParent, borrowPart, draw.segments, parentFull])
 
   const name = head && tail ? routeName(stopLabel(head), stopLabel(tail), via) : ''
@@ -257,6 +264,14 @@ export function SavePanel({
     setBusy(true)
     setError(null)
     try {
+      // The borrow is measured on the parent's full line, never its overview
+      // (0009): on an overview a shared stretch reads as none, and the save
+      // would forget where the line came from. Read now if it has not come.
+      let borrowed = borrowedM
+      if (borrowParent && borrowPart && parentFull?.id !== borrowParent.id) {
+        const full = await lineOf(borrowParent.id)
+        borrowed = full ? borrowedOn(full.coordinates) : 0
+      }
       const saved = await saveVariant({
         routeId: written?.routeId ?? parent?.id ?? null,
         variantId: written?.variantId ?? existing?.id ?? null,
@@ -270,9 +285,9 @@ export function SavePanel({
         control_points: draw.controlPoints,
         segments: draw.segments,
         // A parent deleted since, or a borrowed part redrawn away, borrows nothing.
-        borrowed_from: borrowParent && borrowedM > 0 ? borrowParent.id : null,
+        borrowed_from: borrowParent && borrowed > 0 ? borrowParent.id : null,
         borrowed_part: borrowPart,
-        borrowed_m: borrowedM > 0 ? Math.round(borrowedM) : null,
+        borrowed_m: borrowed > 0 ? Math.round(borrowed) : null,
       })
       // Every hintuan's route list is a fact about geometry, so a changed
       // line re-checks itself against all of them. Terminal links are the

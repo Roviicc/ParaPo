@@ -245,7 +245,8 @@ const round5 = (n: number): number => Math.round(n * 1e5) / 1e5
 /**
  * A line's overview: thinned at 5 m, five decimals (about 1 m) — a quarter of
  * the points, and the line itself to the eye until a pixel is under 5 m.
- * What the editor's list draws (0009) and the public map's index carries.
+ * What the editor's list draws (0009); the public index carries the same
+ * 5 m and five decimals, thinned by the publish's own measure.
  */
 export function overviewOf(line: readonly LngLat[]): LngLat[] {
   return simplifyLine(line, OVERVIEW_M).map(([x, y]) => [round5(x), round5(y)])

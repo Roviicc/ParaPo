@@ -347,7 +347,8 @@ const at2 = await page.evaluate(([c]) => {
   const q = window.__map.project(c)
   return [q.x, q.y]
 }, [mid])
-const before = asked.filter((r) => r.table === 'route_variant' && r.one && /control_points/.test(r.select)).length
+const oneRow = () => asked.filter((r) => r.table === 'route_variant' && r.one)
+const before = oneRow().length
 await page.mouse.click(canvas.x + at2[0], canvas.y + at2[1], { button: 'right' })
 const until = Date.now() + 15_000
 while (Date.now() < until) {
@@ -356,8 +357,10 @@ while (Date.now() < until) {
   await page.waitForTimeout(100)
 }
 const draft = await page.evaluate(() => JSON.parse(localStorage.getItem('parapo.draft.v1') ?? 'null'))
-const drawingReads = asked.filter((r) => r.table === 'route_variant' && r.one && /control_points/.test(r.select))
-check('following a line reads its drawing, one small request for that line', drawingReads.length === before + 1 && drawingReads.every((r) => r.bytes < 200_000 && /control_points/.test(r.select)), `${drawingReads.length - before} read(s); ${drawingReads.map((r) => `${mb(r.bytes)} "${r.select}"`).join(', ')}`)
+// Every one-row read of a direction since the right-click: the follow's must
+// be its drawing and nothing more, and there must be just that one.
+const drawingReads = oneRow().slice(before)
+check('following a line reads its drawing, one small request for that line', drawingReads.length === 1 && drawingReads.every((r) => r.bytes < 200_000 && /control_points/.test(r.select) && !/\*/.test(r.select)), `${drawingReads.length} read(s); ${drawingReads.map((r) => `${mb(r.bytes)} "${r.select}"`).join(', ')}`)
 check('and the drawing follows that line to its end', !!draft?.borrow && (draft.controlPoints?.length ?? 0) > 2, `borrows ${draft?.borrow?.variantId?.slice(0, 12) ?? 'nothing'}, ${draft?.controlPoints?.length ?? 0} points`)
 check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
 
