@@ -1,0 +1,26 @@
+// How Cloudflare serves the built site (dist/), for every branch.
+//
+// There was no config until 2026-09-29: Workers Builds deployed main without
+// one, working these settings out for itself, but a branch's build — which
+// uploads a version instead of deploying it — failed every time without them.
+// Written down here, main deploys as before and every branch gets a preview
+// link of its own; the `staging` branch's is the owner's staging site (his
+// ask, 2026-09-29: "the production link, then staging").
+//
+// What production did without it, kept as it was (checked on the live site
+// the same day):
+//   - an address with no file answers with the map's page, 200
+//     (single-page-application), which is also how /.vite/ and
+//     /.assetsignore stay unserved;
+//   - /index.html and /studio redirect to / and /studio/ (html_handling's
+//     default, auto-trailing-slash).
+{
+  "name": "parapo",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "workers_dev": true,
+  "preview_urls": true
+}
