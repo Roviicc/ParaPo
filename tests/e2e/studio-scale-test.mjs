@@ -39,7 +39,13 @@ const check = (name, ok, detail = '') => {
 }
 
 // ------------------------------------------------------------- the tables
-const m = JSON.parse(readFileSync(new URL('../../public/data/map.json', import.meta.url), 'utf8'))
+/** The published map with every line in full: the index, each line from lines/<id>.json beside it. */
+const readPublished = () => {
+  const at = (name) => JSON.parse(readFileSync(new URL(`../../public/data/${name}`, import.meta.url), 'utf8'))
+  const index = at('index.json')
+  return { ...index, variants: index.variants.map(({ overview, ...v }) => ({ ...v, shape: overview ? at(`lines/${v.id}.json`).shape : null })) }
+}
+const m = readPublished()
 const shift = (k) => [(k % 25) * 0.03, Math.floor(k / 25) * 0.03]
 // Shifted, and with the digits a save used to keep.
 const mv = (c, [dx, dy], j) => [c[0] + dx + (j % 9) * 1e-9 + 3e-12, c[1] + dy + (j % 7) * 1e-9 + 7e-12]

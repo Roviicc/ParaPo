@@ -5,9 +5,13 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/babaan-side-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import { rightOfLine } from '../../src/shared/geo/geo.ts'
 import { hintuansAlong, stopRing } from '../../src/shared/model/stops.ts'
+import { fileURLToPath } from 'node:url'
+import { readPublished } from '../../scripts/checks/check-map-data.mjs'
+
+/** The committed map, every line in full: the index and its lines/ (check-map-data.mjs). */
+const published = () => readPublished(fileURLToPath(new URL('../../public/data/index.json', import.meta.url))).file
 
 const square = [[0, 0], [1, 0], [1, 1], [0, 1]]
 // Measured from the first corner, or a small box at 121°E is lost in the rounding.
@@ -49,7 +53,7 @@ test('a box beside the road is not cut', () => {
 })
 
 test('the two directions of the committed map share each box they both cut', () => {
-  const file = JSON.parse(readFileSync(new URL('../../public/data/map.json', import.meta.url), 'utf8'))
+  const file = published()
   let cut = 0
   for (const v of file.variants.filter((v) => v.shape)) {
     const line = v.shape.coordinates

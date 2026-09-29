@@ -131,7 +131,7 @@ export default defineConfig({
         // The map has exactly one address, `/` (plus `?r=`), and only that is
         // answered from the stored page. Any other navigation goes to the
         // server as it would without a worker — so `/studio` (with or without
-        // the slash) opens the studio, and `/data/map.json` typed into a tab
+        // the slash) opens the studio, and `/data/index.json` typed into a tab
         // shows the data, not the app. The studio sits inside the installed
         // app's scope regardless; the denylist is the belt to the allowlist.
         navigateFallback: 'index.html',
@@ -142,11 +142,13 @@ export default defineConfig({
         skipWaiting: false,
         runtimeCaching: [
           {
-            // The published map: fresh when the network answers in time, the
-            // last copy otherwise. Only GET, only this file — the studio's
-            // database reads share the origin and must never come from here.
+            // The published map's index: fresh when the network answers in
+            // time, the last copy otherwise. Only GET, only this file — the
+            // studio's database reads share the origin and must never come
+            // from here. (Shape 1, /data/map.json, is an older app's, read
+            // through its own worker.)
             urlPattern: ({ url, request }) =>
-              request.method === 'GET' && url.origin === self.location.origin && url.pathname === '/data/map.json',
+              request.method === 'GET' && url.origin === self.location.origin && url.pathname === '/data/index.json',
             handler: 'NetworkFirst',
             options: {
               cacheName: 'map-file',
@@ -173,6 +175,21 @@ export default defineConfig({
                   },
                 },
               ],
+            },
+          },
+          {
+            // A direction's full line, read when it is lit or opened: fresh
+            // when the network answers in time, else the copy kept — every
+            // line seen stays, so offline keeps what was ridden. A line is
+            // 1 kB or so over the wire; the cap is the whole map, twice.
+            urlPattern: ({ url, request }) =>
+              request.method === 'GET' && url.origin === self.location.origin && url.pathname.startsWith('/data/lines/'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'map-lines',
+              networkTimeoutSeconds: 3,
+              cacheableResponse: { statuses: [200] },
+              expiration: { maxEntries: 4000, purgeOnQuotaError: true },
             },
           },
           {

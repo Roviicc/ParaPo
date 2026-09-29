@@ -18,9 +18,10 @@ Ground-truthed jeepney routes for Metro Manila, on a map anyone can open.
 
 ## Two pages, one file
 
-**`/` is the public map.** It never asks the database: it reads one file,
-`public/data/map.json`, published from the live tables and committed here,
-and draws every direction of every route, the hotspots (terminals and
+**`/` is the public map.** It never asks the database: it reads the published
+map, `public/data/index.json` — every route and hotspot, each line as an
+overview — and a direction's full line from `public/data/lines/` when it is
+lit, all published from the live tables and committed here, and draws every direction of every route, the hotspots (terminals and
 hintuans, where people board), and where a direction passes a hintuan its
 line turns orange for that stretch. A tap on a line or a box opens a card; a
 tap where several things meet opens a chooser. "Where am I" shows the
@@ -88,7 +89,7 @@ with warnings, and closed by the first run with nothing to report.
 | `src/studio/` | the editor: `StudioApp.tsx`, then `auth/` (sign-in, passwords, the session), `data/` (the Supabase client, reads and writes), `drawing/` (drawing, snapping, borrowing), `panels/` (save, hotspot, the card's actions) |
 | `src/shared/` | what both draw: `model/` (routes, stops, fares, liveries — no React, no MapLibre), `geo/` (geometry), `map/` (the map and what is painted on it, the routes and hotspots hooks), `cards/` (the cards, sheets and timelines, with their stories), `styles/` (the one stylesheet) |
 | `src/design-system/` | the tokens, fonts and primitives (foundation ← primitives) |
-| `public/data/map.json` | the published map, every version kept in history |
+| `public/data/` | the published map, every version kept in history: `index.json`, a line per direction in `lines/`, and the older single file `map.json` for apps not yet updated |
 | `supabase/migrations/` | the schema and its policies, in order |
 | `scripts/` | tools: the build guards and the data check (`checks/`), the publish (`publish/`), Node's TypeScript hook (`node/`), the research screenshots (`research/`) |
 | `tests/unit/` | the unit checks, Node's own test runner (`npm run test:unit`) |
@@ -99,7 +100,7 @@ with warnings, and closed by the first run with nothing to report.
 **The code** is under the [MIT licence](LICENSE): use it for anything, keep
 the copyright notice.
 
-**The route and hotspot data** — `public/data/map.json`, and the database it
+**The route and hotspot data** — `public/data/`, and the database it
 is published from — is under the
 [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/)
 (ODbL). You may copy, use and adapt it, including commercially, as long as

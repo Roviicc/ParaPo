@@ -1,32 +1,39 @@
-import type { VariantSummary } from '../shared/model/routes'
+import type { LineStringGeoJSON, VariantSummary } from '../shared/model/routes'
 import type { StopLink, StopSummary } from '../shared/model/stops'
 
 /**
- * The published map: one file, written by scripts/publish/publish-map.mjs and served
- * as a static file. It holds exactly what the public map shows, with each
- * direction's line thinned to within half a metre and every coordinate
- * rounded to 6 decimals (about 0.1 m). Visitors read this and never ask
- * the database; the studio keeps reading the live tables.
+ * The published map, as the public map reads it (since 2026-09-29, stage 7 of
+ * the clean-up; docs/review-2026-09-29.md section 8, shape A): an index,
+ * written by scripts/publish/publish-map.mjs and served as a static file,
+ * holding every route, hotspot and link and each direction's *overview* — its
+ * line thinned at 5 m — and a file per direction with its full line, thinned
+ * to within half a metre, read when the direction is lit or opened. At a
+ * thousand directions the index is a fifth of the one file it replaces, and
+ * the map draws from it at once. Visitors never ask the database; the studio
+ * keeps reading the live tables.
  */
 export type MapFile = {
-  /**
-   * The shape of this file, `MAP_FILE_SCHEMA` when written. Absent on files
-   * published before 2026-09-25, which have shape 1. See `MAP_FILE_SCHEMA`.
-   */
+  /** The shape of this file, `MAP_FILE_SCHEMA` when written. See `MAP_FILE_SCHEMA`. */
   schema?: number
-  /** When this content was published. Step 6's offline notice reads it. */
+  /** When this content was published. The offline notice reads it. */
   published_at: string
   /** The data's licence, `ODbL-1.0`. Carried in the file so every copy has it. */
   license?: string
   /** The credit a reuser has to keep. */
   attribution?: string
+  /** Each with its overview as `shape`: the full line is `loadLine`'s. */
   variants: VariantSummary[]
   stops: StopSummary[]
   links: StopLink[]
 }
 
+/** A direction as the index carries it: its overview under its own name. */
+type IndexVariant = Omit<VariantSummary, 'shape'> & { overview?: LineStringGeoJSON | null }
+
 /** No hash in the name, so it keeps revalidating headers; never make it immutable. */
-export const MAP_FILE_URL = '/data/map.json'
+export const MAP_FILE_URL = '/data/index.json'
+/** A direction's full line: `${LINES_URL}${id}.json`. The worker keeps every one seen. */
+export const LINES_URL = '/data/lines/'
 
 /**
  * The shape of the map file this app reads: the numbers a reader must know
@@ -41,14 +48,14 @@ export const MAP_FILE_URL = '/data/map.json'
  *     know, and a file with extra fields is still `1`.
  *   - Renaming or removing a field, or changing what a value means, is a
  *     new shape. Bump this number, and publish the new shape to a new path
- *     (`/data/map.v2.json`) while the old path keeps the old shape for as
- *     long as installed apps might still read it — a month at least. The
- *     service worker's map-file rule and the publish workflow's `git add`
- *     both name the path.
- *   - A file with no number is shape 1: every file published before the
- *     number existed, including copies stored offline on visitors' phones.
+ *     while the old path keeps the old shape for as long as installed apps
+ *     might still read it — a month at least. The service worker's map-file
+ *     rule and the publish workflow's `git add` both name the path.
+ *   - Shape 1 is `/data/map.json`, one file with every line in full; the
+ *     publish keeps writing it for one release after shape 2, the index at
+ *     its own path, so an app installed before still loads.
  */
-export const MAP_FILE_SCHEMA = 1
+export const MAP_FILE_SCHEMA = 2
 
 /** The load error for a file of a shape this app does not know. The banner reads it. */
 export const MAP_FILE_TOO_NEW = 'This map was published for a newer version of the app.'
@@ -74,7 +81,7 @@ export function loadMapFile(): Promise<MapFile> {
     .then(async (res) => {
       if (!res.ok) throw new Error(`${MAP_FILE_URL}: HTTP ${res.status}`)
       stale = res.headers.get(SERVED_FROM_HEADER) === 'cache'
-      const file = (await res.json()) as Partial<MapFile>
+      const file = (await res.json()) as Partial<Omit<MapFile, 'variants'>> & { variants?: IndexVariant[] }
       if (
         typeof file.published_at !== 'string' ||
         !Array.isArray(file.variants) ||
@@ -85,16 +92,43 @@ export function loadMapFile(): Promise<MapFile> {
       }
       // Checked after the shape: a file that is not a map at all is that
       // error, whatever number it carries.
-      if (file.schema !== undefined && file.schema !== MAP_FILE_SCHEMA) {
-        throw new Error(MAP_FILE_TOO_NEW)
-      }
-      return file as MapFile
+      if ((file.schema ?? 1) > MAP_FILE_SCHEMA) throw new Error(MAP_FILE_TOO_NEW)
+      if (file.schema !== MAP_FILE_SCHEMA) throw new Error(`${MAP_FILE_URL} is shape ${file.schema ?? 1}, not the index`)
+      // The overview is what the map draws until the line itself is read.
+      const variants = file.variants.map(({ overview, ...v }) => ({ ...v, shape: overview ?? null }) as VariantSummary)
+      return { ...file, variants } as MapFile
     })
     .catch((e: unknown) => {
       inFlight = null
       throw e
     })
   return inFlight
+}
+
+const lines = new Map<string, Promise<LineStringGeoJSON | null>>()
+
+/**
+ * A direction's full line, read once a page and shared. Null for a
+ * direction with no line; a failure is not kept, so the next light tries
+ * again — until then the map keeps the overview, which is the same road.
+ */
+export function loadLine(id: string): Promise<LineStringGeoJSON | null> {
+  let line = lines.get(id)
+  if (!line) {
+    line = fetch(`${LINES_URL}${encodeURIComponent(id)}.json`, { cache: 'no-cache' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`${LINES_URL}${id}.json: HTTP ${res.status}`)
+        const file = (await res.json()) as { id?: string; shape?: LineStringGeoJSON | null }
+        if (file.id !== id) throw new Error(`${LINES_URL}${id}.json is not that direction's line`)
+        return file.shape?.type === 'LineString' && Array.isArray(file.shape.coordinates) ? file.shape : null
+      })
+      .catch((e: unknown) => {
+        lines.delete(id)
+        throw e
+      })
+    lines.set(id, line)
+  }
+  return line
 }
 
 /** True when the last load was answered from a stored copy rather than the network. Meaningful once `loadMapFile()` has resolved. */

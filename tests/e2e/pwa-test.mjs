@@ -34,7 +34,11 @@ if (!existsSync(join(root, 'dist', 'sw.js'))) {
   console.log('FAIL  dist/sw.js missing — run npm run build first')
   process.exit(1)
 }
-const published = JSON.parse(readFileSync(join(root, 'public', 'data', 'map.json'), 'utf8'))
+const published = JSON.parse(readFileSync(join(root, 'public', 'data', 'index.json'), 'utf8'))
+/** A drawn direction, for the line a trip reads and the worker keeps. */
+const tripId = published.variants.find((v) => v.overview)?.id
+/** One past the shape this app reads (src/commuter/mapFile.ts, MAP_FILE_SCHEMA). */
+const MAP_FILE_SCHEMA_NEXT = published.schema + 1
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const d = new Date(published.published_at)
 const expectedDate = `${d.getDate()} ${MONTHS[d.getMonth()]}`
@@ -142,11 +146,11 @@ try {
   const tiles = names.find((n) => n.includes('basemap-tiles'))
   const precache = names.find((n) => n.includes('precache'))
   check('caches: precache, map-file, basemap-meta, basemap-tiles all exist', !!(precache && mapFile && meta && tiles), names.join(', '))
-  check('map-file cache holds /data/map.json', !!mapFile && caches[mapFile].some((u) => u.endsWith('/data/map.json')))
+  check('map-file cache holds /data/index.json', !!mapFile && caches[mapFile].some((u) => u.endsWith('/data/index.json')))
   check('basemap-meta holds the style and the TileJSON', !!meta && caches[meta].some((u) => u.endsWith('/styles/positron')) && caches[meta].some((u) => u.endsWith('/planet')))
   check(`basemap-tiles holds tiles (${tiles ? caches[tiles].length : 0})`, !!tiles && caches[tiles].length > 0)
   check('precache holds no studio chunk', !!precache && !caches[precache].some((u) => /\/assets\/studio-/.test(u)))
-  check('map.json is never precached', !precache || !caches[precache].some((u) => u.includes('/data/map.json')))
+  check('the index and the lines are never precached', !precache || !caches[precache].some((u) => u.includes('/data/')))
 
   // The worker answers only the map's own address from the stored page. The
   // studio, with or without its slash, goes to the server untouched. (What the
@@ -158,7 +162,7 @@ try {
     ['/', '/assets/commuter-', true],
     ['/studio', null, false],
     ['/studio/', 'ParaPo Studio', false],
-    ['/data/map.json', '"published_at"', null],
+    ['/data/index.json', '"published_at"', null],
     ['/manifest.webmanifest', '"short_name"', null],
   ]) {
     const r = await page.goto(`${base}${path}`, { waitUntil: 'load' })
@@ -236,17 +240,50 @@ try {
     await new Promise((r) => setTimeout(r, 6000))
     await route.continue().catch(() => {})
   }
-  await ctx.route('**/data/map.json', slow)
+  await ctx.route('**/data/index.json', slow)
   await page.reload({ waitUntil: 'load' })
   const slowMap = await arrived.waitFor({ state: 'attached', timeout: 20000 }).then(() => true, () => false)
   const slowNotice = page.locator('[data-testid="offline"]')
   const slowOk = await slowNotice.waitFor({ timeout: 10000 }).then(() => true, () => false)
   const slowText = slowOk ? (await slowNotice.innerText()).trim() : '(none)'
   check(`slow network: the stored map shows with "Not refreshed · map as of ${expectedDate}"`, slowMap && slowText === `Not refreshed · map as of ${expectedDate}`, slowText)
-  await ctx.unroute('**/data/map.json', slow)
+  await ctx.unroute('**/data/index.json', slow)
   await page.reload({ waitUntil: 'load' })
   await page.waitForTimeout(2000)
   check('fast again: no notice', (await page.locator('[data-testid="offline"]').count()) === 0)
+
+  // A trip opened reads its direction's full line, and the worker keeps it.
+  if (tripId) {
+    await page.goto(`${base}/?r=${tripId}`, { waitUntil: 'load' })
+    await page.waitForTimeout(2500)
+    const kept = await page.evaluate(async (id) => {
+      const name = (await window.caches.keys()).find((n) => n.includes('map-lines'))
+      return !!name && (await (await window.caches.open(name)).keys()).some((r) => r.url.endsWith(`/data/lines/${id}.json`))
+    }, tripId)
+    check('an opened trip reads its full line, and the worker keeps it', kept)
+    await page.goto(`${base}/`, { waitUntil: 'load' })
+    await page.waitForTimeout(1000)
+  }
+
+  // A map published for a newer app: the banner says so and offers Reload,
+  // which goes through the worker (pwa.ts, reloadForNewerApp) and, with no
+  // newer app waiting, reloads — here onto a map this app reads again.
+  const newer = (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...published, schema: MAP_FILE_SCHEMA_NEXT }) })
+  await ctx.route('**/data/index.json', newer)
+  await page.reload({ waitUntil: 'load' })
+  const banner = page.getByText('This map was published for a newer version of the app.')
+  const bannerShown = await banner.waitFor({ timeout: 15000 }).then(() => true, () => false)
+  check('a map published for a newer app: the banner says so, with Reload', bannerShown && (await page.getByRole('button', { name: 'Reload', exact: true }).count()) > 0)
+  await ctx.unroute('**/data/index.json', newer)
+  if (bannerShown) {
+    await Promise.all([
+      page.waitForEvent('load', { timeout: 20000 }).catch(() => {}),
+      page.getByRole('button', { name: 'Reload', exact: true }).first().click(),
+    ])
+    const back = await arrived.waitFor({ state: 'attached', timeout: 20000 }).then(() => true, () => false)
+    check('  its Reload reloads, and a map this app reads draws again', back && (await banner.count()) === 0)
+  }
 
   // ------------------------------------------------------------ an update
   // A deploy changes sw.js. Stand in for one by changing a byte of the built

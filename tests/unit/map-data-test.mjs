@@ -9,8 +9,19 @@
 // honour, is the owner's to look at, never a reason to leave the map stale.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { checkMapData, markdownReport, END_WITHIN_M } from '../../scripts/checks/check-map-data.mjs'
+import { checkMapData, markdownReport, END_WITHIN_M, readPublished } from '../../scripts/checks/check-map-data.mjs'
+import { fileURLToPath } from 'node:url'
+
+/**
+ * The committed map, every line in full: the index and its lines/
+ * (check-map-data.mjs). A line file missing, not its direction's, or of
+ * another length than the index says fails here, not quietly further on.
+ */
+const published = () => {
+  const { file, problems } = readPublished(fileURLToPath(new URL('../../public/data/index.json', import.meta.url)))
+  assert.deepEqual(problems, [])
+  return file
+}
 
 // A flat patch of Tala: metres east and north of a corner, as lng/lat.
 const [X0, Y0] = [121.05, 14.73]
@@ -146,7 +157,7 @@ test('something that is not a map is one problem', () => {
 })
 
 test('the committed map has no problem', () => {
-  const file = JSON.parse(readFileSync(new URL('../../public/data/map.json', import.meta.url), 'utf8'))
+  const file = published()
   const r = checkMapData(file)
   assert.deepEqual(r.problems, [])
   console.log(`  ${r.warnings.length} warning(s) on the committed map${r.warnings.length ? ':\n  ' + r.warnings.join('\n  ') : ''}`)

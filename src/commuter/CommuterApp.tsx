@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Ref } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { HotspotCard } from '../shared/cards/HotspotCard'
-import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from './mapFile'
+import { MAP_FILE_TOO_NEW, loadLine, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from './mapFile'
 import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
 import { APP_MOVE, METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
 import { rideFare } from '../shared/model/fares'
@@ -46,14 +46,19 @@ const SHARE_KEY = 'r'
  */
 export default function CommuterApp() {
   const [map, setMap] = useState<MapLibreMap | null>(null)
-  // One file, fetched once, shared by both hooks.
-  const saved = useSavedRoutes(map, loadVariantsFromFile)
+  // One index, fetched once, shared by both hooks; a direction's full line
+  // read as it is lit (mapFile.ts).
+  const saved = useSavedRoutes(map, loadVariantsFromFile, { loadLine })
   // While a trip is open, the map lights only the trip (the owner, 2026-09-29).
   const stops = useSavedStops(map, loadStopsFromFile, { muted: !!saved.selected })
   const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW
 
-  // Where a lit direction passes a hintuan, the line turns orange for that stretch.
-  usePassStretches(map, saved.variants, stops.stops, saved.lit)
+  // Where a lit direction passes a hintuan, the line turns orange for that
+  // stretch: worked out on the full lines read — a lit direction's is asked
+  // for as it lights, and its orange comes with it — rather than on every
+  // overview at load. Offline, a line never read has none.
+  const withLines = useMemo(() => saved.variants.filter((v) => saved.fullIds.has(v.id)), [saved.variants, saved.fullIds])
+  usePassStretches(map, withLines, stops.stops, saved.lit)
 
   // Which way the jeep goes, on what is lit only — the chosen direction, the
   // Selected card's directions, or else a list's or a hotspot card's: chevrons
@@ -257,7 +262,9 @@ export default function CommuterApp() {
           onSwitch={(v) => saved.select(v.id, { keepList: true })}
           onClose={closeAll}
           picked={ride.pickedId}
-          pickedMetres={ride.rideTo?.metres}
+          // The pesos to a picked hintuan are the full line's: none while
+          // only its overview is here.
+          pickedMetres={saved.fullIds.has(saved.selected.id) ? ride.rideTo?.metres : undefined}
           onPick={ride.pick}
           onEnd={ride.toEnd}
           endPicked={ride.endPicked}
@@ -485,8 +492,10 @@ function TripCard({
   const { from, to } = directionEnds(variant)
   const sibling = otherDirection(variants, variant)
   const switchable = !!sibling && isDrawn(sibling)
-  // The whole ride, measured once: its Kilometer and its Expected fare.
-  const metres = lineLength(variantLine(variant))
+  // The whole ride, measured once on its full line — the index's figure, so
+  // an overview drawn while the line is read never prices it: its Kilometer
+  // and its Expected fare.
+  const metres = variant.metres ?? lineLength(variantLine(variant))
   return (
     <RouteTripDetail
       livery={livery}

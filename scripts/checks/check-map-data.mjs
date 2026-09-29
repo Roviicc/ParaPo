@@ -1,7 +1,12 @@
 // The published map against itself: do its lines, links and ends agree?
 //
-//   npm run check:data                          public/data/map.json
+//   npm run check:data                          public/data/index.json and its lines/
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs scripts/checks/check-map-data.mjs [file] [--markdown out.md]
+//
+// The file is the index (schema 2, since 2026-09-29): each direction's line is
+// read from lines/<id>.json beside it, and a direction whose line file is
+// missing or is not its own is a problem. A schema 1 file (map.json, every
+// line in it) is read as it is.
 //
 // The publish workflow runs this on the file it has just written, before
 // the commit. A *problem* is a file the app cannot show honestly — a link to
@@ -17,10 +22,11 @@
 // which is what the studio links on save and what the public map paints
 // orange. Judged here on the published line, which lies within half a metre
 // of the drawn one, so a pass is only doubted beyond that half metre.
-import { readFileSync, appendFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, appendFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { PASS_WITHIN_M, passBounds, stopLabel, stopRing } from '../../src/shared/model/stops.ts'
-import { bboxOf, bboxesOverlap, distanceToRingM, firstNearIndex, haversine } from '../../src/shared/geo/geo.ts'
+import { bboxOf, bboxesOverlap, distanceToRingM, firstNearIndex, haversine, lineLength } from '../../src/shared/geo/geo.ts'
 
 /** How far a line's first or last point may sit from the hotspot it leaves from or arrives at. */
 export const END_WITHIN_M = 50
@@ -172,19 +178,51 @@ export function markdownReport(file, result) {
   return lines.join('\n')
 }
 
+/**
+ * The published map with every line in full: an index's directions each take
+ * their line from lines/<id>.json beside it; a schema 1 file has them already.
+ * Returns the problems met on the way, which checkMapData adds to its own.
+ */
+export function readPublished(path) {
+  const file = JSON.parse(readFileSync(path, 'utf8'))
+  if (file.schema !== 2) return { file, problems: [] }
+  const problems = []
+  const variants = (file.variants ?? []).map(({ overview, ...v }) => {
+    if (!overview) return { ...v, shape: null }
+    const linePath = join(dirname(path), 'lines', `${v.id}.json`)
+    if (!existsSync(linePath)) {
+      problems.push(`${v.direction_name ?? v.id}: its line file is missing (lines/${v.id}.json)`)
+      return { ...v, shape: overview }
+    }
+    const line = JSON.parse(readFileSync(linePath, 'utf8'))
+    if (line.id !== v.id || line.shape?.type !== 'LineString') {
+      problems.push(`${v.direction_name ?? v.id}: lines/${v.id}.json is not this direction's line`)
+      return { ...v, shape: overview }
+    }
+    // The trip card prices the ride from the index's length: it must be its line's.
+    if (typeof v.metres !== 'number' || Math.abs(v.metres - lineLength(line.shape.coordinates)) > 0.05) {
+      problems.push(`${v.direction_name ?? v.id}: the index says ${v.metres} m, its line is ${lineLength(line.shape.coordinates).toFixed(2)} m`)
+    }
+    return { ...v, shape: line.shape }
+  })
+  return { file: { ...file, variants }, problems }
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2)
   const mdAt = args.indexOf('--markdown')
   const mdPath = mdAt >= 0 ? args[mdAt + 1] : null
-  const path = args.filter((a, i) => a !== '--markdown' && !(mdAt >= 0 && i === mdAt + 1))[0] ?? 'public/data/map.json'
+  const path = args.filter((a, i) => a !== '--markdown' && !(mdAt >= 0 && i === mdAt + 1))[0] ?? 'public/data/index.json'
   let file
+  let reading = []
   try {
-    file = JSON.parse(readFileSync(path, 'utf8'))
+    ;({ file, problems: reading } = readPublished(path))
   } catch (e) {
     console.error(`FAIL  could not read ${path}: ${e.message}`)
     process.exit(1)
   }
   const result = checkMapData(file)
+  result.problems.unshift(...reading)
   const md = markdownReport(file, result)
   if (mdPath) writeFileSync(mdPath, md)
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + '\n')

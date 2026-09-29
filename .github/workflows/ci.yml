@@ -25,7 +25,8 @@
 #
 # A commit the publish-map workflow pushes with GITHUB_TOKEN starts no other
 # workflow, by GitHub's rule, so the nightly map file is not checked here —
-# it changes only public/data/map.json, which the suites read as data anyway.
+# it changes only public/data/ (the index, its lines and map.json), which the
+# suites read as data anyway.
 name: CI
 
 # A push to main or staging, and every pull request. A branch with a pull
