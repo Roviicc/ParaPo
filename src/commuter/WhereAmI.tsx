@@ -20,16 +20,16 @@ type Props = {
  * plain so it can be tried again after the browser's setting is changed.
  */
 export function WhereAmIButton({ where, coarse }: Props) {
-  const { status, follow, ask, stop } = where
+  const { status, follow, noFix, ask, stop } = where
   const on = status === 'on' || status === 'asking'
   const [note, setNote] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === 'denied') setNote('Location is off for this site. Allow it in your browser settings, then try again.')
     else if (status === 'unavailable') setNote('This browser cannot give a location.')
-    else if (status === 'error') setNote('No fix yet. Try again outdoors, or check that location is on.')
+    else if (noFix) setNote('No fix yet. Try again outdoors, or check that location is on.')
     else setNote(null)
-  }, [status])
+  }, [status, noFix])
   useEffect(() => {
     if (!note) return
     const t = window.setTimeout(() => setNote(null), 5000)

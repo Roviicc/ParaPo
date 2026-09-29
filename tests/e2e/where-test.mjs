@@ -187,6 +187,37 @@ check('a browser that refuses: a note under the button, and no figure', await un
 check('  the button is plain again, to try after the setting changes', (await page2.locator('[data-testid="where"]').getAttribute('data-state')) === 'denied')
 await ctx2.close()
 
+// ---------------------------------------------------------- no fix, ever
+// A GPS that only times out: the browser's own watch, answering TIMEOUT
+// every second and never a position. The button stays on with a note, and a
+// tap turns it off — once it read as off and a tap did nothing at all.
+const ctx3 = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+const page3 = await ctx3.newPage()
+await page3.addInitScript(() => {
+  let n = 0
+  const timers = new Map()
+  const geo = {
+    watchPosition: (_ok, fail) => {
+      const id = ++n
+      timers.set(id, setInterval(() => fail({ code: 3, message: 'Timeout expired', PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 }), 1000))
+      return id
+    },
+    clearWatch: (id) => { clearInterval(timers.get(id)); timers.delete(id); window.__watches = timers.size },
+    getCurrentPosition: () => {},
+  }
+  Object.defineProperty(navigator, 'geolocation', { get: () => geo })
+})
+await stubTiles(page3)
+await open(page3)
+const where3 = page3.locator('[data-testid="where"]')
+await where3.click()
+const note3 = page3.locator('[data-testid="where-note"]')
+check('a GPS that only times out: a note, and the button still on', await until(async () => (await note3.count()) === 1, 8000) && (await where3.getAttribute('aria-pressed')) === 'true', `${await where3.getAttribute('data-state')}; ${(await note3.count()) ? await note3.innerText() : 'no note'}`)
+await where3.click()
+await page3.waitForTimeout(300)
+check('  and a tap turns it off, the watch cleared', (await where3.getAttribute('data-state')) === 'off' && (await page3.evaluate(() => window.__watches)) === 0, `${await where3.getAttribute('data-state')}, ${await page3.evaluate(() => window.__watches)} watch(es)`)
+await ctx3.close()
+
 await b.close()
 const failed = results.filter((r) => !r.ok).length
 console.log(`\n${results.length - failed} passed, ${failed} failed`)
