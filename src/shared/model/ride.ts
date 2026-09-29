@@ -2,7 +2,7 @@ import { haversine, lineLength, type LngLat } from '../geo/geo'
 import { passStretches } from '../geo/pass'
 import { placeKey } from './places'
 import { stopRing, type StopSummary } from './stops'
-import { timelineFor, type Timeline } from './timeline'
+import { drawnFromTheEnd, timelineFor, type Timeline } from './timeline'
 import { variantLine, type VariantSummary } from './routes'
 
 /*
@@ -64,10 +64,9 @@ export type RideDot = { stopId: string; at: LngLat; metres: number }
  * published, thinned one). The ride ends at `endStopId`'s dot when given —
  * tapping a dot toggles the get-off side without moving the hintuan — and
  * at the last dot otherwise. `ridden` runs from the place this direction
- * leaves; the line may have been drawn from the far end (the save panel
- * allows it with a warning), and is turned to rider order by the same
- * nearest-end rule `timelineFor` reads the middle with. `rest` is the way
- * not ridden, for the map to fade.
+ * leaves: it is cut from `travelLine`, turned to rider order by the one
+ * rule `timelineFor` reads the middle with (drawnFromTheEnd). `rest` is the
+ * way not ridden, for the map to fade.
  */
 export function rideCut(
   v: VariantSummary,
@@ -76,15 +75,8 @@ export function rideCut(
   endStopId: string | null = null,
 ): { ridden: LngLat[]; rest: LngLat[]; metres: number; at: LngLat; endStopId: string; dots: RideDot[] } | null {
   const row = stops.find((s) => s.id === rowStopId)
-  const line = variantLine(v)
-  if (!row || line.length < 2) return null
-  const head = stops.find((s) => s.id === v.route?.head_stop_id)
-  const tail = stops.find((s) => s.id === v.route?.tail_stop_id)
-  const from = v.reversed ? tail : head
-  const to = v.reversed ? head : tail
-  const fromStart =
-    !from || !to || haversine(line[0], from.point.coordinates) <= haversine(line[0], to.point.coordinates)
-  const ride = fromStart ? line : [...line].reverse()
+  const ride = travelLine(v, stops)
+  if (!row || ride.length < 2) return null
   const key = placeKey(row)
   const dots: RideDot[] = []
   for (const s of stops) {
@@ -110,9 +102,8 @@ export function rideCut(
 
 /**
  * The direction's line in travel order: from where it leaves to where it is
- * going. The stored points run whichever way the owner drew them, and the
- * save panel lets a return be drawn from the far end with only a warning, so
- * the ends decide, not the drawing. What the arrows and the glow follow.
+ * going, whichever way it was drawn (drawnFromTheEnd). What the arrows, the
+ * glow and the ride-to cut follow.
  */
 export function travelLine(v: VariantSummary, stops: readonly StopSummary[]): LngLat[] {
   const line = variantLine(v)
@@ -121,7 +112,5 @@ export function travelLine(v: VariantSummary, stops: readonly StopSummary[]): Ln
   const tail = stops.find((s) => s.id === v.route?.tail_stop_id)
   const [from, to] = v.reversed ? [tail, head] : [head, tail]
   if (!from || !to) return line
-  const start = line[0]
-  const backwards = haversine(start, to.point.coordinates) < haversine(start, from.point.coordinates)
-  return backwards ? [...line].reverse() : line
+  return drawnFromTheEnd(line[0], from, to) ? [...line].reverse() : line
 }

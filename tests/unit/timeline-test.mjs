@@ -7,7 +7,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { SAME_HINTUAN_M, labelGroups, placeSummary } from '../../src/shared/model/places.ts'
-import { timelineFor, hintuansAlong } from '../../src/shared/model/timeline.ts'
+import { drawnFromTheEnd, timelineFor, hintuansAlong } from '../../src/shared/model/timeline.ts'
 import { variantLine } from '../../src/shared/model/routes.ts'
 import { rideCut, routeTimeline } from '../../src/shared/model/ride.ts'
 import { sharingAnEnd } from '../../src/shared/model/departures.ts'
@@ -197,4 +197,13 @@ test('a route sharing no end, or with none in an old file, fans out to itself', 
   assert.deepEqual(idsOf(sharingAnEnd(FAN, FAN.at(-1))), idsOf(both('far', 'x', 'y')))
   const old = [...both('a', undefined, undefined), ...both('b', undefined, undefined)]
   assert.deepEqual(idsOf(sharingAnEnd(old, old[0])), idsOf(both('a')))
+})
+
+// The one travel-order rule (the review's 6.5): the ends decide, not the drawing.
+test('a line is drawn from the far end when it starts nearer where the ride goes; a tie reads as drawn forward', () => {
+  const from = at('Tala', 0, 0, 'terminal')
+  const to = at('Novaliches', 0.03, 0, 'terminal')
+  assert.equal(drawnFromTheEnd([0.001, 0], from, to), false)
+  assert.equal(drawnFromTheEnd([0.029, 0], from, to), true)
+  assert.equal(drawnFromTheEnd([0.015, 0], from, to), false)
 })
