@@ -5,7 +5,9 @@ import { SignIn } from './SignIn'
 /**
  * The account's dialogs over the workshop: sign-in, asked for at Done when
  * signed out; setting a new password, back from a reset link; changing it,
- * from the pill. At most one is up at a time, in that order of precedence.
+ * from the pill. Each shows on its own flag; the workshop keeps them apart
+ * (a password change waits while a reset is up). Split from StudioApp.tsx,
+ * 2026-09-29.
  */
 export function AuthDialogs({
   signingIn,

@@ -1,7 +1,7 @@
 /**
  * The pill at the top left while nothing is open: how many routes and
  * hotspots are saved, and the account — who is signed in, with Password and
- * Sign out, or Sign in.
+ * Sign out, or Sign in. Split from StudioApp.tsx, 2026-09-29.
  */
 export function AccountPill({
   routes,

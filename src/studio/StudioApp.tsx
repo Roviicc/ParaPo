@@ -94,6 +94,7 @@ function Workshop({
   const [signingIn, setSigningIn] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [hotspotMenu, setHotspotMenu] = useState(false)
   // One toast at a time, the newest: a save's, or a problem.
   const [toast, setToast] = useState<
     { kind: 'route'; v: VariantRow } | { kind: 'stop'; s: StopRow } | { kind: 'notice'; text: string } | null
@@ -417,7 +418,13 @@ function Workshop({
           1024 px wide the list docks along the bottom, and these would stand
           on its corner (the owner, 2026-09-29).
         */
-        <NewButtons ready={!!map} onNewRoute={() => draw.start()} onNewHotspot={(kind) => draw.startArea(kind)} />
+        <NewButtons
+          ready={!!map}
+          menu={hotspotMenu}
+          setMenu={setHotspotMenu}
+          onNewRoute={() => draw.start()}
+          onNewHotspot={(kind) => draw.startArea(kind)}
+        />
       )}
 
       <AuthDialogs
