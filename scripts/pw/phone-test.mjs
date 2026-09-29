@@ -177,8 +177,22 @@ await page.addInitScript(() => {
   // Pointer presses the page has seen: on some GitHub runs Chromium stopped
   // making them from touches, and from the mouse, partway through the suite
   // (2026-09-29; see tapHandle).
+  // What might have stopped them, and when the last one came: a long press's
+  // context menu or drag, or a pointer the browser cancelled.
   window.__pointerdowns = 0
-  document.addEventListener('pointerdown', () => window.__pointerdowns++, true)
+  window.__lastDown = null
+  window.__odd = []
+  const tag = (e) => (e.target instanceof Element ? e.target.closest('[data-testid]')?.getAttribute('data-testid') ?? e.target.tagName.toLowerCase() : '')
+  document.addEventListener(
+    'pointerdown',
+    (e) => {
+      window.__pointerdowns++
+      if (e.isTrusted) window.__lastDown = `${Math.round(performance.now())} ${e.pointerType}@${tag(e)}`
+    },
+    true,
+  )
+  for (const t of ['contextmenu', 'dragstart', 'dragend', 'pointercancel', 'touchcancel', 'selectstart'])
+    document.addEventListener(t, (e) => window.__odd.push(`${Math.round(performance.now())} ${t}@${tag(e)}`), true)
   window.__src = async (id) => {
     const s = window.__map?.getSource(id)
     return s ? await s.getData() : null
@@ -1352,7 +1366,7 @@ const sheetDiag = () =>
     const h = document.querySelector('[data-testid="card"] button[data-testid="sheet-handle"]')
     const r = h?.getBoundingClientRect()
     const top = r ? name(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)) : '(no handle)'
-    return `cards [${cards.join(' | ')}]; on the handle ${top}; chooser ${document.querySelectorAll('[data-testid="chooser"]').length}; events ${(window.__sheetEvents ?? []).slice(-14).join(', ')}`
+    return `cards [${cards.join(' | ')}]; on the handle ${top}; chooser ${document.querySelectorAll('[data-testid="chooser"]').length}; events ${(window.__sheetEvents ?? []).slice(-14).join(', ')}; now ${Math.round(performance.now())}, the last real pointerdown ${window.__lastDown}; odd [${window.__odd.slice(-12).join(', ')}]`
   })
 
 if (!hotspot) {
@@ -1419,7 +1433,8 @@ if (!hotspot) {
   }
   const readyMouseUp = await restore('peek')
   const mouseUp = await mouseDrag(-60)
-  check('a mouse dragging the handle up leaves the sheet open', readyMouseUp && mouseUp && (await sheetState()) === 'open', `data-sheet=${await sheetState()}`)
+  const mouseOpened = readyMouseUp && mouseUp && (await sheetState()) === 'open'
+  check('a mouse dragging the handle up leaves the sheet open', mouseOpened, `data-sheet=${await sheetState()}${mouseOpened ? '' : `; ${await sheetDiag()}`}`)
   const readyMouseDown = await restore('open')
   const mouseDown = await mouseDrag(60)
   check('  and dragging it down leaves it at peek', readyMouseDown && mouseDown && (await sheetState()) === 'peek', `data-sheet=${await sheetState()}`)
@@ -1676,6 +1691,10 @@ if (!routeA) {
 
 // --------------------------------------------------------- 7. housekeeping
 if (tapsByHand) console.log(`\n(${tapsByHand} tap(s) needed the click sent by hand: the runner dropped the touch${lateClicks ? `; ${lateClicks} of those got the touch's own click afterwards too` : ''})\n`)
+const odd = await page.evaluate(() => window.__odd ?? []).catch(() => [])
+if (odd.length) console.log(`
+(context menus, drags and cancelled pointers the page saw: ${odd.slice(-20).join(', ')})
+`)
 if (handleByHand) console.log(`\n(${handleByHand} gesture(s) on the sheet handle sent by hand as pointer events: the runner made none from the touch)\n`)
 check('no request to router.project-osrm.org', !osrmHit)
 check('no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
