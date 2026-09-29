@@ -10,8 +10,10 @@
 #             file and OpenFreeMap's tiles.
 #   studio  — the editor. First studio-scale: /studio/?e2e=1 with 1,000
 #             directions served by a stand-in for the database, no router, so
-#             it needs no retry. Then group, regression-gestures, hotspot, snap
-#             and extend against /studio/?e2e=1, which draws through the public
+#             it needs no retry; then save-test, the save flows signed in
+#             against a stand-in, no router either. Then group,
+#             regression-gestures, hotspot, snap and extend against
+#             /studio/?e2e=1, which draws through the public
 #             OSRM demo router (about one request a second, shared with the
 #             world) and reads the live tables. One suite at a time, and a
 #             suite that fails is run once more after a minute, as
@@ -144,6 +146,12 @@ jobs:
       # by a stand-in: what the editor asks for, and how soon it opens.
       - name: studio-scale-test — the editor with 1,000 directions
         run: node tests/e2e/studio-scale-test.mjs
+
+      # The save flows, signed in, against a stand-in for the database: a
+      # route and its return trip, an edit, a delete and a redraw, hotspots,
+      # a failed link sync and its retry. No account, no router, no live table.
+      - name: save-test — the editor's writes, against a stand-in
+        run: node tests/e2e/save-test.mjs
 
       # One at a time, and once more after a minute if the router was busy.
       - name: The drawing suites

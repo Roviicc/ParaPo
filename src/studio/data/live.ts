@@ -77,11 +77,21 @@ export async function withDrawing(v: VariantRow): Promise<VariantDrawing> {
   }
 }
 
-/** Every hotspot, in full. Public: RLS allows anyone to read. */
-export async function listStops(): Promise<StopRow[]> {
+/**
+ * Every hotspot, in full. Public: RLS allows anyone to read.
+ *
+ * Both hooks load at once — the directions need the hotspots to name
+ * themselves, the hotspots hook needs them to draw — and each used to read
+ * the whole table (review finding 6: two reads a load, four under
+ * StrictMode). A read already in flight is shared; the next load, after it
+ * settles, reads afresh.
+ */
+let stopsInFlight: Promise<StopRow[]> | null = null
+export function listStops(): Promise<StopRow[]> {
   const client = getSupabase()
-  if (!client) return []
-  return readAll<StopRow>((from, to) =>
+  if (!client) return Promise.resolve([])
+  if (stopsInFlight) return stopsInFlight
+  const read = readAll<StopRow>((from, to) =>
     client
       .from('stop')
       .select('*', { count: 'exact' })
@@ -89,6 +99,12 @@ export async function listStops(): Promise<StopRow[]> {
       .order('id')
       .range(from, to),
   )
+  stopsInFlight = read
+  const settle = () => {
+    if (stopsInFlight === read) stopsInFlight = null
+  }
+  read.then(settle, settle)
+  return read
 }
 
 /** Every hotspot ↔ direction link. Public read. */

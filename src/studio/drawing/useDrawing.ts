@@ -575,7 +575,10 @@ export function useDrawing(
           DRAFT_KEY,
           JSON.stringify({ controlPoints, segments: marked, target, area, borrow, join: join === -1 ? null : join }),
         )
-      } else if (!drawing) {
+      } else {
+        // Not drawing, or drawing with every point undone: nothing to keep.
+        // Only the first was cleared once, so a reload brought back what Undo
+        // had taken away (finding 12).
         localStorage.removeItem(DRAFT_KEY)
       }
     } catch {

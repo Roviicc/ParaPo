@@ -126,8 +126,19 @@ function Workshop({
   )
   useDirectionArrows(map, rides)
 
+  // The pill counts routes, not directions: a route is two rows, one of them
+  // perhaps an empty slot, and five routes once read "10 routes" (finding 7).
+  const routeCount = useMemo(() => new Set(saved.variants.map((v) => v.route_id)).size, [saved.variants])
+
   const signedIn = !!session
   const userId = session?.user.id ?? null
+
+  // Signed in from the dialog Done opened: the dialog hides itself on the
+  // session, so its flag is cleared here — left set, it kept the drawing keys
+  // (Ctrl+Z, Enter, F) off for the rest of the visit (finding 9).
+  useEffect(() => {
+    if (signedIn) setSigningIn(false)
+  }, [signedIn])
 
   // Back from a valid reset link: the link gave us a session, now set the password.
   const resetting = recovery.recovering && signedIn
@@ -257,10 +268,30 @@ function Workshop({
     setSaving(false)
     draw.cancel()
     void stops.reload()
+    // The directions too: their names are generated from the hotspots at
+    // their ends when they load, so a renamed end left every card, the list
+    // and the pill on the old name until the next route save (finding 8).
+    void saved.reload()
     setJustSavedStop(s)
   }
 
   const onDeleteStop = async (s: StopRow) => {
+    // A route's end cannot go while the route names it: the database refuses
+    // (0006's foreign keys), and its refusal was the notice (finding 15).
+    const ending = [
+      ...new Set(
+        saved.variants
+          .filter((v) => v.route.head_stop_id === s.id || v.route.tail_stop_id === s.id)
+          .map((v) => v.route.name),
+      ),
+    ]
+    if (ending.length > 0) {
+      setNotice(
+        `"${stopLabel(s)}" is where ${ending.join(', ')} ${ending.length === 1 ? 'ends' : 'end'}. ` +
+          `Delete ${ending.length === 1 ? 'that route' : 'those routes'} first.`,
+      )
+      return
+    }
     if (!window.confirm(`Delete ${s.kind} "${stopLabel(s)}"?`)) return
     try {
       await deleteStop(s)
@@ -274,6 +305,14 @@ function Workshop({
   // One click, several saved things: the route list shows them all.
   const choice = [...saved.candidates, ...stops.candidates]
   const choosing = choice.length > 1
+
+  // "Draw the return trip" only while the route still has a way undrawn: after
+  // an edit of a route drawn both ways it once started a drawing whose save
+  // replaced the other direction's line (review finding 2). The direction
+  // just saved is drawn whatever the list says until its reload lands.
+  const slotLeft = justSaved
+    ? saved.variants.some((v) => v.route_id === justSaved.route_id && v.id !== justSaved.id && v.shape === null)
+    : false
 
   const onDelete = async (v: VariantRow) => {
     if (!window.confirm(`Delete "${v.route?.name}" — ${v.direction_name}?`)) return
@@ -405,9 +444,9 @@ function Workshop({
           className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-full bg-white/90
                      px-3 py-1.5 text-xs text-neutral-600 shadow ring-1 ring-black/5 backdrop-blur"
         >
-          {saved.variants.length > 0 && (
+          {routeCount > 0 && (
             <span className="text-neutral-500">
-              {saved.variants.length} {saved.variants.length === 1 ? 'route' : 'routes'}
+              {routeCount} {routeCount === 1 ? 'route' : 'routes'}
               {stops.stops.length > 0 && (
                 <> · {hotspotCount(stops.stops)} {hotspotCount(stops.stops) === 1 ? 'hotspot' : 'hotspots'}</>
               )}{' '}
@@ -464,7 +503,7 @@ function Workshop({
         </div>
       )}
 
-      {/* After a save, the other direction is almost always next. */}
+      {/* After a save, the other direction is almost always next — while there is one to draw. */}
       {justSaved && !draw.drawing && (
         <div
           className="absolute bottom-24 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-full
@@ -473,17 +512,19 @@ function Workshop({
           <span>
             Saved <strong>{justSaved.route?.name}</strong> · {justSaved.direction_name}
           </span>
-          <button
-            type="button"
-            onClick={() => {
-              const routeId = justSaved.route_id
-              setJustSaved(null)
-              draw.start(routeId)
-            }}
-            className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900"
-          >
-            Draw the return trip
-          </button>
+          {slotLeft && (
+            <button
+              type="button"
+              onClick={() => {
+                const routeId = justSaved.route_id
+                setJustSaved(null)
+                draw.start(routeId)
+              }}
+              className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900"
+            >
+              Draw the return trip
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setJustSaved(null)}

@@ -149,8 +149,15 @@ export function SavePanel({
   const [tailId, setTailId] = useState(parent?.tail_stop_id ?? firstGuess[1])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The direction as a save wrote it, when the link sync after it failed.
+  // Saves are two steps, not one transaction (PLAN.md's known risk #3): a
+  // second press inserted the route again, met its own row and was refused as
+  // "already drawn" (review finding 13). Now it updates the row it wrote.
+  const [written, setWritten] = useState<{ routeId: string; variantId: string } | null>(null)
 
-  const routeLocked = !!parent
+  // A return trip's route is fixed; so is a new route's once a save has
+  // written it: the retry finishes that row and would ignore a changed end.
+  const routeLocked = !!parent || !!written
   const streets = routeStreets(draw.segments)
   const head = stops.find((s) => s.id === headId)
   const tail = stops.find((s) => s.id === tailId)
@@ -234,8 +241,8 @@ export function SavePanel({
     setError(null)
     try {
       const saved = await saveVariant({
-        routeId: parent?.id ?? null,
-        variantId: existing?.id ?? null,
+        routeId: written?.routeId ?? parent?.id ?? null,
+        variantId: written?.variantId ?? existing?.id ?? null,
         signboard,
         mode,
         fare_note: fareNote,
@@ -253,8 +260,16 @@ export function SavePanel({
       // Every hintuan's route list is a fact about geometry, so a changed
       // line re-checks itself against all of them. Terminal links are the
       // owner's and are left alone.
+      setWritten({ routeId: saved.route_id, variantId: saved.id })
       const named = nameVariants([saved], stops)[0]
-      await syncHintuanLinks(named)
+      try {
+        await syncHintuanLinks(named)
+      } catch (err) {
+        throw new Error(
+          `The line is saved, but its hintuan links are not: ${err instanceof Error ? err.message : String(err)}. ` +
+            'Press Save again to retry.',
+        )
+      }
       onSaved(named)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))

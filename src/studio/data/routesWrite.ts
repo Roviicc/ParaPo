@@ -89,11 +89,11 @@ async function claimExistingRoute(
   }
   const mine = directions.find((d) => d.reversed === reversed)
   if (mine && mine.shape === null) return { routeId: data.id as string, fillSlot: true }
-  throw new Error(
-    'A route between these two places already has this direction drawn. To change it, open it and ' +
-      'press Edit route.',
-  )
+  throw new Error(DRAWN_ALREADY)
 }
+
+const DRAWN_ALREADY =
+  'A route between these two places already has this direction drawn. To change it, open it and press Edit route.'
 
 export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> {
   const client = requireSupabase()
@@ -181,22 +181,32 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
 
   // An existing route: either an edit of a drawn direction, or the first
   // drawing of the empty slot its route was born with. Both are updates —
-  // the unique index means there is never a third row to insert.
+  // the unique index means there is never a third row to insert. Without a
+  // direction in hand only an empty slot is a target (`shape is null`): a
+  // return trip started on a route whose both ways are drawn once matched the
+  // drawn row and replaced its line (review finding 2).
   const target = input.variantId
     ? client.from('route_variant').update(drawn).eq('id', input.variantId)
-    : client.from('route_variant').update(drawn).eq('route_id', routeId).eq('reversed', input.reversed)
+    : client
+        .from('route_variant')
+        .update(drawn)
+        .eq('route_id', routeId)
+        .eq('reversed', input.reversed)
+        .is('shape', null)
 
   const { data, error } = await target.select(VARIANT_SELECT).maybeSingle()
   if (error) throw new Error(error.message)
   if (data) return data as unknown as UnnamedVariantRow
 
   // No slot to fill. Only reachable for a route saved before 0006, or one
-  // whose slot was deleted by hand; an insert is the honest repair.
+  // whose slot was deleted by hand; an insert is the honest repair. When the
+  // direction is there and drawn, the one-per-direction index refuses it.
   const { data: made, error: insertError } = await client
     .from('route_variant')
     .insert(drawn)
     .select(VARIANT_SELECT)
     .single()
+  if (insertError?.code === UNIQUE_VIOLATION) throw new Error(DRAWN_ALREADY)
   if (insertError) throw new Error(insertError.message)
   return made as unknown as UnnamedVariantRow
 }
@@ -204,19 +214,45 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
 /**
  * Delete one direction. Emptying a direction leaves its slot: a route always
  * has two. The route itself goes only when both of its directions are gone.
+ *
+ * The row is emptied, not deleted — deleting it left a route with one row, no
+ * slot to redraw into and a card that could not flip, and `+ New Route` with
+ * the same ends was then refused as "already drawn" (review finding 3). What
+ * deleting the row did on its own is done by hand: its hotspot links go (the
+ * cascade), and a line extended from it forgets its parent (`on delete set
+ * null`, 0008) and keeps its own copy.
+ *
+ * Every step reads its error (finding 16): a refused clean-up is said, not
+ * left as a route nobody can reach.
  */
 export async function deleteVariant(variant: VariantRow): Promise<void> {
   const client = requireSupabase()
-  const { error } = await client.from('route_variant').delete().eq('id', variant.id)
-  if (error) throw new Error(error.message)
+  const emptied = await client
+    .from('route_variant')
+    .update({
+      control_points: [] as LngLat[],
+      segments: [] as Segment[],
+      shape: null,
+      borrowed_from: null,
+      borrowed_part: null,
+      borrowed_m: null,
+    })
+    .eq('id', variant.id)
+  if (emptied.error) throw new Error(emptied.error.message)
+  const unlinked = await client.from('route_stop').delete().eq('route_variant_id', variant.id)
+  if (unlinked.error) throw new Error(unlinked.error.message)
+  const orphaned = await client.from('route_variant').update({ borrowed_from: null }).eq('borrowed_from', variant.id)
+  if (orphaned.error) throw new Error(orphaned.error.message)
 
-  const { count } = await client
+  const { count, error: countError } = await client
     .from('route_variant')
     .select('id', { count: 'exact', head: true })
     .eq('route_id', variant.route_id)
     .not('shape', 'is', null)
+  if (countError) throw new Error(countError.message)
   if (count === 0) {
-    await client.from('route_variant').delete().eq('route_id', variant.route_id)
-    await client.from('route').delete().eq('id', variant.route_id)
+    // Both ways empty: the route goes, its two slots with it (cascade).
+    const gone = await client.from('route').delete().eq('id', variant.route_id)
+    if (gone.error) throw new Error(gone.error.message)
   }
 }

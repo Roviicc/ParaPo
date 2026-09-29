@@ -9,6 +9,7 @@ import {
 import { variantLine, type VariantRow } from '../../shared/model/routes'
 import { hintuansAlong, normaliseName, passIndex, type PointGeoJSON, type StopKind, type StopLink, type StopRow } from '../../shared/model/stops'
 import { requireSupabase } from './supabase'
+import { readAll } from './readAll'
 
 const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim())
 
@@ -162,13 +163,28 @@ export async function deleteStop(stop: StopRow): Promise<void> {
  */
 export async function syncHintuanLinks(variant: VariantRow): Promise<void> {
   const client = requireSupabase()
-  const { data, error } = await client
-    .from('stop')
-    .select('*')
-    .eq('kind', 'hintuan')
-    .not('area', 'is', null)
-  if (error) throw new Error(error.message)
-  const hintuans = (data ?? []) as StopRow[]
+  // Paged, as every table read is (readAll.ts): past 1,000 hintuans one
+  // request would silently see a subset (review finding 4).
+  const [hintuans, linked] = await Promise.all([
+    readAll<StopRow>((from, to) =>
+      client
+        .from('stop')
+        .select('*', { count: 'exact' })
+        .eq('kind', 'hintuan')
+        .not('area', 'is', null)
+        .order('id')
+        .range(from, to),
+    ),
+    // This direction's links as they stand: one small request.
+    readAll<{ stop_id: string }>((from, to) =>
+      client
+        .from('route_stop')
+        .select('stop_id', { count: 'exact' })
+        .eq('route_variant_id', variant.id)
+        .order('stop_id')
+        .range(from, to),
+    ),
+  ])
   if (hintuans.length === 0) return
 
   // The same rule the save panel showed before Save was pressed.
@@ -179,7 +195,11 @@ export async function syncHintuanLinks(variant: VariantRow): Promise<void> {
     stop_sequence: index,
   }))
   const kept = new Set(keep.map((k) => k.stop_id))
-  const drop = hintuans.filter((h) => !kept.has(h.id)).map((h) => h.id)
+  // Only the hintuan links this direction has and no longer earns — usually
+  // none. It once listed every hintuan the line does not pass, a request line
+  // that grows with the map past what the gateway accepts (finding 4).
+  const isHintuan = new Set(hintuans.map((h) => h.id))
+  const drop = linked.map((l) => l.stop_id).filter((id) => isHintuan.has(id) && !kept.has(id))
 
   if (drop.length > 0) {
     const del = await client

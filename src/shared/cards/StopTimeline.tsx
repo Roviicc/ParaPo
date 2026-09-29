@@ -66,7 +66,9 @@ export function StopTimeline({
           </>
         )
         return (
-          <li key={s.id + (s.end ? '-end' : '')} className={'relative' + (past ? ' opacity-40' : '')}>
+          // The index too: a panel's first guess can put one place at both
+          // ends, and the two end rows then shared a key.
+          <li key={`${i}-${s.id}${s.end ? '-end' : ''}`} className={'relative' + (past ? ' opacity-40' : '')}>
             {onPick ? (
               <button
                 type="button"
