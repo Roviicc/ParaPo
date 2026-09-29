@@ -57,11 +57,12 @@ export function HotspotCard({
   const linked = linkedVariantIds
     .map((id) => byId.get(id))
     .filter((v): v is VariantSummary => !!v)
-  // The routes through here, listed as the chooser under a tap lists them:
-  // one way round, by the place each leaves from, ⇄ for the way back. Both
-  // directions of a route are linked to a box on a two-way road, so each
-  // route shows once either way round; a route linked one way only is a
-  // slot the other way, and reads "not mapped yet" there.
+  // The routes through here, one way round, by the place each leaves from,
+  // ⇄ for the way back: the owner's RouteCards on the public map, the rows
+  // in the studio. Both directions of a route are linked to a box on a
+  // two-way road, so each route shows once either way round; a route linked
+  // one way only is a slot the other way, which the studio's rows show as
+  // "not mapped yet" and the RouteCards leave out.
   // A box on a one-way street, or beside one carriageway, is passed one way
   // only: then that way is the one shown, and there is nothing to flip to.
   // The RouteCards list drawn directions only (the owner dropped "not mapped

@@ -44,8 +44,8 @@ type Props = {
  * The title is the *direction* — `SM Fairview → Tala` — not the route, since
  * 2026-09-22: the owner opened both cards of his first route, saw "Tala – SM
  * Fairview" on each, and read them as the same thing. The route's name stays,
- * one line down, because it is what the chooser, the share title and the
- * hotspot chips call it. The switch beside the title shows the other
+ * one line down, because it is what the studio calls it elsewhere — its
+ * Saved and Delete messages. The switch beside the title shows the other
  * direction; when that one has no line yet the card says so instead of
  * offering an empty one.
  */

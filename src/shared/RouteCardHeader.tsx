@@ -15,14 +15,18 @@ type Props = {
   onClose: () => void
 } & (
   | {
-      /** Figma's Default, over the route list: the Jeep and its count, `2 Routes`, `1 Route`. */
+      /**
+       * Figma's Default, over the route list: the Jeep and its count, `2
+       * Routes`, `1 Route` — or, with no route under the tap, its hotspots',
+       * `2 Hotspots` (the owner, 2026-09-29).
+       */
       routeCount: string
       onBackToList?: never
     }
   | {
       /**
        * Figma's Variant2, over a trip: ‹ back to what the trip was picked
-       * from — the list, the Chooser, a hotspot's card — or, opened on its
+       * from — the list, a hotspot's card — or, opened on its
        * own, to its route with those sharing an end; null when there is none
        * (no other route sharing an end has a direction drawn the trip's way
        * round) — then nothing stands in its place.

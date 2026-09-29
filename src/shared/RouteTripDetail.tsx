@@ -21,7 +21,7 @@ type Props = {
   switchable: boolean
   /** Whether this trip is the route's way back: SWITCH is pressed then, as over the list. */
   back: boolean
-  /** ‹: back to what the trip was picked from — the list, the Chooser, a hotspot's card — or to its route with those sharing an end; null when there is none. */
+  /** ‹: back to what the trip was picked from — the list, a hotspot's card — or to its route with those sharing an end; null when there is none. */
   onBackToList: (() => void) | null
   onClose: () => void
 }

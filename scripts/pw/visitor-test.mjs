@@ -292,7 +292,7 @@ for (const [i, p] of snapshot.polys.entries()) {
     await page.waitForTimeout(350)
     const chooser = page.locator('[data-testid="chooser"]')
     if ((await chooser.count()) > 0) {
-      // The line runs within a finger of this point: the sheet lists the box
+      // The line runs within a finger of this point: the list shows the box
       // first and the route after it. Its row opens the box's card.
       const row = chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: p.name }).first()
       if ((await row.count()) > 0) await row.click()
@@ -361,11 +361,13 @@ for (const [i, p] of snapshot.polys.entries()) {
 }
 
 // 4. A tap on a route line inside a hotspot offers both — since 2026-09-22
-// nothing wins outright: the sheet lists the hotspot first, then one row per
-// route, and the route's row opens its card. SKIP if no such vertex exists.
+// nothing wins outright: the route list shows the hotspot first, then the
+// routes as RouteCards (the owner, 2026-09-29: the Chooser that asked here
+// before is the list now), and a route's row opens its card. SKIP if no such
+// vertex exists.
 const hit = findVertexInsideAnyHotspot(snapshot.routeLines, snapshot.polys)
 if (!hit) {
-  skip('a tap on a route line inside a hotspot offers both in the sheet', 'no saved-route vertex lies inside any hotspot polygon today')
+  skip('a tap on a route line inside a hotspot offers both in the list', 'no saved-route vertex lies inside any hotspot polygon today')
 } else {
   await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 18 }), hit.point)
   await page.waitForTimeout(700)
@@ -375,21 +377,34 @@ if (!hit) {
   const chooser = page.locator('[data-testid="chooser"]')
   const has = (await chooser.count()) > 0
   const text = has ? await chooser.first().innerText() : ''
-  check('a tap on a route line inside a hotspot offers both in the sheet', has && /hotspot/.test(text) && /route/.test(text), has ? text.split('\n')[0] : `no sheet; card ${(await cardKind()).kind}`)
+  const cards = chooser.locator('[data-testid="chooser-origin"]')
+  const cardCount = has ? await cards.count() : 0
+  check(
+    'a tap on a route line inside a hotspot offers both in the list',
+    has && text.includes(hit.hotspot.name) && cardCount > 0,
+    has ? `${text.split('\n')[0]}; ${cardCount} card(s)` : `no list; card ${(await cardKind()).kind}`,
+  )
   if (has) {
     const items = chooser.locator('button[data-testid="chooser-item"]')
     const first = await items.first().innerText()
     check('  the hotspot is listed first', first.includes(hit.hotspot.name), first.split('\n')[0])
-    // The level of a direction the sheet does not list (the listed routes'
+    // The owner's pick of 2026-09-29: the count stays the routes', a card each.
+    const title = `${cardCount} ${cardCount === 1 ? 'Route' : 'Routes'}`
+    check(`  headed "${title}": the routes' count, not the hotspot's`, text.split('\n').includes(title), text.split('\n')[0])
+    // The level of a direction the list does not show (the listed routes'
     // other way round stays at rest, the owner's pick of 2026-09-25).
     const fadedWhileAsking = await page.evaluate(() => window.__restLevel())
-    check('  the rest of the map fades while the sheet asks', fadedWhileAsking < 0.3, String(fadedWhileAsking))
-    await items.last().click()
+    check('  the rest of the map fades while the list asks', fadedWhileAsking < 0.3, String(fadedWhileAsking))
+    const row = items.last()
+    const colour = await row.locator('xpath=ancestor::*[@data-livery][1]').getAttribute('data-livery')
+    await row.click()
     await page.waitForTimeout(350)
     const state = await cardKind()
     check("  the route's row opens the route card", state.kind === 'route', state.kind)
     if (state.kind === 'route') {
-      // The sheet stays behind the trip, hidden, for its ‹, and its hotspot
+      const tripColour = await page.locator('[data-testid="trip"]').first().getAttribute('data-livery')
+      check('  in the colour of the card it was picked from', !!colour && tripColour === colour, `card ${colour}, trip ${tripColour}`)
+      // The list stays behind the trip, hidden, for its ‹, and its hotspot
       // goes dark under the trip till then (the owner, 2026-09-29).
       const stopsLit = async () => (await page.evaluate(() => window.__lit('saved-stops'))) ?? []
       const litUnder = await stopsLit()
@@ -399,9 +414,9 @@ if (!hit) {
       await page.waitForTimeout(350)
       const again = (await chooser.first().isVisible()) ? await chooser.first().innerText() : ''
       check(
-        '  ‹ on the trip goes back to the sheet, as it was, its hotspot lit again',
+        '  ‹ on the trip goes back to the list, as it was, its hotspot lit again',
         again === text && (await cardKind()).kind === 'none' && (await stopsLit()).includes(hit.hotspot.id),
-        again ? `card ${(await cardKind()).kind}; lit ${JSON.stringify(await stopsLit())}` : 'the sheet did not come back',
+        again ? `card ${(await cardKind()).kind}; lit ${JSON.stringify(await stopsLit())}` : 'the list did not come back',
       )
     }
     await closeCard()
@@ -428,7 +443,7 @@ if (!hit) {
     await page.waitForTimeout(350)
     const state = await cardKind()
     const chooserCount = await page.locator('[data-testid="chooser"]').count()
-    check('a tap on one route opens its card straight away', state.kind === 'route' && chooserCount === 0, `card ${state.kind}, sheet count ${chooserCount}`)
+    check('a tap on one route opens its card straight away', state.kind === 'route' && chooserCount === 0, `card ${state.kind}, list count ${chooserCount}`)
     if (state.kind === 'route') {
       // Named for its direction, the trip runs from where that leaves (the
       // top row, under the fare) to where it goes (the bottom row).

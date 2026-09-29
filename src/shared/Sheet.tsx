@@ -39,20 +39,17 @@ type Props = {
   /** The rest, shown when the sheet is open, and always on a wide screen. */
   children?: ReactNode
   onClose: () => void
-  /** Phone only: start pulled up. Default 'peek'. */
-  initial?: SheetState
-  /** data-testid on the root. Default 'card'. */
-  testId?: string
   /**
-   * Kept, but not shown: a hotspot's card or the Chooser while a trip picked
-   * from it is on top, so that ‹ finds it as it was left — pulled up or not,
-   * turned round or not (the owner, 2026-09-29). Escape is the trip's then.
+   * Kept, but not shown: a hotspot's card while a trip picked from it is on
+   * top, so that ‹ finds it as it was left — pulled up or not, turned round
+   * or not (the owner, 2026-09-29). Escape is the trip's then.
    */
   hidden?: boolean
 }
 
 /**
- * The one container every card on the map lives in.
+ * The container a hotspot's card, and the studio's route card, live in; the
+ * route list and a trip's card sit in RouteDock.
  *
  * Wide (the container is at least `--container-wide`, 40rem): the floating card
  * ParaPo has always had, top-left, everything shown at once. Narrow: a bottom
@@ -62,9 +59,12 @@ type Props = {
  *
  * The breakpoint is a container query, not a viewport one: the apps mark their
  * root `@container`, so a card looks right in Storybook's small frames too.
+ *
+ * The suites know it as `card`. It always opens peeking: the Chooser, the one
+ * sheet that opened pulled up and was known as `chooser`, went on 2026-09-29.
  */
-export function Sheet({ peek, children, onClose, initial = 'peek', testId = 'card', hidden = false }: Props) {
-  const [state, setState] = useState<SheetState>(initial)
+export function Sheet({ peek, children, onClose, hidden = false }: Props) {
+  const [state, setState] = useState<SheetState>('peek')
 
   // Escape closes, as it does any dialog.
   useEffect(() => {
@@ -130,7 +130,7 @@ export function Sheet({ peek, children, onClose, initial = 'peek', testId = 'car
   return (
     <div
       role="dialog"
-      data-testid={testId}
+      data-testid="card"
       data-sheet={state}
       hidden={hidden}
       className="absolute bottom-0 left-0 right-0 z-10 rounded-t-2xl bg-white shadow-2xl ring-1

@@ -65,9 +65,9 @@ const ROUTES_HIT = ROUTES_HIT_LAYER
  *
  * The editor also passes `drawing` and `hiddenStopId`; the public map passes
  * neither, and both default to off. The public map passes `muted` while a
- * trip is open: the hotspot card or Chooser it was picked from waits hidden
- * behind it, and what that lit goes dark until ‹ brings it back, as the route
- * list's lines do (the owner, 2026-09-29: the map lights only the trip).
+ * trip is open: the hotspot card or route list it was picked from waits
+ * hidden behind it, and the hotspots that lit go dark until ‹ brings it back
+ * (the owner, 2026-09-29: the map lights only the trip).
  */
 export function useSavedStops<S extends StopSummary>(
   map: MapLibreMap | null,

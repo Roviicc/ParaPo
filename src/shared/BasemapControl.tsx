@@ -20,7 +20,7 @@ export function BasemapControl({ map, initial, coarse }: Props) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
-  // A tap anywhere else closes the menu, like the chooser sheets do.
+  // A tap anywhere else closes the menu, as a tap on the map closes a card.
   useEffect(() => {
     if (!open) return
     const onDown = (e: PointerEvent) => {

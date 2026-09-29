@@ -432,10 +432,10 @@ const perpendicular = (p, a, bPt, line = [a, bPt], away = 20) =>
   }, [a, bPt, line, away])
 
 const card = () => page.locator('[data-testid="card"]')
-// The chooser is a sheet too, handle and all, so every sheet locator is scoped
-// to the card — never to the page. A route's trip card has no handle: it is
-// a card with its rail of stops in it (RouteTripDetail, 2026-09-29), named
-// for its direction, "Tala → Novaliches".
+// Every sheet locator is scoped to the card — never to the page — so the
+// route list, which is `chooser`, never answers for it. A route's trip card
+// has no handle: it is a card with its rail of stops in it (RouteTripDetail,
+// 2026-09-29), named for its direction, "Tala → Novaliches".
 const handle = () => card().locator('button[data-testid="sheet-handle"]')
 const trip = () => card().locator('[data-testid="trip"]')
 const tripLabel = async () => ((await trip().count()) ? ((await card().first().getAttribute('aria-label')) ?? '') : '')
@@ -686,7 +686,9 @@ if (!shared) {
   const has = (await chooser.count()) > 0
   check('a tap where two routes share a road opens the chooser', has && (await card().count()) === 0, has ? '' : `[data-testid="chooser"] count 0; card count ${await card().count()}`)
   const chooserText = has ? await chooser.first().innerText() : ''
-  const items = chooser.locator('button[data-testid="chooser-item"]')
+  // The routes' rows, inside their cards: a hotspot under the tap would be a
+  // row of the list too, above them.
+  const items = chooser.locator('[data-testid="chooser-origin"] button[data-testid="chooser-item"]')
   const itemTexts = []
   for (let i = 0; i < (await items.count()); i++) itemTexts.push(await items.nth(i).innerText())
   // Since 2026-09-25 the sheet lists each route outbound under the place it
@@ -743,8 +745,8 @@ if (!shared) {
 
 // -------------------------------------------------- 4. hotspots, forgivingly
 // A route drawn right under the tapped pixel wins (the hit line is 18 px wide,
-// so "under" reaches 9 px); a route merely inside the ±20 px box shares a
-// chooser with the hotspot; no route near, and the hotspot opens on its own.
+// so "under" reaches 9 px); a route merely inside the ±20 px box shares the
+// route list with the hotspot; no route near, and the hotspot opens on its own.
 // Hotspots are a few tens of metres across, so this section zooms to 18, where
 // a person tapping a terminal would be, and scales its metres per pixel to match.
 const Z_HOT = 18
@@ -755,7 +757,8 @@ const badgeOf = (poly) => (poly.kind === 'terminal' ? 'Terminal · routes start 
 
 // 4a. Inside a hotspot, on a pixel no route covers. The normal case for a
 // terminal is that its own route runs through it, so this is the tap the
-// chooser exists for: "1 route · 1 hotspot here".
+// list's hotspot rows are for: the hotspot on top, its routes' cards under
+// it (the owner, 2026-09-29; the Chooser asked here before).
 let inside = null
 for (const poly of snapshot.polys) {
   const c = centroidOf(poly.ring)
@@ -786,12 +789,14 @@ if (!inside) {
   const chooser = page.locator('[data-testid="chooser"]')
   if (routesInBox.length > 0) {
     const cText = (await chooser.count()) ? await chooser.first().innerText() : ''
+    const firstRow = (await chooser.count()) ? await chooser.locator('button[data-testid="chooser-item"]').first().innerText() : ''
+    const cards = (await chooser.count()) ? await chooser.locator('[data-testid="chooser-origin"]').count() : 0
     check(
-      `a tap inside "${poly.name}" beside its route offers both`,
-      cText.includes('1 hotspot here') && cText.includes(`${routesInBox.length} route`) && cText.includes(poly.name),
+      `a tap inside "${poly.name}" beside its route offers both, the hotspot first`,
+      firstRow.includes(poly.name) && cards > 0 && cText.split('\n').includes(`${cards} ${cards === 1 ? 'Route' : 'Routes'}`),
       cText
-        ? cText.split('\n')[0]
-        : `no chooser; card "${(await cardText()).split('\n')[0] ?? ''}"; the box drawn under the tap: ${drawn === 1 ? 'yes' : drawn}`,
+        ? `${cText.split('\n')[0]}; first row "${firstRow.split('\n')[0]}", ${cards} card(s)`
+        : `no list; card "${(await cardText()).split('\n')[0] ?? ''}"; the box drawn under the tap: ${drawn === 1 ? 'yes' : drawn}`,
     )
     const row = chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: poly.name })
     await buttonTap(row, async () => (await chooser.count()) === 0)
@@ -977,7 +982,7 @@ if (!withRoutes) {
   const box = await canvasBox()
   await mapTap(box.x + at[0], box.y + at[1])
   await page.waitForTimeout(600)
-  // A route under the finger shares the tap: the sheet asks, and its row opens the box.
+  // A route under the finger shares the tap: the list asks, and its row opens the box.
   const chooser = page.locator('[data-testid="chooser"]')
   if ((await chooser.count()) > 0) {
     await buttonTap(chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: withRoutes.name }), async () => (await chooser.count()) === 0)
@@ -992,11 +997,11 @@ if (!withRoutes) {
   await closeCard()
 }
 
-// Overlapping hotspots share the chooser; today's data has none.
+// Overlapping hotspots share the list; today's data has none.
 const overlapping = snapshot.polys.some((a) =>
   snapshot.polys.some((bPoly) => bPoly.id !== a.id && a.ring.some((v) => pointInPolygon(v, bPoly.ring))),
 )
-if (!overlapping) skip('two overlapping hotspots open the chooser', 'no two hotspot polygons overlap today')
+if (!overlapping) skip('two overlapping hotspots open the list', 'no two hotspot polygons overlap today')
 
 // --------------------------------------------------------------- 5. sharing
 if (!routeA) {

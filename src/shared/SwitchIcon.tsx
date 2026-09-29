@@ -1,4 +1,4 @@
-/** Two arrows passing each other: the usual sign for "the other way". On the card's switch and the chooser's. */
+/** Two arrows passing each other: the usual sign for "the other way". On the studio's route card and a hotspot's card. */
 export function SwitchIcon() {
   return (
     <svg

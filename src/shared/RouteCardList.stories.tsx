@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { fn } from 'storybook/test'
 import { RouteCardList } from './RouteCardList'
 import type { VariantSummary } from './routes'
+import type { StopSummary } from './stops'
 
 /** Sample data only, shaped like the published file. Not the real map. */
 function route(id: string, name: string): VariantSummary['route'] {
@@ -48,6 +49,22 @@ const oneWay: VariantSummary[] = [
   variant('d', 'Lagro – Quiapo', 'Quiapo → Lagro', 16, true, false),
 ]
 
+function stop(id: string, name: string, kind: StopSummary['kind'], informal: string | null = null): StopSummary {
+  return { id, name, informal, aliases: [], kind, point: { type: 'Point', coordinates: [121.04, 14.7] }, area: null, note: null, created_at: '2026-09-12T00:00:00Z' }
+}
+
+/** Tala's terminal, where its routes run through it: the tap a terminal most often gets. */
+const talaTerminal = stop('s1', 'Tala Jeepney Terminal', 'terminal', 'Tala')
+
+/** Two boxes under one finger, and no line. */
+const twoBoxes = [talaTerminal, stop('s2', 'Malaria', 'hintuan')]
+
+/** One hintuan's two boxes, a mini stop either side of the road. */
+const oneHintuan = [
+  stop('s3', 'SM Fairview Main Babaan', 'hintuan', 'SM Fairview'),
+  stop('s4', 'SM Fairview Main Sakayan', 'hintuan', 'SM Fairview'),
+]
+
 type Frame = 'phone' | 'tablet' | 'wide'
 const FRAME = {
   phone: 'max-h-[852px] w-[393px]',
@@ -71,7 +88,7 @@ const meta = {
     ),
   ],
   parameters: { layout: 'fullscreen' },
-  args: { routes: talaRoutes, back: false, onFlip: fn(), onRoute: fn(), onClose: fn() },
+  args: { routes: talaRoutes, back: false, onFlip: fn(), onRoute: fn(), onStop: fn(), onClose: fn() },
 } satisfies Meta<typeof RouteCardList>
 
 export default meta
@@ -94,3 +111,19 @@ export const ManyPlaces: Story = { args: { routes: many } }
 
 /** The other way round is not drawn yet: SWITCH rests disabled. */
 export const NothingTheOtherWay: Story = { args: { routes: oneWay } }
+
+/**
+ * A tap on a hotspot with routes running through it: the hotspot first, as
+ * the Chooser's row until the owner's hintuan design, then the cards. The
+ * count stays the routes' (his pick, 2026-09-29).
+ */
+export const WithAHotspot: Story = { args: { stops: [talaTerminal] } }
+
+/** The same, from 1024 wide. */
+export const WithAHotspotFloating: Story = { args: { stops: [talaTerminal] }, parameters: { frame: 'wide' } }
+
+/** Two boxes and no line: "2 Hotspots", with no route to count (the owner, 2026-09-29), and nothing to SWITCH. */
+export const TwoHotspots: Story = { args: { routes: [], stops: twoBoxes } }
+
+/** Both boxes of one hintuan and no line: a row each, and "1 Hotspot", as the map's pill counts it (the owner, 2026-09-29). */
+export const OneHintuanTwoBoxes: Story = { args: { routes: [], stops: oneHintuan } }

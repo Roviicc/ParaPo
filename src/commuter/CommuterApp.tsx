@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
-import { Chooser } from '../shared/Chooser'
 import { HotspotCard } from '../shared/HotspotCard'
 import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from '../shared/mapFile'
 import { reloadToUpdate, useNeedRefresh } from './pwa'
@@ -71,16 +70,15 @@ export default function CommuterApp() {
   const age = useMapAge()
   const needRefresh = useNeedRefresh()
 
-  // One tap, several things: routes, hotspots or both. Keyed on what it lists,
-  // so a fresh tap gets a fresh, open sheet.
+  // One tap, several things: routes, hotspots or both, in the owner's route
+  // list — the hotspots first, then the routes as his RouteCards; the
+  // Chooser it replaced asked for a tap with a hotspot among them until
+  // 2026-09-29. Keyed on what it lists, so a fresh tap gets a fresh list. It
+  // stays behind a trip picked from it, hidden, for the trip's ‹ — and so
+  // does a hotspot's card (the owner, 2026-09-29).
   const choice = [...saved.candidates, ...stops.candidates]
   const choosing = choice.length > 1
-  // Routes alone under the tap: the owner's route list; with a hotspot among
-  // them, the Chooser. Either stays behind a trip picked from it, hidden, for
-  // the trip's ‹ — and so does a hotspot's card (the owner, 2026-09-29).
-  const listing = choosing && stops.candidates.length === 0
-  const mixed = choosing && stops.candidates.length > 0
-  // ✕ on the list, the Chooser or a trip: everything the tap opened closes.
+  // ✕ on the list or a trip: everything the tap opened closes.
   const closeAll = () => {
     saved.select(null)
     stops.select(null)
@@ -94,11 +92,11 @@ export default function CommuterApp() {
   // the list behind it: a card never changes colour while it is open (the
   // owner, 2026-09-29).
   const [worn, setWorn] = useState<{ id: string; livery: Livery } | null>(null)
-  const wornBehind = listing || !!stops.selected
+  const wornBehind = choosing || !!stops.selected
 
   // The trip's ‹: back to what it was picked from, kept behind it as it was
-  // left — the route list, the Chooser, a hotspot's card (the owner's "back
-  // to that card", 2026-09-29). Opened with nothing behind it — a tap on its
+  // left — the route list, a hotspot's card (the owner's "back to that
+  // card", 2026-09-29). Opened with nothing behind it — a tap on its
   // line, a shared link — it lists its route and those sharing its head or
   // its tail, the way the trip goes, as a tap where they all run would: Tala
   // → Novaliches ‹ to Tala's card, Tala → Novaliches and SM Fairview. The
@@ -110,7 +108,7 @@ export default function CommuterApp() {
   const fan = trip ? sharingAnEnd(saved.variants, trip) : []
   const backToList = stops.selected
     ? () => saved.select(null)
-    : listing || mixed
+    : choosing
       ? () => saved.select(null, { keepList: true })
       : trip && fan.filter((v) => v.reversed === trip.reversed && isDrawn(v)).length > 1
         ? () => {
@@ -243,35 +241,23 @@ export default function CommuterApp() {
       )}
 
       {/*
-        Routes alone under the tap: the owner's route list (2026-09-28), kept
-        hidden behind the trip picked from it (2026-09-29). With a hotspot
-        among them, the Chooser still asks, until he redraws it.
+        Several things under the tap: the owner's route list (2026-09-28),
+        kept hidden behind the trip picked from it (2026-09-29). Picking a
+        route leaves the hotspots under the tap listed, so ‹ finds the list
+        whole; a hotspot's row opens its card in the list's place.
       */}
-      {listing && (
+      {choosing && (
         <RouteCardList
-          key={choice.map((c) => c.id).join()}
-          hidden={!!saved.selected}
-          routes={saved.candidates}
-          back={saved.back}
-          onFlip={saved.flip}
-          onRoute={(v, livery) => {
-            stops.select(null)
-            setWorn({ id: v.id, livery })
-            saved.select(v.id, { keepList: true })
-          }}
-          onClose={closeAll}
-        />
-      )}
-
-      {mixed && (
-        <Chooser
           key={choice.map((c) => c.id).join()}
           hidden={!!saved.selected}
           routes={saved.candidates}
           stops={stops.candidates}
           back={saved.back}
           onFlip={saved.flip}
-          onRoute={(v) => saved.select(v.id, { keepList: true })}
+          onRoute={(v, livery) => {
+            setWorn({ id: v.id, livery })
+            saved.select(v.id, { keepList: true })
+          }}
           onStop={(s) => {
             saved.select(null)
             stops.select(s.id)

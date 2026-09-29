@@ -76,7 +76,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** A terminal with the route through it listed as the chooser lists routes: by the place it leaves from, ⇄ for the way back. The stop name leads; the ground name is the small line under it. */
+/** A terminal with the route through it, in the studio's rows: by the place it leaves from, ⇄ for the way back. The stop name leads; the ground name is the small line under it. */
 export const Terminal: Story = {}
 
 /** A hintuan with a note and nothing linked yet. */
