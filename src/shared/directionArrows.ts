@@ -76,6 +76,16 @@ const ZOOMED_IN_FROM = 16
 const SPEED_PX_PER_S = 28
 
 /**
+ * How long they flow once a route lights, before they rest where they are:
+ * a flow makes MapLibre draw the whole map again every frame, and on a phone
+ * that alone kept the main thread nine-tenths busy at under 20 frames a
+ * second, whatever the route (measured 2026-09-29, a CPU slowed 4×: 17 fps
+ * flowing, 60 at rest). The owner's pick that day: "flow, then rest". They
+ * flow again whenever what is lit changes.
+ */
+const FLOW_MS = 3000
+
+/**
  * The spacing at `zoom`, in steps rather than smoothly: where each chevron
  * sits depends on the spacing, so one that changed with every bit of zoom
  * would send them racing along the line under a pinch. A step moves them
@@ -272,9 +282,10 @@ export function useRideColours(map: MapLibreMap | null, look: LineLook) {
 }
 
 /**
- * Draw flowing chevrons along each ride's line, and a circle at both ends of
- * each with the place's name beside it; nothing when there are none. Pass the
- * same array while what is lit is unchanged (a memo), or the flow restarts.
+ * Draw chevrons along each ride's line, flowing for FLOW_MS and then at
+ * rest, and a circle at both ends of each with the place's name beside it;
+ * nothing when there are none. Pass the same array while what is lit is
+ * unchanged (a memo), or the flow restarts.
  */
 export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride[]): void {
   const lines = useMemo(() => rides.map((r) => r.line), [rides])
@@ -384,12 +395,25 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       for (const m of measured) {
         const mpp = metresPerPixel(m.lat, zoom)
         const spacing = spacingPx(zoom) * mpp
-        const offset = still ? spacing / 2 : (((now - start) / 1000) * SPEED_PX_PER_S * mpp) % spacing
+        // At rest they stay where the flow left them, at any zoom.
+        const flowed = Math.min(now - start, FLOW_MS)
+        const offset = still ? spacing / 2 : ((flowed / 1000) * SPEED_PX_PER_S * mpp) % spacing
         chevronsAt(m, offset, spacing, across, map, features)
       }
       src.setData({ type: 'FeatureCollection', features })
     }
+    // Kept still, they are drawn once, and again whenever the map moves: a
+    // zoom changes their size and spacing, a pan brings new line on screen.
+    const redraw = () => draw(performance.now())
+    const rest = () => {
+      redraw()
+      map.on('move', redraw)
+    }
     const tick = (now: number) => {
+      if (now - start >= FLOW_MS) {
+        rest()
+        return
+      }
       // Thirty frames a second is smooth for a flow and half the work of sixty.
       if (now - last >= 1000 / 30) {
         last = now
@@ -397,15 +421,8 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       }
       frame.current = requestAnimationFrame(tick)
     }
-    // Kept still, they are drawn once, and again whenever the map moves: a
-    // zoom changes their size and spacing, a pan brings new line on screen.
-    const redraw = () => draw(performance.now())
-    if (still) {
-      redraw()
-      map.on('move', redraw)
-    } else {
-      frame.current = requestAnimationFrame(tick)
-    }
+    if (still) rest()
+    else frame.current = requestAnimationFrame(tick)
     return () => {
       cancelAnimationFrame(frame.current)
       map.off('move', redraw)

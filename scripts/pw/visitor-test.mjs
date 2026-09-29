@@ -620,6 +620,18 @@ if (!hit) {
       })
       const fit = chevrons.all.every((c) => Math.abs(c.across - c.meant) < 0.5 && (chevrons.line == null || Math.abs(c.meant - chevrons.line) < 0.01))
       check('  chevrons ride the lit line, each as wide as it', chevrons.all.length > 0 && fit, `${chevrons.all.length} chevrons, ${chevrons.all[0]?.across.toFixed(2)} px across; the lit line ${chevrons.line?.toFixed(2) ?? 'unread'} px`)
+      // They flow as the route lights, then rest where they are: a flow
+      // redraws the whole map every frame, which kept a phone's main thread
+      // nine-tenths busy (the owner's pick of 2026-09-29, "flow, then rest").
+      // Three seconds and more after the card opened, two looks half a
+      // second apart find them in the same place.
+      const where = () =>
+        page.evaluate(async () => ((await window.__src('direction-arrows'))?.features ?? []).map((f) => f.geometry.coordinates[0][0].map((v) => v.toFixed(7)).join()).join('|'))
+      await page.waitForTimeout(3200)
+      const restA = await where()
+      await page.waitForTimeout(500)
+      const restB = await where()
+      check('  and after their flow they rest, the map left idle', restA !== '' && restA === restB, restA === restB ? 'still' : 'still moving')
       // The orange stretches: where this direction passes a hintuan, on the same "passes" rule as the card's count.
       const litId = litIds[0] ?? ''
       const stretches = await page.evaluate(async (id) => ((await window.__src('saved-routes-pass'))?.features ?? []).filter((f) => f.properties.id === id).length, litId)
