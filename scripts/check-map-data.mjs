@@ -176,7 +176,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const args = process.argv.slice(2)
   const mdAt = args.indexOf('--markdown')
   const mdPath = mdAt >= 0 ? args[mdAt + 1] : null
-  const path = args.filter((a, i) => a !== '--markdown' && i !== mdAt + 1)[0] ?? 'public/data/map.json'
+  const path = args.filter((a, i) => a !== '--markdown' && !(mdAt >= 0 && i === mdAt + 1))[0] ?? 'public/data/map.json'
   let file
   try {
     file = JSON.parse(readFileSync(path, 'utf8'))

@@ -3180,3 +3180,25 @@ Worth doing before M2:
       Open since M0 and already in the schema. Moved 2026-09-14 into
       "Decide before the next route is drawn", with the naming conventions —
       all of them are free today and unfixable at 200 routes.
+
+---
+
+## The clean-up — 2026-09-29
+
+The review of 2026-09-29 (`docs/review-2026-09-29.md`, findings numbered
+there) and the plan that stages its fixes (`docs/plan-cleanup-2026-09-29.md`).
+One branch `cleanup/NN-<name>` and one pull request into `staging` per stage,
+merged when both CI jobs are green; `main` is the owner's. A session picking
+this up reads both documents, then this section, then `git log` for PRs
+titled "Stage N —".
+
+**Stage 1 — guards first, 2026-09-29.** The nightly publish now declares
+`shell: bash`, so every step runs with `pipefail` and a failed publish fails
+its run instead of closing "The map needs a look" as all clear (finding 1);
+it also stops after 15 minutes. `check-map-data.mjs` reads its file argument
+without `--markdown` (17). Storybook's story glob is five extensions, not
+four (`mjs/ts` was one). CI runs on a push to `main` or `staging` and on
+pull requests, so a PR branch runs once, not twice. `package.json` gains
+`npm test`, `engines` (Node 22.12, Vite's floor), `@types/node` 22 to match
+the Node CI runs, and the TypeScript hook on the two unit files that lacked
+it.

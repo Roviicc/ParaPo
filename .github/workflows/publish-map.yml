@@ -54,9 +54,19 @@ concurrency:
   group: publish-map
   cancel-in-progress: false
 
+# `shell: bash` declared, not left to the default: GitHub then runs every
+# step as `bash --noprofile --norc -eo pipefail {0}`, so a script piped
+# through `tee` fails the step on the script's exit code, not tee's. Without
+# it the default is `bash -e {0}`, no pipefail, and a failed publish read as
+# success — the last step then closed the issue with "All clear".
+defaults:
+  run:
+    shell: bash
+
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       # Always main, whatever branch "Run workflow" was pressed on: the file
       # is published from, and to, what is live.
@@ -69,8 +79,9 @@ jobs:
           node-version: 22
 
       # The scripts have no dependencies, so there is no `npm ci`. The output
-      # is kept for the issue; the step's shell fails on the script's exit
-      # code through the pipe.
+      # is kept for the issue; the step fails on the script's exit code
+      # through the pipe because the workflow's `shell: bash` (the `defaults`
+      # above) sets pipefail.
       #
       # `--force` only on a "Run workflow" press with the box ticked: the
       # schedule has no inputs, so the expression is empty there and the
