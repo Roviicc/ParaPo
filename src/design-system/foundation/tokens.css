@@ -13,8 +13,9 @@
  *     `@theme inline` turns each into utilities: text-content-primary,
  *     bg-surface, border-border-primary, bg-card-red-surface…
  *
- * The map's own working colours (route blue #406AF5, pass orange…) are NOT
- * here yet: the owner is still choosing their naming (2026-09-28).
+ * The map's paint (MapLibre) reads neither var() nor Tailwind's oklch, so the
+ * Map/… semantics are written once more, in hex, in mapColours.ts beside
+ * this file; scripts/map-colours-test.mjs fails if the two ever part.
  */
 
 @theme {
@@ -128,6 +129,16 @@
 
   /* One component's own colour. Figma: Components/… (the Tooltip, 2026-09-28). */
   --components-tooltip-surface: var(--color-neutral-900);
+
+  /* The map: its route lines and hintuans. Figma: Map/… (2026-09-29). Two
+     looks, no opacity — every line at rest, the selected one drawn over it
+     (the owner's call: see-through lines stacked and confused). Figma holds
+     Map/Hintuan/surface as a raw #ffffff: the same white. */
+  --map-hintuan-surface: var(--color-white);
+  --map-route-line-surface-default: var(--color-blue-200);
+  --map-route-line-surface-selected: var(--color-blue-700);
+  --map-route-line-arrow-rest: var(--color-white);
+  --map-route-line-arrow-inverse: var(--color-neutral-900);
 }
 
 /* The semantics as utilities: text-content-primary, bg-surface, border-border-primary… */
@@ -176,6 +187,12 @@
   --color-brand-border: var(--brand-border);
 
   --color-components-tooltip-surface: var(--components-tooltip-surface);
+
+  --color-map-hintuan-surface: var(--map-hintuan-surface);
+  --color-map-route-line-surface-default: var(--map-route-line-surface-default);
+  --color-map-route-line-surface-selected: var(--map-route-line-surface-selected);
+  --color-map-route-line-arrow-rest: var(--map-route-line-arrow-rest);
+  --color-map-route-line-arrow-inverse: var(--map-route-line-arrow-inverse);
 }
 
 /*
@@ -238,4 +255,10 @@
     inset 0 3px 2px 0 rgb(255 255 255 / 0.28), inset 0 -3px 4px 0 rgb(0 0 0 / 0.28);
   --shadow-route-card-inverse:
     inset 0 3px 2px 0 rgb(255 255 255 / 0.4), inset 0 -3px 3px 0 rgb(0 0 0 / 0.2);
+
+  /* A RouteCard's State=Selected: pressed in, lit from the top left (2026-09-29). */
+  --shadow-route-card-primary-selected:
+    inset 3px 3px 8px 0 rgb(12 12 12 / 0.64), inset -1px -1px 1px 0 rgb(18 18 18 / 0.24);
+  --shadow-route-card-inverse-selected:
+    inset 2.5px 2.5px 8px 0 rgb(47 47 47 / 0.72), inset -1px -1px 2px 0 rgb(0 0 0 / 0.32);
 }

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 /**
- * The design tokens (src/shared/tokens.css), shown as they are named in the
+ * The design tokens (tokens.css, beside this file), shown as they are named in the
  * Figma file's Primitive and Semantics collections. What this page shows is
  * the CSS actually shipped: each swatch wears the utility class printed
  * under it, so if Figma and code drift apart, this page is where it shows.
@@ -129,6 +129,14 @@ function TokensPage() {
         <Swatch box="bg-components-tooltip-surface" token="Components/Tooltip/surface" cls="bg-components-tooltip-surface" />
       </Group>
 
+      <Group title="Map — the route lines and hintuans (the map paints them from mapColours.ts)">
+        <Swatch box="bg-map-route-line-surface-default" token="Map/RouteLine/surface-default" cls="bg-map-route-line-surface-default" />
+        <Swatch box="bg-map-route-line-surface-selected" token="Map/RouteLine/surface-selected" cls="bg-map-route-line-surface-selected" />
+        <Swatch box="bg-map-route-line-arrow-rest" token="Map/RouteLine/Arrow/Rest" cls="bg-map-route-line-arrow-rest" />
+        <Swatch box="bg-map-route-line-arrow-inverse" token="Map/RouteLine/Arrow/Inverse" cls="bg-map-route-line-arrow-inverse" />
+        <Swatch box="bg-map-hintuan-surface" token="Map/Hintuan/surface" cls="bg-map-hintuan-surface" />
+      </Group>
+
       <Group title="Motion — hover a row to play it">
         {/* Classes written out whole: Tailwind cannot see a built name. */}
         <div className="w-full rounded-lg border border-border-primary bg-surface p-4">
@@ -154,6 +162,8 @@ function TokensPage() {
         <Swatch box="rounded-full bg-brand-surface-secondary shadow-primary-button-pressed" token="PrimaryButton/PrimaryButtonPressed" cls="shadow-primary-button-pressed" />
         <Swatch box="bg-card-red-surface shadow-route-card-primary" token="Route/RouteCardPrimary" cls="shadow-route-card-primary" />
         <Swatch box="bg-surface shadow-route-card-inverse" token="Route/RouteCardInverse" cls="shadow-route-card-inverse" />
+        <Swatch box="bg-card-red-surface shadow-route-card-primary-selected" token="Route/RouteCardPrimarySelected" cls="shadow-route-card-primary-selected" />
+        <Swatch box="bg-card-mist-surface shadow-route-card-inverse-selected" token="Route/RouteCardInverseSelected" cls="shadow-route-card-inverse-selected" />
       </Group>
 
       <Group title="Type — the two families">
