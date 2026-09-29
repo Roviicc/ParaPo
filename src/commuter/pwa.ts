@@ -15,6 +15,7 @@ import { STYLE_URL } from '../shared/map/MapView'
 
 let needRefresh = false
 let applyUpdate: (() => Promise<void>) | null = null
+let registration: ServiceWorkerRegistration | undefined
 const listeners = new Set<() => void>()
 
 export function registerServiceWorker(): void {
@@ -27,10 +28,11 @@ export function registerServiceWorker(): void {
       needRefresh = true
       for (const l of listeners) l()
     },
-    onRegisteredSW(_url, registration) {
+    onRegisteredSW(_url, r) {
+      registration = r
       // The browser re-checks the worker on a navigation, but an installed app
       // can stay open for days; ask once an hour as well.
-      if (registration) window.setInterval(() => void registration.update(), 60 * 60 * 1000)
+      if (r) window.setInterval(() => void r.update(), 60 * 60 * 1000)
       if (firstVisit) void warmCaches()
     },
   })
@@ -85,4 +87,30 @@ export function useNeedRefresh(): boolean {
 export function reloadToUpdate(): void {
   navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true })
   void applyUpdate?.()
+}
+
+/**
+ * Reload into the newest app there is, for a map file this one is too old to
+ * read. A plain reload cannot: with `registerType: 'prompt'` the old worker
+ * keeps control and serves the same old shell from its precache, and the
+ * banner came straight back (review finding 5). A worker already waiting is
+ * swapped in; otherwise the worker is asked to check, given a few seconds to
+ * install what it finds, and swapped in if it did. Reload either way.
+ */
+export async function reloadForNewerApp(): Promise<void> {
+  if (needRefresh) return reloadToUpdate()
+  if (registration) {
+    await registration.update().catch(() => undefined)
+    if (registration.installing || registration.waiting) {
+      await new Promise<void>((resolve) => {
+        const stop = subscribe(() => {
+          stop()
+          resolve()
+        })
+        window.setTimeout(resolve, 10_000)
+      })
+      if (needRefresh) return reloadToUpdate()
+    }
+  }
+  window.location.reload()
 }

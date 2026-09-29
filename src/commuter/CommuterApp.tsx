@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Ref } 
 import type { MapLibreMap } from 'maplibre-gl'
 import { HotspotCard } from '../shared/cards/HotspotCard'
 import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from './mapFile'
-import { reloadToUpdate, useNeedRefresh } from './pwa'
+import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
 import { MapView, coarse } from '../shared/map/MapView'
 import { rideFare } from '../shared/model/fares'
 import { lineLength } from '../shared/geo/geo'
@@ -180,12 +180,13 @@ export default function CommuterApp() {
         >
           {tooNew ? (
             // The file is a shape this installed app does not know. Loading
-            // it again cannot help; loading the page fetches the app that can.
+            // it again cannot help; the newer app can, fetched through the
+            // worker (pwa.ts, reloadForNewerApp).
             <>
               <span>{MAP_FILE_TOO_NEW} Reload to update.</span>
               <button
                 type="button"
-                onClick={() => window.location.reload()}
+                onClick={() => void reloadForNewerApp()}
                 className="rounded-full bg-amber-900 px-3 py-1 text-xs font-medium text-white"
               >
                 Reload
