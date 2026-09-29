@@ -1,6 +1,7 @@
 import type { LngLat, Segment } from '../geo/geo'
 import { haversine, joinSegments, lineLength } from '../geo/geo'
-import { passStretches, placeKey, stopLabel, stopRing, timelineFor, type StopSummary, type Timeline } from './stops'
+import { passStretches } from '../geo/pass'
+import { placeKey, stopLabel, stopRing, timelineFor, type StopSummary, type Timeline } from './stops'
 
 /** Mirrors the `transport_mode` enum in supabase/migrations/0001_init.sql. */
 export type TransportMode =

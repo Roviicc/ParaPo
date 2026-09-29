@@ -25,8 +25,11 @@
 import { existsSync, readFileSync, appendFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { PASS_WITHIN_M, passBounds, stopLabel, stopRing } from '../../src/shared/model/stops.ts'
-import { bboxOf, bboxesOverlap, distanceToRingM, firstNearIndex, haversine, lineLength } from '../../src/shared/geo/geo.ts'
+import { PASS_WITHIN_M, passBounds } from '../../src/shared/geo/pass.ts'
+import { stopLabel, stopRing } from '../../src/shared/model/stops.ts'
+import { bboxOf, bboxesOverlap, haversine, lineLength } from '../../src/shared/geo/geo.ts'
+import { distanceToRingM } from '../../src/shared/geo/ring.ts'
+import { firstNearIndex } from '../../src/shared/geo/pass.ts'
 
 /** How far a line's first or last point may sit from the hotspot it leaves from or arrives at. */
 export const END_WITHIN_M = 50
