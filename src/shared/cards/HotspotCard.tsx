@@ -99,6 +99,7 @@ export function HotspotCard({
 
   return (
     <Sheet
+      label={label}
       onClose={onClose}
       hidden={hidden}
       peek={

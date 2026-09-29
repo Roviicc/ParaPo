@@ -1,4 +1,5 @@
-import { useEffect, type ReactNode, type Ref } from 'react'
+import { useEffect, useRef, type ReactNode, type Ref } from 'react'
+import { useDialogFocus } from './useDialogFocus'
 
 type Props = {
   /** What a screen reader calls it: the list by its count, a trip by its direction. */
@@ -29,6 +30,8 @@ type Props = {
  * drawn (his ask, 2026-09-28).
  */
 export function RouteDock({ label, testId, header, onClose, hidden = false, ref, children }: Props) {
+  const own = useRef<HTMLDivElement>(null)
+  useDialogFocus(own, hidden)
   // Escape closes, as it does any dialog.
   useEffect(() => {
     if (hidden) return
@@ -41,12 +44,17 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
 
   return (
     <div
-      ref={ref}
+      ref={(el) => {
+        own.current = el
+        if (typeof ref === 'function') ref(el)
+        else if (ref) ref.current = el
+      }}
       role="dialog"
       aria-label={label}
+      tabIndex={-1}
       data-testid={testId}
       hidden={hidden}
-      className="absolute inset-x-0 bottom-0 z-10 flex max-h-[60vh] flex-col overflow-clip rounded-t-3xl bg-surface
+      className="absolute inset-x-0 outline-none bottom-0 z-10 flex max-h-[60vh] flex-col overflow-clip rounded-t-3xl bg-surface
                  pb-[env(safe-area-inset-bottom)]
                  @float:inset-x-auto @float:bottom-auto @float:top-0 @float:left-0 @float:max-h-full
                  @float:w-96 @float:rounded-none @float:pb-0"

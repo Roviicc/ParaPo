@@ -66,6 +66,7 @@ export function RouteSheet({ variant, timeline, rideTo, onRideTo, sibling, onSwi
 
   return (
     <Sheet
+      label={variant.direction_name ?? r?.name ?? 'Route'}
       onClose={onClose}
       peek={
         <>
