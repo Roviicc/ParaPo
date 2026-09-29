@@ -31,10 +31,11 @@ type Props = {
 
 /**
  * One direction as a trip — the owner's RouteTripDetail (Figma 3778:3183,
- * 2026-09-29): RouteCardHeader's Variant2; two tiles, the ride's Kilometer
- * and its Expected fare; then a card in the livery of the place the trip
- * leaves from, inset from the sides and rounded, where a rail runs from the
- * origin (TimelineTop) down to the place it goes to (TimelineBottomEndRoute).
+ * 2026-09-29): RouteCardHeader's Variant2; a card in the livery of the place
+ * the trip leaves from, inset from the sides and rounded, where a rail runs
+ * from the origin (TimelineTop) down to the place it goes to
+ * (TimelineBottomEndRoute); then two tiles under it, the ride's Kilometer and
+ * its Expected fare (moved under the card in his redrawing the same day).
  * The pesos moved off the rail into their tile with this set; a route no
  * fare rule prices has no Expected fare tile, and Kilometer takes the row
  * (the owner kept that default, 2026-09-29: nothing is drawn for it).
@@ -93,11 +94,7 @@ export function RouteTripDetail({
         />
       }
     >
-      <dl className="flex w-full gap-2 bg-surface px-4 pt-3 pb-2 text-center font-sn-pro">
-        <Tile testId="trip-km" label="Kilometer" value={kmLabel(metres)} />
-        {fare && <Tile testId="trip-fare" label="Expected fare" value={fare} />}
-      </dl>
-      <div className="w-full px-3 pb-4">
+      <div className="w-full px-3 pt-3">
         <div
           data-testid="trip"
           data-livery={livery}
@@ -124,12 +121,16 @@ export function RouteTripDetail({
           <span aria-hidden className={'pointer-events-none absolute inset-0 rounded-[inherit] ' + CARD_SHADOW[livery]} />
         </div>
       </div>
+      <dl className="flex w-full gap-3 bg-surface px-3 pt-3 pb-4 text-center font-sn-pro">
+        <Tile testId="trip-km" label="Kilometer" value={kmLabel(metres)} />
+        {fare && <Tile testId="trip-fare" label="Expected fare" value={fare} />}
+      </dl>
     </RouteDock>
   )
 }
 
 /**
- * One of the two tiles over the card, in Figma's row of them (3771:3055): a
+ * One of the two tiles under the card, in Figma's row of them (3771:3055): a
  * figure under its name, on Background/surface-secondary, read out as the
  * pair it is. Figma writes the figure in a raw black; Content/primary is the
  * token nearest it.

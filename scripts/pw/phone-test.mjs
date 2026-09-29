@@ -468,7 +468,7 @@ const tripRow = async (id) => {
  * of the route list — as today's data allows.
  */
 const tripChecks = async () => {
-  // Two tiles over the card: the whole ride's length and pesos, as the app's
+  // Two tiles under the card: the whole ride's length and pesos, as the app's
   // own sums give them on the published line (read from the dev server's
   // modules; a server that cannot serve them skips the check). The pesos
   // left the rail for their tile with this set.

@@ -456,7 +456,7 @@ if (!hit) {
     check('a tap on one route opens its card straight away', state.kind === 'route' && chooserCount === 0, `card ${state.kind}, list count ${chooserCount}`)
     if (state.kind === 'route') {
       // Named for its direction, the trip runs from where that leaves (the
-      // top row, its pesos in a tile above the card since 3778:3183) to where
+      // top row, its pesos in a tile under the card since 3778:3183) to where
       // it goes (the bottom row).
       const label = (await page.locator('[data-testid="card"]').first().getAttribute('aria-label')) ?? ''
       const [from = '', to = ''] = label.split(' → ')
