@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { haversine, type LngLat } from './geo'
-import { LINE_BLUE, endRadius, litWidthAt } from './lineStyle'
+import { MAP_COLOURS } from '../design-system/foundation/mapColours'
+import { endRadius, litWidthAt } from './lineStyle'
 import { ROUTES_HIT_LAYER } from './tap'
 
 /**
@@ -269,7 +270,10 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     // other way round.
     if (!map || map.getSource(SRC) || !map.getLayer(ROUTES_HIT_LAYER)) return
     map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-    map.addLayer({ id: CHEVRONS, type: 'fill', source: SRC, paint: { 'fill-color': '#ffffff' } }, ROUTES_HIT_LAYER)
+    map.addLayer(
+      { id: CHEVRONS, type: 'fill', source: SRC, paint: { 'fill-color': MAP_COLOURS['Map/RouteLine/Arrow/Rest'] } },
+      ROUTES_HIT_LAYER,
+    )
     map.addSource(ENDS_SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
     map.addLayer(
       {
@@ -279,7 +283,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
         paint: {
           'circle-radius': endRadius(),
           'circle-color': '#ffffff',
-          'circle-stroke-color': LINE_BLUE,
+          'circle-stroke-color': MAP_COLOURS['Map/RouteLine/surface-selected'],
           'circle-stroke-width': 2,
         },
       },

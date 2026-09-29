@@ -1,10 +1,10 @@
 /**
- * How the route line is drawn: its colours and how wide it is at every zoom.
+ * How the route line is drawn: the orange of its hintuan stretches, and how
+ * wide it is at every zoom.
  *
- * The colours are the owner's, sent 2026-09-23 as hex: the line's blue, and
- * the orange of the stretch where a direction passes a hintuan.
+ * The line's own colours are the owner's Map/… tokens since 2026-09-29
+ * (mapColours.ts). The orange, sent 2026-09-23 as hex, has no token yet.
  */
-export const LINE_BLUE = '#406AF5'
 export const PASS_ORANGE = '#FF9831'
 
 /**

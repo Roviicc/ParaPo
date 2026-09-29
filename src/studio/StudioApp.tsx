@@ -113,8 +113,8 @@ function Workshop({
   })
   const ride = useRideTo(map, saved.selected, stops.stops)
 
-  // Where a direction passes a hintuan, the line turns orange for that stretch.
-  usePassStretches(map, saved.variants, stops.stops, saved.lit, saved.resting, draw.target.variantId)
+  // Where a lit direction passes a hintuan, the line turns orange for that stretch.
+  usePassStretches(map, saved.variants, stops.stops, saved.lit, draw.target.variantId)
 
   // Which way the jeep goes, on what is lit only — the chosen direction, or
   // the routes under a tap the way round the sheet shows them: chevrons

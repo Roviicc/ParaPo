@@ -32,19 +32,34 @@ await page.addInitScript(() => {
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
   // Since 2026-09-25 a tap is feature state, not a filter or a paint
   // expression naming ids (useLighting in src/shared/useSavedRoutes.ts).
-  // The directions a source has lit; and the level the line layer paints a
-  // direction nobody tapped: dim while anything is lit, at rest otherwise —
-  // its own expression's branches, read through the state, as MapLibre does.
+  // The directions a source has lit.
   window.__lit = async (src) => {
     const m = window.__map
     const fc = await m?.getSource(src)?.getData()
     if (!fc) return null
     return [...new Set(fc.features.map((f) => f.properties.id))].filter((id) => !!m.getFeatureState({ source: src, id }).lit)
   }
-  window.__restLevel = async () => {
-    const o = window.__map.getPaintProperty('saved-routes-line', 'line-opacity')
-    if (!Array.isArray(o)) return o
-    return ((await window.__lit('saved-routes')) ?? []).length ? o[4] : o[o.length - 1]
+  // The route lines' paint, the owner's two looks of 2026-09-29: the colour a
+  // line rests in, the colour of the lit copy drawn over it, and any
+  // saved-routes layer whose opacity shades a line rather than switching it
+  // on or off — the outputs of its expression, read branch by branch.
+  window.__paint = () => {
+    const m = window.__map
+    const outputs = (e) =>
+      typeof e === 'number' ? [e]
+      : !Array.isArray(e) ? []
+      : e[0] === 'case' ? [...e.slice(2, -1).filter((_, i) => i % 2 === 0), e.at(-1)].flatMap(outputs)
+      : e[0] === 'step' ? [e[2], ...e.slice(4).filter((_, i) => i % 2 === 0)].flatMap(outputs)
+      : e[0] === 'interpolate' ? e.slice(4).filter((_, i) => i % 2 === 0).flatMap(outputs)
+      : []
+    const shaded = m.getStyle().layers
+      .filter((l) => l.id.startsWith('saved-routes') && l.type === 'line')
+      .flatMap((l) => outputs(m.getPaintProperty(l.id, 'line-opacity') ?? 1).filter((o) => o > 0 && o < 1).map((o) => `${l.id} at ${o}`))
+    return {
+      rest: m.getPaintProperty('saved-routes-line', 'line-color'),
+      lit: m.getPaintProperty('saved-routes-selected', 'line-color'),
+      shaded,
+    }
   }
 })
 // The features of one of our GeoJSON sources once the page has some, asked
@@ -83,6 +98,25 @@ const offLine = (p, coords) => {
     best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy) * 111_320)
   }
   return best
+}
+
+// The owner's two looks for the lines (2026-09-29), in the studio too: every
+// one opaque in Map/RouteLine/surface-default, the lit ones drawn over them
+// in …/surface-selected, and no layer shading a line. The hexes are
+// mapColours.ts's, read from the dev server; a server that cannot serve it
+// is held to two different colours.
+{
+  const MAP = await page.evaluate(async () => {
+    try {
+      return (await import('/src/design-system/foundation/mapColours.ts')).MAP_COLOURS
+    } catch {
+      return null
+    }
+  })
+  const p = await page.evaluate(() => window.__paint())
+  const twoLooks = p.shaded.length === 0 &&
+    (MAP ? p.rest === MAP['Map/RouteLine/surface-default'] && p.lit === MAP['Map/RouteLine/surface-selected'] : !!p.rest && p.rest !== p.lit)
+  check('the studio paints the lines in the same two looks, none shaded', twoLooks, JSON.stringify(p))
 }
 
 // A vertex in the middle stretch of one route that lies on another route's line.
@@ -152,8 +186,9 @@ if (!spot) {
 
   // What each line under the lit ones is drawn at, as the map works it out
   // line by line: the camera pulls back so every line is on screen, then
-  // returns, so the chevrons are still measured where they were.
-  const REST = 0.45
+  // returns, so the chevrons are still measured where they were. Unset is
+  // MapLibre's default, 1: since the owner's two looks (2026-09-29) nothing
+  // under the lit ones fades.
   const levels = () =>
     page.evaluate(async () => {
       const m = window.__map
@@ -165,12 +200,12 @@ if (!spot) {
       m.fitBounds([[w, s], [e, n]], { padding: 40, duration: 0 })
       await settle()
       const byId = {}
-      for (const f of m.queryRenderedFeatures({ layers: ['saved-routes-line'] })) byId[f.properties.id] = f.layer.paint['line-opacity']
+      for (const f of m.queryRenderedFeatures({ layers: ['saved-routes-line'] })) byId[f.properties.id] = f.layer.paint?.['line-opacity'] ?? 1
       m.jumpTo(camera)
       await settle()
       return byId
     })
-  const restingIn = (byId) => Object.keys(byId).filter((id) => byId[id] === REST)
+  const opaque = (byId, ids) => ids.every((id) => byId[id] === 1)
   const same = (a, b) => a.length === b.length && a.every((id) => b.includes(id))
   /**
    * Metres between two points, flat around the first: fine at street scale.
@@ -259,17 +294,17 @@ if (!spot) {
   check('the list opened the way round under the tap', firstBack === !caught.some((id) => outbound.includes(id)),
     `caught ${caught.length} line(s), ${caught.filter((id) => outbound.includes(id)).length} outbound; opened ${firstBack ? 'the way back' : 'outbound'}`)
 
-  // The other way round rests; only what the list does not show fades.
+  // Two looks, no fading (the owner, 2026-09-29): the other way round, and
+  // whatever the list does not show, stay drawn as they rest, opaque.
   const levelsBack = await levels()
-  const [restOut, restBack] = [restingIn(levelsOut), restingIn(levelsBack)]
-  check('the other way round rests in light blue while one way is listed', same(restOut, litBack),
-    `${restOut.length} resting, ${litBack.length} drawn the other way`)
-  check('  after SWITCH the first way rests instead', same(restBack, litOut), `${restBack.length} resting, ${litOut.length} drawn the first way`)
+  check('the other way round still shows, opaque, while one way is listed', opaque(levelsOut, litBack),
+    `${litBack.length} drawn the other way: ${litBack.map((id) => levelsOut[id]).join(', ')}`)
+  check('  after SWITCH the first way does', opaque(levelsBack, litOut), `${litOut.length} drawn the first way: ${litOut.map((id) => levelsBack[id]).join(', ')}`)
   const unlisted = lines.map((l) => l.id).filter((id) => !litOut.includes(id) && !litBack.includes(id))
   if (unlisted.length === 0) {
-    skip('  a route the list does not show fades', 'every saved route is under this tap')
+    skip('  a route the list does not show stays as it rests', 'every saved route is under this tap')
   } else {
-    check('  a route the list does not show fades', unlisted.every((id) => levelsOut[id] < REST && levelsBack[id] < REST),
+    check('  a route the list does not show stays as it rests', opaque(levelsOut, unlisted) && opaque(levelsBack, unlisted),
       `${unlisted.length} not listed: ${unlisted.map((id) => `${levelsOut[id]}/${levelsBack[id]}`).join(', ')}`)
   }
 
@@ -286,12 +321,13 @@ if (!spot) {
     const litOne = ((await page.evaluate(() => window.__lit('saved-routes'))) ?? []).length
     const endsOne = await page.evaluate(async () => ((await window.__src('direction-ends'))?.features ?? []).length)
     check('  lit alone, with its two circles', litOne === 1 && endsOne === 2, `${litOne} lit, ${endsOne} circle(s)`)
-    // Its way back rests in light blue, as in the list (the owner's pick, 2026-09-25).
+    // Its way back, and every other line, stay as they rest (two looks).
     const openId = ((await page.evaluate(() => window.__lit('saved-routes'))) ?? [''])[0]
     const openRoute = lines.find((l) => l.id === openId)?.route
     const twins = lines.filter((l) => l.route === openRoute && l.id !== openId).map((l) => l.id)
-    const restOne = restingIn(await levels())
-    check('  its way back rests in light blue, nothing else', same(restOne, twins), `${restOne.length} resting, ${twins.length} way back drawn`)
+    const one = await levels()
+    const others = Object.keys(one).filter((id) => id !== openId)
+    check('  its way back, and the rest, stay as they rest', opaque(one, [...twins, ...others]), `${twins.length} way back, ${others.length} other line(s)`)
     await page.locator('[data-testid="card"] button[aria-label="Close"]').first().click()
     await page.waitForTimeout(400)
     const endsNone = await page.evaluate(async () => ((await window.__src('direction-ends'))?.features ?? []).length)
@@ -348,9 +384,10 @@ if (!spot) {
   // near the click.
   {
     const litNow = await reopen(false)
-    const resting = restingIn(await levels())
+    // The way back: the listed routes' lines that are not lit.
+    const wayBack = lines.filter((l) => !litNow.includes(l.id) && litNow.some((id) => routeOf(id) === l.route))
     const litLines = lines.filter((l) => litNow.includes(l.id))
-    const far = lines.filter((l) => resting.includes(l.id)).flatMap(every3).filter((c) => litLines.every((l) => offLine(c, l.coords) > 40))
+    const far = wayBack.flatMap(every3).filter((c) => litLines.every((l) => offLine(c, l.coords) > 40))
     const target = await findSpot(far, (p) => p.ids.length > 0 && !p.ids.some((id) => litNow.includes(id)))
     if (!target) {
       skip('a click on the light-blue way back switches to it', 'no stretch of a way back runs 40 m clear of the lit lines')

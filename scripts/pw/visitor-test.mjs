@@ -106,19 +106,34 @@ await page.addInitScript(() => {
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
   // Since 2026-09-25 a tap is feature state, not a filter or a paint
   // expression naming ids (useLighting in src/shared/useSavedRoutes.ts).
-  // The directions a source has lit; and the level the line layer paints a
-  // direction nobody tapped: dim while anything is lit, at rest otherwise —
-  // its own expression's branches, read through the state, as MapLibre does.
+  // The directions a source has lit.
   window.__lit = async (src) => {
     const m = window.__map
     const fc = await m?.getSource(src)?.getData()
     if (!fc) return null
     return [...new Set(fc.features.map((f) => f.properties.id))].filter((id) => !!m.getFeatureState({ source: src, id }).lit)
   }
-  window.__restLevel = async () => {
-    const o = window.__map.getPaintProperty('saved-routes-line', 'line-opacity')
-    if (!Array.isArray(o)) return o
-    return ((await window.__lit('saved-routes')) ?? []).length ? o[4] : o[o.length - 1]
+  // The route lines' paint, the owner's two looks of 2026-09-29: the colour a
+  // line rests in, the colour of the lit copy drawn over it, and any
+  // saved-routes layer whose opacity shades a line rather than switching it
+  // on or off — the outputs of its expression, read branch by branch.
+  window.__paint = () => {
+    const m = window.__map
+    const outputs = (e) =>
+      typeof e === 'number' ? [e]
+      : !Array.isArray(e) ? []
+      : e[0] === 'case' ? [...e.slice(2, -1).filter((_, i) => i % 2 === 0), e.at(-1)].flatMap(outputs)
+      : e[0] === 'step' ? [e[2], ...e.slice(4).filter((_, i) => i % 2 === 0)].flatMap(outputs)
+      : e[0] === 'interpolate' ? e.slice(4).filter((_, i) => i % 2 === 0).flatMap(outputs)
+      : []
+    const shaded = m.getStyle().layers
+      .filter((l) => l.id.startsWith('saved-routes') && l.type === 'line')
+      .flatMap((l) => outputs(m.getPaintProperty(l.id, 'line-opacity') ?? 1).filter((o) => o > 0 && o < 1).map((o) => `${l.id} at ${o}`))
+    return {
+      rest: m.getPaintProperty('saved-routes-line', 'line-color'),
+      lit: m.getPaintProperty('saved-routes-selected', 'line-color'),
+      shaded,
+    }
   }
 })
 const errors = []
@@ -183,6 +198,23 @@ check(
 )
 
 // 2. Read the map's own data before asserting anything about it.
+// The owner's two looks for the lines (2026-09-29): every one opaque in
+// Map/RouteLine/surface-default, the lit ones drawn over them in
+// …/surface-selected, and no layer shading a line. The hexes are
+// mapColours.ts's, read from the dev server; a server that cannot serve it
+// is held to two different colours.
+const MAP = await page.evaluate(async () => {
+  try {
+    return (await import('/src/design-system/foundation/mapColours.ts')).MAP_COLOURS
+  } catch {
+    return null
+  }
+})
+const paintNow = () => page.evaluate(() => (window.__map.getLayer('saved-routes-line') ? window.__paint() : null))
+const twoLooks = (p) =>
+  !!p && p.shaded.length === 0 &&
+  (MAP ? p.rest === MAP['Map/RouteLine/surface-default'] && p.lit === MAP['Map/RouteLine/surface-selected'] : !!p.rest && p.rest !== p.lit)
+
 const snapshot = await page.evaluate(async () => {
   const m = window.__map
   const stopsFC = await window.__src('saved-stops')
@@ -370,10 +402,11 @@ if (!hit) {
     // The owner's pick of 2026-09-29: the count stays the routes', a card each.
     const title = `${cardCount} ${cardCount === 1 ? 'Route' : 'Routes'}`
     check(`  headed "${title}": the routes' count, not the hotspot's`, text.split('\n').includes(title), text.split('\n')[0])
-    // The level of a direction the list does not show (the listed routes'
-    // other way round stays at rest, the owner's pick of 2026-09-25).
-    const fadedWhileAsking = await page.evaluate(() => window.__restLevel())
-    check('  the rest of the map fades while the list asks', fadedWhileAsking < 0.3, String(fadedWhileAsking))
+    // Until a card can be picked (the owner's next stage), the list lights
+    // the routes it shows, dark blue over the rest; nothing fades.
+    const asking = (await page.evaluate(() => window.__lit('saved-routes'))) ?? []
+    const looks = await paintNow()
+    check('  the list lights routes, dark blue over the rest, which stay as they rest', asking.length > 0 && twoLooks(looks), `${asking.length} lit; ${JSON.stringify(looks)}`)
     const row = items.last()
     const colour = await row.locator('xpath=ancestor::*[@data-livery][1]').getAttribute('data-livery')
     await row.click()
@@ -402,15 +435,13 @@ if (!hit) {
   }
 }
 
-// 4b. Rest and lit: every direction rests light; one route alone under the
-// tap opens its card directly, drawn bright while the rest fade; closing the
-// card rests everything again.
+// 4b. Rest and lit: every direction rests in one light blue, opaque; one
+// route alone under the tap opens its card directly, drawn dark blue over
+// the rest; closing the card lights nothing again. Nothing fades and nothing
+// is see-through (the owner's two looks, 2026-09-29).
 {
-  // What the rest are at: the level of a direction nobody tapped (a lit
-  // direction's way back rests, the owner's pick of 2026-09-25).
-  const opacity = () => page.evaluate(() => window.__restLevel())
-  const rest = await opacity()
-  check('the lines rest in a light blue (opacity under 0.6)', typeof rest === 'number' && rest > 0 && rest < 0.6, String(rest))
+  const looks = await paintNow()
+  check('the lines rest opaque in Map/RouteLine/surface-default, lit in …/surface-selected, none shaded', twoLooks(looks), JSON.stringify(looks))
   const clean = findVertexOutsideHotspots(snapshot.routes, snapshot.polys)
   if (!clean) {
     skip('a tap on one route opens its card straight away', 'every route vertex lies inside a hotspot or on a road another route shares today')
@@ -432,8 +463,6 @@ if (!hit) {
       const row = (id) => page.locator(`[data-testid="${id}"]`).first().innerText().then((t) => t.replace(/\s+/g, ' ').trim(), () => '')
       const [top, bottom] = [await row('trip-origin'), await row('trip-destination')]
       check('  the card runs from where its direction leaves to where it goes', !!from && !!to && top === from && bottom === to, `"${label}": top "${top}", bottom "${bottom}"`)
-      const faded = await opacity()
-      check('  the rest fade while one direction is lit', faded < rest, `${faded} vs rest ${rest}`)
       const litIds = (await page.evaluate(() => window.__lit('saved-routes'))) ?? []
       check('  exactly one direction is lit', litIds.length === 1, JSON.stringify(litIds))
       // The chevrons: flowing along the lit direction, each cut to exactly
@@ -465,9 +494,14 @@ if (!hit) {
       const stretches = await page.evaluate(async (id) => ((await window.__src('saved-routes-pass'))?.features ?? []).filter((f) => f.properties.id === id).length, litId)
       const passLit = (await page.evaluate(() => window.__lit('saved-routes-pass'))) ?? []
       check('  the orange stretches of the lit direction are lit with it', stretches > 0 && passLit.includes(litId), `${stretches} stretch(es); lit on the stretches: ${JSON.stringify(passLit)}`)
+      // Orange on the lit line only (the owner's two looks, 2026-09-29): no
+      // other direction's stretches lit, and no layer left painting them all.
+      const alwaysOn = await page.evaluate(() => !!window.__map.getLayer('saved-routes-pass'))
+      check('  and on no other line', passLit.length === 1 && !alwaysOn, `lit on the stretches: ${JSON.stringify(passLit)}; the old layer for every line ${alwaysOn ? 'still there' : 'gone'}`)
       await closeCard()
       await page.waitForTimeout(300)
-      check('  closing the card rests the map again', (await opacity()) === rest, String(await opacity()))
+      const after = (await page.evaluate(() => window.__lit('saved-routes'))) ?? []
+      check('  closing the card lights nothing again', after.length === 0, JSON.stringify(after))
     }
   }
 }

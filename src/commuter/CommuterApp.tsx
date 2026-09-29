@@ -49,8 +49,8 @@ export default function CommuterApp() {
   const stops = useSavedStops(map, loadStopsFromFile, { muted: !!saved.selected })
   const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW
 
-  // Where a direction passes a hintuan, the line turns orange for that stretch.
-  usePassStretches(map, saved.variants, stops.stops, saved.lit, saved.resting)
+  // Where a lit direction passes a hintuan, the line turns orange for that stretch.
+  usePassStretches(map, saved.variants, stops.stops, saved.lit)
 
   // Which way the jeep goes, on what is lit only — the chosen direction, or
   // the routes under a tap the way round the sheet shows them: chevrons

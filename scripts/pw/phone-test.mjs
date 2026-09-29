@@ -180,19 +180,34 @@ await page.addInitScript(() => {
   }
   // Since 2026-09-25 a tap is feature state, not a filter or a paint
   // expression naming ids (useLighting in src/shared/useSavedRoutes.ts).
-  // The directions a source has lit; and the level the line layer paints a
-  // direction nobody tapped: dim while anything is lit, at rest otherwise —
-  // its own expression's branches, read through the state, as MapLibre does.
+  // The directions a source has lit.
   window.__lit = async (src) => {
     const m = window.__map
     const fc = await m?.getSource(src)?.getData()
     if (!fc) return null
     return [...new Set(fc.features.map((f) => f.properties.id))].filter((id) => !!m.getFeatureState({ source: src, id }).lit)
   }
-  window.__restLevel = async () => {
-    const o = window.__map.getPaintProperty('saved-routes-line', 'line-opacity')
-    if (!Array.isArray(o)) return o
-    return ((await window.__lit('saved-routes')) ?? []).length ? o[4] : o[o.length - 1]
+  // The route lines' paint, the owner's two looks of 2026-09-29: the colour a
+  // line rests in, the colour of the lit copy drawn over it, and any
+  // saved-routes layer whose opacity shades a line rather than switching it
+  // on or off — the outputs of its expression, read branch by branch.
+  window.__paint = () => {
+    const m = window.__map
+    const outputs = (e) =>
+      typeof e === 'number' ? [e]
+      : !Array.isArray(e) ? []
+      : e[0] === 'case' ? [...e.slice(2, -1).filter((_, i) => i % 2 === 0), e.at(-1)].flatMap(outputs)
+      : e[0] === 'step' ? [e[2], ...e.slice(4).filter((_, i) => i % 2 === 0)].flatMap(outputs)
+      : e[0] === 'interpolate' ? e.slice(4).filter((_, i) => i % 2 === 0).flatMap(outputs)
+      : []
+    const shaded = m.getStyle().layers
+      .filter((l) => l.id.startsWith('saved-routes') && l.type === 'line')
+      .flatMap((l) => outputs(m.getPaintProperty(l.id, 'line-opacity') ?? 1).filter((o) => o > 0 && o < 1).map((o) => `${l.id} at ${o}`))
+    return {
+      rest: m.getPaintProperty('saved-routes-line', 'line-color'),
+      lit: m.getPaintProperty('saved-routes-selected', 'line-color'),
+      shaded,
+    }
   }
 })
 
@@ -538,10 +553,22 @@ const closeCard = async () => {
   }
   await page.waitForTimeout(300)
 }
-// Every direction rests in a light blue; a tap fades the rest further (2026-09-22).
-const REST_OPACITY = 0.45
-// What the rest are at: the level of a direction nobody tapped.
-const lineOpacity = (p) => p.evaluate(() => (window.__map.getLayer('saved-routes-line') ? window.__restLevel() : null))
+// The owner's two looks for the lines (2026-09-29): every one opaque in
+// Map/RouteLine/surface-default, the lit ones drawn over them in
+// …/surface-selected, and no layer shading a line. The hexes are
+// mapColours.ts's, read from the dev server; a server that cannot serve it
+// is held to two different colours.
+const MAP = await page.evaluate(async () => {
+  try {
+    return (await import('/src/design-system/foundation/mapColours.ts')).MAP_COLOURS
+  } catch {
+    return null
+  }
+})
+const paintNow = () => page.evaluate(() => (window.__map.getLayer('saved-routes-line') ? window.__paint() : null))
+const twoLooks = (p) =>
+  !!p && p.shaded.length === 0 &&
+  (MAP ? p.rest === MAP['Map/RouteLine/surface-default'] && p.lit === MAP['Map/RouteLine/surface-selected'] : !!p.rest && p.rest !== p.lit)
 /** The directions lit now, by id. */
 const litIds = (p) => p.evaluate(() => window.__lit('saved-routes'))
 
@@ -664,7 +691,8 @@ if (routeA) {
     backShown === fanned,
     `‹ ${backShown ? 'shown' : 'not shown'}`,
   )
-  check('  the other lines fade below the light rest', (await lineOpacity(page)) < REST_OPACITY, String(await lineOpacity(page)))
+  const looks = await paintNow()
+  check('  the rest stay as they rest, opaque light blue: nothing fades (two looks)', twoLooks(looks), JSON.stringify(looks))
 
   await tripChecks()
 
@@ -689,7 +717,8 @@ if (routeA) {
     await mapTap(far.x, far.y)
     await page.waitForTimeout(500)
     check('a tap 40 px away from every line selects nothing', (await card().count()) === 0, `${Math.round(far.clear)} m clear`)
-    check('  the lines go back to their light rest', (await lineOpacity(page)) === REST_OPACITY, String(await lineOpacity(page)))
+    const after = (await litIds(page)) ?? []
+    check('  nothing stays lit', after.length === 0, JSON.stringify(after))
   }
   await closeCard()
 }
