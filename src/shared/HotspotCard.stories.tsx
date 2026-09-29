@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { fn } from 'storybook/test'
+import { fn, userEvent, within } from 'storybook/test'
 import { HotspotCard } from './HotspotCard'
 import type { VariantSummary } from './routes'
 import type { StopRow } from './stops'
@@ -128,3 +128,91 @@ export const Phone: Story = {
     stop: { ...terminal, note: 'Jeeps queue along the kanto by the covered court.' },
   },
 }
+
+/**
+ * Drawn directions, each line `km` long (so the fare is a real fare): the
+ * owner's two routes out of Tala, both through SM Fairview. Sample data.
+ */
+const drawn = (key: string, name: string, direction: string, km: number, reversed = false): VariantSummary => ({
+  ...outbound,
+  id: key + (reversed ? '-back' : '-out'),
+  route_id: key,
+  direction_name: direction,
+  shape: { type: 'LineString', coordinates: [[121.04, 14.7], [121.04, 14.7 + km / 111.2]] },
+  reversed,
+  route: { ...route, id: key, name, head_stop_id: 'sample-stop', tail_stop_id: key + '-tail' },
+})
+const talaRoutes = [
+  drawn('nova', 'Tala – Novaliches', 'Tala → Novaliches', 12.4),
+  drawn('nova', 'Tala – Novaliches', 'Novaliches → Tala', 13.1, true),
+  drawn('sm', 'Tala – SM Fairview', 'Tala → SM Fairview', 9.4),
+  drawn('sm', 'Tala – SM Fairview', 'SM Fairview → Tala', 11.2, true),
+]
+
+/**
+ * The public map's card (`routeCards`, the owner's ask of 2026-09-29): the
+ * routes through here as his RouteCards, edge to edge — his SM Fairview
+ * screenshot, Tala with its two ways out, in a colour drawn at random. The
+ * rest of the card waits for his hintuan design.
+ */
+export const RouteCards: Story = {
+  args: {
+    routeCards: true,
+    stop: fairviewBoxes[2]!,
+    stops: fairviewBoxes,
+    onPickSibling: fn(),
+    linkedVariantIds: talaRoutes.map((v) => v.id),
+    variants: talaRoutes,
+  },
+}
+
+/** ⇄ pressed: the way back, a card per place — Novaliches, SM Fairview — never alike side by side. */
+export const RouteCardsTheWayBack: Story = {
+  args: RouteCards.args,
+  play: async ({ canvasElement }) => {
+    const flip = within(canvasElement).getByTestId('card-flip')
+    await userEvent.click(flip)
+    flip.blur()
+  },
+}
+
+/**
+ * On a phone, pulled up: the cards scroll in the sheet under the hotspot's
+ * name. Pulled up by the keyboard, whose Enter sends a click alone — the
+ * handle's plain toggle — so the story does not hang on how a synthetic
+ * pointer tap's events line up with the click the sheet swallows after one.
+ */
+export const RouteCardsPhone: Story = {
+  args: RouteCards.args,
+  parameters: { phone: true },
+  play: async ({ canvasElement }) => {
+    const handle = within(canvasElement).getByTestId('sheet-handle')
+    handle.focus()
+    await userEvent.keyboard('{Enter}')
+    handle.blur()
+  },
+}
+
+/**
+ * The ways back not drawn yet: the RouteCards list drawn ways only, so the
+ * way there is shown, and ⇄ is gone — there is nothing to turn round to. The
+ * studio's rows would offer ⇄ and "Not mapped yet".
+ */
+export const RouteCardsNothingTheOtherWay: Story = {
+  args: {
+    ...RouteCards.args,
+    variants: talaRoutes.map((v) => (v.reversed ? { ...v, shape: null } : v)),
+  },
+}
+
+/** A terminal's card, "Routes that stage here": the same RouteCards (the owner, 2026-09-29). */
+export const RouteCardsTerminal: Story = {
+  args: {
+    routeCards: true,
+    linkedVariantIds: talaRoutes.map((v) => v.id),
+    variants: talaRoutes,
+  },
+}
+
+/** Only slots are linked here yet: the RouteCards list drawn ways only, so there is nothing to list. */
+export const RouteCardsNothingDrawn: Story = { args: { routeCards: true } }

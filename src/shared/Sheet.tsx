@@ -8,16 +8,20 @@ type SheetState = 'peek' | 'open'
 /**
  * Drops the `click` the browser sends after a tap on the handle. By the time
  * it is dispatched the sheet has already re-rendered, so the click is aimed at
- * whatever now lies under the finger — the map, which would read it as a tap
- * on nothing and close the card. Caught at the capture phase on the document,
- * before MapLibre sees it, and only if it lands outside the sheet: a click on
- * the sheet's own ✕ or a chooser row is one the visitor meant. Forgotten after
- * a moment if none comes. Not armed after a drag, which sends no click.
+ * whatever now lies under the finger: pulled down, the map, which would read
+ * it as a tap on nothing and close the card; pulled up, whatever the sheet
+ * now shows there — a hotspot's route, which it would open (seen 2026-09-29,
+ * with the old rows and the RouteCards alike). Caught at the capture phase on
+ * the document, before MapLibre or React sees it, and only where the finger
+ * lifted: a tap on the sheet's ✕ right after lands elsewhere, and is one the
+ * visitor meant. Forgotten after a moment if none comes. Not armed after a
+ * drag, which sends no click.
  */
-function swallowNextClickOutside(sheet: HTMLElement | null) {
+function swallowTheTapsClick(x: number, y: number) {
   const stop = (e: MouseEvent) => {
     cleanup()
-    if (sheet && e.target instanceof Node && sheet.contains(e.target)) return
+    // As far as a finger may travel and still tap.
+    if (Math.hypot(e.clientX - x, e.clientY - y) > DRAG_PX) return
     e.stopPropagation()
     e.preventDefault()
   }
@@ -39,6 +43,12 @@ type Props = {
   initial?: SheetState
   /** data-testid on the root. Default 'card'. */
   testId?: string
+  /**
+   * Kept, but not shown: a hotspot's card or the Chooser while a trip picked
+   * from it is on top, so that ‹ finds it as it was left — pulled up or not,
+   * turned round or not (the owner, 2026-09-29). Escape is the trip's then.
+   */
+  hidden?: boolean
 }
 
 /**
@@ -53,24 +63,24 @@ type Props = {
  * The breakpoint is a container query, not a viewport one: the apps mark their
  * root `@container`, so a card looks right in Storybook's small frames too.
  */
-export function Sheet({ peek, children, onClose, initial = 'peek', testId = 'card' }: Props) {
+export function Sheet({ peek, children, onClose, initial = 'peek', testId = 'card', hidden = false }: Props) {
   const [state, setState] = useState<SheetState>(initial)
-  const rootRef = useRef<HTMLDivElement>(null)
 
   // Escape closes, as it does any dialog.
   useEffect(() => {
+    if (hidden) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, hidden])
 
   // A pointer drag and a tap arrive as the same gesture until it has travelled
   // far enough, so the decision waits for pointermove/pointerup. `handled`
   // stops one drag firing twice. The `click` the browser sends after a tap is
-  // swallowed (see swallowNextClickOutside), so only keyboard Enter/Space,
-  // which fire click alone, reach onClick.
+  // swallowed (see swallowTheTapsClick), so only keyboard Enter/Space, which
+  // fire click alone, reach onClick.
   const dragRef = useRef<{ startY: number; handled: boolean } | null>(null)
 
   const toggle = () => setState((s) => (s === 'peek' ? 'open' : 'peek'))
@@ -107,7 +117,7 @@ export function Sheet({ peek, children, onClose, initial = 'peek', testId = 'car
     }
     // Travelled less than the threshold: it was a tap, and a click will follow.
     if (drag && !drag.handled) {
-      swallowNextClickOutside(rootRef.current)
+      swallowTheTapsClick(e.clientX, e.clientY)
       toggle()
     }
   }
@@ -119,10 +129,10 @@ export function Sheet({ peek, children, onClose, initial = 'peek', testId = 'car
 
   return (
     <div
-      ref={rootRef}
       role="dialog"
       data-testid={testId}
       data-sheet={state}
+      hidden={hidden}
       className="absolute bottom-0 left-0 right-0 z-10 rounded-t-2xl bg-white shadow-2xl ring-1
                  ring-black/10 pb-[calc(1rem+env(safe-area-inset-bottom))]
                  @wide:bottom-auto @wide:left-4 @wide:right-auto @wide:top-4 @wide:w-80

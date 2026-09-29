@@ -30,14 +30,20 @@ type Props = {
   endPoints: readonly EndPoint[]
   /** A row was tapped: open that direction. */
   onPick: (id: string) => void
+  /**
+   * What the suites call the card and its rows, `<testId>-origin` and
+   * `<testId>-item`: `chooser` in the route list, `card` in a hotspot's card,
+   * the names the old rows there had.
+   */
+  testId: 'chooser' | 'card'
 }
 
-export function RouteCard({ livery, fare, routeOrigin, endPoints, onPick }: Props) {
+export function RouteCard({ livery, fare, routeOrigin, endPoints, onPick, testId }: Props) {
   // One way to go: the whole card is its row's target, not the row alone.
   const whole = endPoints.length === 1
   return (
     <div
-      data-testid="chooser-origin"
+      data-testid={`${testId}-origin`}
       data-livery={livery}
       className={
         'relative isolate flex w-full flex-col items-start gap-2 overflow-clip border-y-[0.6px] py-2 font-sn-pro ' +
@@ -56,7 +62,7 @@ export function RouteCard({ livery, fare, routeOrigin, endPoints, onPick }: Prop
           <li key={e.id}>
             <button
               type="button"
-              data-testid="chooser-item"
+              data-testid={`${testId}-item`}
               onClick={() => onPick(e.id)}
               className={
                 'flex w-full items-center gap-1 px-4 py-2 text-left text-base/6 font-medium' +

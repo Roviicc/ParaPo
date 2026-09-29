@@ -16,6 +16,8 @@ type Props = {
   onRoute: (v: VariantSummary) => void
   onStop: (s: StopSummary) => void
   onClose: () => void
+  /** Kept but not shown, while a trip picked from it is on top: ‹ comes back to it as it was. */
+  hidden?: boolean
 }
 
 /** "2 routes", "1 hotspot", "2 routes · 1 hotspot". */
@@ -42,13 +44,14 @@ function title(routes: number, stops: number): string {
  * Tala. The map
  * lights what the list shows, each with its arrows and a circle at either
  * end. The owner's layout of 2026-09-25. A row opens that direction's card;
- * one still a slot says so and opens nothing.
+ * one still a slot says so and opens nothing. On the public map the Chooser
+ * stays behind that card, hidden, for its ‹ (the owner, 2026-09-29).
  *
  * It opens pulled up: a chooser that only peeks would hide the very choice it
  * exists to offer. Whoever renders it gives it a key from what it lists, so a
  * fresh tap gets a fresh, open sheet.
  */
-export function Chooser({ routes = [], stops = [], back = false, onFlip, onRoute, onStop, onClose }: Props) {
+export function Chooser({ routes = [], stops = [], back = false, onFlip, onRoute, onStop, onClose, hidden }: Props) {
   const routeCount = groupByRoute(routes).length
   const flipLabel = back ? 'Show the way there' : 'Show the way back'
   return (
@@ -56,6 +59,7 @@ export function Chooser({ routes = [], stops = [], back = false, onFlip, onRoute
       onClose={onClose}
       initial="open"
       testId="chooser"
+      hidden={hidden}
       peek={
         <div className="flex items-center gap-2">
           <p className="min-w-0 flex-1 truncate text-base font-semibold text-neutral-900">

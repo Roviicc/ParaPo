@@ -45,7 +45,8 @@ export default function CommuterApp() {
   const [map, setMap] = useState<MapLibreMap | null>(null)
   // One file, fetched once, shared by both hooks.
   const saved = useSavedRoutes(map, loadVariantsFromFile)
-  const stops = useSavedStops(map, loadStopsFromFile)
+  // While a trip is open, the map lights only the trip (the owner, 2026-09-29).
+  const stops = useSavedStops(map, loadStopsFromFile, { muted: !!saved.selected })
   const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW
 
   // Where a direction passes a hintuan, the line turns orange for that stretch.
@@ -74,42 +75,49 @@ export default function CommuterApp() {
   // so a fresh tap gets a fresh, open sheet.
   const choice = [...saved.candidates, ...stops.candidates]
   const choosing = choice.length > 1
-  // Routes alone under the tap: the owner's route list. It stays behind a
-  // trip picked from it, hidden, for the trip's ‹.
+  // Routes alone under the tap: the owner's route list; with a hotspot among
+  // them, the Chooser. Either stays behind a trip picked from it, hidden, for
+  // the trip's ‹ — and so does a hotspot's card (the owner, 2026-09-29).
   const listing = choosing && stops.candidates.length === 0
+  const mixed = choosing && stops.candidates.length > 0
   // ✕ on the list, the Chooser or a trip: everything the tap opened closes.
   const closeAll = () => {
     saved.select(null)
     stops.select(null)
   }
-  // The colour a card wore in the list, for the trip picked from it. Read
-  // only as the trip opens, and only while that list stands behind it: a
-  // clash colour is "for this list only" (liveries.ts), so the same trip
-  // opened again any other way wears its place's kept colour. Once open, the
-  // trip keeps what it opened in until it closes — through SWITCH, and even
-  // when a tap on its own line closes the list behind it: a card never
-  // changes colour while it is open (the owner, 2026-09-29).
+  // The colour a card wore — in the list, or in a hotspot's card — for the
+  // trip picked from it. Read only as the trip opens, and only while that
+  // card stands behind it: a clash colour is "for this list only"
+  // (liveries.ts), so the same trip opened again any other way wears its
+  // place's kept colour. Once open, the trip keeps what it opened in until
+  // it closes — through SWITCH, and even when a tap on its own line closes
+  // the list behind it: a card never changes colour while it is open (the
+  // owner, 2026-09-29).
   const [worn, setWorn] = useState<{ id: string; livery: Livery } | null>(null)
+  const wornBehind = listing || !!stops.selected
 
-  // The trip's ‹. Picked from the list, it goes back to the list as it was
-  // left. Opened with no list behind it — a tap on its line, a shared link, a
-  // row of a hotspot's card or of the Chooser — it lists its route and those
-  // sharing its head or its tail, the way the trip goes, as a tap where they
-  // all run would: Tala → Novaliches ‹ to Tala's card, Tala → Novaliches and
-  // SM Fairview. The owner's ask of 2026-09-29, drawn with a shared head; a
-  // shared tail counts too (PLAN.md's "grouped by the end it shares"), and
-  // the way back lists the trip's way — both his calls the same day. With
-  // nothing else drawn that way round, there is nothing to go back to.
+  // The trip's ‹: back to what it was picked from, kept behind it as it was
+  // left — the route list, the Chooser, a hotspot's card (the owner's "back
+  // to that card", 2026-09-29). Opened with nothing behind it — a tap on its
+  // line, a shared link — it lists its route and those sharing its head or
+  // its tail, the way the trip goes, as a tap where they all run would: Tala
+  // → Novaliches ‹ to Tala's card, Tala → Novaliches and SM Fairview. The
+  // owner's ask of 2026-09-29, drawn with a shared head; a shared tail counts
+  // too (PLAN.md's "grouped by the end it shares"), and the way back lists
+  // the trip's way — both his calls the same day. With nothing else drawn
+  // that way round, there is nothing to go back to.
   const trip = saved.selected
   const fan = trip ? sharingAnEnd(saved.variants, trip) : []
-  const backToList = listing
-    ? () => saved.select(null, { keepList: true })
-    : trip && fan.filter((v) => v.reversed === trip.reversed && isDrawn(v)).length > 1
-      ? () => {
-          stops.select(null)
-          saved.openList(fan, trip.reversed)
-        }
-      : null
+  const backToList = stops.selected
+    ? () => saved.select(null)
+    : listing || mixed
+      ? () => saved.select(null, { keepList: true })
+      : trip && fan.filter((v) => v.reversed === trip.reversed && isDrawn(v)).length > 1
+        ? () => {
+            stops.select(null)
+            saved.openList(fan, trip.reversed)
+          }
+        : null
 
   return (
     <div className="@container relative h-full w-full overflow-hidden">
@@ -203,20 +211,29 @@ export default function CommuterApp() {
           variant={saved.selected}
           variants={saved.variants}
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
-          worn={listing && worn?.id === saved.selected.id ? worn.livery : undefined}
+          worn={wornBehind && worn?.id === saved.selected.id ? worn.livery : undefined}
           onBackToList={backToList}
           onSwitch={(v) => saved.select(v.id, { keepList: true })}
           onClose={closeAll}
         />
       )}
 
-      {!saved.selected && stops.selected && (
+      {/*
+        A hotspot's card: its routes are the owner's RouteCards (2026-09-29),
+        and it stays behind the trip picked from them, hidden, for the trip's
+        ‹. The rest of it waits for his hintuan design. It is `card` to the
+        suites too, and comes after the trip here on purpose: their first
+        `card` is then the trip while this one hides behind it.
+      */}
+      {stops.selected && (
         <HotspotCard
+          routeCards
+          hidden={!!saved.selected}
           stop={stops.selected}
           linkedVariantIds={stops.linkedVariantIds(stops.selected.id)}
           variants={saved.variants}
-          onSelectVariant={(v) => {
-            stops.select(null)
+          onSelectVariant={(v, livery) => {
+            setWorn(livery ? { id: v.id, livery } : null)
             saved.select(v.id)
           }}
           stops={stops.stops}
@@ -246,17 +263,15 @@ export default function CommuterApp() {
         />
       )}
 
-      {choosing && stops.candidates.length > 0 && (
+      {mixed && (
         <Chooser
           key={choice.map((c) => c.id).join()}
+          hidden={!!saved.selected}
           routes={saved.candidates}
           stops={stops.candidates}
           back={saved.back}
           onFlip={saved.flip}
-          onRoute={(v) => {
-            stops.select(null)
-            saved.select(v.id)
-          }}
+          onRoute={(v) => saved.select(v.id, { keepList: true })}
           onStop={(s) => {
             saved.select(null)
             stops.select(s.id)
@@ -375,10 +390,10 @@ function useShareLink(
  * The chosen direction as the owner's trip card (RouteTripDetail,
  * 2026-09-29), from what the map file knows: its ends as the list names
  * them, the whole ride's pesos, the hintuans on the way, and the colour of
- * the place it leaves from — the one its card wore in the list, when it was
- * picked from there. SWITCH turns it round, the list staying behind it, and
- * the card keeps the colour it opened in: turned round, it is still the same
- * card (the owner, 2026-09-29).
+ * the place it leaves from — the one its RouteCard wore, when it was picked
+ * from one, in the list or in a hotspot's card. SWITCH turns it round, what
+ * it was picked from staying behind it, and the card keeps the colour it
+ * opened in: turned round, it is still the same card (the owner, 2026-09-29).
  *
  * Share, the length, the mode, the status and the ride-to preview went with
  * the old card: the owner dropped them for now, to design later (2026-09-28).
@@ -409,9 +424,10 @@ function TripCard({
   onClose: () => void
 }) {
   const { from, to } = directionEnds(variant)
-  // Decided as the card opens — its card's in the list, else its place's for
-  // the visit (liveries.ts: drawn when first met, kept after) — and kept until
-  // it closes, through SWITCH. `worn` is read only here.
+  // Decided as the card opens — its RouteCard's, in the list or a hotspot's
+  // card, else its place's for the visit (liveries.ts: drawn when first met,
+  // kept after) — and kept until it closes, through SWITCH. `worn` is read
+  // only here.
   const [livery] = useState(() => worn ?? liveriesFor([from])[0])
   const sibling = otherDirection(variants, variant)
   const switchable = !!sibling && isDrawn(sibling)

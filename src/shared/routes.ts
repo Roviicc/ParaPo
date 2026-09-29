@@ -233,6 +233,17 @@ export function departures<V extends VariantSummary>(variants: readonly V[], bac
 }
 
 /**
+ * `departures`, the drawn directions only, and no place left with none: what
+ * the owner's route cards list, since he dropped "not mapped yet" from them
+ * (2026-09-28) — a row that opens nothing is no row.
+ */
+export function drawnDepartures<V extends VariantSummary>(variants: readonly V[], back: boolean): Departures<V>[] {
+  return departures(variants, back)
+    .map((p) => ({ ...p, directions: p.directions.filter((d) => d.drawn) }))
+    .filter((p) => p.directions.length > 0)
+}
+
+/**
  * The direction a route opens with when it is picked as a whole: the
  * outbound when it has a line, else the return — predictable, and ⇄ is one
  * tap away. Decided with the owner 2026-09-22. Null only for a route with

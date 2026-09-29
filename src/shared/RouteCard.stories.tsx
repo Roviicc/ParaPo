@@ -13,6 +13,7 @@ const meta = {
     routeOrigin: 'Novaliches (Bayan)',
     endPoints: [{ id: 'a', routeDirection: 'Tala' }],
     onPick: fn(),
+    testId: 'chooser',
   },
 } satisfies Meta<typeof RouteCard>
 

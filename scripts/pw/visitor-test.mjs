@@ -318,13 +318,16 @@ for (const [i, p] of snapshot.polys.entries()) {
     (await page.locator('[data-testid="card"]').getByRole('button', { name: /^(Edit\b.*|Delete)$/ }).count()) === 0,
   )
 
-  // The routes through here read as the chooser's list: the place each
-  // leaves from, then → where it goes; ⇄ shows them the way back.
+  // The routes through here are the owner's RouteCards since 2026-09-29: a
+  // card per place they leave from, in its colour, then → where it goes; ⇄
+  // shows them the way back.
   const rows = page.locator('[data-testid="card"]').locator('button[data-testid="card-item"]:enabled')
   const rowCount = await rows.count()
   if (rowCount > 0) {
-    const origins = await page.locator('[data-testid="card"]').locator('[data-testid="card-origin"] > p').allInnerTexts()
-    check(`  its routes are listed by the place they leave from`, origins.length > 0 && origins.every((o) => o.trim().length > 0), origins.join(' | '))
+    const cards = page.locator('[data-testid="card"]').locator('[data-testid="card-origin"]')
+    const places = (await cards.allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim())
+    const colours = await cards.evaluateAll((els) => els.map((e) => e.getAttribute('data-livery')))
+    check(`  its routes are RouteCards, a card per place they leave from`, places.length > 0 && places.every((t) => t.length > 0) && colours.every((c) => !!c), places.map((t, i) => `${colours[i]}: ${t}`).join(' | '))
     // ⇄ only where both ways pass: a box passed one way only has nothing to flip to.
     const flip = page.locator('[data-testid="card-flip"]')
     check(`  and ⇄ offers the way back, or the box is passed one way only`, (await flip.count()) <= 1)
@@ -333,6 +336,22 @@ for (const [i, p] of snapshot.polys.entries()) {
     await page.waitForTimeout(350)
     const after = await cardKind()
     check(`  its first route row opens a route card`, after.kind === 'route', `row "${label}" -> ${after.kind}`)
+    if (after.kind === 'route') {
+      // In its card's colour, the hotspot's card kept behind it for its ‹
+      // (the owner, 2026-09-29).
+      const tripColour = await page.locator('[data-testid="trip"]').first().getAttribute('data-livery')
+      check(`  in the colour of the card it was picked from`, tripColour === colours[0], `card ${colours[0]}, trip ${tripColour}`)
+      // The map lights only the trip: the hotspot goes dark under it, and ‹
+      // lights it again (the owner, 2026-09-29).
+      const stopsLit = async () => (await page.evaluate(() => window.__lit('saved-stops'))) ?? []
+      const litUnder = await stopsLit()
+      check(`  the hotspot is not lit under the trip`, !litUnder.includes(p.id), JSON.stringify(litUnder))
+      const back = page.locator('[data-testid="card"]').getByRole('button', { name: 'Back' })
+      if ((await back.count()) > 0) await back.first().click()
+      await page.waitForTimeout(350)
+      const again = await cardKind()
+      check(`  ‹ on the trip goes back to the hotspot's card, lit again`, again.kind === 'hotspot' && again.text === opened && (await stopsLit()).includes(p.id), `card ${again.kind}; lit ${JSON.stringify(await stopsLit())}`)
+    }
   } else {
     const noneMsg = isTerminal ? 'None recorded yet.' : 'No saved route passes through here yet.'
     check(`  no linked routes: shows "${noneMsg}"`, opened.includes(noneMsg))
@@ -369,6 +388,22 @@ if (!hit) {
     await page.waitForTimeout(350)
     const state = await cardKind()
     check("  the route's row opens the route card", state.kind === 'route', state.kind)
+    if (state.kind === 'route') {
+      // The sheet stays behind the trip, hidden, for its ‹, and its hotspot
+      // goes dark under the trip till then (the owner, 2026-09-29).
+      const stopsLit = async () => (await page.evaluate(() => window.__lit('saved-stops'))) ?? []
+      const litUnder = await stopsLit()
+      check('  its hotspot is not lit under the trip', !litUnder.includes(hit.hotspot.id), JSON.stringify(litUnder))
+      const back = page.locator('[data-testid="card"]').getByRole('button', { name: 'Back' })
+      if ((await back.count()) > 0) await back.first().click()
+      await page.waitForTimeout(350)
+      const again = (await chooser.first().isVisible()) ? await chooser.first().innerText() : ''
+      check(
+        '  ‹ on the trip goes back to the sheet, as it was, its hotspot lit again',
+        again === text && (await cardKind()).kind === 'none' && (await stopsLit()).includes(hit.hotspot.id),
+        again ? `card ${(await cardKind()).kind}; lit ${JSON.stringify(await stopsLit())}` : 'the sheet did not come back',
+      )
+    }
     await closeCard()
   }
 }

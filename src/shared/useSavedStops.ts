@@ -64,13 +64,17 @@ const ROUTES_HIT = ROUTES_HIT_LAYER
  * module level, not a new one per render, or it reloads every render.
  *
  * The editor also passes `drawing` and `hiddenStopId`; the public map passes
- * neither, and both default to off.
+ * neither, and both default to off. The public map passes `muted` while a
+ * trip is open: the hotspot card or Chooser it was picked from waits hidden
+ * behind it, and what that lit goes dark until ‹ brings it back, as the route
+ * list's lines do (the owner, 2026-09-29: the map lights only the trip).
  */
 export function useSavedStops<S extends StopSummary>(
   map: MapLibreMap | null,
   load: () => Promise<{ stops: S[]; links: StopLink[] }>,
-  opts: { drawing?: boolean; hiddenStopId?: string | null } = {},
+  opts: { drawing?: boolean; hiddenStopId?: string | null; muted?: boolean } = {},
 ) {
+  const muted = opts.muted ?? false
   const [stops, setStops] = useState<S[]>([])
   const [links, setLinks] = useState<StopLink[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -272,15 +276,16 @@ export function useSavedStops<S extends StopSummary>(
   }, [map, stops])
 
   // What a tap did to each box, as feature state: lit (chosen, or under the
-  // tap while the sheet asks), the chosen one, and its siblings. Only the
-  // boxes whose state changed are set, and none is ever removed: a removal
-  // and a set of one id in the same frame leave the removal in charge.
+  // tap while the sheet asks), the chosen one, and its siblings — nothing
+  // while muted. Only the boxes whose state changed are set, and none is ever
+  // removed: a removal and a set of one id in the same frame leave the
+  // removal in charge.
   const was = useRef(new Map<string, string>())
   useEffect(() => {
     if (!map || !map.getSource(SRC)) return
-    const chosen = stops.find((s) => s.id === selectedId)
+    const chosen = muted ? undefined : stops.find((s) => s.id === selectedId)
     const siblings = chosen ? siblingsOf(chosen, stops).map((s) => s.id) : []
-    const lit = selectedId ? [selectedId] : candidates.map((s) => s.id)
+    const lit = muted ? [] : selectedId ? [selectedId] : candidates.map((s) => s.id)
     const now = new Map<string, string>()
     for (const id of lit) now.set(id, 'lit')
     for (const id of siblings) now.set(id, now.has(id) ? 'lit+sibling' : 'sibling')
@@ -294,20 +299,20 @@ export function useSavedStops<S extends StopSummary>(
       )
     }
     was.current = now
-  }, [map, selectedId, candidates, stops])
+  }, [map, selectedId, candidates, stops, muted])
 
   // The place highlight's wash: a hull over the chosen box and its siblings.
   useEffect(() => {
     if (!map || !map.getLayer(SIBLINGS)) return
     const wash = map.getSource(WASH_SRC) as GeoJSONSource | undefined
-    const chosen = stops.find((s) => s.id === selectedId)
+    const chosen = muted ? undefined : stops.find((s) => s.id === selectedId)
     const siblings = chosen ? siblingsOf(chosen, stops).filter((s) => stopRing(s).length >= 3) : []
     const hull = chosen && siblings.length > 0 ? convexHull([chosen, ...siblings].flatMap((s) => stopRing(s))) : []
     wash?.setData({
       type: 'FeatureCollection',
       features: hull.length >= 3 ? [{ type: 'Feature', properties: {}, geometry: ringToPolygon(hull) }] : [],
     })
-  }, [map, selectedId, stops])
+  }, [map, selectedId, stops, muted])
 
   // The hotspot being edited is drawn by the editor; hide the saved copy.
   useEffect(() => {

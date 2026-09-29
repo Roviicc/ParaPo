@@ -961,6 +961,37 @@ if (!hotspot) {
   await closeCard()
 }
 
+// ------------------------- 4d. the handle, on a hotspot's card with routes
+// Pulled up, a hotspot's card shows its routes where the finger was, and the
+// click that follows the tap on the handle must not open one (seen
+// 2026-09-29: it did, with the old rows and the RouteCards alike). 4c's
+// hotspot is chosen clear of every route, so it has none to fall on.
+const drawnIds = new Set(fileDirections.filter((d) => (d.shape?.coordinates?.length ?? 0) > 1).map((d) => d.id))
+const withRoutes = snapshot.polys.find((poly) => (published?.links ?? []).some((l) => l.stop_id === poly.id && drawnIds.has(l.route_variant_id)))
+if (!withRoutes) {
+  skip('a tap on the handle of a hotspot card with routes pulls it up, opening none', published ? 'no hotspot has a drawn route linked today' : 'the published file could not be read')
+} else {
+  const c = centroidOf(withRoutes.ring)
+  await jumpTo(page, c, Z_HOT)
+  const at = await project(page, c)
+  const box = await canvasBox()
+  await mapTap(box.x + at[0], box.y + at[1])
+  await page.waitForTimeout(600)
+  // A route under the finger shares the tap: the sheet asks, and its row opens the box.
+  const chooser = page.locator('[data-testid="chooser"]')
+  if ((await chooser.count()) > 0) {
+    await buttonTap(chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: withRoutes.name }), async () => (await chooser.count()) === 0)
+  }
+  const atPeek = (await cardText()).includes(withRoutes.name) && (await sheetState()) === 'peek'
+  await tapHandle()
+  check(
+    `a tap on the handle of "${withRoutes.name}"'s card, with routes, pulls it up, opening none`,
+    atPeek && (await sheetState()) === 'open' && (await trip().count()) === 0,
+    `opened at peek ${atPeek}; now data-sheet=${await sheetState()}, trip ${await trip().count()}`,
+  )
+  await closeCard()
+}
+
 // Overlapping hotspots share the chooser; today's data has none.
 const overlapping = snapshot.polys.some((a) =>
   snapshot.polys.some((bPoly) => bPoly.id !== a.id && a.ring.some((v) => pointInPolygon(v, bPoly.ring))),
