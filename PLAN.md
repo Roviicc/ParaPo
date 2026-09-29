@@ -3383,5 +3383,6 @@ end at a time. Terminal links are left as the owner set them. Drawing a
 return trip still leaves the route as it is. `save-test` covers the edit,
 the rename of both directions, the untouched terminal links and both
 refusals; SavePanel's stories show the open panel and the two refusals. A
-way back being edited looks for a picked end's box from its own start, the
-tail.
+picked end's box is looked for at the line's end nearer the route's head,
+whichever way it was drawn, and a swap is refused by place, as the pickers
+choose.

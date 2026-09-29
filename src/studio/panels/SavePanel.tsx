@@ -126,10 +126,13 @@ export function SavePanel({
   const placeOf = (id: string) => places.find((p) => p.boxes.some((s) => s.id === id))
   const lineStart = line[0]
   const lineEnd = line[line.length - 1]
-  // Where a picked end's box is looked for: the head where the line starts,
-  // the tail where it finishes — the other way round for a way back being
-  // edited, whose line starts at the tail.
-  const [nearHead, nearTail] = existing?.reversed ? [lineEnd, lineStart] : [lineStart, lineEnd]
+  // Where a picked end's box is looked for: at the end of the line nearer
+  // the route's head, and the tail at the other — whichever way it was
+  // drawn; a new route's line starts at its head.
+  const headNow = existing ? stops.find((s) => s.id === existing.route.head_stop_id) : undefined
+  const startsAtHead =
+    !headNow || !lineStart || !lineEnd || haversine(lineStart, headNow.point.coordinates) <= haversine(lineEnd, headNow.point.coordinates)
+  const [nearHead, nearTail] = startsAtHead ? [lineStart, lineEnd] : [lineEnd, lineStart]
 
   const [signboard, setSignboard] = useState(parent?.signboard ?? '')
   const [mode, setMode] = useState<TransportMode>(parent?.mode ?? 'jeepney')
@@ -221,8 +224,14 @@ export function SavePanel({
         (x.route.via ?? '') === via.trim(),
     )
   }, [existing, headId, tailId, via, variants])
+  // By place, as the pickers choose: another box of the same place is the
+  // same end.
   const turnedRound =
-    !!existing && headId === existing.route.tail_stop_id && tailId === existing.route.head_stop_id
+    !!existing &&
+    !!headPlace &&
+    !!tailPlace &&
+    headPlace === placeOf(existing.route.tail_stop_id) &&
+    tailPlace === placeOf(existing.route.head_stop_id)
 
   // What an Extend borrowed: measured on the line as it is now, so a borrowed
   // point dragged away or undone is counted as it really is.
