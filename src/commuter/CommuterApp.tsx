@@ -3,7 +3,7 @@ import type { MapLibreMap } from 'maplibre-gl'
 import { HotspotCard } from '../shared/cards/HotspotCard'
 import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from './mapFile'
 import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
-import { MapView, coarse } from '../shared/map/MapView'
+import { APP_MOVE, MapView, coarse } from '../shared/map/MapView'
 import { rideFare } from '../shared/model/fares'
 import { lineLength } from '../shared/geo/geo'
 import { liveriesFor, type Livery } from '../shared/model/liveries'
@@ -405,7 +405,7 @@ function useShareLink(
       if (y < s) s = y
       if (y > n) n = y
     }
-    map.fitBounds([[w, s], [e, n]], { padding: 60, maxZoom: 15, duration: 0 })
+    map.fitBounds([[w, s], [e, n]], { padding: 60, maxZoom: 15, duration: 0 }, APP_MOVE)
   }, [map, variants, select])
 
   const selectedId = saved.selected?.id ?? null

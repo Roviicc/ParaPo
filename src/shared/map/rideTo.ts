@@ -3,6 +3,7 @@ import { Marker, type GeoJSONSource, type MapLibreMap } from 'maplibre-gl'
 import { MAP_COLOURS } from '../../design-system/foundation/mapColours'
 import { haversine } from '../geo/geo'
 import { CASING_EXTRA, litWidth } from './lineStyle'
+import { APP_MOVE } from './MapView'
 import { rideCut, travelLine, type VariantSummary } from '../model/routes'
 import type { StopSummary } from '../model/stops'
 import './rideTo.css'
@@ -105,7 +106,7 @@ export function useRideTo(
       if (!map || !selected) return
       const line = travelLine(selected, stops)
       if (line.length < 2) return
-      map.easeTo({ center: end === 'from' ? line[0] : line[line.length - 1], offset: offset.current?.() ?? [0, 0], duration: 700 })
+      map.easeTo({ center: end === 'from' ? line[0] : line[line.length - 1], offset: offset.current?.() ?? [0, 0], duration: 700 }, APP_MOVE)
     },
     [map, selected, selectedId, stops, endPicked],
   )
@@ -208,7 +209,7 @@ export function useRideTo(
   // centre ever after.
   useEffect(() => {
     if (!map || !cut) return
-    map.easeTo({ center: cut.at, offset: offset.current?.() ?? [0, 0], duration: 700 })
+    map.easeTo({ center: cut.at, offset: offset.current?.() ?? [0, 0], duration: 700 }, APP_MOVE)
   }, [map, cut])
 
   return {

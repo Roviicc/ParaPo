@@ -165,6 +165,20 @@ await button.click()
 await page.waitForTimeout(900)
 check('  a tap follows again', (await button.getAttribute('data-state')) === 'following' && metresApart(await centre(page), p) < 5, `${metresApart(await centre(page), p).toFixed(1)} m off`)
 
+// The app moves the camera for the visitor (a hintuan picked, an end tapped:
+// shared/map/MapView.tsx APP_MOVE). That lets go too, or the next fix undoes it.
+const away = north(p, 400)
+await page.evaluate((c) => window.__map.easeTo({ center: [c.longitude, c.latitude], duration: 0 }, { appMove: true }), away)
+await page.waitForTimeout(300)
+check('an app camera move lets go', (await button.getAttribute('data-state')) === 'on', `state ${await button.getAttribute('data-state')}`)
+p = north(p, 20)
+await ctx.setGeolocation({ ...p, accuracy: 10 })
+await page.waitForTimeout(1200)
+check('  and the next fix leaves the camera where the app put it', metresApart(await centre(page), away) < 2, `${metresApart(await centre(page), away).toFixed(1)} m moved`)
+await button.click()
+await page.waitForTimeout(900)
+check('  a tap follows again', (await button.getAttribute('data-state')) === 'following', `state ${await button.getAttribute('data-state')}`)
+
 await button.click()
 await page.waitForTimeout(300)
 check('a tap while following turns it off: no figure, button off', (await walker(page).count()) === 0 && (await button.getAttribute('data-state')) === 'off')

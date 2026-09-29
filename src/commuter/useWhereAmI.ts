@@ -182,21 +182,28 @@ export function useWhereAmI(map: MapLibreMap | null): WhereAmI {
     )
   }, [])
 
-  // The map follows the figure until the visitor moves the map themselves.
+  // The map follows the figure until the visitor moves the map themselves,
+  // or the app moves it for them (APP_MOVE: a hintuan picked, an end
+  // tapped), which the next fix would otherwise undo.
   useEffect(() => {
     if (!map) return
     const letGo = (e: { originalEvent?: unknown }) => {
       if (e.originalEvent) setFollow(false)
     }
+    const appMoved = (e: object) => {
+      if ((e as { appMove?: boolean }).appMove) setFollow(false)
+    }
     map.on('dragstart', letGo)
     map.on('zoomstart', letGo)
     map.on('rotatestart', letGo)
     map.on('pitchstart', letGo)
+    map.on('movestart', appMoved)
     return () => {
       map.off('dragstart', letGo)
       map.off('zoomstart', letGo)
       map.off('rotatestart', letGo)
       map.off('pitchstart', letGo)
+      map.off('movestart', appMoved)
     }
   }, [map])
 
