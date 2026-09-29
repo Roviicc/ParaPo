@@ -3419,3 +3419,34 @@ owner's word of 2026-09-30, to finish about two hours sooner: `stops.ts`
 with the saved hooks, then the arrows, `TripTimeline` and the duplicates.
 Each file kept its own commit, and each batch passed all thirteen suites
 with every count unchanged.
+
+**Stage 12 — the suites' shared helpers, 2026-09-29.** What the headless
+suites copied between them is written once in `tests/e2e/lib/`; each suite
+keeps its scenario, and its PASS, FAIL and SKIP lines, their order, the tally
+and the exit code are as they were. `harness.mjs`: the address (12 copies);
+check, skip and the tally (12 suites: the two shapes differed only in what
+the tally counted, so one serves both, with `bracketed` for
+regression-gestures' and snap-test's [details] and no blank line before
+extend-test's and group-test's tally); the `PARAPO_NODE_FETCH` route (6;
+hotspot-test and regression-gestures count the router's requests in it, now
+through a `seen` hook); the bare basemap style (4; save-test's grey, a shade
+darker, is a parameter); `waitForSource` (6, comment and all). `studio.mjs`:
+the drawing suites' `proj`, `idle` and `renderedAt` (2 each). `looks.mjs`:
+`window.__lit` and `window.__paint` (3, now an init script of their own after
+the suite's), `paintNow` and `rideLook` (2). `geo.mjs`: `pointInPolygon` and
+`centroidOf` (2). `big-map.mjs`: the scale suites' copy count and grid (2),
+and `readPublished` (studio-scale and save, 2). `profile.mjs`: the long-task
+counter, the CPU profile and where the opening went (2 each). Left in the
+suites because the copies differ: pwa-test's count and tally (a counter and
+"all passed"; it starts its own server, so it has no address either); the
+scale suites' `mark` (studio-scale's hands the page an argument and sets its
+pace) and their generators past the grid (studio-scale's rows add the digits
+a save kept, denser lines and the database's columns); save-test's `idle`
+(15 s, errors swallowed), and extend-test's `waitRouted` and `px`, the same
+wait and projection under other names; the draft's "routed" reading, in
+different words in hotspot-test and regression-gestures; the metres-to-a-line
+helpers, each worked its own way; the two `closeCard`s. Left though identical:
+`twoLooks` and `wears` (visitor, phone), which judge against the colours each
+suite reads from `src/` in the page, and `window.__src`, spelled four ways
+and mostly inside init scripts that do more. The suites are 392 lines
+shorter; `lib/` is 241.
