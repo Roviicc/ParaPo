@@ -3,9 +3,10 @@ import { fn, userEvent, within } from 'storybook/test'
 import { TripTimeline } from './TripTimeline'
 
 /**
- * A trip's card on its own, as RouteTripDetail insets it: every state its
- * stories show in the dock, here without the dock. Sample data only: the
- * places of the owner's frames (3762:3546), not the real map.
+ * A trip's card on its own, as RouteTripDetail insets it: one story a state,
+ * and the pick in each livery. Long names, the pick kept while folded, and
+ * the taps are RouteTripDetail's stories. Sample data only: the places of
+ * the owner's frames (3762:3546), not the real map.
  */
 const hintuans = (...labels: string[]) => labels.map((label, i) => ({ id: 'h' + i, label }))
 const talaToNovaliches = hintuans(
@@ -77,6 +78,20 @@ export const Mist: Story = { args: { livery: 'mist' } }
 
 /** A hintuan picked: its dot green, its name Black, its pill with the pesos to there. Opened, since the fold keeps it. */
 export const HintuanPicked: Story = { args: { picked: 'h3' }, play: openFold }
+
+/** Picked, red: the pill in the card's own colours, swapped. */
+export const HintuanPickedRed: Story = { args: { livery: 'red', picked: 'h3' }, play: openFold }
+
+/** Picked, orange. */
+export const HintuanPickedOrange: Story = { args: { livery: 'orange', picked: 'h3' }, play: openFold }
+
+/** Picked, mist: the pill near-black. */
+export const HintuanPickedMist: Story = { args: { livery: 'mist', picked: 'h3' }, play: openFold }
+
+/** One hintuan on the way, picked: not folded, so no fold to open. */
+export const OneHintuanPicked: Story = {
+  args: { routeOrigin: 'Fatima', hintuans: hintuans('Lagro'), routeDirection: 'SM Fairview', picked: 'h0', pickedFare: '₱14' },
+}
 
 /** A hintuan picked but unpriced: no pill. */
 export const HintuanPickedUnpriced: Story = { args: { picked: 'h3', pickedFare: undefined }, play: openFold }
