@@ -5,6 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite",
+    "dev:phone": "vite --host",
     "build": "node scripts/check-boundaries.mjs && tsc --noEmit && vite build && node scripts/check-build.mjs",
     "check": "npm run build && npm run test:unit",
     "test:unit": "npm run test:reader && npm run test:mapfile && npm run test:pass && npm run test:index && npm run test:data && npm run test:precision && npm run test:babaan && npm run test:fares && npm run test:timeline && npm run test:liveries && npm run test:map-colours",
