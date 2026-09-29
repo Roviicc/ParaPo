@@ -19,8 +19,10 @@
 // route saved with its slot, the return trip offered while the slot is empty
 // and written into it (2); an edit that writes one row and offers no return
 // trip (2); a delete that empties the direction into a slot and a redraw that
-// fills it again (3, 16); every request line short with 500 hintuans (4); a
-// hotspot saved with its links; a route's end refused a delete in words (15);
+// fills it again (3), a refused step of it said (16); every request line
+// short with 500 hintuans (4); a hotspot saved with its links, and the
+// directions read again after it (8); a route's end refused a delete in
+// words (15);
 // undo to no points leaving no draft (12); a link sync that fails and a retry
 // that updates rather than inserts (13); the drawing keys alive after signing
 // in from Done (9); no React warnings (the duplicate key).
@@ -332,9 +334,15 @@ let w = await hintuan(P1, 'Stand-in Head')
 const head = tables.stop.find((s) => s.name === 'Stand-in Head')
 check('a hintuan traced and saved is one stop row', !!head && w.filter((x) => x.method === 'POST' && x.table === 'stop').length === 1, said(w))
 check('  its links are replaced by its own id: none, where no line passes', w.some((x) => x.method === 'DELETE' && x.table === 'route_stop' && x.query.includes(`stop_id=eq.${head?.id}`)) && !w.some((x) => x.method === 'POST' && x.table === 'route_stop'), said(w))
+let nTail = log.length
 await hintuan(P2, 'Stand-in Tail')
 const tail = tables.stop.find((s) => s.name === 'Stand-in Tail')
 check('a second one', !!tail)
+check(
+  '  a saved hotspot reads the directions again, so a renamed end renames its routes (8)',
+  log.slice(nTail).some((x) => x.method === 'GET' && x.table === 'route_variant' && /route:route/.test(x.query)),
+  said(log.slice(nTail)),
+)
 
 // ---- 3. A route between them, saved with its slot
 async function drawLine(points) {
@@ -405,6 +413,13 @@ await dismissToasts()
 
 // ---- 6. Delete a direction, then draw it again
 await openCard(OUT[1])
+// A refused step — here the count that decides whether the route goes — is
+// said, not swallowed (16): it was read by nobody. Delete again finishes it.
+fault = (method, table) => method === 'HEAD' && table === 'route_variant'
+await page.getByRole('button', { name: 'Delete' }).click()
+await waitFor(async () => /refused this one, on purpose/.test(await body()))
+check('a refused step of the delete is said, not swallowed (16)', fault === null && /refused this one, on purpose/.test(await body()), (await body()).slice(-160))
+await dismissToasts()
 n = log.length
 await page.getByRole('button', { name: 'Delete' }).click()
 await waitFor(async () => (await page.getByRole('button', { name: 'Edit route' }).count()) === 0)
@@ -413,7 +428,7 @@ w = writesSince(n)
 check('Delete empties the direction into a slot: the row stays, with no line (3)', variantsOf(outRoute?.id).length === 2 && variantsOf(outRoute?.id).find((v) => v.id === outV?.id)?.shape === null, said(w))
 check('  its links go with its line', !tables.route_stop.some((l) => l.route_variant_id === outV?.id))
 check('  the route stays: its other way is drawn', tables.route.some((r) => r.id === outRoute?.id) && !w.some((x) => x.method === 'DELETE' && x.table === 'route'))
-check('  every step of the delete answered without an error shown (16)', !/error|refused/i.test(await body()))
+check('  and Delete again finishes it, no error shown', !/error|refused/i.test(await body()))
 await drawLine(OUT)
 check('  the panel says this fills the route\'s empty slot', (await page.getByTestId('save-same-ends').count()) === 1 && !/already has/.test(await page.getByTestId('save-same-ends').innerText()))
 n = log.length
@@ -468,6 +483,7 @@ w = writesSince(n)
 check('a link sync that fails says the line is saved and its links are not (13)', /The line is saved, but its hintuan links are not/.test(await body()), (await body()).slice(-200))
 const viaRoute = tables.route.find((r) => r.via === 'Stand-in Road')
 check('  the route and its directions are in', !!viaRoute && variantsOf(viaRoute.id).length === 2, said(w))
+check('  and its ends are locked while the save is finished: the retry would not write them', await page.getByTestId('save-head').isDisabled())
 n = log.length
 await saveButton().click()
 await waitFor(async () => (await toast().count()) > 0)
@@ -505,6 +521,13 @@ await guest.keyboard.press('Enter')
 await guest.waitForTimeout(500)
 check('  and Enter still opens the save panel (9)', (await guest.getByTestId('save-head').count()) === 1)
 
+// A line that comes back to where it began: the panel's first guess puts one
+// place at both ends, and the timeline's two end rows used to share a key.
+await drawLine([P1, at(0, 0.0012), at(-0.0036, 0.0002)])
+check('a line back to its start guesses one place at both ends', (await page.getByTestId('save-head').inputValue()) !== '' && (await page.getByTestId('save-head').inputValue()) === (await page.getByTestId('save-tail').inputValue()))
+await page.getByRole('button', { name: 'Back to map' }).click()
+await page.getByTitle('Discard this route').click()
+await page.waitForTimeout(300)
 check('no page errors or React warnings (the duplicate key)', warnings.length === 0, warnings.slice(0, 3).join(' | '))
 await page.screenshot({ path: 'save-test.png' })
 await b.close()

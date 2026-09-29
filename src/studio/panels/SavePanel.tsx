@@ -155,7 +155,9 @@ export function SavePanel({
   // "already drawn" (review finding 13). Now it updates the row it wrote.
   const [written, setWritten] = useState<{ routeId: string; variantId: string } | null>(null)
 
-  const routeLocked = !!parent
+  // A return trip's route is fixed; so is a new route's once a save has
+  // written it: the retry finishes that row and would ignore a changed end.
+  const routeLocked = !!parent || !!written
   const streets = routeStreets(draw.segments)
   const head = stops.find((s) => s.id === headId)
   const tail = stops.find((s) => s.id === tailId)

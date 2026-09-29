@@ -308,9 +308,10 @@ function Workshop({
 
   // "Draw the return trip" only while the route still has a way undrawn: after
   // an edit of a route drawn both ways it once started a drawing whose save
-  // replaced the other direction's line (review finding 2).
+  // replaced the other direction's line (review finding 2). The direction
+  // just saved is drawn whatever the list says until its reload lands.
   const slotLeft = justSaved
-    ? saved.variants.some((v) => v.route_id === justSaved.route_id && v.shape === null)
+    ? saved.variants.some((v) => v.route_id === justSaved.route_id && v.id !== justSaved.id && v.shape === null)
     : false
 
   const onDelete = async (v: VariantRow) => {
