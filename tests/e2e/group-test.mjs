@@ -32,7 +32,7 @@ page.on('pageerror', (e) => errors.push(String(e)))
 await page.addInitScript(() => {
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
   // Since 2026-09-25 a tap is feature state, not a filter or a paint
-  // expression naming ids (useLighting in src/shared/useSavedRoutes.ts).
+  // expression naming ids (useLighting in src/shared/map/useSavedRoutes.ts).
   // The directions a source has lit.
   window.__lit = async (src) => {
     const m = window.__map

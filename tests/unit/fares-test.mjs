@@ -1,11 +1,11 @@
-// The fare rule (src/shared/fares.ts) against the rows of LTFRB's fare guide
+// The fare rule (src/shared/model/fares.ts) against the rows of LTFRB's fare guide
 // of 8 Oct 2023 quoted in docs/research/ltfrb-jeepney-fares.md.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/fares-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TRADITIONAL, fareFor, fareForKm, manilaDate, peso, pesoRange, rideFare, ruleOn } from '../../src/shared/fares.ts'
-import { kmLabel } from '../../src/shared/geo.ts'
+import { TRADITIONAL, fareFor, fareForKm, manilaDate, peso, pesoRange, rideFare, ruleOn } from '../../src/shared/model/fares.ts'
+import { kmLabel } from '../../src/shared/geo/geo.ts'
 
 const [y2023, y2026] = TRADITIONAL
 

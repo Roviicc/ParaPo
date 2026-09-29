@@ -198,7 +198,7 @@ await page.addInitScript(() => {
     return s ? await s.getData() : null
   }
   // Since 2026-09-25 a tap is feature state, not a filter or a paint
-  // expression naming ids (useLighting in src/shared/useSavedRoutes.ts).
+  // expression naming ids (useLighting in src/shared/map/useSavedRoutes.ts).
   // The directions a source has lit.
   window.__lit = async (src) => {
     const m = window.__map
@@ -495,9 +495,9 @@ const tripChecks = async () => {
   const want = await page.evaluate(async (id) => {
     try {
       const [{ rideFare }, { kmLabel, lineLength }, { variantLine }] = await Promise.all([
-        import('/src/shared/fares.ts'),
-        import('/src/shared/geo.ts'),
-        import('/src/shared/routes.ts'),
+        import('/src/shared/model/fares.ts'),
+        import('/src/shared/geo/geo.ts'),
+        import('/src/shared/model/routes.ts'),
       ])
       const v = (await fetch('/data/map.json').then((r) => r.json())).variants.find((x) => x.id === id)
       const metres = v && lineLength(variantLine(v))
@@ -566,7 +566,7 @@ const tripChecks = async () => {
     const rowId = await row.getAttribute('data-hintuan')
     const pickWant = await page.evaluate(async ([id, rowId]) => {
       try {
-        const [{ rideFare }, { rideCut }] = await Promise.all([import('/src/shared/fares.ts'), import('/src/shared/routes.ts')])
+        const [{ rideFare }, { rideCut }] = await Promise.all([import('/src/shared/model/fares.ts'), import('/src/shared/model/routes.ts')])
         const m = await fetch('/data/map.json').then((r) => r.json())
         const v = m.variants.find((x) => x.id === id)
         const cut = v && rideCut(v, m.stops, rowId)
@@ -661,7 +661,7 @@ const tripChecks = async () => {
     // line, above the card. Picking the hintuan again lets the end go.
     const ends = await page.evaluate(async (id) => {
       try {
-        const { travelLine } = await import('/src/shared/routes.ts')
+        const { travelLine } = await import('/src/shared/model/routes.ts')
         const m = await fetch('/data/map.json').then((r) => r.json())
         const line = travelLine(m.variants.find((x) => x.id === id), m.stops)
         return line.length > 1 ? { from: line[0], to: line[line.length - 1] } : null
@@ -789,7 +789,7 @@ const twoLooks = (p, lit = MAP?.['Map/RouteLine/surface-selected']) =>
 // server; a server that cannot serve it skips the colour.
 const LOOKS = await page.evaluate(async () => {
   try {
-    const m = await import('/src/shared/liveryLine.ts')
+    const m = await import('/src/shared/map/liveryLine.ts')
     return { byLivery: m.LIVERY_LINE, lit: m.LIT_LINE }
   } catch {
     return null

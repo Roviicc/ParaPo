@@ -1,4 +1,4 @@
-// The orange stretches (src/shared/stops.ts, passStretches) with the bounds
+// The orange stretches (src/shared/model/stops.ts, passStretches) with the bounds
 // checks of 2026-09-25, against the same walk without them.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/pass-stretches-test.mjs
@@ -13,8 +13,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { PASS_WITHIN_M, passBounds, passStretches, stopRing } from '../../src/shared/stops.ts'
-import { bboxOf, bboxesOverlap, distanceToRingM, haversine } from '../../src/shared/geo.ts'
+import { PASS_WITHIN_M, passBounds, passStretches, stopRing } from '../../src/shared/model/stops.ts'
+import { bboxOf, bboxesOverlap, distanceToRingM, haversine } from '../../src/shared/geo/geo.ts'
 
 const file = JSON.parse(readFileSync(new URL('../../public/data/map.json', import.meta.url), 'utf8'))
 const lines = file.variants.filter((v) => v.shape).map((v) => ({ id: v.id, line: v.shape.coordinates }))

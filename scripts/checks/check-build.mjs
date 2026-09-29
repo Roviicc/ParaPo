@@ -18,7 +18,7 @@
 // 3. No Supabase client: since step 5 the public page reads /data/map.json, so
 //    no module from @supabase may reach it — 54 kB gzipped a visitor does not
 //    download (the shared chunk went 375 → 321 kB), and a database the public
-//    never touches. The live-table readers live in src/studio/live.ts, which
+//    never touches. The live-table readers live in src/studio/data/live.ts, which
 //    check-boundaries.mjs keeps out of commuter/ by construction; these two
 //    checks are the backstop.
 //

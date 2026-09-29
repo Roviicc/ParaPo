@@ -105,7 +105,7 @@ await page.route(/^https:\/\//, async (route) => { const req = route.request(); 
 await page.addInitScript(() => {
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
   // Since 2026-09-25 a tap is feature state, not a filter or a paint
-  // expression naming ids (useLighting in src/shared/useSavedRoutes.ts).
+  // expression naming ids (useLighting in src/shared/map/useSavedRoutes.ts).
   // The directions a source has lit.
   window.__lit = async (src) => {
     const m = window.__map
@@ -228,7 +228,7 @@ const twoLooks = (p, lit = MAP?.['Map/RouteLine/surface-selected']) =>
 // server; a server that cannot serve it skips the colour.
 const LOOKS = await page.evaluate(async () => {
   try {
-    const m = await import('/src/shared/liveryLine.ts')
+    const m = await import('/src/shared/map/liveryLine.ts')
     return { byLivery: m.LIVERY_LINE, lit: m.LIT_LINE }
   } catch {
     return null
@@ -605,7 +605,7 @@ if (!hit) {
         const m = window.__map
         let line = null
         try {
-          const { litWidthAt } = await import('/src/shared/lineStyle.ts')
+          const { litWidthAt } = await import('/src/shared/map/lineStyle.ts')
           line = litWidthAt(m.getZoom())
         } catch {}
         const all = ((await window.__src('direction-arrows'))?.features ?? []).map((f) => {
@@ -681,7 +681,7 @@ if (!hit) {
         const rowId = await row.getAttribute('data-hintuan')
         const want = await page.evaluate(async ([id, rowId]) => {
           try {
-            const [{ rideFare }, { rideCut }] = await Promise.all([import('/src/shared/fares.ts'), import('/src/shared/routes.ts')])
+            const [{ rideFare }, { rideCut }] = await Promise.all([import('/src/shared/model/fares.ts'), import('/src/shared/model/routes.ts')])
             const m = await fetch('/data/map.json', { headers: { 'x-parapo-test': 'sums' } }).then((r) => r.json())
             const v = m.variants.find((x) => x.id === id)
             const cut = v && rideCut(v, m.stops, rowId)
@@ -740,7 +740,7 @@ if (!hit) {
         // the line's end, right of the card in the corner.
         const end = await page.evaluate(async (id) => {
           try {
-            const { travelLine } = await import('/src/shared/routes.ts')
+            const { travelLine } = await import('/src/shared/model/routes.ts')
             const m = await fetch('/data/map.json', { headers: { 'x-parapo-test': 'sums' } }).then((r) => r.json())
             const line = travelLine(m.variants.find((x) => x.id === id), m.stops)
             return line.length > 1 ? line[line.length - 1] : null

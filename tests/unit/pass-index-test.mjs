@@ -1,4 +1,4 @@
-// The one rule for "this direction passes this hotspot" (src/shared/stops.ts
+// The one rule for "this direction passes this hotspot" (src/shared/model/stops.ts
 // passIndex, on geo.ts firstNearIndex and firstTouchIndex) with the bounds
 // checks of 2026-09-25 (future-proofing stage 2), against the same walks
 // without them.
@@ -16,8 +16,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { PASS_WITHIN_M, passIndex, stopRing } from '../../src/shared/stops.ts'
-import { entryDistance, firstTouchIndex, lineBounds, pointInRing, segmentsIntersect } from '../../src/shared/geo.ts'
+import { PASS_WITHIN_M, passIndex, stopRing } from '../../src/shared/model/stops.ts'
+import { entryDistance, firstTouchIndex, lineBounds, pointInRing, segmentsIntersect } from '../../src/shared/geo/geo.ts'
 
 const file = JSON.parse(readFileSync(new URL('../../public/data/map.json', import.meta.url), 'utf8'))
 const lines = file.variants.filter((v) => v.shape).map((v) => ({ id: v.id, line: v.shape.coordinates }))

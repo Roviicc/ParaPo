@@ -1,4 +1,4 @@
-// The studio's paged table reader (src/studio/readAll.ts) against a fake
+// The studio's paged table reader (src/studio/data/readAll.ts) against a fake
 // server that caps its answers, the way Supabase's REST layer does.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/read-all-test.mjs
@@ -9,7 +9,7 @@
 // row, whatever the server's cap, and asks once when one page is enough.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readAll, PAGE } from '../../src/studio/readAll.ts'
+import { readAll, PAGE } from '../../src/studio/data/readAll.ts'
 
 /**
  * A table of `total` rows behind a server that answers at most `cap` rows a

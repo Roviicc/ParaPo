@@ -78,7 +78,7 @@ const bearing = ([lng1, lat1], [lng2, lat2]) => {
 /**
  * Turn angles around each join of a line drawn as segments (arrays of
  * [lng, lat], in order). The segments are joined the way joinSegments in
- * src/shared/geo.ts does it: every segment after the first loses its first
+ * src/shared/geo/geo.ts does it: every segment after the first loses its first
  * coordinate, which repeats the previous segment's last. For the join before
  * control point k it reports the worst turn within atM metres along the line.
  * A vertex's turn is the angle, 0–180°, between the bearing in from the last
@@ -231,7 +231,7 @@ console.log('== Street names')
 const streets = await page.evaluate(async () => {
   const draft = JSON.parse(localStorage.getItem('parapo.draft.v1') ?? 'null')
   if (!draft) return null
-  const { routeStreets } = await import('/src/studio/snap.ts')
+  const { routeStreets } = await import('/src/studio/drawing/snap.ts')
   return routeStreets(draft.segments)
 })
 check('street names: every routed segment carries its streets, and "via …" names at least one',
