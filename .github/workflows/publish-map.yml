@@ -2,7 +2,9 @@
 # issue open while anything about it needs the owner.
 #
 # Runs scripts/publish/publish-map.mjs, which reads the public tables with the
-# publishable key committed in .env.production and writes public/data/map.json.
+# publishable key committed in .env.production and writes public/data/: the
+# index the public map reads, a line file per direction, and, for one release
+# after the index shipped (2026-09-29), the old single file map.json.
 # Then scripts/checks/check-map-data.mjs reads the file back: a problem the app
 # could not show honestly (a link to a hotspot that is not there, a route
 # whose end hotspot is missing) fails the run before the commit; a warning
@@ -97,10 +99,11 @@ jobs:
         run: node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs scripts/checks/check-map-data.mjs --markdown "$RUNNER_TEMP/data.md" 2>&1 | tee "$RUNNER_TEMP/check.log"
 
       # `git add` first: `git diff` alone cannot see a file git does not track
-      # yet, and would report "unchanged" for a brand-new one forever.
+      # yet, and would report "unchanged" for a brand-new one forever. `-A`
+      # for lines/, where the file of a direction gone is removed.
       - name: Commit if the map changed
         run: |
-          git add public/data/map.json
+          git add -A public/data/map.json public/data/index.json public/data/lines
           if git diff --cached --quiet; then
             echo "The map is unchanged; nothing to commit."
             exit 0

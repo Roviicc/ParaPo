@@ -1,6 +1,21 @@
-// Publishes the public map as one file, so visitors never ask the database.
+// Publishes the public map as files, so visitors never ask the database.
 //
-//   node scripts/publish/publish-map.mjs            writes public/data/map.json
+//   node scripts/publish/publish-map.mjs            writes public/data/
+//
+// Three things (shape A of docs/review-2026-09-29.md, section 8, stage 7 of the
+// clean-up; since 2026-09-29):
+//   data/index.json         schema 2: every route, its names, every hotspot,
+//                           the links, and each direction's *overview* — its
+//                           line thinned at 5 m with 5-decimal coordinates,
+//                           a quarter of the points, invisible at the zooms
+//                           the whole map is seen at. The map draws from it.
+//   data/lines/<id>.json    each direction's full line (below), fetched when
+//                           the direction is lit or opened.
+//   data/map.json           schema 1, everything in full as before, for one
+//                           release: an installed app that has not updated
+//                           reads it. Drop it (and its rule in the worker)
+//                           a release after the index ships.
+// A line file of a direction that no longer exists is removed.
 //
 // Reads the public tables over Supabase's REST API with the publishable key
 // (from .env.production, or SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY in the
@@ -28,7 +43,7 @@
 //
 // No dependencies: Node's own fetch, zlib and fs. Keep it that way, so the
 // workflow needs no `npm ci`.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { gzipSync } from 'node:zlib'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -48,7 +63,10 @@ process.on('uncaughtException', (e) => {
     process.exitCode = 1
   }
 })
-const OUT = join(root, 'public', 'data', 'map.json')
+const DATA = join(root, 'public', 'data')
+const OUT = join(DATA, 'map.json')
+const INDEX = join(DATA, 'index.json')
+const LINES = join(DATA, 'lines')
 const FORCE = process.argv.includes('--force')
 
 /**
@@ -58,6 +76,13 @@ const FORCE = process.argv.includes('--force')
  */
 const SIMPLIFY_M = 0.3
 const MAX_DEVIATION_M = 0.5
+/**
+ * The overview in the index: 5 m and 5 decimals (about 1 m), the file's diet
+ * before 2026-09-25. At zoom 14 a pixel is 7 m, so it is the full line to the
+ * eye until a direction is lit, and then the full line is there.
+ */
+const OVERVIEW_M = 5
+const OVERVIEW_MAX_DEVIATION_M = 7
 /** A collection that lost more than this share of its rows since the last file is not published without --force. */
 const MAX_SHRINK = 0.3
 /** PostgREST answers at most this many rows per request; ask page by page. */
@@ -67,6 +92,8 @@ const TIMEOUT_MS = 30_000
 /** The data's licence, written into the file itself. See README.md, "Data and licence". */
 /** The file's shape; must equal MAP_FILE_SCHEMA in src/commuter/mapFile.ts, which has the rules for changing it. */
 const SCHEMA = 1
+/** The index's shape; must equal MAP_FILE_SCHEMA in src/commuter/mapFile.ts. */
+const INDEX_SCHEMA = 2
 const LICENSE = 'ODbL-1.0'
 const ATTRIBUTION =
   'Route data © ParaPo contributors, ODbL (https://opendatacommons.org/licenses/odbl/1-0/). ' +
@@ -164,6 +191,8 @@ function simplify(coords, epsilon, k) {
 
 /** Six decimals: about 0.1 m, for a line's points and a hotspot's corners alike. */
 const round6 = (n) => Math.round(n * 1e6) / 1e6
+/** Five decimals, about 1 m: the overview's. */
+const round5 = (n) => Math.round(n * 1e5) / 1e5
 /** A Point or Polygon with every coordinate rounded to 6 decimals; anything else as it came. */
 function roundGeometry(g) {
   if (!g || typeof g !== 'object') return g
@@ -224,6 +253,8 @@ const routeName = (head, tail, via) =>
 const directionName = (head, tail, reversed) => (reversed ? `${tail} → ${head}` : `${head} → ${tail}`)
 
 const stats = []
+/** Each direction's overview, by id: its line at 5 m, 5 decimals. */
+const overviews = new Map()
 const variants = variantRows.map((v) => {
   if (!v.route) {
     fail(`FAIL  direction ${v.id} came without its route: is the route table still readable?`)
@@ -245,8 +276,16 @@ const variants = variantRows.map((v) => {
     if (dev > MAX_DEVIATION_M) {
       fail(`FAIL  "${name}" ${direction}: simplified line strays ${dev.toFixed(1)} m from the original`)
     }
-    stats.push({ name: `${name} · ${direction}`, before: coords.length, after: slim.length, dev })
+    // The overview is thinned from the original, not from the full line, and
+    // checked the same way against its own, looser bound.
+    const rough = simplify(coords, OVERVIEW_M, k).map(([x, y]) => [round5(x), round5(y)])
+    const roughDev = maxDeviation(coords, rough, k)
+    if (roughDev > OVERVIEW_MAX_DEVIATION_M) {
+      fail(`FAIL  "${name}" ${direction}: its overview strays ${roughDev.toFixed(1)} m from the original`)
+    }
+    stats.push({ name: `${name} · ${direction}`, before: coords.length, after: slim.length, overview: rough.length, dev })
     shape = { type: 'LineString', coordinates: slim }
+    overviews.set(v.id, { type: 'LineString', coordinates: rough })
   }
   // Key order is the file's contract; keep it fixed. A direction with no line
   // yet is published as it is — shape null — so a card can offer the flip and
@@ -329,12 +368,55 @@ const file = JSON.stringify({ schema: SCHEMA, published_at, license: LICENSE, at
 mkdirSync(dirname(OUT), { recursive: true })
 writeFileSync(OUT, file)
 
+// The index: the same rows with each line's overview in place of the line,
+// under its own key — the reader knows an overview when it sees one.
+const indexBody = {
+  variants: variants.map(({ shape, ...v }) => {
+    const { route, ...rest } = v
+    return { ...rest, overview: overviews.get(v.id) ?? null, route }
+  }),
+  stops,
+  links,
+}
+const indexFile =
+  JSON.stringify({ schema: INDEX_SCHEMA, published_at, license: LICENSE, attribution: ATTRIBUTION, ...indexBody }) + '\n'
+const previousIndex = existsSync(INDEX) ? readFileSync(INDEX, 'utf8') : null
+writeFileSync(INDEX, indexFile)
+
+// A line per drawn direction, written only when it changed, and the files of
+// directions gone removed, so an unchanged map touches nothing.
+mkdirSync(LINES, { recursive: true })
+const lineFiles = new Set()
+let linesWritten = 0
+for (const v of variants) {
+  if (!v.shape) continue
+  const path = join(LINES, `${v.id}.json`)
+  // No date in it: a line file changes only when its line does.
+  const text = JSON.stringify({ schema: INDEX_SCHEMA, id: v.id, shape: v.shape }) + '\n'
+  lineFiles.add(`${v.id}.json`)
+  if (existsSync(path) && readFileSync(path, 'utf8') === text) continue
+  writeFileSync(path, text)
+  linesWritten++
+}
+let linesRemoved = 0
+for (const f of readdirSync(LINES)) {
+  if (f.endsWith('.json') && !lineFiles.has(f)) {
+    rmSync(join(LINES, f))
+    linesRemoved++
+  }
+}
+
 // ------------------------------------------------------------------ report
 
-for (const s of stats) console.log(`  ${s.name}: ${s.before} → ${s.after} points, within ${s.dev.toFixed(1)} m`)
+for (const s of stats) console.log(`  ${s.name}: ${s.before} → ${s.after} points, within ${s.dev.toFixed(1)} m; overview ${s.overview}`)
 const gz = gzipSync(Buffer.from(file)).length
 console.log(
   // By the bytes, not the map content: new terms in an unchanged map are still a change to commit.
   `${previousText === file ? 'Unchanged' : 'Wrote'} public/data/map.json: ${variants.length} direction(s), ${stops.length} hotspot(s), ` +
     `${links.length} link(s); ${file.length} bytes, ${gz} gzipped; published_at ${published_at}`,
+)
+const indexGz = gzipSync(Buffer.from(indexFile)).length
+console.log(
+  `${previousIndex === indexFile ? 'Unchanged' : 'Wrote'} public/data/index.json: ${indexFile.length} bytes, ${indexGz} gzipped; ` +
+    `lines/: ${lineFiles.size} file(s), ${linesWritten} written, ${linesRemoved} removed`,
 )

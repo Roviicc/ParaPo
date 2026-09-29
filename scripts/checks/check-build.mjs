@@ -15,7 +15,8 @@
 //      .supabase.co              the database's address: visitors read the
 //                                published file and never call it
 //
-// 3. No Supabase client: since step 5 the public page reads /data/map.json, so
+// 3. No Supabase client: since step 5 the public page reads the published
+//    file (/data/index.json and the lines since 2026-09-29), so
 //    no module from @supabase may reach it — 54 kB gzipped a visitor does not
 //    download (the shared chunk went 375 → 321 kB), and a database the public
 //    never touches. The live-table readers live in src/studio/data/live.ts, which
@@ -240,8 +241,8 @@ if (existsSync(swPath)) {
     sw.includes('/^\\/(\\?.*)?$/') && sw.includes('/^\\/studio(\\/|$)/'),
   )
   check(
-    'sw.js caches /data/map.json NetworkFirst (stamping what it serves from the store) and OpenFreeMap tiles CacheFirst',
-    sw.includes('/data/map.json') && sw.includes('x-parapo-served-from') && sw.includes('tiles.openfreemap.org') && sw.includes('map-file') && sw.includes('basemap-tiles'),
+    'sw.js caches /data/index.json NetworkFirst (stamping what it serves from the store), the lines under /data/lines/, and OpenFreeMap tiles CacheFirst',
+    sw.includes('/data/index.json') && sw.includes('/data/lines/') && sw.includes('map-lines') && sw.includes('x-parapo-served-from') && sw.includes('tiles.openfreemap.org') && sw.includes('map-file') && sw.includes('basemap-tiles'),
   )
   // With `skipWaiting: false` Workbox calls skipWaiting() once, inside the
   // handler for the page's SKIP_WAITING message — never on its own.

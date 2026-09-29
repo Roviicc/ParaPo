@@ -6,10 +6,14 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/timeline-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import { SAME_HINTUAN_M, timelineFor, hintuansAlong, labelGroups, placeSummary } from '../../src/shared/model/stops.ts'
 import { variantLine, rideCut, routeTimeline, sharingAnEnd } from '../../src/shared/model/routes.ts'
 import { haversine, lineLength } from '../../src/shared/geo/geo.ts'
+import { fileURLToPath } from 'node:url'
+import { readPublished } from '../../scripts/checks/check-map-data.mjs'
+
+/** The committed map, every line in full: the index and its lines/ (check-map-data.mjs). */
+const published = () => readPublished(fileURLToPath(new URL('../../public/data/index.json', import.meta.url))).file
 
 let n = 0
 const box = (name, informal = null, kind = 'hintuan') => ({ id: `s${n++}`, kind, name, informal, aliases: [], point: { type: 'Point', coordinates: [0, 0] } })
@@ -48,7 +52,7 @@ test('what a place is made of: one hintuan, its boxes mini stops', () => {
 })
 
 test('the committed map: no direction lists the same hintuan twice in a row', () => {
-  const m = JSON.parse(readFileSync(new URL('../../public/data/map.json', import.meta.url), 'utf8'))
+  const m = published()
   for (const v of m.variants) {
     const rows = labels(hintuansAlong(variantLine(v), m.stops).map((a) => a.stop))
     rows.forEach((r, i) => assert.notEqual(r, rows[i - 1], `${v.direction_name}: ${r} twice`))
@@ -73,7 +77,7 @@ test('the same name far apart, or another kind: labels of their own', () => {
 test('the committed map: every box named by exactly one label, same-name boxes a road apart sharing it', () => {
   // By the rule, not by a named stop: the owner edits the live map between
   // publishes, and a test naming Bestlink broke the day he deleted it.
-  const m = JSON.parse(readFileSync(new URL('../../public/data/map.json', import.meta.url), 'utf8'))
+  const m = published()
   const groups = labelGroups(m.stops)
   const labelled = groups.flatMap((g) => g.ids)
   assert.equal(labelled.length, m.stops.length)
@@ -145,7 +149,7 @@ test('a place the line never passes: null', () => {
 // along than the one before it, and short of the whole ride — so a pill
 // never prices more than the Expected fare tile.
 test('the committed map: every trip-card row cuts, forward, short of the whole', () => {
-  const m = JSON.parse(readFileSync(new URL('../../public/data/map.json', import.meta.url), 'utf8'))
+  const m = published()
   let rows = 0
   for (const v of m.variants.filter((x) => x.shape?.coordinates?.length > 1)) {
     const along = m.links

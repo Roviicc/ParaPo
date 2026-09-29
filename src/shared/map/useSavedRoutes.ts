@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
-import { directionToOpen, isDrawn, variantLine, type VariantSummary } from '../model/routes'
+import { directionToOpen, isDrawn, variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes'
 import { ROUTES_HIT_LAYER, resolveTap, tapTargets } from './tap'
 import { MAP_COLOURS } from '../../design-system/foundation/mapColours'
 import { CASING_EXTRA, litWidth, roadWidth } from './lineStyle'
@@ -94,13 +94,36 @@ export function useLitLineColour(map: MapLibreMap | null, colour: string) {
  *
  * The editor also passes `drawing` and `hiddenVariantId`; the public map
  * passes neither, and both default to off.
+ *
+ * The public map also passes `loadLine`: its file carries each direction's
+ * overview (mapFile.ts), and a direction's full line is read when it is lit
+ * or chosen. From then on `variants` carries that line in its `shape` — so
+ * the orange stretches, the chevrons, the ride-cut and the babaan sides all
+ * work on the line itself — and the map draws it in place of the overview.
+ * The editor's rows are whole already and it passes none.
  */
 export function useSavedRoutes<T extends VariantSummary>(
   map: MapLibreMap | null,
   load: () => Promise<T[]>,
-  opts: { drawing?: boolean; hiddenVariantId?: string | null } = {},
+  opts: {
+    drawing?: boolean
+    hiddenVariantId?: string | null
+    loadLine?: (id: string) => Promise<LineStringGeoJSON | null>
+  } = {},
 ) {
-  const [variants, setVariants] = useState<T[]>([])
+  // The rows as loaded, and the full lines read since, by direction.
+  const [rows, setRows] = useState<T[]>([])
+  const [lines, setLines] = useState<ReadonlyMap<string, LineStringGeoJSON>>(() => new Map())
+  const variants = useMemo(
+    () =>
+      lines.size === 0
+        ? rows
+        : rows.map((v) => {
+            const line = lines.get(v.id)
+            return line ? { ...v, shape: line } : v
+          }),
+    [rows, lines],
+  )
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -162,6 +185,7 @@ export function useSavedRoutes<T extends VariantSummary>(
     setHighlight(null)
   }, [])
 
+  const requestedRef = useRef(new Set<string>())
   const drawingRef = useRef(opts.drawing ?? false)
   drawingRef.current = opts.drawing ?? false
   // A chooser left open when drawing starts would come back, stale, after it.
@@ -180,7 +204,10 @@ export function useSavedRoutes<T extends VariantSummary>(
   const reload = useCallback(async () => {
     setLoading(true)
     try {
-      setVariants(await load())
+      const next = await load()
+      setRows(next)
+      setLines(new Map())
+      requestedRef.current.clear()
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -292,13 +319,16 @@ export function useSavedRoutes<T extends VariantSummary>(
     map.fitBounds([[w, s], [e, n]], { padding: 100, maxZoom: 13, duration: 0 })
   }, [map, variants])
 
+  // The source is laid out from the rows as loaded — on the public map, the
+  // overviews — and a full line read later is patched into it alone
+  // (updateData), not the whole source laid out again.
   useEffect(() => {
     if (!map) return
     const src = map.getSource(SRC) as GeoJSONSource | undefined
     if (!src) return
     src.setData({
       type: 'FeatureCollection',
-      features: variants
+      features: rows
         .map((v) => ({ v, line: variantLine(v) }))
         .filter(({ line }) => line.length > 1)
         .map(({ v, line }) => ({
@@ -312,7 +342,14 @@ export function useSavedRoutes<T extends VariantSummary>(
           geometry: { type: 'LineString' as const, coordinates: line },
         })),
     })
-  }, [map, variants])
+  }, [map, rows])
+
+  useEffect(() => {
+    if (!map || lines.size === 0) return
+    const src = map.getSource(SRC) as GeoJSONSource | undefined
+    if (!src) return
+    void src.updateData({ update: [...lines].map(([id, line]) => ({ id, newGeometry: line })) })
+  }, [map, rows, lines])
 
   // The direction being edited is drawn by the editor; hide the saved copy.
   useEffect(() => {
@@ -343,6 +380,23 @@ export function useSavedRoutes<T extends VariantSummary>(
   )
   const lit = useMemo(() => litVariants.map((v) => v.id), [litVariants])
   useLighting(map, SRC, lit)
+
+  // What is lit, and the chosen direction, get their full lines.
+  const loadLine = opts.loadLine
+  useEffect(() => {
+    if (!loadLine) return
+    for (const id of selectedId ? [...lit, selectedId] : lit) {
+      if (requestedRef.current.has(id)) continue
+      requestedRef.current.add(id)
+      loadLine(id).then(
+        (line) => {
+          if (line) setLines((m) => new Map(m).set(id, line))
+        },
+        () => requestedRef.current.delete(id),
+      )
+    }
+  }, [loadLine, lit, selectedId])
+  const fullIds = useMemo(() => new Set(lines.keys()), [lines])
 
   // What a tap where directions overlap keeps to: what is lit — but with a
   // card picked, everything shown, so the taps of 2026-09-25 below keep to
@@ -428,6 +482,8 @@ export function useSavedRoutes<T extends VariantSummary>(
 
   return {
     variants,
+    /** The directions whose full line has been read (the public map); none on the editor, whose rows are whole. */
+    fullIds,
     error,
     loading,
     reload,

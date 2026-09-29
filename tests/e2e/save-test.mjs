@@ -6,7 +6,7 @@
 // The other suites run signed out, so until 2026-09-29 nothing in
 // routesWrite.ts or stopsWrite.ts ran under a check (docs/review-2026-09-29.md,
 // section 4). This one grew from the stand-in the review drove them with
-// (studio-standin.mjs): the tables are today's map.json plus 500 hintuans far
+// (studio-standin.mjs): the tables are today's published map plus 500 hintuans far
 // off the map, held in memory and answered the way PostgREST answers — the
 // filters the studio sends, its unique indexes (409, code 23505), its foreign
 // keys and cascades — and a stored session is faked so ✓ Done opens the save
@@ -42,7 +42,13 @@ const check = (name, ok, detail = '') => {
 }
 
 // ------------------------------------------------------------- the tables
-const m = JSON.parse(readFileSync(new URL('../../public/data/map.json', import.meta.url), 'utf8'))
+/** The published map with every line in full: the index, each line from lines/<id>.json beside it. */
+const readPublished = () => {
+  const at = (name) => JSON.parse(readFileSync(new URL(`../../public/data/${name}`, import.meta.url), 'utf8'))
+  const index = at('index.json')
+  return { ...index, variants: index.variants.map(({ overview, ...v }) => ({ ...v, shape: overview ? at(`lines/${v.id}.json`).shape : null })) }
+}
+const m = readPublished()
 const now = '2026-09-25T12:00:00+00:00'
 const OWNER = '11111111-1111-4111-8111-111111111111'
 const route = new Map()

@@ -367,8 +367,9 @@ for (const r of snapshot.routes) r.bbox = bboxOf(r.coords)
 console.log(`\n(${snapshot.routes.length} route directions, ${snapshot.polys.length} hotspots on the map today)\n`)
 
 // What the features do not carry — each direction's way round, its name and
-// its route's two end hotspots — from the published file the page reads.
-const published = await page.evaluate(() => fetch('/data/map.json').then((r) => r.json()).catch(() => null))
+// its route's two end hotspots — from the published index, through the page's
+// own reader (overviews as the lines: only whether one is drawn is asked).
+const published = await page.evaluate(() => import('/src/commuter/mapFile.ts').then((f) => f.loadMapFile()).catch(() => null))
 const fileDirections = published?.variants ?? []
 /**
  * What a trip on direction `id` lists behind its ‹ when it was opened on its
@@ -499,7 +500,10 @@ const tripChecks = async () => {
         import('/src/shared/geo/geo.ts'),
         import('/src/shared/model/routes.ts'),
       ])
-      const v = (await fetch('/data/map.json').then((r) => r.json())).variants.find((x) => x.id === id)
+      // The direction with its full line, as the page reads them (mapFile.ts).
+      const { loadMapFile, loadLine } = await import('/src/commuter/mapFile.ts')
+      const found = (await loadMapFile()).variants.find((x) => x.id === id)
+      const v = found && { ...found, shape: (await loadLine(id)) ?? found.shape }
       const metres = v && lineLength(variantLine(v))
       return v ? { km: kmLabel(metres), fare: rideFare(v.route?.mode, metres) ?? null } : null
     } catch {
@@ -567,8 +571,10 @@ const tripChecks = async () => {
     const pickWant = await page.evaluate(async ([id, rowId]) => {
       try {
         const [{ rideFare }, { rideCut }] = await Promise.all([import('/src/shared/model/fares.ts'), import('/src/shared/model/routes.ts')])
-        const m = await fetch('/data/map.json').then((r) => r.json())
-        const v = m.variants.find((x) => x.id === id)
+        const { loadMapFile, loadLine } = await import('/src/commuter/mapFile.ts')
+        const m = await loadMapFile()
+        const found = m.variants.find((x) => x.id === id)
+        const v = found && { ...found, shape: (await loadLine(id)) ?? found.shape }
         const cut = v && rideCut(v, m.stops, rowId)
         return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, at: cut.at, rest: cut.rest } : null
       } catch {
@@ -662,8 +668,10 @@ const tripChecks = async () => {
     const ends = await page.evaluate(async (id) => {
       try {
         const { travelLine } = await import('/src/shared/model/routes.ts')
-        const m = await fetch('/data/map.json').then((r) => r.json())
-        const line = travelLine(m.variants.find((x) => x.id === id), m.stops)
+        const { loadMapFile, loadLine } = await import('/src/commuter/mapFile.ts')
+        const m = await loadMapFile()
+        const found = m.variants.find((x) => x.id === id)
+        const line = travelLine({ ...found, shape: (await loadLine(id)) ?? found.shape }, m.stops)
         return line.length > 1 ? { from: line[0], to: line[line.length - 1] } : null
       } catch {
         return null

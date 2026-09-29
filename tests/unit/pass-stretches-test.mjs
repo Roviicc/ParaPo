@@ -12,11 +12,15 @@
 // pair the caller skips has no stretch.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import { PASS_WITHIN_M, passBounds, passStretches, stopRing } from '../../src/shared/model/stops.ts'
 import { bboxOf, bboxesOverlap, distanceToRingM, haversine } from '../../src/shared/geo/geo.ts'
+import { fileURLToPath } from 'node:url'
+import { readPublished } from '../../scripts/checks/check-map-data.mjs'
 
-const file = JSON.parse(readFileSync(new URL('../../public/data/map.json', import.meta.url), 'utf8'))
+/** The committed map, every line in full: the index and its lines/ (check-map-data.mjs). */
+const published = () => readPublished(fileURLToPath(new URL('../../public/data/index.json', import.meta.url))).file
+
+const file = published()
 const lines = file.variants.filter((v) => v.shape).map((v) => ({ id: v.id, line: v.shape.coordinates }))
 const rings = file.stops.filter((s) => s.area).map((s) => ({ id: s.id, ring: stopRing(s) }))
 

@@ -3280,3 +3280,23 @@ not. What both pages share is one chunk named `shared` (Rolldown's
 `useSavedStops-*.js`. `check-build.mjs` guards the weight: fonts under
 120 kB together (110.8 kB), the shared chunk under 400 kB gzipped
 (332.3 kB), the fonts in the precache.
+
+**Stage 7 — the public map's data shape, 2026-09-29.** Shape A of the
+review's section 8. The publish writes `data/index.json` (schema 2: routes,
+names, hotspots, links, and each direction's overview — thinned at 5 m, 5
+decimals, a quarter of the points) and `data/lines/<id>.json` (the full
+line, 0.3 m, 6 decimals, no date, so an unchanged line is an unchanged
+file), and still `data/map.json` (schema 1) for one release, so an app
+installed before still loads; a re-run on unchanged data writes nothing.
+The public map reads the index and draws the overviews; a lit or chosen
+direction's full line is read (`loadLine`), patched into the map's source
+alone, and is what the orange stretches, chevrons, ride-cut and babaan
+sides use — the stretches are now worked out only for lines read, not for
+every direction at load. The worker keeps every line seen (`map-lines`), so
+offline keeps what was ridden. `check-map-data` reads the index and its
+lines; the suites and the unit tests read them too; `scale-test` is
+budgeted at 5 s to the first line with 1,000 directions (30 before), and a
+tapped line's stretches within 5 s; `pwa-test` opens a trip and finds its
+line kept, and meets a map published for a newer app and its Reload. Drop
+`map.json`, its commit line in the workflow and this paragraph's promise a
+release after the index ships.
