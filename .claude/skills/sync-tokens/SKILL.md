@@ -59,8 +59,8 @@ already is the Figma value.
 - A **Map/…** semantic is also written into
   `src/design-system/foundation/mapColours.ts`, keyed by its Figma name, as
   the hex of the primitive it aliases: the map's paint (MapLibre) reads
-  neither var() nor Tailwind's oklch. `npm run test:map-colours` fails
-  until the two agree.
+  neither var() nor Tailwind's oklch. `npm run test:unit` fails until the
+  two agree (`tests/unit/map-colours-test.mjs`).
 
 ## 4. Prove and record
 

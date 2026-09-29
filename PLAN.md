@@ -3202,3 +3202,16 @@ pull requests, so a PR branch runs once, not twice. `package.json` gains
 `npm test`, `engines` (Node 22.12, Vite's floor), `@types/node` 22 to match
 the Node CI runs, and the TypeScript hook on the two unit files that lacked
 it.
+
+**Stage 2 — tests and tooling in their places, 2026-09-29.** `scripts/` is
+tools only: `checks/` (boundaries, the build guard, the data check),
+`publish/`, `node/` (the TypeScript hook), `research/`. The eleven unit
+files are `tests/unit/`, run by one `node --test "tests/unit/*-test.mjs"`
+instead of eleven chained npm scripts (90 tests, as before); the suites and
+their README are `tests/e2e/`. `timeline-test` reads the map beside itself,
+not from the working directory, and imports at the top; `hotspot-test`'s
+two checks that could not fail now look, and its always-true branch is an
+`else`. `scripts/uitest.mjs` and `scripts/realshot.mjs` (Windows Chrome
+only, run by nothing; their gestures live on in `regression-gestures`) are
+gone. Every path in the workflows, README, the `.claude` files and the
+comments that named the old places follows.

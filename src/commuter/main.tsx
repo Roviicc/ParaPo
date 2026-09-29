@@ -36,7 +36,7 @@ if (forwardTo) {
 } else {
   // No Supabase client here: visitors read the published map file
   // (src/shared/mapFile.ts) and never talk to the database. That keeps
-  // supabase-js out of this page's bundle, which scripts/check-build.mjs proves.
+  // supabase-js out of this page's bundle, which scripts/checks/check-build.mjs proves.
   registerServiceWorker()
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

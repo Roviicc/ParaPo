@@ -15,7 +15,7 @@
  *
  * The map's paint (MapLibre) reads neither var() nor Tailwind's oklch, so the
  * Map/… semantics are written once more, in hex, in mapColours.ts beside
- * this file; scripts/map-colours-test.mjs fails if the two ever part.
+ * this file; tests/unit/map-colours-test.mjs fails if the two ever part.
  */
 
 @theme {

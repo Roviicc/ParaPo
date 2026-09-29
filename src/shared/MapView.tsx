@@ -157,7 +157,7 @@ export function MapView({ onReady, zoomButtons = true }: Props) {
         isLoaded = true
         setLoaded(true)
         setError(null)
-        // Dev builds expose the map so scripts/uitest.mjs can read real
+        // Dev builds expose the map so the headless suites (tests/e2e/) can read real
         // screen positions from the drawn geometry instead of guessing.
         if (import.meta.env.DEV) (window as unknown as { __map?: MapLibreMap }).__map = map!
         setReady(map)

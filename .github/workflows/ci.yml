@@ -1,5 +1,5 @@
 # Checks every push and pull request: the production build with its guards,
-# then the headless suites from scripts/pw/ against the dev server.
+# then the headless suites from tests/e2e/ against the dev server.
 #
 # Two jobs, so a wobble in the drawing suites never hides a broken public map:
 #
@@ -15,7 +15,7 @@
 #             OSRM demo router (about one request a second, shared with the
 #             world) and reads the live tables. One suite at a time, and a
 #             suite that fails is run once more after a minute, as
-#             scripts/pw/README.md tells a person to do; a second failure is
+#             tests/e2e/README.md tells a person to do; a second failure is
 #             real.
 #
 # The dev server reads .env.local, which is gitignored; here it is a copy of
@@ -63,9 +63,7 @@ jobs:
       - name: Build, with the boundary and build checks
         run: npm run build
 
-      # Node's own test runner, no browser: the studio's paged table reader
-      # against a capped fake server, and the map file reader against every
-      # shape of file it can meet.
+      # Node's own test runner, no browser: every tests/unit/*-test.mjs.
       - name: The unit checks
         run: npm run test:unit
 
@@ -83,26 +81,26 @@ jobs:
           echo "The dev server did not answer in 60 s"; cat vite.log; exit 1
 
       - name: gate-test — the studio's sign-in door
-        run: node scripts/pw/gate-test.mjs
+        run: node tests/e2e/gate-test.mjs
 
       - name: visitor-test — the public map
-        run: node scripts/pw/visitor-test.mjs
+        run: node tests/e2e/visitor-test.mjs
 
       - name: phone-test — the public map at 390×844
-        run: node scripts/pw/phone-test.mjs
+        run: node tests/e2e/phone-test.mjs
 
       # "Where am I": the walking figure, driven by an emulated GPS.
       - name: where-test — the visitor's own position on the public map
-        run: node scripts/pw/where-test.mjs
+        run: node tests/e2e/where-test.mjs
 
       # 1,000 directions and 500 hotspots made from today's map, no tiles:
       # the first line must reach the screen within its budget.
       - name: scale-test — the public map with 1,000 directions
-        run: node scripts/pw/scale-test.mjs
+        run: node tests/e2e/scale-test.mjs
 
       # Starts and stops its own `vite preview` on :4173 from the build above.
       - name: pwa-test — the installable app, offline and updates
-        run: node scripts/pw/pwa-test.mjs
+        run: node tests/e2e/pwa-test.mjs
 
       - name: Keep the screenshots and the dev server log
         if: failure()
@@ -145,7 +143,7 @@ jobs:
       # 1,000 directions and 500 hotspots as the database keeps them, served
       # by a stand-in: what the editor asks for, and how soon it opens.
       - name: studio-scale-test — the editor with 1,000 directions
-        run: node scripts/pw/studio-scale-test.mjs
+        run: node tests/e2e/studio-scale-test.mjs
 
       # One at a time, and once more after a minute if the router was busy.
       - name: The drawing suites
@@ -154,13 +152,13 @@ jobs:
           status=0
           for suite in group-test regression-gestures hotspot-test snap-test extend-test; do
             echo "::group::$suite"
-            if node "scripts/pw/$suite.mjs"; then
+            if node "tests/e2e/$suite.mjs"; then
               echo "::endgroup::"
               continue
             fi
             echo "$suite failed; waiting a minute for the router, then once more"
             sleep 60
-            if node "scripts/pw/$suite.mjs"; then
+            if node "tests/e2e/$suite.mjs"; then
               echo "::endgroup::"
               continue
             fi
