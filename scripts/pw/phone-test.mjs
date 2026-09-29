@@ -174,6 +174,11 @@ const nodeFetch = async (p) => {
 }
 await nodeFetch(page)
 await page.addInitScript(() => {
+  // Pointer presses the page has seen: on some GitHub runs Chromium stopped
+  // making them from touches, and from the mouse, partway through the suite
+  // (2026-09-29; see tapHandle).
+  window.__pointerdowns = 0
+  document.addEventListener('pointerdown', () => window.__pointerdowns++, true)
   window.__src = async (id) => {
     const s = window.__map?.getSource(id)
     return s ? await s.getData() : null
@@ -1227,12 +1232,45 @@ if (snapshot.polys.length === 0) {
 // ------------------------------------- 4c. the sheet, on a hotspot's card
 // A route's card is the owner's trip card since 2026-09-29, with no sheet
 // to pull; a hotspot's card still is one, handle and all.
+/** Handle gestures the runner made no pointer events for, sent again by hand. */
+let handleByHand = 0
+const pointerdowns = () => page.evaluate(() => window.__pointerdowns)
+/**
+ * A gesture on the handle sent by hand, as pointer events: down at (x, y),
+ * a move to each of `ys`, up. The mouse's pointer, since a touch's id would
+ * have to be a finger on the glass for the handle to capture it.
+ */
+const handGesture = (x, y, ys) =>
+  page.evaluate(([x, y, ys]) => {
+    const el = document.elementFromPoint(x, y)
+    const at = (cy) => ({ clientX: x, clientY: cy, bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', isPrimary: true })
+    el.dispatchEvent(new PointerEvent('pointerdown', at(y)))
+    for (const cy of ys) el.dispatchEvent(new PointerEvent('pointermove', at(cy)))
+    el.dispatchEvent(new PointerEvent('pointerup', at(ys.at(-1) ?? y)))
+  }, [x, y, ys])
+/**
+ * A finger's tap on the handle; when the page saw no pointer press from it,
+ * the same tap as pointer events sent by hand. On some GitHub runs Chromium
+ * stopped making pointer events from touches, and from the mouse, partway
+ * through the suite: the page heard only touchstart and touchend, so the
+ * sheet, which listens for pointers, heard nothing (the Philcoa card's
+ * handle, 2026-09-29, pinned by the events sheetDiag lists). mapTap and
+ * buttonTap send a dropped tap's click by hand for the same reason. How many
+ * needed it is reported at the end.
+ */
 const tapHandle = async () => {
   if ((await handle().count()) === 0) return false
   const hb = await handle().first().boundingBox()
   if (!hb) return false
-  await page.touchscreen.tap(hb.x + hb.width / 2, hb.y + hb.height / 2)
+  const [x, y] = [hb.x + hb.width / 2, hb.y + hb.height / 2]
+  const seen = await pointerdowns()
+  await page.touchscreen.tap(x, y)
   await page.waitForTimeout(450)
+  if ((await pointerdowns()) === seen) {
+    handleByHand++
+    await handGesture(x, y, [])
+    await page.waitForTimeout(450)
+  }
   return true
 }
 /** Drag the handle by dy CSS px. Touch first (CDP), mouse as a fallback. */
@@ -1244,6 +1282,7 @@ const dragHandle = async (dy) => {
   const x = hb.x + hb.width / 2
   const y = hb.y + hb.height / 2
   const steps = 8
+  const seen = await pointerdowns()
   try {
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
     for (let i = 1; i <= steps; i++) {
@@ -1268,28 +1307,16 @@ const dragHandle = async (dy) => {
   }
   await page.mouse.up()
   await page.waitForTimeout(450)
+  // Neither made a pointer event: the runner's, as with tapHandle.
+  if ((await pointerdowns()) === seen) {
+    handleByHand++
+    await handGesture(x, y, Array.from({ length: steps }, (_, i) => y + (dy * (i + 1)) / steps))
+    await page.waitForTimeout(450)
+    return { ok: true, how: 'by hand (the runner made no pointer events from the touch or the mouse)' }
+  }
   return { ok: true, how: 'mouse (the sheet did not answer a synthetic touch drag)' }
 }
 
-/**
- * The map drawn and still: a card's lit routes flow their chevrons for three
- * seconds, then rest. Once today's map gave the Philcoa card routes to light
- * (2026-09-29), a GitHub runner, drawing them flow without a graphics card,
- * answered no touch on its handle in those seconds, nor the mouse drags sent
- * after them; the same card's mouse drags passed later, and the runner drops
- * touches on a busy page elsewhere too (mapTap). The sheet is judged at rest;
- * a slow click, which a real phone may send, 4d checks.
- */
-const mapAtRest = () =>
-  page.evaluate(
-    () =>
-      new Promise((r) => {
-        const m = window.__map
-        m.once('idle', r)
-        m.triggerRepaint()
-        setTimeout(r, 10000)
-      }),
-  )
 /** Open that hotspot's card again, with the tap 15 px outside its ring that 4b checks. */
 const openSheet = async () => {
   const { vertex, centre } = hotspot
@@ -1302,7 +1329,6 @@ const openSheet = async () => {
   const box = await canvasBox()
   await mapTap(box.x + anchor[0] + (dx / len) * 15, box.y + anchor[1] + (dy / len) * 15)
   await page.waitForTimeout(600)
-  await mapAtRest()
 }
 /** Each gesture below is judged on its own, so put the sheet back if one broke it. */
 const restore = async (want) => {
@@ -1432,7 +1458,6 @@ if (!withRoutes) {
     await buttonTap(chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: withRoutes.name }), async () => (await chooser.count()) === 0)
   }
   const atPeek = (await cardText()).includes(withRoutes.name) && (await sheetState()) === 'peek'
-  await mapAtRest()
   await tapHandle()
   check(
     `a tap on the handle of "${withRoutes.name}"'s card, with routes, pulls it up, opening none`,
@@ -1651,6 +1676,7 @@ if (!routeA) {
 
 // --------------------------------------------------------- 7. housekeeping
 if (tapsByHand) console.log(`\n(${tapsByHand} tap(s) needed the click sent by hand: the runner dropped the touch${lateClicks ? `; ${lateClicks} of those got the touch's own click afterwards too` : ''})\n`)
+if (handleByHand) console.log(`\n(${handleByHand} gesture(s) on the sheet handle sent by hand as pointer events: the runner made none from the touch)\n`)
 check('no request to router.project-osrm.org', !osrmHit)
 check('no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
 
