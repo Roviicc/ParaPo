@@ -1,4 +1,4 @@
-// The public map's file reader (src/shared/mapFile.ts) against files of
+// The public map's file reader (src/commuter/mapFile.ts) against files of
 // every shape it can meet, served by a fake fetch.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/map-file-test.mjs
@@ -13,7 +13,7 @@ import assert from 'node:assert/strict'
 
 let n = 0
 /** A fresh copy of the module, since it caches the first successful load. */
-const fresh = () => import(`../../src/shared/mapFile.ts?case=${n++}`)
+const fresh = () => import(`../../src/commuter/mapFile.ts?case=${n++}`)
 
 const base = { published_at: '2026-09-25T11:33:22Z', variants: [], stops: [], links: [] }
 

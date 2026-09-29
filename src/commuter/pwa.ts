@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { registerSW } from 'virtual:pwa-register'
-import { MAP_FILE_URL } from '../shared/mapFile'
-import { STYLE_URL } from '../shared/MapView'
+import { MAP_FILE_URL } from './mapFile'
+import { STYLE_URL } from '../shared/map/MapView'
 
 /**
  * The service worker, registered from the public page only. The studio never

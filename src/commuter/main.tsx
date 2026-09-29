@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import '../shared/index.css'
+import '../shared/styles/index.css'
 import CommuterApp from './CommuterApp.tsx'
 import { registerServiceWorker } from './pwa'
 
@@ -35,7 +35,7 @@ if (forwardTo) {
   window.location.replace(forwardTo)
 } else {
   // No Supabase client here: visitors read the published map file
-  // (src/shared/mapFile.ts) and never talk to the database. That keeps
+  // (src/commuter/mapFile.ts) and never talk to the database. That keeps
   // supabase-js out of this page's bundle, which scripts/checks/check-build.mjs proves.
   registerServiceWorker()
   createRoot(document.getElementById('root')!).render(

@@ -1,11 +1,11 @@
-// The route cards' colours (src/shared/liveries.ts): at random, kept for the
+// The route cards' colours (src/shared/model/liveries.ts): at random, kept for the
 // visit, and never the same twice side by side — the owner's rule of
 // 2026-09-28.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/liveries-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { LIVERIES, liveriesFor } from '../../src/shared/liveries.ts'
+import { LIVERIES, liveriesFor } from '../../src/shared/model/liveries.ts'
 
 /** A stand-in for Math.random that plays back the given draws, then repeats the last. */
 const draws = (...xs) => { let i = 0; return () => xs[Math.min(i++, xs.length - 1)] }

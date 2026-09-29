@@ -1,4 +1,4 @@
-// A direction's timeline (src/shared/stops.ts, timelineFor): a row is a
+// A direction's timeline (src/shared/model/stops.ts, timelineFor): a row is a
 // hintuan, named by its stop name. The boxes of one place passed one after
 // another are its mini stops and make one row — the owner's model of
 // 2026-09-28.
@@ -7,9 +7,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { SAME_HINTUAN_M, timelineFor, hintuansAlong, labelGroups, placeSummary } from '../../src/shared/stops.ts'
-import { variantLine, rideCut, routeTimeline, sharingAnEnd } from '../../src/shared/routes.ts'
-import { haversine, lineLength } from '../../src/shared/geo.ts'
+import { SAME_HINTUAN_M, timelineFor, hintuansAlong, labelGroups, placeSummary } from '../../src/shared/model/stops.ts'
+import { variantLine, rideCut, routeTimeline, sharingAnEnd } from '../../src/shared/model/routes.ts'
+import { haversine, lineLength } from '../../src/shared/geo/geo.ts'
 
 let n = 0
 const box = (name, informal = null, kind = 'hintuan') => ({ id: `s${n++}`, kind, name, informal, aliases: [], point: { type: 'Point', coordinates: [0, 0] } })
@@ -88,7 +88,7 @@ test('the committed map: every box named by exactly one label, same-name boxes a
     }
 })
 
-// The ride-to preview's cut (src/shared/routes.ts, rideCut).
+// The ride-to preview's cut (src/shared/model/routes.ts, rideCut).
 const pt = (lng, lat = 0) => ({ type: 'Point', coordinates: [lng, lat] })
 const ringAt = (lng, r = 0.0002) => ({ type: 'Polygon', coordinates: [[[lng - r, -r], [lng + r, -r], [lng + r, r], [lng - r, r], [lng - r, -r]]] })
 const mini = (id, lng, name = 'Amparo') => ({ id, kind: 'hintuan', name, informal: null, aliases: [], point: pt(lng), area: ringAt(lng) })
@@ -167,7 +167,7 @@ test('the committed map: every trip-card row cuts, forward, short of the whole',
   assert.ok(rows > 0, 'no rows on the committed map')
 })
 
-// The routes a trip's ‹ lists when it was opened on its own (src/shared/routes.ts, sharingAnEnd).
+// The routes a trip's ‹ lists when it was opened on its own (src/shared/model/routes.ts, sharingAnEnd).
 /** A route's two directions, head to tail and back: sample data, shaped like the published file. */
 const both = (id, head, tail) =>
   [false, true].map((reversed) => ({ id: id + (reversed ? '-back' : ''), route_id: id, reversed, route: { head_stop_id: head, tail_stop_id: tail } }))

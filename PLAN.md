@@ -3215,3 +3215,17 @@ two checks that could not fail now look, and its always-true branch is an
 only, run by nothing; their gestures live on in `regression-gestures`) are
 gone. Every path in the workflows, README, the `.claude` files and the
 comments that named the old places follows.
+
+**Stage 3 — the source tree, 2026-09-29.** Folders inside `shared/` and
+`studio/`, one level, nothing renamed: `shared/{model,geo,map,cards,styles}`
+and `studio/{auth,data,drawing,panels}`, `StudioApp.tsx` and `main.tsx`
+staying at the studio's root; `commuter/` stays flat. `supabase.ts` moved to
+`studio/data/` (its ten importers were all studio files, and there the
+boundary check refuses it to the public map at the source), `mapFile.ts` to
+`commuter/` (the published-file reader is the public map's, ADR 0001). The
+walker's CSS is `commuter/walker.css`, imported by `Walker.tsx`; the
+get-off circles' is `shared/map/rideTo.css`, imported by `rideTo.ts` — out
+of the one stylesheet, so a page's own look stops being global. Pure moves
+and import paths; the boundary guard needed no change (it reads the area).
+The ds-reviewer's import rule now states what the guard enforces, the
+design system included (finding 11).

@@ -84,9 +84,10 @@ with warnings, and closed by the first run with nothing to report.
 
 | | |
 | --- | --- |
-| `src/commuter/` | the public map's shell and its service worker |
-| `src/studio/` | the editor: sign-in, drawing, snapping, saving, the panels |
-| `src/shared/` | what both draw: the map, the routes and hotspots hooks, the cards, the geometry |
+| `src/commuter/` | the public map: its shell, the published-file reader (`mapFile.ts`), "Where am I" and the service worker |
+| `src/studio/` | the editor: `StudioApp.tsx`, then `auth/` (sign-in, passwords, the session), `data/` (the Supabase client, reads and writes), `drawing/` (drawing, snapping, borrowing), `panels/` (save, hotspot, the card's actions) |
+| `src/shared/` | what both draw: `model/` (routes, stops, fares, liveries — no React, no MapLibre), `geo/` (geometry), `map/` (the map and what is painted on it, the routes and hotspots hooks), `cards/` (the cards, sheets and timelines, with their stories), `styles/` (the one stylesheet) |
+| `src/design-system/` | the tokens, fonts and primitives (foundation ← primitives) |
 | `public/data/map.json` | the published map, every version kept in history |
 | `supabase/migrations/` | the schema and its policies, in order |
 | `scripts/` | tools: the build guards and the data check (`checks/`), the publish (`publish/`), Node's TypeScript hook (`node/`), the research screenshots (`research/`) |

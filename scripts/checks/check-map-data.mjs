@@ -12,15 +12,15 @@
 // and the map is published as it is, with the warnings on the run's summary
 // page and in the issue the workflow keeps (.github/workflows/publish-map.yml).
 //
-// The rules are the app's own (src/shared/stops.ts and geo.ts): a direction
+// The rules are the app's own (src/shared/model/stops.ts and geo.ts): a direction
 // passes a hotspot when its line comes within PASS_WITHIN_M of the box,
 // which is what the studio links on save and what the public map paints
 // orange. Judged here on the published line, which lies within half a metre
 // of the drawn one, so a pass is only doubted beyond that half metre.
 import { readFileSync, appendFileSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import { PASS_WITHIN_M, passBounds, stopLabel, stopRing } from '../../src/shared/stops.ts'
-import { bboxOf, bboxesOverlap, distanceToRingM, firstNearIndex, haversine } from '../../src/shared/geo.ts'
+import { PASS_WITHIN_M, passBounds, stopLabel, stopRing } from '../../src/shared/model/stops.ts'
+import { bboxOf, bboxesOverlap, distanceToRingM, firstNearIndex, haversine } from '../../src/shared/geo/geo.ts'
 
 /** How far a line's first or last point may sit from the hotspot it leaves from or arrives at. */
 export const END_WITHIN_M = 50

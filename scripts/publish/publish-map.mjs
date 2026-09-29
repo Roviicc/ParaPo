@@ -65,7 +65,7 @@ const PAGE = 1000
 const TIMEOUT_MS = 30_000
 
 /** The data's licence, written into the file itself. See README.md, "Data and licence". */
-/** The file's shape; must equal MAP_FILE_SCHEMA in src/shared/mapFile.ts, which has the rules for changing it. */
+/** The file's shape; must equal MAP_FILE_SCHEMA in src/commuter/mapFile.ts, which has the rules for changing it. */
 const SCHEMA = 1
 const LICENSE = 'ODbL-1.0'
 const ATTRIBUTION =
@@ -213,10 +213,10 @@ const [variantRows, stopRows, linkRows] = await Promise.all([
 // Names are generated from the hotspots at each route's ends and never stored
 // (PLAN.md, "Naming and creating a route", 2026-09-21). The file carries the
 // generated strings so visitors need no join; a renamed hotspot shows on the
-// next publish. Mirrors routeName / directionName in src/shared/routes.ts.
+// next publish. Mirrors routeName / directionName in src/shared/model/routes.ts.
 const DASH = '–'
 // A hotspot's informal name — what people say — is what a route name reads;
-// the name on the ground is the fallback. Mirrors stopLabel in src/shared/stops.ts (0007).
+// the name on the ground is the fallback. Mirrors stopLabel in src/shared/model/stops.ts (0007).
 const stopLabel = (s) => (s.informal && s.informal.trim()) || s.name
 const stopName = new Map(stopRows.map((s) => [s.id, stopLabel(s)]))
 const routeName = (head, tail, via) =>
@@ -323,7 +323,7 @@ const published_at = same ? previous.published_at : new Date().toISOString().rep
 
 // The terms travel inside the file, so no copy can arrive without them. The
 // shape number first: an installed app reads whatever this path serves, and
-// checks the number against the one it knows (src/shared/mapFile.ts has the
+// checks the number against the one it knows (src/commuter/mapFile.ts has the
 // rules for changing it — a new shape goes to a new path).
 const file = JSON.stringify({ schema: SCHEMA, published_at, license: LICENSE, attribution: ATTRIBUTION, ...body }) + '\n'
 mkdirSync(dirname(OUT), { recursive: true })

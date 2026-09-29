@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
 import type { Facing, Fix, Pose } from './useWhereAmI'
+import './walker.css'
 
 type Props = {
   map: MapLibreMap
@@ -20,7 +21,7 @@ function metresPerPixel(lat: number, zoom: number): number {
  * not a map layer: the walk cycle and the flight's bob are CSS animations
  * on a 60-pixel element, which cost the map nothing — an animated layer
  * keeps MapLibre repainting the whole map (the chevrons did, 2026-09-25).
- * `prefers-reduced-motion` stills both, in index.css.
+ * `prefers-reduced-motion` stills both, in walker.css.
  *
  * The halo matters: GPS in Metro Manila is often 20–50 m out, and the
  * figure alone would claim a certainty the phone does not have.

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
-import { haversine, type LngLat } from '../shared/geo'
+import { haversine, type LngLat } from '../shared/geo/geo'
 
 /**
  * "Where am I": the visitor's own position on the map, shown as a small
