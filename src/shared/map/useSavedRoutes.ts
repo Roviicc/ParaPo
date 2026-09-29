@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { directionToOpen, isDrawn, variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes'
 import { ROUTES_HIT_LAYER, resolveTap, tapTargets } from './tap'
+import { LAYERS } from './layers'
 import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { CASING_EXTRA, litWidth, roadWidth } from './lineStyle'
 import type { Livery } from '../model/liveries'
 
 const SRC = 'saved-routes'
-const CASING = 'saved-routes-casing'
+const CASING = LAYERS.routesCasing
 const LINE = 'saved-routes-line'
 /**
  * From this zoom a pixel is a couple of metres, and an overview's corners

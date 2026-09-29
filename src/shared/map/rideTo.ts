@@ -4,6 +4,7 @@ import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColour
 import { haversine } from '../geo/geo'
 import { CASING_EXTRA, litWidth } from './lineStyle'
 import { APP_MOVE } from './MapView'
+import { LAYERS } from './layers'
 import { rideCut, travelLine, type VariantSummary } from '../model/routes'
 import type { StopSummary } from '../model/stops'
 import './rideTo.css'
@@ -121,7 +122,7 @@ export function useRideTo(
     if (!map.getSource(SRC)) {
       if (!cut) return
       map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-      const before = ['direction-end-circles', 'saved-stops-label-hintuan'].find((id) => map.getLayer(id))
+      const before = [LAYERS.endCircles, LAYERS.stopsHintuanLabel].find((id) => map.getLayer(id))
       map.addLayer(
         {
           id: REST_CASING,

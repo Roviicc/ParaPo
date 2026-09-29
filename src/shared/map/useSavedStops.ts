@@ -6,12 +6,13 @@ import { APP_MOVE } from './MapView'
 import { convexHull, ringToPolygon } from '../geo/geo'
 import { labelGroups, siblingsOf, stopRing, type StopKind, type StopLink, type StopSummary } from '../model/stops'
 import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, resolveTap, tapTargets } from './tap'
+import { LAYERS } from './layers'
 
 const SRC = 'saved-stops'
 const FILL = STOPS_FILL_LAYER
 const OUTLINE = 'saved-stops-outline'
 const LABEL = 'saved-stops-label'
-const HINTUAN_LABEL = 'saved-stops-label-hintuan'
+const HINTUAN_LABEL = LAYERS.stopsHintuanLabel
 /**
  * Hotspot names show only close in. Further out a name, centred on the road
  * it stands on, sat over the orange stretch it marks. The owner's asks of
@@ -53,8 +54,8 @@ const WASH_EDGE = 'place-wash-edge'
  * Hotspots sit under the route lines; a route drawn right under the tapped
  * pixel still wins the click, and one merely near it shares a chooser.
  */
-const ROUTES_ABOVE = 'saved-routes-casing'
-const DRAW_ABOVE = 'draw-line-casing'
+const ROUTES_ABOVE = LAYERS.routesCasing
+const DRAW_ABOVE = LAYERS.drawCasing
 const ROUTES_HIT = ROUTES_HIT_LAYER
 
 /**

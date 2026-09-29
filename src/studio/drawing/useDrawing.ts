@@ -13,6 +13,7 @@ import { findUTurns, snapSegments, straightSegment } from './snap'
 import { variantLine, type VariantDrawing } from '../../shared/model/routes'
 import { cutAt, nearestSpot, reverseDrawing, type BorrowPart, type LineSpot } from './borrow'
 import { ROUTES_HIT_LAYER } from '../../shared/map/tap'
+import { LAYERS } from '../../shared/map/layers'
 
 const EMPTY = { type: 'FeatureCollection', features: [] } as const
 
@@ -628,7 +629,7 @@ export function useDrawing(
       },
     })
     map.addLayer({
-      id: 'draw-line-casing',
+      id: LAYERS.drawCasing,
       type: 'line',
       source: LINE_SRC,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
@@ -637,7 +638,7 @@ export function useDrawing(
     // Routed and freehand are separate layers because line-dasharray cannot be
     // driven by a feature property.
     map.addLayer({
-      id: 'draw-line-snapped',
+      id: LAYERS.drawSnapped,
       type: 'line',
       source: LINE_SRC,
       filter: ['==', ['get', 'snap'], 'snapped'],
@@ -645,7 +646,7 @@ export function useDrawing(
       paint: { 'line-color': ROUTE_COLOUR, 'line-width': 4 },
     })
     map.addLayer({
-      id: 'draw-line-freehand',
+      id: LAYERS.drawFreehand,
       type: 'line',
       source: LINE_SRC,
       filter: ['==', ['get', 'snap'], 'freehand'],
@@ -1019,9 +1020,9 @@ export function useDrawing(
   useEffect(() => {
     if (!map || !map.getLayer(AREA_FILL_LAYER)) return
     const colour = area ? HOTSPOT_COLOUR[area.kind] : ROUTE_COLOUR
-    map.setPaintProperty('draw-line-snapped', 'line-color', colour)
-    map.setPaintProperty('draw-line-freehand', 'line-color', colour)
-    map.setPaintProperty('draw-line-freehand', 'line-dasharray', area ? [1, 0] : [2, 1.5])
+    map.setPaintProperty(LAYERS.drawSnapped, 'line-color', colour)
+    map.setPaintProperty(LAYERS.drawFreehand, 'line-color', colour)
+    map.setPaintProperty(LAYERS.drawFreehand, 'line-dasharray', area ? [1, 0] : [2, 1.5])
     map.setPaintProperty(POINT_LAYER, 'circle-stroke-color', colour)
     map.setPaintProperty(AREA_FILL_LAYER, 'fill-color', colour)
   }, [map, area])
