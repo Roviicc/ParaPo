@@ -153,9 +153,10 @@ Chromium; the suites themselves are not changed for that.
 - Migration `0009_overview.sql`: `route_variant.overview jsonb`; the save
   writes it; a script backfills existing rows; the list selects it instead
   of `shape`; `withDrawing` unchanged. `studio-scale-test` budgets tightened.
-- Applied to the live project only with the owner's explicit yes (a
-  nullable column, additive, reversible). Until then the stage waits and the
-  others proceed.
+- Applied to the live project only with the owner's explicit yes — given
+  2026-09-29 ("Yes, apply it"): a nullable column, additive, reversible.
+  The session applying it needs the Supabase connector (or the CLI) for the
+  live project.
 
 ### Stage 9 — The design system, scalable and lossless (section 6.5, the UI pass)
 - Every hex or Tailwind palette value in visitor-facing UI that has a token
@@ -206,7 +207,7 @@ third. Every stage is a stopping point.
 ## What needs the owner's yes, once, before the first push
 
 1. Branches `cleanup/*` and PRs into `staging`, merged by me when green.
-2. Stage 8's migration on the live project — yes now, or "ask me then".
+2. Stage 8's migration on the live project — given: yes, 2026-09-29.
 3. Optional: the three hosts allowed in this environment's network settings,
    so the drawing suites can run here before each push.
 
