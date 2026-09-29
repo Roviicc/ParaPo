@@ -64,8 +64,8 @@ export function BasemapControl({ map, initial, under }: Props) {
         aria-label="Map design"
         aria-expanded={open}
         title={`Map design: ${current.label}`}
+        aria-haspopup="menu"
         data-testid="basemap"
-        className="bg-surface text-content-secondary hover:bg-surface-secondary"
       >
         {/* Three stacked sheets: the usual sign for "layers". */}
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
@@ -81,7 +81,7 @@ export function BasemapControl({ map, initial, under }: Props) {
           className="min-w-28 overflow-hidden rounded-lg bg-surface py-1 text-sm text-content-secondary shadow-lg ring-1 ring-black/10"
         >
           {BASEMAPS.map((b) => (
-            <li key={b.id}>
+            <li key={b.id} role="none">
               <button
                 type="button"
                 role="menuitemradio"

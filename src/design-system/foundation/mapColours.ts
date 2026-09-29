@@ -29,10 +29,13 @@ export const CARD_COLOURS = {
 /**
  * Everything else the map paints — the public map's and the editor's — in
  * the value it has always had: colours no Figma variable names yet. One file
- * for every colour on the map, so tests/unit/map-colours-test.mjs can fail on
- * a colour written anywhere else in the map's code (stage 9 of the clean-up,
- * 2026-09-29). Each is the owner's to name in Figma; until then the key says
- * what it paints, and moving one to a Map/… token is changing only this file.
+ * for every colour the map's painters paint, so
+ * tests/unit/map-colours-test.mjs can fail on a colour written in any other
+ * of their .ts files (stage 9 of the clean-up, 2026-09-29). The map's two
+ * stylesheets (rideTo.css, walker.css) are not read by it; their few raw
+ * colours wait on the owner's list. Each is the owner's to name
+ * in Figma; until then the key says what it paints, and moving one to a
+ * Map/… token is changing only this file.
  */
 export const MAP_PAINT = {
   'Paint/casing': '#ffffff', // white: the rim under every line, circles' fill, text halos

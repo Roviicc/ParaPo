@@ -53,13 +53,7 @@ export function WhereAmIButton({ where, coarse }: Props) {
         title={label}
         data-testid="where"
         data-state={state}
-        className={
-          on && follow
-            ? 'bg-blue-600 text-content-inverse hover:bg-blue-700'
-            : on
-              ? 'bg-surface text-blue-600 hover:bg-blue-50'
-              : 'bg-surface text-content-secondary hover:bg-surface-secondary'
-        }
+        look={on && follow ? 'filled' : on ? 'on' : 'plain'}
       >
         {/* A compass needle: the usual sign for "my location". */}
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">

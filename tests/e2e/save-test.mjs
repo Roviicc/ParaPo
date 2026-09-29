@@ -297,7 +297,7 @@ const idle = () => page.waitForFunction(() => !document.body.innerText.includes(
 const pointsShown = async () => Number((await body()).match(/(\d+) points?\b/)?.[1] ?? 0)
 const done = async () => { await idle(); await page.getByRole('button', { name: /Done/ }).click(); await page.waitForTimeout(600) }
 const saveButton = () => page.getByRole('button', { name: /^(Save|Update)$/ })
-const toast = () => page.locator('div.bottom-24').filter({ hasText: /^Saved/ })
+const toast = () => page.getByTestId('toast').filter({ hasText: /^Saved/ })
 const returnTrip = () => page.getByRole('button', { name: 'Draw the return trip' })
 const dismissToasts = async () => {
   for (const d of await page.getByRole('button', { name: 'Dismiss' }).all()) await d.click().catch(() => {})

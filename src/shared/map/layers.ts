@@ -4,7 +4,7 @@ import type { MapLibreMap } from 'maplibre-gl'
 /**
  * The layer ids one file paints and another places its own layers against.
  * The map's layer order is a contract between hooks — the orange stretches
- * go under the routes' hit area, the babaan sides and the hotspots over the
+ * go under the routes' hit area, the babaan sides and the hotspots under the
  * routes' casing, the ride-to preview under the ends' circles — and these
  * names are its terms; the headless suites read the same strings, so they
  * never change. A layer only its own file uses stays named there.
