@@ -214,19 +214,45 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
 /**
  * Delete one direction. Emptying a direction leaves its slot: a route always
  * has two. The route itself goes only when both of its directions are gone.
+ *
+ * The row is emptied, not deleted — deleting it left a route with one row, no
+ * slot to redraw into and a card that could not flip, and `+ New Route` with
+ * the same ends was then refused as "already drawn" (review finding 3). What
+ * deleting the row did on its own is done by hand: its hotspot links go (the
+ * cascade), and a line extended from it forgets its parent (`on delete set
+ * null`, 0008) and keeps its own copy.
+ *
+ * Every step reads its error (finding 16): a refused clean-up is said, not
+ * left as a route nobody can reach.
  */
 export async function deleteVariant(variant: VariantRow): Promise<void> {
   const client = requireSupabase()
-  const { error } = await client.from('route_variant').delete().eq('id', variant.id)
-  if (error) throw new Error(error.message)
+  const emptied = await client
+    .from('route_variant')
+    .update({
+      control_points: [] as LngLat[],
+      segments: [] as Segment[],
+      shape: null,
+      borrowed_from: null,
+      borrowed_part: null,
+      borrowed_m: null,
+    })
+    .eq('id', variant.id)
+  if (emptied.error) throw new Error(emptied.error.message)
+  const unlinked = await client.from('route_stop').delete().eq('route_variant_id', variant.id)
+  if (unlinked.error) throw new Error(unlinked.error.message)
+  const orphaned = await client.from('route_variant').update({ borrowed_from: null }).eq('borrowed_from', variant.id)
+  if (orphaned.error) throw new Error(orphaned.error.message)
 
-  const { count } = await client
+  const { count, error: countError } = await client
     .from('route_variant')
     .select('id', { count: 'exact', head: true })
     .eq('route_id', variant.route_id)
     .not('shape', 'is', null)
+  if (countError) throw new Error(countError.message)
   if (count === 0) {
-    await client.from('route_variant').delete().eq('route_id', variant.route_id)
-    await client.from('route').delete().eq('id', variant.route_id)
+    // Both ways empty: the route goes, its two slots with it (cascade).
+    const gone = await client.from('route').delete().eq('id', variant.route_id)
+    if (gone.error) throw new Error(gone.error.message)
   }
 }
