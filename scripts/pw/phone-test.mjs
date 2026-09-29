@@ -637,10 +637,9 @@ const tripChecks = async () => {
     )
     // The ends are buttons too (the owner's asks, 2026-09-29): with a
     // hintuan picked, a tap on where the trip goes, then on where it leaves
-    // from, lets it go — the whole ride dark again, the trip still lit — and
-    // glides the map to that end of the line, above the card. Where it goes
-    // is picked by the tap, its dot green; picking the hintuan again, or the
-    // origin, lets it go.
+    // from, picks that end in its place, its dot green — the whole ride
+    // dark again, the trip still lit — and glides the map to that end of the
+    // line, above the card. Picking the hintuan again lets the end go.
     const ends = await page.evaluate(async (id) => {
       try {
         const { travelLine } = await import('/src/shared/routes.ts')
@@ -665,6 +664,7 @@ const tripChecks = async () => {
       await page.waitForTimeout(200)
       await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
       const destination = await card().locator('[data-testid="trip-destination"]').first().getAttribute('data-state')
+      const origin = await card().locator('[data-testid="trip-origin"]').first().getAttribute('data-state')
       const after = await page.evaluate(async (at) => {
         const m = window.__map
         const c = m.getCanvas().getBoundingClientRect()
@@ -678,12 +678,11 @@ const tripChecks = async () => {
         }
       }, ends?.[end] ?? null)
       check(
-        end === 'to'
-          ? '  where the trip goes, tapped, is picked in the hintuan\'s place, the whole ride dark, the map gliding there above the card'
-          : '  where it leaves from, tapped, lets the pick go and glides there, above the card',
-        wasPicked && destinationBefore === 'rest' && !(await isPicked()) && destination === (end === 'to' ? 'selected' : 'rest') &&
+        `  ${end === 'to' ? 'where the trip goes' : 'where it leaves from'}, tapped, is picked in the hintuan's place, the whole ride dark, the map gliding there above the card`,
+        wasPicked && destinationBefore === 'rest' && !(await isPicked()) &&
+          destination === (end === 'to' ? 'selected' : 'rest') && origin === (end === 'from' ? 'selected' : 'rest') &&
           after.rest === 0 && after.lit.length === 1 && after.lit[0] === tripId && after.above !== false && after.padding,
-        `picked first ${wasPicked}; the destination ${destinationBefore} → ${destination}; ${after.rest} at rest, ${after.lit.length} lit; in the map above the card ${after.above ?? 'not measured'}`,
+        `picked first ${wasPicked}; the destination ${destinationBefore} → ${destination}, the origin ${origin}; ${after.rest} at rest, ${after.lit.length} lit; in the map above the card ${after.above ?? 'not measured'}`,
       )
     }
     // Picked again, for SWITCH — or ✕ and ‹ — to let go.

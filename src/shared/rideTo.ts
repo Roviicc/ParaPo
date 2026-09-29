@@ -52,13 +52,13 @@ export function useRideTo(
   const [picked, setPicked] = useState<{ variantId: string; rowId: string; endId: string | null } | null>(null)
   const live = picked && picked.variantId === selected?.id ? picked : null
 
-  // Where the trip goes, picked from its row: the ride to the end, so the
-  // line stays whole, its dot green like a picked hintuan's (the owner's
-  // ask, 2026-09-29, "tapping Novaliches should indicate green circle
-  // too"). One pick at a time with the hintuans; kept by direction, as a
-  // pick is.
-  const [atEnd, setAtEnd] = useState<string | null>(null)
-  const endPicked = !!selected && atEnd === selected.id
+  // An end of the trip, picked from its row: the line stays whole, its dot
+  // green like a picked hintuan's (the owner's asks, 2026-09-29: "tapping
+  // Novaliches should indicate green circle too", then the origin: "it
+  // should have!"). One pick at a time with the hintuans; kept by
+  // direction, as a pick is.
+  const [atEnd, setAtEnd] = useState<{ variantId: string; end: 'from' | 'to' } | null>(null)
+  const endPicked = selected && atEnd?.variantId === selected.id ? atEnd.end : null
 
   // A different direction is a different ride, and so is the same one opened
   // again: start it whole.
@@ -91,16 +91,16 @@ export function useRideTo(
   )
 
   /**
-   * An end row: the whole ride again, and the map gliding to where it leaves
-   * from or goes to, at the height it is at. Where it goes is picked by the
-   * tap, and a second tap lets it go, the map staying put.
+   * An end row: the whole ride again, that end picked, and the map gliding
+   * to it at the height it is at. A second tap lets it go, the map staying
+   * put.
    */
   const toEnd = useCallback(
     (end: 'from' | 'to') => {
       setPicked(null)
-      const on = end === 'to' && !endPicked
-      setAtEnd(on && selectedId ? selectedId : null)
-      if (end === 'to' && !on) return
+      const on = endPicked !== end
+      setAtEnd(on && selectedId ? { variantId: selectedId, end } : null)
+      if (!on) return
       if (!map || !selected) return
       const line = travelLine(selected, stops)
       if (line.length < 2) return
@@ -215,7 +215,7 @@ export function useRideTo(
     /** The row picked, cut or not: a row whose box the line misses is still shown picked, with nothing to price. */
     pickedId: live?.rowId ?? null,
     pick,
-    /** Whether where the trip goes is picked (`toEnd('to')`). */
+    /** The end picked from its row (`toEnd`), or null. */
     endPicked,
     toEnd,
   }

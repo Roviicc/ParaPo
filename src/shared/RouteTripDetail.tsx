@@ -25,11 +25,12 @@ type Props = {
   /** The origin's row (`from`) or the destination's (`to`) was tapped: the whole ride again, and that end shown. */
   onEnd: (end: 'from' | 'to') => void
   /**
-   * Where the trip goes, picked from its row: its dot green, as a picked
-   * hintuan's. One pick at a time: the caller keeps this and `picked` apart
-   * (useRideTo does), since both at once would draw two green dots.
+   * The origin (`from`) or the destination (`to`), picked from its row: its
+   * dot green, as a picked hintuan's; or null. One pick at a time: the
+   * caller keeps this and `picked` apart (useRideTo does), since both at
+   * once would draw two green dots.
    */
-  destinationPicked: boolean
+  endPicked: 'from' | 'to' | null
   /** Figma's Route on TimelineBottomEndRoute: the place the trip goes to. */
   routeDirection: string
   /** SWITCH: the same route the other way. */
@@ -86,10 +87,11 @@ type Props = {
  * row stays picked (the default he kept). The origin's and the
  * destination's rows are buttons too: a tap on either lets a hintuan go,
  * the ride whole again, and the map glides to that end, so a rider can look
- * along the route from end to end (his ask, 2026-09-29). The destination is
+ * along the route from end to end (his ask, 2026-09-29). Either end is
  * picked by its tap, its dot green, and let go by a second (his "green
- * circle too", the same day); its name and the pesos stay as they are, the
- * whole ride's being the tile's. The origin is only shown.
+ * circle too" for the destination and "it should have!" for the origin, the
+ * same day); its name and the pesos stay as they are, the whole ride's being
+ * the tile's.
  */
 export function RouteTripDetail({
   livery,
@@ -101,7 +103,7 @@ export function RouteTripDetail({
   onPick,
   pickedFare,
   onEnd,
-  destinationPicked,
+  endPicked,
   routeDirection,
   onSwitch,
   switchable,
@@ -145,7 +147,12 @@ export function RouteTripDetail({
           {/* The fold row keeps its place among the children whether open or not,
               so a keyboard's focus stays on it while the hintuans come and go. */}
           <ol className="flex w-full flex-col">
-            <TimelineTop rail={rail} routeOrigin={routeOrigin} onTap={() => onEnd('from')} />
+            <TimelineTop
+              rail={rail}
+              routeOrigin={routeOrigin}
+              selected={endPicked === 'from'}
+              onTap={() => onEnd('from')}
+            />
             {hintuans.map((h, i) => (
               <TimelineHintuan
                 key={i + ':' + h.id}
@@ -165,7 +172,7 @@ export function RouteTripDetail({
             <TimelineBottomEndRoute
               rail={rail}
               routeDirection={routeDirection}
-              selected={destinationPicked}
+              selected={endPicked === 'to'}
               onTap={() => onEnd('to')}
             />
           </ol>
@@ -220,13 +227,27 @@ function TimelineDot({ rail, selected = false }: { rail: string; selected?: bool
 /** The rail's column, 24 wide, as tall as its row. */
 const STICK = 'flex w-6 shrink-0 flex-col items-center self-stretch'
 
-/** Figma's TimelineTop: the dot the rail leaves from, and the origin in SN Pro Black; the whole row is its button. */
-function TimelineTop({ rail, routeOrigin, onTap }: { rail: string; routeOrigin: string; onTap: () => void }) {
+/**
+ * Figma's TimelineTop: the dot the rail leaves from, and the origin in SN Pro
+ * Black; the whole row is its button. Picked, its dot is TimelineDot's
+ * Selected one.
+ */
+function TimelineTop({
+  rail,
+  routeOrigin,
+  selected,
+  onTap,
+}: {
+  rail: string
+  routeOrigin: string
+  selected: boolean
+  onTap: () => void
+}) {
   return (
-    <li data-testid="trip-origin">
-      <button type="button" onClick={onTap} className="flex w-full items-center pl-4 text-left">
+    <li data-testid="trip-origin" data-state={selected ? 'selected' : 'rest'}>
+      <button type="button" aria-pressed={selected} onClick={onTap} className="flex w-full items-center pl-4 text-left">
         <span aria-hidden className={STICK}>
-          <TimelineDot rail={rail} />
+          <TimelineDot rail={rail} selected={selected} />
           <span className={'min-h-px w-2 flex-1 ' + rail} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col justify-center pb-2.5 pl-3">

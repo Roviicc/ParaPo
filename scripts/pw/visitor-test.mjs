@@ -699,11 +699,16 @@ if (!hit) {
           wasPicked && (await row.getAttribute('data-state')) === 'rest' && destination === 'selected' && atEnd.rest === 0 && atEnd.right !== false,
           `picked first ${wasPicked}; the destination ${destination}; ${atEnd.rest} at rest; right of the card ${atEnd.right ?? 'not measured'}`,
         )
-        // Where it leaves from lets the destination go, no hintuan picked.
+        // Where it leaves from is picked in the destination's place, no hintuan picked.
         await cardEl.locator('[data-testid="trip-origin"] button').click()
         await page.waitForTimeout(250)
         const destinationAfter = await cardEl.locator('[data-testid="trip-destination"]').getAttribute('data-state')
-        check('  where it leaves from, tapped, lets the destination go', destination === 'selected' && destinationAfter === 'rest', `${destination} → ${destinationAfter}`)
+        const originAfter = await cardEl.locator('[data-testid="trip-origin"]').getAttribute('data-state')
+        check(
+          "  where it leaves from, tapped, is picked in the destination's place",
+          destination === 'selected' && destinationAfter === 'rest' && originAfter === 'selected',
+          `the destination ${destination} → ${destinationAfter}, the origin ${originAfter}`,
+        )
         // Picked again, for ✕ to let go.
         await pick.click()
         await page.waitForTimeout(250)
