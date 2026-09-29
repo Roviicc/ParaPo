@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
+import { metresPerPixel } from '../shared/geo/geo'
 import type { Facing, Fix, Pose } from './useWhereAmI'
 import './walker.css'
 
@@ -8,11 +9,6 @@ type Props = {
   fix: Fix
   pose: Pose
   facing: Facing
-}
-
-/** Metres one pixel covers at this zoom and latitude (Web Mercator). */
-function metresPerPixel(lat: number, zoom: number): number {
-  return (156543.03392 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom
 }
 
 /**

@@ -34,6 +34,15 @@ setWorkerUrl(maplibreWorkerUrl)
 export const STYLE_URL = DEFAULT_BASEMAP.url
 
 /**
+ * Passed as the event data of a camera move the app makes on the visitor's
+ * behalf — to a hintuan picked, an end tapped, a shared link's route — so
+ * whatever is steering the camera can tell it from a gesture and from its own
+ * moves. "Where am I" lets go on it: it once undid those moves with the next
+ * fix (the review's 3c).
+ */
+export const APP_MOVE = { appMove: true } as const
+
+/**
  * The OpenFreeMap styles ship no `attribution` on their sources, so MapLibre's
  * default control would render empty. The tiles are OSM-derived, so we
  * declare it ourselves.

@@ -3251,3 +3251,18 @@ against an in-memory PostgREST (filters, unique indexes, foreign keys,
 cascades, a refusal on demand) with 500 extra hintuans: 43 checks, in CI's
 studio job, no account and no router. Run against stage 3's code it fails
 on findings 2, 3, 4, 6, 7 and 15 before the old panel's dead end stops it.
+
+**Stage 5 — the public map's correctness, 2026-09-29.** The "map published
+for a newer version" banner's Reload goes through the worker
+(`reloadForNewerApp`): a plain reload was answered by the old precache and
+the banner came straight back (5). One `metresPerPixel` in `geo.ts`, with
+MapLibre's 512 px tiles, for the chevrons and the walker's halo, which had
+been drawn at half the fix's accuracy; `where-test` now measures the map's
+own scale instead of repeating a constant (10). A GPS that only times out
+keeps "Where am I" on with a note, so a tap turns it off (11). The app's
+own camera moves (a hintuan picked, an end tapped, a shared link) carry
+`APP_MOVE` and let go of the follow, which used to undo them. The two round
+buttons sit inside the safe area. The map's date is read again after "Try
+again". A hotspot card is keyed by its hotspot, on both pages. The cards
+are named dialogs that take the focus when shown and give it back.
+`where-test` gains the no-fix GPS and the app move (22 → 27 checks).

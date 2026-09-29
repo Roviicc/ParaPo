@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Ref } 
 import type { MapLibreMap } from 'maplibre-gl'
 import { HotspotCard } from '../shared/cards/HotspotCard'
 import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from './mapFile'
-import { reloadToUpdate, useNeedRefresh } from './pwa'
-import { MapView, coarse } from '../shared/map/MapView'
+import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
+import { APP_MOVE, MapView, coarse } from '../shared/map/MapView'
 import { rideFare } from '../shared/model/fares'
 import { lineLength } from '../shared/geo/geo'
 import { liveriesFor, type Livery } from '../shared/model/liveries'
@@ -79,7 +79,7 @@ export default function CommuterApp() {
   // The visitor's own position, when they ask for it: a walking figure.
   const where = useWhereAmI(map)
   const offline = useOffline()
-  const age = useMapAge()
+  const age = useMapAge(saved.variants)
   const needRefresh = useNeedRefresh()
 
   // One tap, several things: routes, hotspots or both, in the owner's route
@@ -180,12 +180,13 @@ export default function CommuterApp() {
         >
           {tooNew ? (
             // The file is a shape this installed app does not know. Loading
-            // it again cannot help; loading the page fetches the app that can.
+            // it again cannot help; the newer app can, fetched through the
+            // worker (pwa.ts, reloadForNewerApp).
             <>
               <span>{MAP_FILE_TOO_NEW} Reload to update.</span>
               <button
                 type="button"
-                onClick={() => window.location.reload()}
+                onClick={() => void reloadForNewerApp()}
                 className="rounded-full bg-amber-900 px-3 py-1 text-xs font-medium text-white"
               >
                 Reload
@@ -272,7 +273,10 @@ export default function CommuterApp() {
         `card` is then the trip while this one hides behind it.
       */}
       {stops.selected && (
+        // Keyed by the hotspot: "Part of …" → a sibling once reused this card
+        // as it was, flipped and pulled up.
         <HotspotCard
+          key={stops.selected.id}
           routeCards={{
             selected: saved.highlight?.where === 'hotspot' ? saved.highlight.from : null,
             onSelect: (p) => saved.highlightCard(p && { where: 'hotspot', ...p }),
@@ -346,8 +350,13 @@ function useOffline(): boolean {
   )
 }
 
-/** When the map on screen was published, and whether it came from a stored copy, from the file both hooks already share. */
-function useMapAge(): { publishedAt: string | null; stale: boolean } {
+/**
+ * When the map on screen was published, and whether it came from a stored
+ * copy, from the file both hooks already share. Read again whenever the
+ * routes load (`loaded`, their list): read once, a first load that failed
+ * and a "Try again" that worked left the notice saying "Offline" with no date.
+ */
+function useMapAge(loaded: unknown): { publishedAt: string | null; stale: boolean } {
   const [age, setAge] = useState<{ publishedAt: string | null; stale: boolean }>({ publishedAt: null, stale: false })
   useEffect(() => {
     let live = true
@@ -355,7 +364,7 @@ function useMapAge(): { publishedAt: string | null; stale: boolean } {
     return () => {
       live = false
     }
-  }, [])
+  }, [loaded])
   return age
 }
 
@@ -404,7 +413,7 @@ function useShareLink(
       if (y < s) s = y
       if (y > n) n = y
     }
-    map.fitBounds([[w, s], [e, n]], { padding: 60, maxZoom: 15, duration: 0 })
+    map.fitBounds([[w, s], [e, n]], { padding: 60, maxZoom: 15, duration: 0 }, APP_MOVE)
   }, [map, variants, select])
 
   const selectedId = saved.selected?.id ?? null

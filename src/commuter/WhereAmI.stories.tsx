@@ -4,7 +4,7 @@ import { WhereAmIButton } from './WhereAmI'
 import type { WhereAmI } from './useWhereAmI'
 
 /** A hand-made hook state: the button is pure display over it. */
-const where = (status: WhereAmI['status'], follow = false): WhereAmI => ({
+const where = (status: WhereAmI['status'], follow = false, noFix = false): WhereAmI => ({
   status,
   fix:
     status === 'on'
@@ -13,6 +13,7 @@ const where = (status: WhereAmI['status'], follow = false): WhereAmI => ({
   pose: 'standing',
   facing: 'down',
   follow,
+  noFix,
   ask: fn(),
   stop: fn(),
 })
@@ -44,3 +45,6 @@ export const LetGo: Story = { args: { where: where('on', false) } }
 
 /** The browser said no: a short note, and the button stays plain to try again. */
 export const Denied: Story = { args: { where: where('denied') } }
+
+/** Asking, and no fix has come yet: still on (a tap turns it off), with a note. */
+export const NoFixYet: Story = { args: { where: where('asking', true, true) } }

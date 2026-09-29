@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { HOTSPOT_COLOUR } from './colours'
+import { APP_MOVE } from './MapView'
 import { convexHull, ringToPolygon } from '../geo/geo'
 import { labelGroups, siblingsOf, stopRing, type StopKind, type StopLink, type StopSummary } from '../model/stops'
 import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, resolveTap, tapTargets } from './tap'
@@ -398,7 +399,7 @@ export function useSavedStops<S extends StopSummary>(
     (id: string) => {
       const s = stops.find((x) => x.id === id)
       select(id)
-      if (s && map) map.flyTo({ center: s.point.coordinates, zoom: Math.max(map.getZoom(), 16) })
+      if (s && map) map.flyTo({ center: s.point.coordinates, zoom: Math.max(map.getZoom(), 16) }, APP_MOVE)
     },
     [stops, select, map],
   )

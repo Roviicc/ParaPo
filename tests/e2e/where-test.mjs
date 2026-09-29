@@ -1,7 +1,8 @@
 // "Where am I" on the public map: the walking figure that stands for the
 // visitor (src/commuter/whereAmI.ts, Walker.tsx, WhereAmI.tsx), driven by a
 // pretend GPS. Playwright's geolocation emulation feeds the browser's own
-// watchPosition, so the app's code path is the real one.
+// watchPosition, so the app's code path is the real one — except for the GPS
+// that never has a fix, which stands in for navigator.geolocation itself.
 //
 //   node tests/e2e/where-test.mjs                against http://localhost:5173
 //   PARAPO_NO_TILES=1 node tests/e2e/where-test.mjs   no basemap tiles (a sandbox)
@@ -99,14 +100,23 @@ check('a tap shows the figure', await until(async () => (await walker(page).coun
 await page.waitForTimeout(900)
 check('  standing, at 30 m accuracy', (await attr(page, 'data-pose')) === 'standing' && (await attr(page, 'data-accuracy-m')) === '30', `${await attr(page, 'data-pose')}, ${await attr(page, 'data-accuracy-m')} m`)
 const zoom = await page.evaluate(() => window.__map.getZoom())
-const mpp = (156543.03392 * Math.cos((P0.latitude * Math.PI) / 180)) / 2 ** zoom
+// The map's own scale, measured: 100 m east of the fix on Web Mercator's
+// sphere, projected. A constant here once agreed with the app's wrong one
+// (the 256 px figure) and the halo was half its size unnoticed.
+const measuredMpp = () =>
+  page.evaluate(([lng, lat]) => {
+    const east = 100 / (111319.49079 * Math.cos((lat * Math.PI) / 180))
+    const a = window.__map.project([lng, lat]), b = window.__map.project([lng + east, lat])
+    return 100 / Math.hypot(b.x - a.x, b.y - a.y)
+  }, [P0.longitude, P0.latitude])
+const mpp = await measuredMpp()
 const haloPx = Number(await attr(page, 'data-halo-px'))
-// Never smaller than 28 px: at zoom 15 a pixel is 4.6 m, and 60 m would be a dot under the feet.
+// Never smaller than 28 px: at zoom 15 a pixel here is about 2.3 m, and 60 m across (26 px) would be a dot under the feet.
 check('  the halo is the accuracy in pixels at this zoom, 28 at least', Math.abs(haloPx - Math.max(28, (2 * 30) / mpp)) <= 3, `${haloPx} px for 60 m at zoom ${zoom.toFixed(1)}`)
 await page.evaluate(() => window.__map.zoomTo(18, { duration: 0 }))
 await page.waitForTimeout(300)
 const haloAt18 = Number(await attr(page, 'data-halo-px'))
-const mpp18 = (156543.03392 * Math.cos((P0.latitude * Math.PI) / 180)) / 2 ** 18
+const mpp18 = await measuredMpp()
 check('  and grows with the zoom', Math.abs(haloAt18 - (2 * 30) / mpp18) <= 3, `${haloAt18} px at zoom 18, expected ${((2 * 30) / mpp18).toFixed(0)}`)
 await page.evaluate(() => window.__map.zoomTo(15, { duration: 0 }))
 await page.waitForTimeout(300)
@@ -156,6 +166,20 @@ await button.click()
 await page.waitForTimeout(900)
 check('  a tap follows again', (await button.getAttribute('data-state')) === 'following' && metresApart(await centre(page), p) < 5, `${metresApart(await centre(page), p).toFixed(1)} m off`)
 
+// The app moves the camera for the visitor (a hintuan picked, an end tapped:
+// shared/map/MapView.tsx APP_MOVE). That lets go too, or the next fix undoes it.
+const away = north(p, 400)
+await page.evaluate((c) => window.__map.easeTo({ center: [c.longitude, c.latitude], duration: 0 }, { appMove: true }), away)
+await page.waitForTimeout(300)
+check('an app camera move lets go', (await button.getAttribute('data-state')) === 'on', `state ${await button.getAttribute('data-state')}`)
+p = north(p, 20)
+await ctx.setGeolocation({ ...p, accuracy: 10 })
+await page.waitForTimeout(1200)
+check('  and the next fix leaves the camera where the app put it', metresApart(await centre(page), away) < 2, `${metresApart(await centre(page), away).toFixed(1)} m moved`)
+await button.click()
+await page.waitForTimeout(900)
+check('  a tap follows again', (await button.getAttribute('data-state')) === 'following', `state ${await button.getAttribute('data-state')}`)
+
 await button.click()
 await page.waitForTimeout(300)
 check('a tap while following turns it off: no figure, button off', (await walker(page).count()) === 0 && (await button.getAttribute('data-state')) === 'off')
@@ -177,6 +201,38 @@ const note = page2.locator('[data-testid="where-note"]')
 check('a browser that refuses: a note under the button, and no figure', await until(async () => (await note.count()) === 1, 8000) && (await walker(page2).count()) === 0, (await note.count()) ? await note.innerText() : 'no note')
 check('  the button is plain again, to try after the setting changes', (await page2.locator('[data-testid="where"]').getAttribute('data-state')) === 'denied')
 await ctx2.close()
+
+// ---------------------------------------------------------- no fix, ever
+// A GPS that only times out: navigator.geolocation stood in for (Playwright
+// cannot make the real one time out), its watch answering TIMEOUT every
+// second and never a position. The button stays on with a note, and a
+// tap turns it off — once it read as off and a tap did nothing at all.
+const ctx3 = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+const page3 = await ctx3.newPage()
+await page3.addInitScript(() => {
+  let n = 0
+  const timers = new Map()
+  const geo = {
+    watchPosition: (_ok, fail) => {
+      const id = ++n
+      timers.set(id, setInterval(() => fail({ code: 3, message: 'Timeout expired', PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 }), 1000))
+      return id
+    },
+    clearWatch: (id) => { clearInterval(timers.get(id)); timers.delete(id); window.__watches = timers.size },
+    getCurrentPosition: () => {},
+  }
+  Object.defineProperty(navigator, 'geolocation', { get: () => geo })
+})
+await stubTiles(page3)
+await open(page3)
+const where3 = page3.locator('[data-testid="where"]')
+await where3.click()
+const note3 = page3.locator('[data-testid="where-note"]')
+check('a GPS that only times out: a note, and the button still on', await until(async () => (await note3.count()) === 1, 8000) && (await where3.getAttribute('aria-pressed')) === 'true', `${await where3.getAttribute('data-state')}; ${(await note3.count()) ? await note3.innerText() : 'no note'}`)
+await where3.click()
+await page3.waitForTimeout(300)
+check('  and a tap turns it off, the watch cleared', (await where3.getAttribute('data-state')) === 'off' && (await page3.evaluate(() => window.__watches)) === 0, `${await where3.getAttribute('data-state')}, ${await page3.evaluate(() => window.__watches)} watch(es)`)
+await ctx3.close()
 
 await b.close()
 const failed = results.filter((r) => !r.ok).length
