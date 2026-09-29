@@ -3,7 +3,7 @@ import type { Livery } from './liveries'
 import { BLOB_PLACE, CARD_BLOB, CARD_SHADOW, CARD_SURFACE, CARD_TEXT, TIMELINE_SURFACE } from './liveryCard'
 import { RouteCardHeader } from './RouteCardHeader'
 import { RouteDock } from './RouteDock'
-import { ChevronDownIcon, ChevronUpIcon, CircleArrowRightIcon } from './RouteIcons'
+import { ChevronDownIcon, CircleArrowRightIcon } from './RouteIcons'
 
 type Props = {
   livery: Livery
@@ -40,6 +40,16 @@ type Props = {
  * and "View less" folds them again. It opens folded. A lone hintuan is shown
  * as it is: a row saying "1 more hintuan" would take its place only to hide
  * it (Claude's call, 2026-09-29, the owner's "go" standing on it).
+ *
+ * The fold moves on the Motion tokens (the owner's "try it", 2026-09-29: no
+ * frames to animate it in first): the rows open over gentle, arriving
+ * (ease-enter), and fold over base, leaving (ease-exit), each drawn from the
+ * top as its height grows; the chevron turns over quick (ease-move). Folded,
+ * the rows stay, invisible, so they can close in view; nothing moves for a
+ * phone set to reduce motion. Height is layout, which the Motion note keeps
+ * to opacity and transform: a fold is its one exception, since only the
+ * height can push the destination down without measuring (the owner's
+ * call, 2026-09-29).
  *
  * The rows are the owner's Timeline set (3716:1894) — TimelineStick for the
  * rail, TimelineDot for the stops — drawn in red there; each livery takes
@@ -91,8 +101,9 @@ export function RouteTripDetail({
             so a keyboard's focus stays on it while the hintuans come and go. */}
         <ol className="flex w-full flex-col">
           <TimelineTop rail={rail} fare={fare} routeOrigin={routeOrigin} />
-          {(!folds || open) &&
-            hintuans.map((h, i) => <TimelineHintuan key={i + ':' + h.id} rail={rail} label={h.label} />)}
+          {hintuans.map((h, i) => (
+            <TimelineHintuan key={i + ':' + h.id} rail={rail} label={h.label} shown={!folds || open} />
+          ))}
           {folds && (
             <TimelineDisclosure rail={rail} open={open} count={hintuans.length} onToggle={() => setOpen((o) => !o)} />
           )}
@@ -139,16 +150,36 @@ function TimelineTop({ rail, fare, routeOrigin }: { rail: string; fare?: string;
   )
 }
 
+/**
+ * A hintuan row open, or folded away: its one grid row runs from nothing to
+ * its height (1fr), and back. `visibility` flips at the end of the fold, so
+ * the row stays in sight while it closes, then leaves the words and the
+ * screen reader.
+ */
+const ROW_SHOWN = 'visible grid-rows-[1fr] duration-gentle ease-enter'
+const ROW_FOLDED = 'invisible grid-rows-[0fr] duration-base ease-exit'
+
 /** Figma's TimelineHintuan: a hintuan on the way, its dot on the rail. */
-function TimelineHintuan({ rail, label }: { rail: string; label: string }) {
+function TimelineHintuan({ rail, label, shown }: { rail: string; label: string; shown: boolean }) {
   return (
-    <li data-testid="trip-hintuan" className="flex w-full items-start pl-4">
-      <span aria-hidden className={STICK}>
-        <span className={'-mb-0.5 min-h-px w-2 flex-1 ' + rail} />
-        <TimelineDot rail={rail} />
-        <span className={'min-h-px w-2 flex-1 ' + rail} />
-      </span>
-      <p className="min-w-0 flex-1 py-2.5 pl-3 text-sm/5 font-medium">{label}</p>
+    <li
+      data-testid="trip-hintuan"
+      className={
+        'grid transition-[grid-template-rows,visibility] motion-reduce:transition-none ' +
+        (shown ? ROW_SHOWN : ROW_FOLDED)
+      }
+    >
+      {/* Clipped, not squeezed: the row keeps its height inside, and shows from the top. */}
+      <div className="min-h-0 overflow-hidden">
+        <div className="flex w-full items-start pl-4">
+          <span aria-hidden className={STICK}>
+            <span className={'-mb-0.5 min-h-px w-2 flex-1 ' + rail} />
+            <TimelineDot rail={rail} />
+            <span className={'min-h-px w-2 flex-1 ' + rail} />
+          </span>
+          <p className="min-w-0 flex-1 py-2.5 pl-3 text-sm/5 font-medium">{label}</p>
+        </div>
+      </div>
     </li>
   )
 }
@@ -178,8 +209,15 @@ function TimelineDisclosure({
           <span className={'min-h-px w-2 flex-1 ' + rail} />
         </span>
         <span className="flex min-w-0 flex-1 items-center gap-2 py-2.5 pl-3 text-sm/5 font-normal whitespace-nowrap">
-          <span aria-hidden className="size-5 shrink-0 *:size-full">
-            {open ? <ChevronUpIcon /> : <ChevronDownIcon />}
+          {/* One chevron, turned: Figma's chevron-down, and its chevron-up opened. */}
+          <span
+            aria-hidden
+            className={
+              'size-5 shrink-0 transition-transform duration-quick ease-move motion-reduce:transition-none *:size-full ' +
+              (open ? 'rotate-180' : 'rotate-0')
+            }
+          >
+            <ChevronDownIcon />
           </span>
           {open ? 'View less' : `${count} more hintuan`}
         </span>

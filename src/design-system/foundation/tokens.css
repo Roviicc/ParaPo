@@ -184,7 +184,9 @@
  * turns these namespaces into duration-quick, delay-tooltip, ease-enter.
  * Every transition takes one duration and one ease from here, nothing in
  * between; an exit runs about two thirds of its enter (tooltip: base in,
- * quick out). Animate opacity and transform only.
+ * quick out). Animate opacity and transform only — save a fold, which has
+ * to push what is below it down: the trip card's hintuans open and close
+ * their height (RouteTripDetail; the owner allowed it, 2026-09-29).
  */
 @theme {
   --transition-duration-instant: 100ms; /* press */

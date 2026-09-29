@@ -455,17 +455,30 @@ const tripChecks = async () => {
   // of its own, and "View less" folds them again (the owner's 3762:3546). A
   // lone hintuan is shown as it is, with nothing to fold.
   const fold = card().locator('button[data-testid="trip-fold"]')
-  const hintuanRows = () => card().locator('[data-testid="trip-hintuan"]').count()
+  // The rows in sight: folded ones stay in the card, invisible, so that they
+  // can close in view (the fold's motion, 2026-09-29).
+  const hintuanRows = () => card().locator('[data-testid="trip-hintuan"]:visible').count()
+  /** The rows in sight once the fold has come to rest: it moves for 300 ms at most. */
+  const restingRows = async () => {
+    await page.waitForTimeout(450)
+    return hintuanRows()
+  }
+  /** How long a row takes to open or fold, as it is now set to. */
+  const rowMotion = () => card().locator('[data-testid="trip-hintuan"]').first().evaluate((e) => getComputedStyle(e).transitionDuration)
   if ((await fold.count()) === 0) {
     skip('  its hintuans fold into one row, and open', (await hintuanRows()) === 0 ? 'no hintuan on this direction yet' : 'one hintuan on the way, shown as it is: nothing to fold')
   } else {
     const folded = (await fold.first().innerText()).trim()
     const n = Number(/^(\d+) more hintuan$/.exec(folded)?.[1] ?? NaN)
     await buttonTap(fold, async () => (await fold.first().getAttribute('aria-expanded')) === 'true')
-    const shown = await hintuanRows()
+    const opening = await rowMotion()
+    const shown = await restingRows()
     check('  its hintuans fold into one row, "N more hintuan", that opens to N rows', n > 1 && shown === n && (await fold.first().innerText()).includes('View less'), `"${folded}" opened to ${shown} row(s)`)
     await buttonTap(fold, async () => (await fold.first().getAttribute('aria-expanded')) === 'false')
-    check('  "View less" folds them again', (await hintuanRows()) === 0 && (await fold.first().innerText()).trim() === folded, await fold.first().innerText())
+    const folding = await rowMotion()
+    check('  "View less" folds them again', (await restingRows()) === 0 && (await fold.first().innerText()).trim() === folded, await fold.first().innerText())
+    // The Motion tokens: open over gentle, fold over base (the owner's "try it").
+    check('  the rows open over 300 ms and fold over 200 ms', opening.startsWith('0.3s') && folding.startsWith('0.2s'), `${opening} / ${folding}`)
   }
 
   // SWITCH turns the trip round: the same route, the other way.
