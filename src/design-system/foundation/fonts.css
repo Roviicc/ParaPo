@@ -3,12 +3,12 @@
  * (font/family/SNPRO, font/family/Cubao), from the owner's files of
  * 2026-09-28. Only the faces designs use are wired — SN Pro 400–700, its
  * Black 900 (the route cards' titles, the same day), and Cubao Free
- * Regular — as woff2 (a third the ttf's size); the full sets,
- * italics, and Cubao's narrow and wide cuts sit beside them in fonts/,
- * unwired until a design asks. `swap` because the app is a map first:
- * text in a fallback beats text held back. The PWA precache's allowlist
- * leaves fonts out on purpose; the browser and the year-long asset cache
- * carry them.
+ * Regular — as woff2 subset to Latin (fonts/subset.sh: 109 kB for all
+ * six, from 290 kB, 2026-09-29); the full sets, italics, and Cubao's
+ * narrow and wide cuts sit beside them in fonts/, unwired until a design
+ * asks. `swap` because the app is a map first: text in a fallback beats
+ * text held back. The worker precaches them, so offline text keeps its
+ * face; check-build.mjs holds them under 120 kB together.
  */
 
 @font-face {
