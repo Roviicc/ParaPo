@@ -8,11 +8,12 @@
     "dev:phone": "vite --host",
     "build": "node scripts/check-boundaries.mjs && tsc --noEmit && vite build && node scripts/check-build.mjs",
     "check": "npm run build && npm run test:unit",
+    "test": "npm run test:unit",
     "test:unit": "npm run test:reader && npm run test:mapfile && npm run test:pass && npm run test:index && npm run test:data && npm run test:precision && npm run test:babaan && npm run test:fares && npm run test:timeline && npm run test:liveries && npm run test:map-colours",
     "test:timeline": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/timeline-test.mjs",
     "test:fares": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/fares-test.mjs",
-    "test:reader": "node --experimental-strip-types scripts/read-all-test.mjs",
-    "test:mapfile": "node --experimental-strip-types scripts/map-file-test.mjs",
+    "test:reader": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/read-all-test.mjs",
+    "test:mapfile": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/map-file-test.mjs",
     "test:pass": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/pass-stretches-test.mjs",
     "test:data": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/map-data-test.mjs",
     "check:data": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/check-map-data.mjs",
@@ -30,6 +31,9 @@
     "url": "git+https://github.com/Roviicc/ParaPo.git"
   },
   "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
   "bugs": {
     "url": "https://github.com/Roviicc/ParaPo/issues"
   },
@@ -44,7 +48,7 @@
     "@storybook/addon-docs": "^10.6.0",
     "@storybook/react-vite": "^10.6.0",
     "@tailwindcss/vite": "^4.3.3",
-    "@types/node": "^26.5.1",
+    "@types/node": "^22.20.4",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
