@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { directionToOpen, isDrawn, variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes'
 import { ROUTES_HIT_LAYER, resolveTap, tapTargets } from './tap'
-import { MAP_COLOURS } from '../../design-system/foundation/mapColours'
+import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { CASING_EXTRA, litWidth, roadWidth } from './lineStyle'
 import type { Livery } from '../model/liveries'
 
@@ -261,7 +261,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': roadWidth(CASING_EXTRA) },
+        paint: { 'line-color': MAP_PAINT['Paint/casing'], 'line-width': roadWidth(CASING_EXTRA) },
       },
       before,
     )
@@ -287,7 +287,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': litWidth(CASING_EXTRA), 'line-opacity': litOpacity() },
+        paint: { 'line-color': MAP_PAINT['Paint/casing'], 'line-width': litWidth(CASING_EXTRA), 'line-opacity': litOpacity() },
       },
       before,
     )
@@ -315,7 +315,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#000000', 'line-width': roadWidth(14), 'line-opacity': 0 },
+        paint: { 'line-color': MAP_PAINT['Paint/hit'], 'line-width': roadWidth(14), 'line-opacity': 0 },
       },
       before,
     )

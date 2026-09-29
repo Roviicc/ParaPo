@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { HOTSPOT_COLOUR } from './colours'
+import { MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { APP_MOVE } from './MapView'
 import { convexHull, ringToPolygon } from '../geo/geo'
 import { labelGroups, siblingsOf, stopRing, type StopKind, type StopLink, type StopSummary } from '../model/stops'
@@ -241,7 +242,7 @@ export function useSavedStops<S extends StopSummary>(
         },
         paint: {
           'text-color': colour as never,
-          'text-halo-color': '#ffffff',
+          'text-halo-color': MAP_PAINT['Paint/casing'],
           'text-halo-width': 1.5,
         },
       })

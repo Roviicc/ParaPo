@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { haversine, metresPerPixel, type LngLat } from '../geo/geo'
-import { MAP_COLOURS } from '../../design-system/foundation/mapColours'
+import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { endRadius, litWidthAt } from './lineStyle'
 import type { LineLook } from './liveryLine'
 import { ROUTES_HIT_LAYER } from './tap'
@@ -311,7 +311,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
         source: ENDS_SRC,
         paint: {
           'circle-radius': endRadius(),
-          'circle-color': '#ffffff',
+          'circle-color': MAP_PAINT['Paint/casing'],
           'circle-stroke-color': MAP_COLOURS['Map/RouteLine/surface-selected'],
           'circle-stroke-color-transition': { duration: 0, delay: 0 },
           'circle-stroke-width': 2,
@@ -334,7 +334,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
         'text-justify': 'auto',
         'text-allow-overlap': false,
       },
-      paint: { 'text-color': '#171717', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
+      paint: { 'text-color': MAP_PAINT['Paint/end-name'], 'text-halo-color': MAP_PAINT['Paint/casing'], 'text-halo-width': 2 },
     })
   }, [map])
 

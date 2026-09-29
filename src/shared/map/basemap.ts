@@ -5,6 +5,7 @@ import type {
   StyleSpecification,
   SymbolLayerSpecification,
 } from 'maplibre-gl'
+import { MAP_PAINT } from '../../design-system/foundation/mapColours'
 
 /**
  * The basemap designs a viewer can choose between. All of them are OpenFreeMap
@@ -80,8 +81,8 @@ const NAME: ExpressionSpecification = ['get', 'name']
 /** The 11 px icons in OpenFreeMap's sprite are named `<class>_11`: small and quiet. */
 const ICON: ExpressionSpecification = ['concat', ['get', 'class'], '_11']
 
-const TRANSIT_COLOUR = '#3d5a73'
-const LANDMARK_COLOUR = '#6b6b6b'
+const TRANSIT_COLOUR = MAP_PAINT['Paint/basemap-transit']
+const LANDMARK_COLOUR = MAP_PAINT['Paint/basemap-landmark']
 
 const label = (
   id: string,
@@ -109,7 +110,7 @@ const label = (
   paint: {
     'icon-opacity': 0.75,
     'text-color': colour,
-    'text-halo-color': '#ffffff',
+    'text-halo-color': MAP_PAINT['Paint/casing'],
     'text-halo-width': 1.2,
     'text-halo-blur': 0.4,
   },
@@ -154,7 +155,7 @@ const DETAIL_LAYERS: readonly LayerSpecification[] = [
 ]
 
 /** Positron paints buildings rgb(234,234,229) on a rgb(245,245,241) ground — a whisper. A shade darker reads as a block. */
-const BUILDING_PAINT = { 'fill-color': 'rgb(224, 224, 219)', 'fill-outline-color': 'rgb(204, 204, 201)' }
+const BUILDING_PAINT = { 'fill-color': MAP_PAINT['Paint/basemap-building'], 'fill-outline-color': MAP_PAINT['Paint/basemap-building-edge'] }
 
 /** Positron plus the detail layers and firmer buildings. Pure: the input is left alone. */
 export function detailStyle(style: StyleSpecification): StyleSpecification {

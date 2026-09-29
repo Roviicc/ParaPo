@@ -10,8 +10,8 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/map-colours-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { CARD_COLOURS, MAP_COLOURS } from '../../src/design-system/foundation/mapColours.ts'
+import { readdirSync, readFileSync } from 'node:fs'
+import { CARD_COLOURS, MAP_COLOURS, MAP_PAINT } from '../../src/design-system/foundation/mapColours.ts'
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const tokens = read('../../src/design-system/foundation/tokens.css')
@@ -95,5 +95,28 @@ test('each hex is the primitive its token aliases', () => {
     const primitive = aliases.get(cssName(figma))
     const want = primitiveHex(primitive)
     assert.ok(near(hex, want), `${figma}: ${hex} in mapColours.ts, but ${primitive} is ${want}`)
+  }
+})
+
+// Every colour the map paints comes from mapColours.ts (stage 9 of the
+// clean-up): the Map/… tokens, the cards', and MAP_PAINT for those Figma does
+// not name yet. A colour written in the map's code itself — a quoted hex or
+// rgb() in the painters of both pages and the editor's drawing — is one the
+// next restyle cannot find.
+test('no colour is written in the map code outside mapColours.ts', () => {
+  const dirs = ['../../src/shared/map/', '../../src/shared/geo/', '../../src/studio/drawing/', '../../src/commuter/']
+  const found = []
+  for (const dir of dirs) {
+    for (const f of readdirSync(new URL(dir, import.meta.url)).filter((n) => /\.ts$/.test(n))) {
+      const text = read(dir + f)
+      for (const m of text.matchAll(/['"`](#[0-9a-f]{3,8}|rgba?\([^'"`]*\))['"`]/gi)) found.push(`${dir.replace('../../', '')}${f}: ${m[1]}`)
+    }
+  }
+  assert.deepEqual(found, [])
+})
+
+test('every MAP_PAINT colour is one MapLibre reads: a hex, or rgb()', () => {
+  for (const [name, colour] of Object.entries(MAP_PAINT)) {
+    assert.match(colour, /^(#[0-9a-f]{6}|rgb\(\d{1,3}, \d{1,3}, \d{1,3}\))$/i, name)
   }
 })
