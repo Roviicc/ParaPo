@@ -629,9 +629,30 @@ if (!hit) {
         page.evaluate(async () => ((await window.__src('direction-arrows'))?.features ?? []).map((f) => f.geometry.coordinates[0][0].map((v) => v.toFixed(7)).join()).join('|'))
       await page.waitForTimeout(3200)
       const restA = await where()
-      await page.waitForTimeout(500)
+      // Nor redrawn in place: no new data for the map to draw over half a
+      // second, which is what leaves the map idle.
+      const sets = await page.evaluate(
+        () =>
+          new Promise((resolve) => {
+            const src = window.__map.getSource('direction-arrows')
+            const set = src.setData
+            let n = 0
+            src.setData = function (...a) {
+              n++
+              return set.apply(this, a)
+            }
+            setTimeout(() => {
+              src.setData = set
+              resolve(n)
+            }, 500)
+          }),
+      )
       const restB = await where()
-      check('  and after their flow they rest, the map left idle', restA !== '' && restA === restB, restA === restB ? 'still' : 'still moving')
+      check(
+        '  and after their flow they rest, the map left idle',
+        restA !== '' && restA === restB && sets === 0,
+        `${restA === restB ? 'still' : 'still moving'}; ${sets} redraw(s) in 500 ms`,
+      )
       // The orange stretches: where this direction passes a hintuan, on the same "passes" rule as the card's count.
       const litId = litIds[0] ?? ''
       const stretches = await page.evaluate(async (id) => ((await window.__src('saved-routes-pass'))?.features ?? []).filter((f) => f.properties.id === id).length, litId)
