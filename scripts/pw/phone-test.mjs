@@ -1346,8 +1346,8 @@ if (!hotspot) {
   check('  and dragging it down leaves it at peek', readyMouseDown && mouseDown && (await sheetState()) === 'peek', `data-sheet=${await sheetState()}`)
   await closeCard()
 
-  // The click the browser sends after a handle tap must not be swallowed for
-  // long, or the ✕ pressed right after would be lost too.
+  // The watch for the click the browser sends after a handle tap must end
+  // with the next tap, or the ✕ pressed right after would be lost too.
   const readyClose = await restore('peek')
   await tapHandle()
   const cb = await card().getByRole('button', { name: 'Close' }).first().boundingBox()
@@ -1385,6 +1385,45 @@ if (!withRoutes) {
     atPeek && (await sheetState()) === 'open' && (await trip().count()) === 0,
     `opened at peek ${atPeek}; now data-sheet=${await sheetState()}, trip ${await trip().count()}`,
   )
+  // On a busy page that click comes long after the finger lifts — a second on
+  // GitHub's runners once the Philcoa card's routes flowed (2026-09-29), when
+  // the sheet gave up on it after 300 ms — and is still the tap's: pulled down,
+  // it would land on the map and close the card; pulled up, on a route.
+  // Holding the page busy in the pointerup did not make it late here —
+  // Chromium still sent the click before the overdue timer (2026-09-29) — so
+  // this tap is sent by hand, its click a second after it, to whatever is
+  // then under the finger. What that click would do there varies
+  // (the hotspot under the finger opens the same card again; a RouteCard's
+  // name only lights it), so the check is that it reached nothing at all.
+  /** What the late click reached, '' if it was swallowed; null with no handle to tap. */
+  const lateClickTap = async () => {
+    const hb = (await handle().count()) ? await handle().first().boundingBox() : null
+    if (!hb) return null
+    const reached = await page.evaluate(async ([x, y]) => {
+      // The mouse's pointer: a touch's id would have to be a finger on the glass for the handle to capture it.
+      const at = { clientX: x, clientY: y, bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', isPrimary: true }
+      const el = document.elementFromPoint(x, y)
+      el.dispatchEvent(new PointerEvent('pointerdown', at))
+      el.dispatchEvent(new PointerEvent('pointerup', at))
+      await new Promise((r) => setTimeout(r, 1000))
+      const under = document.elementFromPoint(x, y)
+      if (!under) return '(nothing under the finger)'
+      // Heard where it lands: the sheet swallows the tap's click on its way down, before it gets there.
+      let through = false
+      const heard = () => (through = true)
+      under.addEventListener('click', heard)
+      under.dispatchEvent(new MouseEvent('click', { clientX: x, clientY: y, bubbles: true, cancelable: true, detail: 1 }))
+      under.removeEventListener('click', heard)
+      return through ? under.closest('[data-testid]')?.getAttribute('data-testid') ?? under.tagName.toLowerCase() : ''
+    }, [hb.x + hb.width / 2, hb.y + hb.height / 2])
+    await settled()
+    await page.waitForTimeout(300)
+    return reached
+  }
+  const lateDown = await lateClickTap()
+  check('  a tap whose click comes a second late takes it to peek, the click reaching nothing', lateDown === '' && (await card().count()) === 1 && (await sheetState()) === 'peek', `${lateDown === null ? 'no handle' : lateDown ? `the click reached ${lateDown}` : 'swallowed'}; data-sheet=${await sheetState()}`)
+  const lateUp = await lateClickTap()
+  check('  and pulls it up again, the click reaching nothing', lateUp === '' && (await sheetState()) === 'open' && (await trip().count()) === 0, `${lateUp === null ? 'no handle' : lateUp ? `the click reached ${lateUp}` : 'swallowed'}; data-sheet=${await sheetState()}, trip ${await trip().count()}`)
   await closeCard()
 }
 
