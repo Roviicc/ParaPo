@@ -79,7 +79,7 @@ export default function CommuterApp() {
   // The visitor's own position, when they ask for it: a walking figure.
   const where = useWhereAmI(map)
   const offline = useOffline()
-  const age = useMapAge()
+  const age = useMapAge(saved.variants)
   const needRefresh = useNeedRefresh()
 
   // One tap, several things: routes, hotspots or both, in the owner's route
@@ -347,8 +347,13 @@ function useOffline(): boolean {
   )
 }
 
-/** When the map on screen was published, and whether it came from a stored copy, from the file both hooks already share. */
-function useMapAge(): { publishedAt: string | null; stale: boolean } {
+/**
+ * When the map on screen was published, and whether it came from a stored
+ * copy, from the file both hooks already share. Read again whenever the
+ * routes load (`loaded`, their list): read once, a first load that failed
+ * and a "Try again" that worked left the notice saying "Offline" with no date.
+ */
+function useMapAge(loaded: unknown): { publishedAt: string | null; stale: boolean } {
   const [age, setAge] = useState<{ publishedAt: string | null; stale: boolean }>({ publishedAt: null, stale: false })
   useEffect(() => {
     let live = true
@@ -356,7 +361,7 @@ function useMapAge(): { publishedAt: string | null; stale: boolean } {
     return () => {
       live = false
     }
-  }, [])
+  }, [loaded])
   return age
 }
 
