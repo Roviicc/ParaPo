@@ -19,6 +19,8 @@ test('back over the nodes it came in on: a U-turn at that point, its stub the do
   assert.equal(found.length, 1)
   assert.equal(found[0].point, 1)
   assert.ok(Math.abs(found[0].metres - 100) < 1, `${found[0].metres} m`)
+  // The stub is what the studio paints amber: the stretch ridden twice.
+  assert.deepEqual(found[0].stub, [at(0), at(50), at(100)])
 })
 
 test('opposite edges with no node between, the shorter along the longer: a U-turn', () => {
