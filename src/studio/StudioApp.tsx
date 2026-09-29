@@ -261,6 +261,10 @@ function Workshop({
     setSaving(false)
     draw.cancel()
     void stops.reload()
+    // The directions too: their names are generated from the hotspots at
+    // their ends when they load, so a renamed end left every card, the list
+    // and the pill on the old name until the next route save (finding 8).
+    void saved.reload()
     setJustSavedStop(s)
   }
 
