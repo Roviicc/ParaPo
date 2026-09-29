@@ -3299,4 +3299,19 @@ budgeted at 5 s to the first line with 1,000 directions (30 before), and a
 tapped line's stretches within 5 s; `pwa-test` opens a trip and finds its
 line kept, and meets a map published for a newer app and its Reload. Drop
 `map.json`, its commit line in the workflow and this paragraph's promise a
-release after the index ships.
+month at least after the index ships (mapFile.ts has the rule).
+
+The stage's review found three things an overview must not do, and they are
+fixed in it: the index carries each direction's length, measured on its
+full line (`metres`, checked against the line file by `check-map-data`), so
+a trip's Kilometer and fare are never an overview's — five of today's ten
+read 0.1 km or a fare step off before; the pesos to a picked hintuan wait
+for the full line; and at street zoom (15 and in) the directions on screen
+get their full lines as a lit one does, so a resting line is not the
+corner-cutting one the owner turned down on 2026-09-25. A direction keeps
+one object while its row and line are the same, so a line arriving for
+another does not pull the ride-to's camera back. One thing is left for the
+owner, not done: the plan put the orange stretches in the index; they are
+worked out on the full line when it is read, so they come a moment after a
+direction lights, and offline a line never read shows none — putting them
+in the index is some 60% more index at a thousand directions.

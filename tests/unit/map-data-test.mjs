@@ -12,8 +12,16 @@ import assert from 'node:assert/strict'
 import { checkMapData, markdownReport, END_WITHIN_M, readPublished } from '../../scripts/checks/check-map-data.mjs'
 import { fileURLToPath } from 'node:url'
 
-/** The committed map, every line in full: the index and its lines/ (check-map-data.mjs). */
-const published = () => readPublished(fileURLToPath(new URL('../../public/data/index.json', import.meta.url))).file
+/**
+ * The committed map, every line in full: the index and its lines/
+ * (check-map-data.mjs). A line file missing, not its direction's, or of
+ * another length than the index says fails here, not quietly further on.
+ */
+const published = () => {
+  const { file, problems } = readPublished(fileURLToPath(new URL('../../public/data/index.json', import.meta.url)))
+  assert.deepEqual(problems, [])
+  return file
+}
 
 // A flat patch of Tala: metres east and north of a corner, as lng/lat.
 const [X0, Y0] = [121.05, 14.73]

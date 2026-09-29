@@ -8,13 +8,17 @@
 //                           the links, and each direction's *overview* — its
 //                           line thinned at 5 m with 5-decimal coordinates,
 //                           a quarter of the points, invisible at the zooms
-//                           the whole map is seen at. The map draws from it.
+//                           the whole map is seen at — and its length in
+//                           metres, measured on the full line, so a trip's
+//                           Kilometer and fare never read an overview. The
+//                           map draws from it.
 //   data/lines/<id>.json    each direction's full line (below), fetched when
 //                           the direction is lit or opened.
 //   data/map.json           schema 1, everything in full as before, for one
 //                           release: an installed app that has not updated
-//                           reads it. Drop it (and its rule in the worker)
-//                           a release after the index ships.
+//                           reads it. Drop it a month at least after the
+//                           index ships (src/commuter/mapFile.ts has the
+//                           rule), with its commit line in the workflow.
 // A line file of a direction that no longer exists is removed.
 //
 // Reads the public tables over Supabase's REST API with the publishable key
@@ -90,7 +94,7 @@ const PAGE = 1000
 const TIMEOUT_MS = 30_000
 
 /** The data's licence, written into the file itself. See README.md, "Data and licence". */
-/** The file's shape; must equal MAP_FILE_SCHEMA in src/commuter/mapFile.ts, which has the rules for changing it. */
+/** map.json's shape, 1: the older apps read it as it is, so it stays 1 (src/commuter/mapFile.ts has the rules). */
 const SCHEMA = 1
 /** The index's shape; must equal MAP_FILE_SCHEMA in src/commuter/mapFile.ts. */
 const INDEX_SCHEMA = 2
@@ -187,6 +191,21 @@ function simplify(coords, epsilon, k) {
     }
   }
   return coords.filter((_, i) => keep[i])
+}
+
+/** Great-circle metres, as the app measures them (src/shared/geo/geo.ts, haversine). */
+function haversine([lng1, lat1], [lng2, lat2]) {
+  const toRad = (deg) => (deg * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return 2 * 6_371_000 * Math.asin(Math.sqrt(a))
+}
+/** A published line's length, as the app's lineLength measures it, to the centimetre. */
+function lineMetres(coords) {
+  let m = 0
+  for (let i = 1; i < coords.length; i++) m += haversine(coords[i - 1], coords[i])
+  return Math.round(m * 100) / 100
 }
 
 /** Six decimals: about 0.1 m, for a line's points and a hotspot's corners alike. */
@@ -373,7 +392,7 @@ writeFileSync(OUT, file)
 const indexBody = {
   variants: variants.map(({ shape, ...v }) => {
     const { route, ...rest } = v
-    return { ...rest, overview: overviews.get(v.id) ?? null, route }
+    return { ...rest, overview: overviews.get(v.id) ?? null, metres: shape ? lineMetres(shape.coordinates) : null, route }
   }),
   stops,
   links,

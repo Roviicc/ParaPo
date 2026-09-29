@@ -9,6 +9,11 @@ import type { Livery } from '../model/liveries'
 const SRC = 'saved-routes'
 const CASING = 'saved-routes-casing'
 const LINE = 'saved-routes-line'
+/**
+ * From this zoom a pixel is a couple of metres, and an overview's corners
+ * show: the directions on screen get their full lines, as a lit one does.
+ */
+const FULL_LINES_FROM = 15
 /** The lit directions, drawn again on top: thick, in the selected blue, or on the public map in a picked card's or an open trip's colour. */
 const SELECTED_CASING = 'saved-routes-selected-casing'
 const SELECTED = 'saved-routes-selected'
@@ -97,7 +102,7 @@ export function useLitLineColour(map: MapLibreMap | null, colour: string) {
  *
  * The public map also passes `loadLine`: its file carries each direction's
  * overview (mapFile.ts), and a direction's full line is read when it is lit
- * or chosen. From then on `variants` carries that line in its `shape` — so
+ * or chosen, or on screen at street zoom. From then on `variants` carries that line in its `shape` — so
  * the orange stretches, the chevrons, the ride-cut and the babaan sides all
  * work on the line itself — and the map draws it in place of the overview.
  * The editor's rows are whole already and it passes none.
@@ -114,13 +119,23 @@ export function useSavedRoutes<T extends VariantSummary>(
   // The rows as loaded, and the full lines read since, by direction.
   const [rows, setRows] = useState<T[]>([])
   const [lines, setLines] = useState<ReadonlyMap<string, LineStringGeoJSON>>(() => new Map())
+  // A direction with its line is one object for as long as its row and its
+  // line are the ones it was made from: a line arriving for another
+  // direction must not make the chosen one new (its ride-to would glide the
+  // camera back to the picked hintuan).
+  const withLine = useRef(new Map<string, { row: T; line: LineStringGeoJSON; v: T }>())
   const variants = useMemo(
     () =>
       lines.size === 0
         ? rows
         : rows.map((v) => {
             const line = lines.get(v.id)
-            return line ? { ...v, shape: line } : v
+            if (!line) return v
+            const was = withLine.current.get(v.id)
+            if (was && was.row === v && was.line === line) return was.v
+            const next = { ...v, shape: line }
+            withLine.current.set(v.id, { row: v, line, v: next })
+            return next
           }),
     [rows, lines],
   )
@@ -185,7 +200,9 @@ export function useSavedRoutes<T extends VariantSummary>(
     setHighlight(null)
   }, [])
 
+  // The full lines asked for, and those whose read failed.
   const requestedRef = useRef(new Set<string>())
+  const failedRef = useRef(new Set<string>())
   const drawingRef = useRef(opts.drawing ?? false)
   drawingRef.current = opts.drawing ?? false
   // A chooser left open when drawing starts would come back, stale, after it.
@@ -208,6 +225,7 @@ export function useSavedRoutes<T extends VariantSummary>(
       setRows(next)
       setLines(new Map())
       requestedRef.current.clear()
+      failedRef.current.clear()
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -381,21 +399,50 @@ export function useSavedRoutes<T extends VariantSummary>(
   const lit = useMemo(() => litVariants.map((v) => v.id), [litVariants])
   useLighting(map, SRC, lit)
 
-  // What is lit, and the chosen direction, get their full lines.
+  // Reading a direction's full line, once. One that failed (offline, never
+  // stored) is asked again when it lights, not at every look at the screen.
   const loadLine = opts.loadLine
-  useEffect(() => {
-    if (!loadLine) return
-    for (const id of selectedId ? [...lit, selectedId] : lit) {
-      if (requestedRef.current.has(id)) continue
+  const request = useCallback(
+    (id: string) => {
+      if (!loadLine || requestedRef.current.has(id)) return
       requestedRef.current.add(id)
+      failedRef.current.delete(id)
       loadLine(id).then(
         (line) => {
           if (line) setLines((m) => new Map(m).set(id, line))
         },
-        () => requestedRef.current.delete(id),
+        () => {
+          requestedRef.current.delete(id)
+          failedRef.current.add(id)
+        },
       )
+    },
+    [loadLine],
+  )
+
+  // What is lit, and the chosen direction, get their full lines.
+  useEffect(() => {
+    for (const id of selectedId ? [...lit, selectedId] : lit) request(id)
+  }, [request, lit, selectedId])
+
+  // So do the directions on screen at street zoom, where an overview's
+  // corners would show: a resting line on a street is drawn as it was drawn
+  // (the owner's look of 2026-09-25). Looked at whenever the map settles.
+  useEffect(() => {
+    if (!map || !loadLine) return
+    const readInView = () => {
+      if (map.getZoom() < FULL_LINES_FROM || !map.getLayer(LINE)) return
+      for (const f of map.queryRenderedFeatures({ layers: [LINE] })) {
+        const id = String(f.properties?.id ?? '')
+        if (id && !failedRef.current.has(id)) request(id)
+      }
     }
-  }, [loadLine, lit, selectedId])
+    readInView()
+    map.on('idle', readInView)
+    return () => {
+      map.off('idle', readInView)
+    }
+  }, [map, loadLine, request])
   const fullIds = useMemo(() => new Set(lines.keys()), [lines])
 
   // What a tap where directions overlap keeps to: what is lit — but with a

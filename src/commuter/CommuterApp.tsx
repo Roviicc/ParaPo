@@ -54,8 +54,9 @@ export default function CommuterApp() {
   const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW
 
   // Where a lit direction passes a hintuan, the line turns orange for that
-  // stretch: worked out on the full lines read, which every lit direction's
-  // is, rather than on every overview at load.
+  // stretch: worked out on the full lines read — a lit direction's is asked
+  // for as it lights, and its orange comes with it — rather than on every
+  // overview at load. Offline, a line never read has none.
   const withLines = useMemo(() => saved.variants.filter((v) => saved.fullIds.has(v.id)), [saved.variants, saved.fullIds])
   usePassStretches(map, withLines, stops.stops, saved.lit)
 
@@ -261,7 +262,9 @@ export default function CommuterApp() {
           onSwitch={(v) => saved.select(v.id, { keepList: true })}
           onClose={closeAll}
           picked={ride.pickedId}
-          pickedMetres={ride.rideTo?.metres}
+          // The pesos to a picked hintuan are the full line's: none while
+          // only its overview is here.
+          pickedMetres={saved.fullIds.has(saved.selected.id) ? ride.rideTo?.metres : undefined}
           onPick={ride.pick}
           onEnd={ride.toEnd}
           endPicked={ride.endPicked}
@@ -489,8 +492,10 @@ function TripCard({
   const { from, to } = directionEnds(variant)
   const sibling = otherDirection(variants, variant)
   const switchable = !!sibling && isDrawn(sibling)
-  // The whole ride, measured once: its Kilometer and its Expected fare.
-  const metres = lineLength(variantLine(variant))
+  // The whole ride, measured once on its full line — the index's figure, so
+  // an overview drawn while the line is read never prices it: its Kilometer
+  // and its Expected fare.
+  const metres = variant.metres ?? lineLength(variantLine(variant))
   return (
     <RouteTripDetail
       livery={livery}

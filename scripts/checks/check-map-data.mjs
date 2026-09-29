@@ -26,7 +26,7 @@ import { existsSync, readFileSync, appendFileSync, writeFileSync } from 'node:fs
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { PASS_WITHIN_M, passBounds, stopLabel, stopRing } from '../../src/shared/model/stops.ts'
-import { bboxOf, bboxesOverlap, distanceToRingM, firstNearIndex, haversine } from '../../src/shared/geo/geo.ts'
+import { bboxOf, bboxesOverlap, distanceToRingM, firstNearIndex, haversine, lineLength } from '../../src/shared/geo/geo.ts'
 
 /** How far a line's first or last point may sit from the hotspot it leaves from or arrives at. */
 export const END_WITHIN_M = 50
@@ -198,6 +198,10 @@ export function readPublished(path) {
     if (line.id !== v.id || line.shape?.type !== 'LineString') {
       problems.push(`${v.direction_name ?? v.id}: lines/${v.id}.json is not this direction's line`)
       return { ...v, shape: overview }
+    }
+    // The trip card prices the ride from the index's length: it must be its line's.
+    if (typeof v.metres !== 'number' || Math.abs(v.metres - lineLength(line.shape.coordinates)) > 0.05) {
+      problems.push(`${v.direction_name ?? v.id}: the index says ${v.metres} m, its line is ${lineLength(line.shape.coordinates).toFixed(2)} m`)
     }
     return { ...v, shape: line.shape }
   })
