@@ -99,14 +99,23 @@ check('a tap shows the figure', await until(async () => (await walker(page).coun
 await page.waitForTimeout(900)
 check('  standing, at 30 m accuracy', (await attr(page, 'data-pose')) === 'standing' && (await attr(page, 'data-accuracy-m')) === '30', `${await attr(page, 'data-pose')}, ${await attr(page, 'data-accuracy-m')} m`)
 const zoom = await page.evaluate(() => window.__map.getZoom())
-const mpp = (156543.03392 * Math.cos((P0.latitude * Math.PI) / 180)) / 2 ** zoom
+// The map's own scale, measured: 100 m east of the fix on Web Mercator's
+// sphere, projected. A constant here once agreed with the app's wrong one
+// (the 256 px figure) and the halo was half its size unnoticed.
+const measuredMpp = () =>
+  page.evaluate(([lng, lat]) => {
+    const east = 100 / (111319.49079 * Math.cos((lat * Math.PI) / 180))
+    const a = window.__map.project([lng, lat]), b = window.__map.project([lng + east, lat])
+    return 100 / Math.hypot(b.x - a.x, b.y - a.y)
+  }, [P0.longitude, P0.latitude])
+const mpp = await measuredMpp()
 const haloPx = Number(await attr(page, 'data-halo-px'))
 // Never smaller than 28 px: at zoom 15 a pixel is 4.6 m, and 60 m would be a dot under the feet.
 check('  the halo is the accuracy in pixels at this zoom, 28 at least', Math.abs(haloPx - Math.max(28, (2 * 30) / mpp)) <= 3, `${haloPx} px for 60 m at zoom ${zoom.toFixed(1)}`)
 await page.evaluate(() => window.__map.zoomTo(18, { duration: 0 }))
 await page.waitForTimeout(300)
 const haloAt18 = Number(await attr(page, 'data-halo-px'))
-const mpp18 = (156543.03392 * Math.cos((P0.latitude * Math.PI) / 180)) / 2 ** 18
+const mpp18 = await measuredMpp()
 check('  and grows with the zoom', Math.abs(haloAt18 - (2 * 30) / mpp18) <= 3, `${haloAt18} px at zoom 18, expected ${((2 * 30) / mpp18).toFixed(0)}`)
 await page.evaluate(() => window.__map.zoomTo(15, { duration: 0 }))
 await page.waitForTimeout(300)

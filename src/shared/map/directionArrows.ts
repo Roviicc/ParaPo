@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
-import { haversine, type LngLat } from '../geo/geo'
+import { haversine, metresPerPixel, type LngLat } from '../geo/geo'
 import { MAP_COLOURS } from '../../design-system/foundation/mapColours'
 import { endRadius, litWidthAt } from './lineStyle'
 import type { LineLook } from './liveryLine'
@@ -176,11 +176,6 @@ function markCovered(m: Measured, earlier: Measured[]): void {
       return false
     })
   }
-}
-
-/** Metres in one screen pixel at this latitude and zoom, with MapLibre's 512 px tiles (half the 256 px figure). */
-function metresPerPixel(lat: number, zoom: number): number {
-  return (78271.51696 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom
 }
 
 type Chevron = {
