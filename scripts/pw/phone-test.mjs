@@ -969,6 +969,32 @@ if (!hotspot) {
   check('dragging down again at peek dismisses the card', readyPeek && (await card().count()) === 0, `${readyPeek ? '' : 'could not get back to peek first; '}${down2.how}; [data-testid="card"] count ${await card().count()}`)
   await closeCard()
 
+  // A mouse's drag, on a narrow window: the browser then clicks the handle it
+  // was held on, and that click toggled the sheet straight back — pulled up,
+  // it fell to peek (the reviewer's note, fixed on the owner's word,
+  // 2026-09-29). The drags above go by touch whenever the page answers it.
+  const mouseDrag = async (dy) => {
+    const hb = await handle().first().boundingBox()
+    if (!hb) return false
+    const [x, y] = [hb.x + hb.width / 2, hb.y + hb.height / 2]
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    for (let i = 1; i <= 8; i++) {
+      await page.mouse.move(x, y + (dy * i) / 8)
+      await page.waitForTimeout(16)
+    }
+    await page.mouse.up()
+    await page.waitForTimeout(450)
+    return true
+  }
+  const readyMouseUp = await restore('peek')
+  const mouseUp = await mouseDrag(-60)
+  check('a mouse dragging the handle up leaves the sheet open', readyMouseUp && mouseUp && (await sheetState()) === 'open', `data-sheet=${await sheetState()}`)
+  const readyMouseDown = await restore('open')
+  const mouseDown = await mouseDrag(60)
+  check('  and dragging it down leaves it at peek', readyMouseDown && mouseDown && (await sheetState()) === 'peek', `data-sheet=${await sheetState()}`)
+  await closeCard()
+
   // The click the browser sends after a handle tap must not be swallowed for
   // long, or the ✕ pressed right after would be lost too.
   const readyClose = await restore('peek')

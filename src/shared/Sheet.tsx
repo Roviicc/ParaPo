@@ -14,8 +14,11 @@ type SheetState = 'peek' | 'open'
  * with the old rows and the RouteCards alike). Caught at the capture phase on
  * the document, before MapLibre or React sees it, and only where the finger
  * lifted: a tap on the sheet's ✕ right after lands elsewhere, and is one the
- * visitor meant. Forgotten after a moment if none comes. Not armed after a
- * drag, which sends no click.
+ * visitor meant. Forgotten after a moment if none comes. Armed after a drag
+ * too: a finger's sends no click, and the watch lapses; a mouse's clicks the
+ * handle it was held on, which toggled the sheet straight back — pulled up,
+ * it fell to peek (the reviewer's note, fixed on the owner's word,
+ * 2026-09-29).
  */
 function swallowTheTapsClick(x: number, y: number) {
   const stop = (e: MouseEvent) => {
@@ -78,9 +81,9 @@ export function Sheet({ peek, children, onClose, hidden = false }: Props) {
 
   // A pointer drag and a tap arrive as the same gesture until it has travelled
   // far enough, so the decision waits for pointermove/pointerup. `handled`
-  // stops one drag firing twice. The `click` the browser sends after a tap is
-  // swallowed (see swallowTheTapsClick), so only keyboard Enter/Space, which
-  // fire click alone, reach onClick.
+  // stops one drag firing twice. The `click` the browser sends after a tap,
+  // or after a mouse's drag, is swallowed (see swallowTheTapsClick), so only
+  // keyboard Enter/Space, which fire click alone, reach onClick.
   const dragRef = useRef<{ startY: number; handled: boolean } | null>(null)
 
   const toggle = () => setState((s) => (s === 'peek' ? 'open' : 'peek'))
@@ -115,11 +118,12 @@ export function Sheet({ peek, children, onClose, hidden = false }: Props) {
     if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId)
     }
-    // Travelled less than the threshold: it was a tap, and a click will follow.
-    if (drag && !drag.handled) {
-      swallowTheTapsClick(e.clientX, e.clientY)
-      toggle()
-    }
+    if (!drag) return
+    // A click may follow — after any tap, and after a mouse's drag — and it
+    // is not a second toggle.
+    swallowTheTapsClick(e.clientX, e.clientY)
+    // Travelled less than the threshold: it was a tap.
+    if (!drag.handled) toggle()
   }
 
   /** The browser took the gesture (a scroll, a system edge swipe): it was neither a tap nor a pull. */
