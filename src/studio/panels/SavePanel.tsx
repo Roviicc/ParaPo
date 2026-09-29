@@ -15,7 +15,7 @@ import {
 } from '../../shared/model/routes'
 import { hintuansAlong, placeKey, stopLabel, timelineFor, type StopRow } from '../../shared/model/stops'
 import { StopTimeline, passesThrough } from '../../shared/cards/StopTimeline'
-import { saveVariant } from '../data/routesWrite'
+import { ENDS_TAKEN, saveVariant } from '../data/routesWrite'
 import { routeStreets } from '../drawing/snap'
 import { syncHintuanLinks } from '../data/stopsWrite'
 import { lineOf } from '../data/live'
@@ -156,9 +156,11 @@ export function SavePanel({
   // "already drawn" (review finding 13). Now it updates the row it wrote.
   const [written, setWritten] = useState<{ routeId: string; variantId: string } | null>(null)
 
-  // A return trip's route is fixed; so is a new route's once a save has
-  // written it: the retry finishes that row and would ignore a changed end.
-  const routeLocked = !!parent || !!written
+  // A return trip fills its route's slot and leaves the route as it is; Edit
+  // route may change the route's facts, for both its directions. A new
+  // route's are fixed once a save has written it: the retry finishes that
+  // row and would ignore a changed end.
+  const routeLocked = !existing && (!!parent || !!written)
   const streets = routeStreets(draw.segments)
   const head = stops.find((s) => s.id === headId)
   const tail = stops.find((s) => s.id === tailId)
@@ -190,7 +192,7 @@ export function SavePanel({
   // A new route whose ends already make a route: the save fills that route's
   // empty slot, or is refused when the direction is drawn (routesWrite).
   const sameEnds = useMemo(() => {
-    if (routeLocked || !headId || !tailId) return null
+    if (parent || !headId || !tailId) return null
     const v = variants.find(
       (x) =>
         x.route.head_stop_id === headId &&
@@ -199,7 +201,23 @@ export function SavePanel({
         x.reversed === reversed,
     )
     return v ? { name: v.route.name, drawn: isDrawn(v) } : null
-  }, [routeLocked, headId, tailId, via, reversed, variants])
+  }, [parent, headId, tailId, via, reversed, variants])
+
+  // Edit route, the ends changed: onto another route's (refused, as the
+  // database would), or turned round (a direction's way round is kept
+  // against its route's head, so a swap would mislabel both lines).
+  const endsTaken = useMemo(() => {
+    if (!existing || !headId || !tailId) return false
+    return variants.some(
+      (x) =>
+        x.route_id !== existing.route_id &&
+        x.route.head_stop_id === headId &&
+        x.route.tail_stop_id === tailId &&
+        (x.route.via ?? '') === via.trim(),
+    )
+  }, [existing, headId, tailId, via, variants])
+  const turnedRound =
+    !!existing && headId === existing.route.tail_stop_id && tailId === existing.route.head_stop_id
 
   // What an Extend borrowed: measured on the line as it is now, so a borrowed
   // point dragged away or undone is counted as it really is.
@@ -261,6 +279,14 @@ export function SavePanel({
       setError('The two ends have to be different places.')
       return
     }
+    if (endsTaken) {
+      setError(ENDS_TAKEN)
+      return
+    }
+    if (turnedRound) {
+      setError('Head and tail swapped would turn the route round, which Edit route cannot do: its directions keep their way round. Change one end at a time.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -275,6 +301,7 @@ export function SavePanel({
       const saved = await saveVariant({
         routeId: written?.routeId ?? parent?.id ?? null,
         variantId: written?.variantId ?? existing?.id ?? null,
+        writeRoute: !!existing,
         signboard,
         mode,
         fare_note: fareNote,
@@ -321,6 +348,7 @@ export function SavePanel({
         <p className="mt-1 text-xs text-neutral-500">
           {draw.controlPoints.length} points · {(draw.metres / 1000).toFixed(2)} km
           {routeLocked && ' · the ends belong to the route, so both directions share them'}
+          {existing && " · the ends, via, signboard, mode and fare note are the route's: a change here is a change to both directions"}
         </p>
         {/* For a jeepney the street list says more than the two terminals do. */}
         {streets.names.length > 0 && (
@@ -471,14 +499,16 @@ export function SavePanel({
           </strong>
           <br />
           <span className="text-xs text-neutral-500">
-            {routeLocked ? 'of the route ' : 'of a new route, '}
+            {parent ? 'of the route ' : 'of a new route, '}
             <span data-testid="save-name" className="font-medium text-neutral-700">
               {name || '—'}
             </span>
           </span>
           <br />
           <span className="text-[11px] text-neutral-400">
-            Both names are generated from the two ends. Rename a hotspot to change them.
+            {existing
+              ? 'Both names are generated from the two ends: pick another place above to change them.'
+              : 'Both names are generated from the two ends. Rename a hotspot to change them.'}
           </span>
         </p>
 

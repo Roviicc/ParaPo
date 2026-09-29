@@ -6,13 +6,18 @@ import { requireSupabase } from './supabase'
 import type { BorrowPart } from '../drawing/borrow'
 
 /**
- * What the save panel collects. Route fields — the ends, the signboard, the
- * mode — are ignored when routeId is set, because they belong to the route and
- * are shared by both its directions.
+ * What the save panel collects. Route fields — the ends, the via, the
+ * signboard, the mode, the fare note — belong to the route and are shared by
+ * both its directions. With routeId set they are written only when
+ * `writeRoute` says so: Edit route changes them (the owner's ask of
+ * 2026-09-29 — "Phase 1 – Novaliches" had to become "Bagong Silang Kanan 5 –
+ * Novaliches" without a delete); drawing a route's return trip leaves them.
  */
 export type SaveInput = {
   routeId: string | null
   variantId: string | null
+  /** With routeId: write the route's facts too (Edit route). */
+  writeRoute?: boolean
   /** Optional since 0006: an observed fact, filled in when the owner is sure. */
   signboard: string
   mode: TransportMode
@@ -92,6 +97,10 @@ async function claimExistingRoute(
   throw new Error(DRAWN_ALREADY)
 }
 
+/** The one sentence for route_ends_unique refusing an edit. */
+export const ENDS_TAKEN =
+  'Another route already runs between these two places. Give one of them a via to tell them apart, or pick other ends.'
+
 const DRAWN_ALREADY =
   'A route between these two places already has this direction drawn. To change it, open it and press Edit route.'
 
@@ -100,6 +109,24 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
 
   let routeId = input.routeId
   let newRoute = !routeId
+  if (routeId && input.writeRoute) {
+    // The route row first: its ends are what both directions' names are
+    // made of, and a clash with another route's ends is refused before any
+    // line is touched. Terminal links stay as the owner set them.
+    const { error } = await client
+      .from('route')
+      .update({
+        signboard: blankToNull(input.signboard),
+        mode: input.mode,
+        fare_note: blankToNull(input.fare_note),
+        head_stop_id: input.head_stop_id,
+        tail_stop_id: input.tail_stop_id,
+        via: blankToNull(input.via),
+      })
+      .eq('id', routeId)
+    if (error?.code === UNIQUE_VIOLATION) throw new Error(ENDS_TAKEN)
+    if (error) throw new Error(error.message)
+  }
   if (!routeId) {
     const facts = {
       signboard: blankToNull(input.signboard),
