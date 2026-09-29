@@ -548,10 +548,14 @@ not before), then load and draw every saved route for every visitor — that
 is the platform's first real version, not a later phase. Click-to-edit on
 the map, delete, return-trip prompt.
 
-Deploy note: there is no `wrangler.jsonc` in the repo — Cloudflare Workers
-Builds handles a plain static `dist` without one. Add one when client-side
-routing lands, or deep links will 404 without
-`assets.not_found_handling: "single-page-application"`.
+Deploy note: there was no `wrangler.jsonc` in the repo until 2026-09-29 —
+Cloudflare Workers Builds deployed `main`'s plain static `dist` without one,
+working the settings out for itself. A branch's build, which uploads a
+version instead of deploying, failed every time without it, so the file now
+writes down what production already did (an address with no file answers
+with the page, `single-page-application`; `/index.html` and `/studio`
+redirect), and every branch gets a preview link — `staging`'s is the owner's
+staging site.
 
 Local dev note: `vite.config.ts` excludes `maplibre-gl` from `optimizeDeps`.
 MapLibre 6 spawns its tile worker from a sibling file via `import.meta.url`;

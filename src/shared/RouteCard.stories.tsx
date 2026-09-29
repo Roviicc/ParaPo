@@ -1,17 +1,18 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { fn } from 'storybook/test'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import { RouteCard } from './RouteCard'
 
 const meta = {
   title: 'Shared/RouteCard',
   component: RouteCard,
-  // As wide as the floating list: the card fills whatever holds it.
-  decorators: [(Story) => <div className="w-92"><Story /></div>],
+  // As wide as the list in the top-left corner: the card fills whatever holds it.
+  decorators: [(Story) => <div className="w-96"><Story /></div>],
   args: {
     livery: 'red',
-    fare: '₱24–28',
+    state: 'rest',
     routeOrigin: 'Novaliches (Bayan)',
     endPoints: [{ id: 'a', routeDirection: 'Tala' }],
+    onSelect: fn(),
     onPick: fn(),
     testId: 'chooser',
   },
@@ -32,11 +33,61 @@ export const Mist: Story = { args: { livery: 'mist', routeOrigin: 'SM Fairview' 
 /** Yellow: as Mist. */
 export const Yellow: Story = { args: { livery: 'yellow', routeOrigin: 'Lagro' } }
 
-/** One place, several ways out: a row each, and each row its own target. */
+/** State=Selected, red: pressed in under Route/RouteCardPrimarySelected; nothing else changes. */
+export const RedSelected: Story = { args: { state: 'selected' } }
+
+/** Selected, orange: the same Primary shadow. */
+export const OrangeSelected: Story = { args: { state: 'selected', livery: 'orange', routeOrigin: 'SM Fairview' } }
+
+/** Selected, mist: pressed in under Route/RouteCardInverseSelected. */
+export const MistSelected: Story = { args: { state: 'selected', livery: 'mist', routeOrigin: 'SM Fairview' } }
+
+/** Selected, yellow: as Mist. */
+export const YellowSelected: Story = { args: { state: 'selected', livery: 'yellow', routeOrigin: 'Lagro' } }
+
+/**
+ * At rest, a row opens its direction straight away; a tap anywhere else on
+ * the card — its name, the room around its rows — selects it (the owner,
+ * 2026-09-29).
+ */
+export const ARowOpens: Story = {
+  args: { routeOrigin: 'Tala', endPoints: [{ id: 'a', routeDirection: 'SM Fairview' }, { id: 'b', routeDirection: 'Novaliches (Bayan)' }] },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const doc = canvasElement.ownerDocument
+    // A finger on a row lands on the row, drawn over the name's target.
+    const row = canvas.getByText('Novaliches (Bayan)')
+    const box = row.getBoundingClientRect()
+    const under = doc.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+    await expect(under?.closest('[data-testid]')?.getAttribute('data-testid')).toBe('chooser-item')
+    await userEvent.click(row)
+    await expect(args.onPick).toHaveBeenCalledWith('b')
+    await expect(args.onSelect).not.toHaveBeenCalled()
+    // Below the last row, the card's own room is the name's.
+    const card = canvas.getByTestId('chooser-origin').getBoundingClientRect()
+    const room = doc.elementFromPoint(card.x + card.width / 2, card.bottom - 3)
+    await expect(room?.getAttribute('data-testid')).toBe('chooser-select')
+    if (room) await userEvent.click(room)
+    await expect(args.onSelect).toHaveBeenCalledTimes(1)
+  },
+}
+
+/** Selected, a row still opens its direction; a tap on the card lets it go. */
+export const SelectedRowsOpen: Story = {
+  args: { ...ARowOpens.args, state: 'selected' },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByText('Novaliches (Bayan)'))
+    await expect(args.onPick).toHaveBeenCalledWith('b')
+    await userEvent.click(canvas.getByRole('button', { name: 'Tala', pressed: true }))
+    await expect(args.onSelect).toHaveBeenCalledTimes(1)
+  },
+}
+
+/** One place, several ways out: a row each, each its own target. */
 export const SeveralWaysOut: Story = {
   args: {
     routeOrigin: 'Tala',
-    fare: '₱14–28',
     endPoints: [
       { id: 'a', routeDirection: 'SM Fairview' },
       { id: 'b', routeDirection: 'Novaliches (Bayan)' },
@@ -55,9 +106,6 @@ export const SixWaysOut: Story = {
     })),
   },
 }
-
-/** No fare rule for the mode (not a jeepney): no fare line, nothing guessed. */
-export const Unpriced: Story = { args: { livery: 'yellow', fare: undefined, routeOrigin: 'Quiapo' } }
 
 /** A place name too long for one line wraps; it is never cut. */
 export const LongName: Story = {

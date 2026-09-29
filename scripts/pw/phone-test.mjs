@@ -16,7 +16,7 @@
 // RouteTripDetail, 2026-09-29) — its ends, its fold, SWITCH keeping its
 // colour, ‹ only where another route sharing an end runs its way; the route list
 // where two routes share a road ("N Routes", a card per place), the trip a
-// row opens in its card's colour and ‹ back to the list as it was; a tap
+// row opens in its card's colour and ‹ back to the list, every card at rest; a tap
 // just outside a hotspot, and the bottom sheet on a hotspot's card — tap and
 // drag the handle, peek → open → peek → gone; the ?r=<id> share link and the
 // view it restores; a trip opened on its own whose ‹ lists the routes sharing
@@ -180,19 +180,34 @@ await page.addInitScript(() => {
   }
   // Since 2026-09-25 a tap is feature state, not a filter or a paint
   // expression naming ids (useLighting in src/shared/useSavedRoutes.ts).
-  // The directions a source has lit; and the level the line layer paints a
-  // direction nobody tapped: dim while anything is lit, at rest otherwise —
-  // its own expression's branches, read through the state, as MapLibre does.
+  // The directions a source has lit.
   window.__lit = async (src) => {
     const m = window.__map
     const fc = await m?.getSource(src)?.getData()
     if (!fc) return null
     return [...new Set(fc.features.map((f) => f.properties.id))].filter((id) => !!m.getFeatureState({ source: src, id }).lit)
   }
-  window.__restLevel = async () => {
-    const o = window.__map.getPaintProperty('saved-routes-line', 'line-opacity')
-    if (!Array.isArray(o)) return o
-    return ((await window.__lit('saved-routes')) ?? []).length ? o[4] : o[o.length - 1]
+  // The route lines' paint, the owner's two looks of 2026-09-29: the colour a
+  // line rests in, the colour of the lit copy drawn over it, and any
+  // saved-routes layer whose opacity shades a line rather than switching it
+  // on or off — the outputs of its expression, read branch by branch.
+  window.__paint = () => {
+    const m = window.__map
+    const outputs = (e) =>
+      typeof e === 'number' ? [e]
+      : !Array.isArray(e) ? []
+      : e[0] === 'case' ? [...e.slice(2, -1).filter((_, i) => i % 2 === 0), e.at(-1)].flatMap(outputs)
+      : e[0] === 'step' ? [e[2], ...e.slice(4).filter((_, i) => i % 2 === 0)].flatMap(outputs)
+      : e[0] === 'interpolate' ? e.slice(4).filter((_, i) => i % 2 === 0).flatMap(outputs)
+      : []
+    const shaded = m.getStyle().layers
+      .filter((l) => l.id.startsWith('saved-routes') && l.type === 'line')
+      .flatMap((l) => outputs(m.getPaintProperty(l.id, 'line-opacity') ?? 1).filter((o) => o > 0 && o < 1).map((o) => `${l.id} at ${o}`))
+    return {
+      rest: m.getPaintProperty('saved-routes-line', 'line-color'),
+      lit: m.getPaintProperty('saved-routes-selected', 'line-color'),
+      shaded,
+    }
   }
 })
 
@@ -446,15 +461,44 @@ const tripRow = async (id) => {
 }
 
 /**
- * A trip card's own parts, on whichever trip is open: its hintuans fold into
- * one row that opens and folds again (the owner's 3762:3546; a lone hintuan
- * is shown as it is), and SWITCH turns it round. Run where a trip opens — a
- * lone route's tap, a row of the route list — as today's data allows.
+ * A trip card's own parts, on whichever trip is open: its Kilometer and
+ * Expected fare tiles (the owner's 3778:3183), its hintuans folding into one
+ * row that opens and folds again (a lone hintuan is shown as it is), and
+ * SWITCH turning it round. Run where a trip opens — a lone route's tap, a row
+ * of the route list — as today's data allows.
  */
 const tripChecks = async () => {
-  // The hintuans fold into one row, "N more hintuan"; opened, each is a row
-  // of its own, and "View less" folds them again (the owner's 3762:3546). A
-  // lone hintuan is shown as it is, with nothing to fold.
+  // Two tiles under the card: the whole ride's length and pesos, as the app's
+  // own sums give them on the published line (read from the dev server's
+  // modules; a server that cannot serve them skips the check). The pesos
+  // left the rail for their tile with this set.
+  const [tripId] = (await litIds(page)) ?? []
+  const want = await page.evaluate(async (id) => {
+    try {
+      const [{ rideFare }, { kmLabel, lineLength }, { variantLine }] = await Promise.all([
+        import('/src/shared/fares.ts'),
+        import('/src/shared/geo.ts'),
+        import('/src/shared/routes.ts'),
+      ])
+      const v = (await fetch('/data/map.json').then((r) => r.json())).variants.find((x) => x.id === id)
+      const metres = v && lineLength(variantLine(v))
+      return v ? { km: kmLabel(metres), fare: rideFare(v.route?.mode, metres) ?? null } : null
+    } catch {
+      return null
+    }
+  }, tripId)
+  const tile = async (id) => {
+    const t = card().locator(`[data-testid="${id}"]`)
+    return (await t.count()) ? (await t.first().innerText()).trim() : null
+  }
+  const [km, fare] = [await tile('trip-km'), await tile('trip-fare')]
+  if (!want) skip('  its tiles: the Kilometer and Expected fare of the whole ride', 'the sums cannot be read from this server')
+  else check('  its tiles: the Kilometer and Expected fare of the whole ride', km === want.km && fare === want.fare, `"${km}" / "${fare}", the sums "${want.km}" / "${want.fare}"`)
+
+  // The hintuans fold into one row, "N more hintuans"; opened, each is a row
+  // of its own, and "View less" folds them again (the owner's 3762:3546,
+  // with an s since 3778:3183). A lone hintuan is shown as it is, with
+  // nothing to fold.
   const fold = card().locator('button[data-testid="trip-fold"]')
   // The rows in sight: folded ones stay in the card, invisible, so that they
   // can close in view (the fold's motion, 2026-09-29).
@@ -470,11 +514,11 @@ const tripChecks = async () => {
     skip('  its hintuans fold into one row, and open', (await hintuanRows()) === 0 ? 'no hintuan on this direction yet' : 'one hintuan on the way, shown as it is: nothing to fold')
   } else {
     const folded = (await fold.first().innerText()).trim()
-    const n = Number(/^(\d+) more hintuan$/.exec(folded)?.[1] ?? NaN)
+    const n = Number(/^(\d+) more hintuans$/.exec(folded)?.[1] ?? NaN)
     await buttonTap(fold, async () => (await fold.first().getAttribute('aria-expanded')) === 'true')
     const opening = await rowMotion()
     const shown = await restingRows()
-    check('  its hintuans fold into one row, "N more hintuan", that opens to N rows', n > 1 && shown === n && (await fold.first().innerText()).includes('View less'), `"${folded}" opened to ${shown} row(s)`)
+    check('  its hintuans fold into one row, "N more hintuans", that opens to N rows', n > 1 && shown === n && (await fold.first().innerText()).includes('View less'), `"${folded}" opened to ${shown} row(s)`)
     await buttonTap(fold, async () => (await fold.first().getAttribute('aria-expanded')) === 'false')
     const folding = await rowMotion()
     check('  "View less" folds them again', (await restingRows()) === 0 && (await fold.first().innerText()).trim() === folded, await fold.first().innerText())
@@ -510,10 +554,22 @@ const closeCard = async () => {
   }
   await page.waitForTimeout(300)
 }
-// Every direction rests in a light blue; a tap fades the rest further (2026-09-22).
-const REST_OPACITY = 0.45
-// What the rest are at: the level of a direction nobody tapped.
-const lineOpacity = (p) => p.evaluate(() => (window.__map.getLayer('saved-routes-line') ? window.__restLevel() : null))
+// The owner's two looks for the lines (2026-09-29): every one opaque in
+// Map/RouteLine/surface-default, the lit ones drawn over them in
+// …/surface-selected, and no layer shading a line. The hexes are
+// mapColours.ts's, read from the dev server; a server that cannot serve it
+// is held to two different colours.
+const MAP = await page.evaluate(async () => {
+  try {
+    return (await import('/src/design-system/foundation/mapColours.ts')).MAP_COLOURS
+  } catch {
+    return null
+  }
+})
+const paintNow = () => page.evaluate(() => (window.__map.getLayer('saved-routes-line') ? window.__paint() : null))
+const twoLooks = (p) =>
+  !!p && p.shaded.length === 0 &&
+  (MAP ? p.rest === MAP['Map/RouteLine/surface-default'] && p.lit === MAP['Map/RouteLine/surface-selected'] : !!p.rest && p.rest !== p.lit)
 /** The directions lit now, by id. */
 const litIds = (p) => p.evaluate(() => window.__lit('saved-routes'))
 
@@ -609,14 +665,14 @@ if (routeA) {
   const text = await cardText()
   check(`a tap 14 px beside a lone route line selects it`, (await card().count()) > 0, `${desc}; [data-testid="card"] count ${await card().count()}`)
   // The owner's trip card (2026-09-29), named for its direction: it runs from
-  // where that leaves (the top row, under the fare) to where it goes (the
-  // bottom row). Which way round is the tap's to decide, so the route's two
-  // ends are checked, not their order.
+  // where that leaves (the top row, no pesos on it since 3778:3183) to where
+  // it goes (the bottom row). Which way round is the tap's to decide, so the
+  // route's two ends are checked, not their order.
   const label = await tripLabel()
   const [from = '', to = ''] = label.split(' → ')
   const origin = await tripRow('trip-origin')
   const end = await tripRow('trip-destination')
-  check('  it opens the trip card, from where its direction leaves to where it goes', !!from && !!to && origin.endsWith(from) && end === to, `"${label}": top "${origin}", bottom "${end}"`)
+  check('  it opens the trip card, from where its direction leaves to where it goes', !!from && !!to && origin === from && end === to, `"${label}": top "${origin}", bottom "${end}"`)
   const routeEnds = r.signboard.split(' – ').map((e) => e.replace(/ via .*$/, ''))
   check("  its ends are the route's two ends", routeEnds.length === 2 && routeEnds.every((e) => text.includes(e)), r.signboard)
   // Dropped by the owner for now, to design later (2026-09-28).
@@ -636,7 +692,8 @@ if (routeA) {
     backShown === fanned,
     `‹ ${backShown ? 'shown' : 'not shown'}`,
   )
-  check('  the other lines fade below the light rest', (await lineOpacity(page)) < REST_OPACITY, String(await lineOpacity(page)))
+  const looks = await paintNow()
+  check('  the rest stay as they rest, opaque light blue: nothing fades (two looks)', twoLooks(looks), JSON.stringify(looks))
 
   await tripChecks()
 
@@ -661,7 +718,8 @@ if (routeA) {
     await mapTap(far.x, far.y)
     await page.waitForTimeout(500)
     check('a tap 40 px away from every line selects nothing', (await card().count()) === 0, `${Math.round(far.clear)} m clear`)
-    check('  the lines go back to their light rest', (await lineOpacity(page)) === REST_OPACITY, String(await lineOpacity(page)))
+    const after = (await litIds(page)) ?? []
+    check('  nothing stays lit', after.length === 0, JSON.stringify(after))
   }
   await closeCard()
 }
@@ -726,9 +784,38 @@ if (!shared) {
   const wanted = items.filter({ hasText: endsOf(shared.b.signboard)[1] })
   const listShown = async () => (await chooser.count()) > 0 && (await chooser.first().isVisible())
   // The colour of the card the row sits on: the trip it opens wears it.
-  const cardColour = (await wanted.count())
-    ? await wanted.first().locator('xpath=ancestor::*[@data-livery][1]').getAttribute('data-livery')
-    : null
+  const wantedCard = wanted.first().locator('xpath=ancestor::*[@data-livery][1]')
+  const cardColour = (await wanted.count()) ? await wantedCard.getAttribute('data-livery') : null
+  // A list lights every route it lists. A tap on a card off its rows — its
+  // name — narrows the lights to its routes, and a second lets it go; a row
+  // opens its trip straight away, and ‹ comes back to every card at rest
+  // (the owner, 2026-09-29).
+  const sameSet = (a, b) => {
+    const [x, y] = [[...new Set(a)], [...new Set(b)]]
+    return x.length === y.length && x.every((id) => y.includes(id))
+  }
+  const directionsIn = (where) => where.locator('button[data-testid="chooser-item"]').evaluateAll((els) => els.map((e) => e.dataset.direction).filter(Boolean))
+  const listedIds = has ? await directionsIn(chooser.first().locator('[data-testid="chooser-origin"]')) : []
+  const litOpen = (await litIds(page)) ?? []
+  check('  it lights every route it lists', listedIds.length > 0 && sameSet(litOpen, listedIds), `${litOpen.length} lit, ${listedIds.length} listed`)
+  const isPicked = async () => (await wanted.count()) > 0 && (await wantedCard.getAttribute('data-state')) === 'selected'
+  const wantedName = wantedCard.locator('[data-testid="chooser-select"]')
+  await buttonTap(wantedName, isPicked)
+  const pickedIds = (await wanted.count()) ? await directionsIn(wantedCard) : []
+  const litPicked = (await litIds(page)) ?? []
+  check('  a tap on a card off its rows selects it, opening no trip', (await isPicked()) && (await trip().count()) === 0, `Selected ${await isPicked()}; trip open ${(await trip().count()) > 0}`)
+  // Narrower than the list only where the list has other cards.
+  if (pickedIds.length > 0 && pickedIds.length < new Set(listedIds).size) {
+    check('  and lights just its routes', sameSet(litPicked, pickedIds), `${litPicked.length} lit for ${pickedIds.length} row(s) of ${listedIds.length}`)
+  } else {
+    skip('  and lights just its routes', 'the picked card holds every route the list shows today')
+  }
+  await buttonTap(wantedName, async () => !(await isPicked()))
+  const litLetGo = (await litIds(page)) ?? []
+  check('  a second tap lets it go, every route it lists lit again', !(await isPicked()) && sameSet(litLetGo, listedIds), `Selected ${await isPicked()}; ${litLetGo.length} lit`)
+  // Picked again, its row opens the trip; ‹ will bring the list back at rest.
+  await buttonTap(wantedName, isPicked)
+  const pickedForTrip = await isPicked()
   await buttonTap(wanted, async () => (await trip().count()) > 0)
   // The trip card takes the list's place, and the list stays behind it,
   // hidden, for the trip's ‹ (the owner's frames, 2026-09-28).
@@ -748,11 +835,24 @@ if (!shared) {
   } else {
     await buttonTap(back, listShown)
     const again = (await listShown()) ? await chooser.first().innerText() : ''
+    const litBack = (await litIds(page)) ?? []
     check(
-      '  ‹ on the trip goes back to the list, as it was',
-      again === chooserText && (await card().count()) === 0,
-      again ? `card count ${await card().count()}` : 'the list did not come back',
+      '  ‹ on the trip, from a picked card, goes back to the list at rest: no card picked, every route it lists lit',
+      again === chooserText && (await card().count()) === 0 && pickedForTrip && !(await isPicked()) && sameSet(litBack, listedIds),
+      again ? `card count ${await card().count()}; picked before ${pickedForTrip}, now ${await isPicked()}; ${litBack.length} lit` : 'the list did not come back',
     )
+    // Picked, then a tap on the map where the list opened: a fresh list,
+    // nothing Selected, every route it lists lit.
+    await buttonTap(wantedName, isPicked)
+    const repicked = await isPicked()
+    await jumpTo(page, shared.point)
+    const anchor2 = await project(page, shared.point)
+    const box2 = await canvasBox()
+    await mapTap(box2.x + anchor2[0], box2.y + anchor2[1])
+    await page.waitForTimeout(600)
+    const litTapped = (await litIds(page)) ?? []
+    const pickedAfter = await chooser.locator('[data-state="selected"]').count()
+    check('  a map tap lets it go: nothing Selected, every route it lists lit', repicked && pickedAfter === 0 && (await listShown()) && sameSet(litTapped, listedIds), `picked ${repicked}; ${pickedAfter} Selected; ${litTapped.length} lit`)
   }
   await closeCard()
 }

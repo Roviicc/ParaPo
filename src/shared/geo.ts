@@ -67,6 +67,11 @@ export function lineLength(coords: LngLat[]): number {
   return total
 }
 
+/** `12.8km`: a length as the trip card's Kilometer tile writes it, to a tenth, no space (the owner's 3778:3183). */
+export function kmLabel(metres: number): string {
+  return (metres / 1000).toFixed(1) + 'km'
+}
+
 // ------------------------------------------------------------------ polygons
 //
 // A ring is the list of corner points in order, NOT closed: the edge from the

@@ -1,7 +1,7 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Departures } from './Departures'
 import type { Livery } from './liveries'
-import { RouteCardStack } from './RouteCardStack'
+import { RouteCardStack, type PickedPlace } from './RouteCardStack'
 import { departures, drawnDepartures, type VariantSummary } from './routes'
 import { Sheet } from './Sheet'
 import { placeSummary, siblingsOf, stopLabel, type StopSummary } from './stops'
@@ -16,10 +16,17 @@ type Props = {
   onSelectVariant: (v: VariantSummary, livery?: Livery) => void
   /**
    * The routes through here as the owner's RouteCards, as the route list
-   * shows them — the public map's, 2026-09-29. Without it, the rows the
-   * studio keeps: their "Not mapped yet" is its list of returns still to draw.
+   * shows them — the public map's, 2026-09-29 — with the place whose card is
+   * Selected, what to do when one is picked or let go, and where to say
+   * which directions the cards show, for the map to light (nothing once the
+   * card closes). Without it, the rows the studio keeps: their "Not mapped
+   * yet" is its list of returns still to draw.
    */
-  routeCards?: boolean
+  routeCards?: {
+    selected: string | null
+    onSelect: (place: PickedPlace | null) => void
+    onShown: (ids: readonly string[]) => void
+  }
   /** Every hotspot, so the card can name the place this box belongs to and list its siblings. */
   stops?: readonly StopSummary[]
   /** Show a sibling box on the map: select it and go there. */
@@ -27,7 +34,7 @@ type Props = {
   /** Buttons along the bottom. The editor passes Edit and Delete; the public map passes nothing. */
   actions?: ReactNode
   onClose: () => void
-  /** Kept but not shown, while a trip picked from it is on top: ‹ comes back to it as it was. */
+  /** Kept but not shown, while a trip picked from it is on top: ‹ comes back to it as it was left, every card at rest. */
   hidden?: boolean
 }
 
@@ -43,7 +50,7 @@ export function HotspotCard({
   linkedVariantIds,
   variants,
   onSelectVariant,
-  routeCards = false,
+  routeCards,
   stops = [],
   onPickSibling,
   actions,
@@ -75,6 +82,20 @@ export function HotspotCard({
   const back = there && backToo ? flipped : backToo
   const flipLabel = back ? 'Show the way there' : 'Show the way back'
   const none = routeCards ? !there && !backToo : linked.length === 0
+
+  // What the RouteCards show, for the map to light (the owner, 2026-09-29:
+  // "on hintuan it should light its routes"); nothing once the card closes.
+  // Told only when that changes: the caller's function is read from a ref,
+  // so one made afresh each render cannot set the lights going in a loop.
+  const showsKey = routeCards ? drawnDepartures(linked, back).flatMap((p) => p.directions.map((d) => d.v.id)).join('\n') : ''
+  const onShown = useRef(routeCards?.onShown)
+  onShown.current = routeCards?.onShown
+  useEffect(() => {
+    const tell = onShown.current
+    if (!tell) return
+    tell(showsKey ? showsKey.split('\n') : [])
+    return () => tell([])
+  }, [showsKey])
 
   return (
     <Sheet
@@ -140,7 +161,10 @@ export function HotspotCard({
             type="button"
             data-testid="card-flip"
             aria-pressed={back}
-            onClick={() => setFlipped((b) => !b)}
+            onClick={() => {
+              setFlipped((b) => !b)
+              routeCards?.onSelect(null)
+            }}
             aria-label={flipLabel}
             title={flipLabel}
             className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-neutral-700 hover:bg-neutral-100"
@@ -155,13 +179,17 @@ export function HotspotCard({
         </p>
       ) : routeCards ? (
         // Edge to edge, as the route list stacks them (the owner, 2026-09-29);
-        // the rest of this card waits for his hintuan design. No pesos on a
-        // hintuan's: a card's fare is the whole ride from where it leaves, and
-        // a rider standing mid-route would read it as theirs (his call, the
-        // same day). A terminal's routes leave from the terminal, so its keep
-        // theirs.
+        // the rest of this card waits for his hintuan design. ⇄ lets the
+        // Selected card go, as SWITCH does over the list.
         <div className="-mx-4 mt-1">
-          <RouteCardStack routes={linked} back={back} onRoute={onSelectVariant} testId="card" fares={isTerminal} />
+          <RouteCardStack
+            routes={linked}
+            back={back}
+            selected={routeCards.selected}
+            onSelect={routeCards.onSelect}
+            onRoute={onSelectVariant}
+            testId="card"
+          />
         </div>
       ) : (
         <ul className="-mx-4 mt-1 border-t border-neutral-200">

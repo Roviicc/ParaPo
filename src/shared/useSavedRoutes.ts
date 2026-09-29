@@ -2,96 +2,69 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { directionToOpen, isDrawn, variantLine, type VariantSummary } from './routes'
 import { ROUTES_HIT_LAYER, resolveTap, tapTargets } from './tap'
-import { CASING_EXTRA, LINE_BLUE, litWidth, roadWidth } from './lineStyle'
+import { MAP_COLOURS } from '../design-system/foundation/mapColours'
+import { CASING_EXTRA, litWidth, roadWidth } from './lineStyle'
 
 const SRC = 'saved-routes'
 const CASING = 'saved-routes-casing'
 const LINE = 'saved-routes-line'
-/** The chosen direction, drawn again on top so it can be thick while the rest dim. */
+/** The lit directions, drawn again on top: thick, and in the selected blue. */
 const SELECTED_CASING = 'saved-routes-selected-casing'
-/** Named for the pass-stretch hook, which slots its layers just under this one. */
-export const SELECTED_CASING_LAYER = SELECTED_CASING
 const SELECTED = 'saved-routes-selected'
 const HIT = ROUTES_HIT_LAYER
 
-
 /**
- * Three levels, decided with the owner 2026-09-22: every direction rests in a
- * light blue; when a tap lights some, the rest fade further; the lit ones are
- * drawn again on top, full and thick. One rule for a road that will carry
- * three routes. While the sheet lights one way round, the same routes the
- * other way stay at rest rather than fade (the owner's pick, 2026-09-25).
- */
-const REST = { line: 0.45, casing: 0.8 }
-const FADED = { line: 0.15, casing: 0.3 }
-
-/**
- * What a tap does to a direction's features, kept as MapLibre feature state
- * (`setFeatureState`) rather than as a filter or a paint expression naming
- * ids. The paint expressions below read it and never change, and a change
- * of feature state repaints only the features whose state changed, on the
- * main thread; whereas a new filter, or a new expression in a data-driven
- * paint property, has MapLibre lay out every tile of the source again in
- * its worker — for 1,000 directions, a second and a half of stall a tap
- * (measured 2026-09-25, future-proofing step 5).
+ * Two looks, the owner's of 2026-09-29, and no opacity: every direction
+ * rests in Map/RouteLine/surface-default, opaque, in its white casing; the
+ * lit ones — the trip open, the Selected card's directions, or else every
+ * direction a list or a hotspot's card shows — are drawn again on top in
+ * Map/RouteLine/surface-selected, thicker. See-through lines
+ * stacked on a shared road and read as one muddle (his words: "it can stack
+ * and confuse the user"), so nothing fades any more: the three levels of
+ * 2026-09-22 (rest, faded, lit) and the resting way back of 2026-09-25 went
+ * with them.
  *
- *   lit      – drawn again on top, full and thick
- *   resting  – at rest while others fade: the lit direction's way back
- *   dim      – faded: everything else, once anything is lit
- *   (none)   – at rest: everything, while nothing is lit
+ * What a tap lights is kept as MapLibre feature state (`setFeatureState`)
+ * rather than as a filter or a paint expression naming ids. The paint
+ * expressions below read it and never change, and a change of feature state
+ * repaints only the features whose state changed, on the main thread;
+ * whereas a new filter, or a new expression in a data-driven paint
+ * property, has MapLibre lay out every tile of the source again in its
+ * worker — for 1,000 directions, a second and a half of stall a tap
+ * (measured 2026-09-25, future-proofing step 5).
  */
-export type Lighting = 'lit' | 'resting' | 'dim' | 'rest'
-const STATE_OF: Record<Lighting, { lit: boolean; resting: boolean; dim: boolean }> = {
-  lit: { lit: true, resting: false, dim: true },
-  resting: { lit: false, resting: true, dim: false },
-  dim: { lit: false, resting: false, dim: true },
-  rest: { lit: false, resting: false, dim: false },
-}
-const flag = (name: 'lit' | 'resting' | 'dim') => ['boolean', ['feature-state', name], false]
+const isLit = ['boolean', ['feature-state', 'lit'], false]
 
 /**
- * The `line-opacity` of the lines that are not lit, from feature state: at
- * rest while nothing is lit; once something is, faded, but for the
- * `resting` ones. (A lit direction's own copy here fades too; its lit copy
- * is drawn on top.)
+ * The opacity of a layer that draws the lit directions only: 1 for them, 0
+ * for the rest — a switch, never a shade.
  */
-export function unlitOpacity(part: keyof typeof REST) {
-  return ['case', flag('resting'), REST[part], flag('dim'), FADED[part], REST[part]] as never
-}
-
-/** The opacity of a layer that draws the lit directions only: 1 for them, 0 for the rest. */
 export function litOpacity() {
-  return ['case', flag('lit'), 1, 0] as never
+  return ['case', isLit, 1, 0] as never
 }
 
 /**
- * Sets the lighting of every id in `ids` on `source`, changing only what
- * changed since the last call. `lit` and `resting` name the exceptions;
- * everything else is dim while anything is lit, at rest otherwise. Never
- * `removeFeatureState`: a removal and a set of the same id in one frame
- * leave the removal in charge.
+ * Lights exactly `lit` on `source` and nothing else, changing only what
+ * changed since the last call. Never `removeFeatureState`: a removal and a
+ * set of the same id in one frame leave the removal in charge.
  */
-export function useLighting(
-  map: MapLibreMap | null,
-  source: string,
-  ids: readonly string[],
-  lit: readonly string[],
-  resting: readonly string[],
-) {
-  const was = useRef(new Map<string, Lighting>())
+export function useLighting(map: MapLibreMap | null, source: string, lit: readonly string[]) {
+  const was = useRef(new Set<string>())
   useEffect(() => {
     if (!map || !map.getSource(source)) return
-    const now = new Map<string, Lighting>()
-    if (lit.length > 0) {
-      for (const id of ids) now.set(id, lit.includes(id) ? 'lit' : resting.includes(id) ? 'resting' : 'dim')
-    }
-    for (const id of new Set([...was.current.keys(), ...now.keys()])) {
-      const state = now.get(id) ?? 'rest'
-      if ((was.current.get(id) ?? 'rest') !== state) map.setFeatureState({ source, id }, STATE_OF[state])
-    }
+    const now = new Set(lit)
+    for (const id of was.current) if (!now.has(id)) map.setFeatureState({ source, id }, { lit: false })
+    for (const id of now) if (!was.current.has(id)) map.setFeatureState({ source, id }, { lit: true })
     was.current = now
-  }, [map, source, ids, lit, resting])
+  }, [map, source, lit])
 }
+
+/**
+ * The RouteCard picked in a list of them — the route list's, or a hotspot's
+ * card's (`where`) — by its place, and the directions its rows list: what
+ * the map lights while no trip is open (the owner, 2026-09-29).
+ */
+export type Highlight = { where: 'list' | 'hotspot'; from: string; ids: readonly string[] }
 
 /**
  * Every saved route direction, drawn for everyone. This is the public half of
@@ -122,20 +95,40 @@ export function useSavedRoutes<T extends VariantSummary>(
   const [candidates, setCandidates] = useState<T[]>([])
   /**
    * Which way round the sheet shows the routes under a tap: outbound, or the
-   * way back. One way at a time, each lit with its arrows; ⇄ flips all of
-   * them together. The owner's ask of 2026-09-25.
+   * way back. One way at a time; ⇄ flips all of them together. The owner's
+   * ask of 2026-09-25.
    */
   const [back, setBack] = useState(false)
-  const flip = useCallback(() => setBack((b) => !b), [])
+  /**
+   * The Selected RouteCard, whose directions alone are lit while no trip is
+   * open; with none picked, a list lights every direction it shows (the
+   * owner, 2026-09-29, after seeing a list light nothing). SWITCH, a new
+   * list, a map tap, opening a trip and closing let it go.
+   */
+  const [highlight, setHighlight] = useState<Highlight | null>(null)
+  /**
+   * What a hotspot's RouteCards show, the way round its ⇄ has them: lit as a
+   * list's are, till one of its cards is picked (the owner, 2026-09-29: "on
+   * hintuan it should light its routes"). The card says what it shows, and
+   * nothing once it closes.
+   */
+  const [cardShows, setCardShows] = useState<readonly string[]>([])
+  const flip = useCallback(() => {
+    setBack((b) => !b)
+    setHighlight(null)
+  }, [])
 
   /**
    * Choosing one direction answers the question the chooser was asking, so
-   * the list goes — unless `keepList`: the public map's trip card keeps the
-   * list it was picked from behind it, for its ‹ (the owner's frames of
-   * 2026-09-28); ‹ is then `select(null, { keepList: true })`.
+   * the list goes — unless `keepList`: the public map's trip card keeps what
+   * it was picked from behind it, the list or a hotspot's card, for its ‹
+   * (the owner's frames of 2026-09-28); ‹ is then `select(null, { keepList:
+   * true })`. A Selected card is let go either way, so ‹ comes back to every
+   * card at rest (the owner, 2026-09-29: "back to normal").
    */
   const select = useCallback((id: string | null, opts: { keepList?: boolean } = {}) => {
     setSelectedId(id)
+    setHighlight(null)
     if (!opts.keepList) setCandidates([])
   }, [])
 
@@ -149,13 +142,16 @@ export function useSavedRoutes<T extends VariantSummary>(
     setSelectedId(null)
     setCandidates([...directions])
     setBack(way)
+    setHighlight(null)
   }, [])
 
   const drawingRef = useRef(opts.drawing ?? false)
   drawingRef.current = opts.drawing ?? false
   // A chooser left open when drawing starts would come back, stale, after it.
   useEffect(() => {
-    if (opts.drawing) setCandidates([])
+    if (!opts.drawing) return
+    setCandidates([])
+    setHighlight(null)
   }, [opts.drawing])
 
   // The click handler is bound once; this is how it reads today's variants.
@@ -201,7 +197,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': roadWidth(CASING_EXTRA), 'line-opacity': unlitOpacity('casing') },
+        paint: { 'line-color': '#ffffff', 'line-width': roadWidth(CASING_EXTRA) },
       },
       before,
     )
@@ -211,15 +207,16 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': LINE_BLUE, 'line-width': roadWidth(0), 'line-opacity': unlitOpacity('line') },
+        paint: { 'line-color': MAP_COLOURS['Map/RouteLine/surface-default'], 'line-width': roadWidth(0) },
       },
       before,
     )
-    // The lit directions — the one chosen, or everything under a tap — drawn
-    // once more above the rest. Fading the others is what makes them stand
-    // out; this pair is what stays bright. Every direction is in these
-    // layers, the unlit ones at opacity 0: a filter naming the lit ones
-    // would lay the whole source out again at every tap (see `useLighting`).
+    // The lit directions — the one chosen, the Selected card's, or else
+    // everything a list or a hotspot's card shows — drawn once more above
+    // the rest, in the selected blue: over a shared road, they are the line
+    // that shows. Every direction is in these layers, the unlit ones switched
+    // off: a filter naming the lit ones would lay the whole source out again
+    // at every tap (see `useLighting`).
     map.addLayer(
       {
         id: SELECTED_CASING,
@@ -236,7 +233,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': LINE_BLUE, 'line-width': litWidth(), 'line-opacity': litOpacity() },
+        paint: { 'line-color': MAP_COLOURS['Map/RouteLine/surface-selected'], 'line-width': litWidth(), 'line-opacity': litOpacity() },
       },
       before,
     )
@@ -299,36 +296,41 @@ export function useSavedRoutes<T extends VariantSummary>(
     for (const id of [CASING, LINE, SELECTED_CASING, SELECTED, HIT]) map.setFilter(id, filter as never)
   }, [map, opts.hiddenVariantId])
 
-  // What is lit: the chosen direction alone, or, while the sheet asks which,
-  // the routes under the tap the way round it is showing them. The rest fade
-  // so it reads at a glance.
+  // What is shown: the routes under the tap, the way round the list is
+  // showing them — or, with no list, what a hotspot's cards show.
+  const showing = useMemo(
+    () =>
+      candidates.length > 0
+        ? candidates.filter((v) => v.reversed === back && isDrawn(v))
+        : variants.filter((v) => cardShows.includes(v.id) && isDrawn(v)),
+    [candidates, back, variants, cardShows],
+  )
+  // What is lit: the chosen direction alone; or the Selected card's; or,
+  // with none picked, everything shown.
   const litVariants = useMemo(
     () =>
       selectedId
         ? variants.filter((v) => v.id === selectedId && isDrawn(v))
-        : candidates.filter((v) => v.reversed === back && isDrawn(v)),
-    [selectedId, variants, candidates, back],
+        : highlight
+          ? variants.filter((v) => highlight.ids.includes(v.id) && isDrawn(v))
+          : showing,
+    [selectedId, variants, highlight, showing],
   )
   const lit = useMemo(() => litVariants.map((v) => v.id), [litVariants])
-  // The same routes the other way round, while the sheet shows one: they stay
-  // at rest, so the way back reads as there, and only what the sheet does not
-  // list fades. The owner's pick of 2026-09-25, over fading or hiding it; and
-  // the same for a card opened on its own: its route's other way rests.
-  const resting = useMemo(() => {
-    const chosen = selectedId ? variants.find((v) => v.id === selectedId) : undefined
-    const others = chosen
-      ? variants.filter((v) => v.route_id === chosen.route_id && v.id !== chosen.id)
-      : candidates.filter((v) => v.reversed !== back)
-    return others.filter(isDrawn).map((v) => v.id)
-  }, [selectedId, variants, candidates, back])
-  const drawnIds = useMemo(() => variants.filter(isDrawn).map((v) => v.id), [variants])
-  useLighting(map, SRC, drawnIds, lit, resting)
+  useLighting(map, SRC, lit)
 
-  // The click handler is bound once; this is how it reads what is lit now.
-  const litRef = useRef<readonly string[]>([])
+  // What a tap where directions overlap keeps to: what is lit — but with a
+  // card picked, everything shown, so the taps of 2026-09-25 below keep to
+  // the way round the list shows. The click handler is bound once; this is
+  // how it reads it.
+  const shown = useMemo(
+    () => (selectedId || showing.length === 0 ? lit : showing.map((v) => v.id)),
+    [selectedId, lit, showing],
+  )
+  const shownRef = useRef<readonly string[]>([])
   useEffect(() => {
-    litRef.current = lit
-  }, [lit])
+    shownRef.current = shown
+  }, [shown])
 
   // ----------------------------------------------------------------- events
 
@@ -338,27 +340,29 @@ export function useSavedRoutes<T extends VariantSummary>(
 
     // One handler, one box. A finger is wider than a pixel, so we ask what is
     // near the tap: nothing deselects, one route opens its card, several
-    // things — routes, hotspots or both — light up and go to the sheet. The
-    // candidates are whole routes, slots included, so the sheet can say
-    // "return not mapped yet". The stops hook reads the same tap and keeps
-    // its own half.
+    // things — routes, hotspots or both — go to the list, the routes lit the
+    // way round it shows them. The candidates are whole routes, slots
+    // included, so the studio's rows can say "return not mapped yet".
+    // The stops hook reads the same tap and keeps its own half.
     const onMapClick = (e: MapMouseEvent) => {
       if (drawingRef.current) return
+      // Whatever the tap opens, the card picked before it is let go.
+      setHighlight(null)
       const out = resolveTap(tapTargets(map, e.point, e.originalEvent))
       const all = [...byId.current.values()]
       if (out.kind === 'route') {
         // The line under the finger wins: where a route's two directions run
         // on different roads, tapping the other one must open it (the owner's
-        // check, 2026-09-22). Where both overlap, the one already lit stays
+        // check, 2026-09-22). Where both overlap, the one already shown stays
         // (the owner's ask of 2026-09-25: a tap on the lit Novaliches → Tala
-        // opened Tala → Novaliches); with neither lit, the outbound rule
+        // opened Tala → Novaliches); with neither shown, the outbound rule
         // decides.
         const under = out.routeIds.map((id) => byId.current.get(id)).filter((v) => !!v)
         const routeId = under[0]?.route_id
         const open =
           under.length === 1
             ? under[0]!
-            : (under.find((v) => litRef.current.includes(v.id)) ?? directionToOpen(all.filter((v) => v.route_id === routeId)))
+            : (under.find((v) => shownRef.current.includes(v.id)) ?? directionToOpen(all.filter((v) => v.route_id === routeId)))
         setSelectedId(open?.id ?? null)
         setCandidates([])
       } else if (out.kind === 'several') {
@@ -368,11 +372,11 @@ export function useSavedRoutes<T extends VariantSummary>(
         // The way round under the finger, as for one route: outbound where an
         // outbound line was hit, the way back where only ways back were — so
         // a tap on the light-blue way back switches to it (the owner's
-        // report, 2026-09-25) — and, where a lit line was hit, the way round
-        // already lit.
+        // report, 2026-09-25) — and, where a line shown was hit, the way
+        // round already shown.
         const hit = out.routeIds.map((id) => byId.current.get(id)).filter((v) => !!v)
-        const litHit = hit.find((v) => litRef.current.includes(v.id))
-        setBack(litHit ? litHit.reversed : hit.length > 0 && hit.every((v) => v.reversed))
+        const shownHit = hit.find((v) => shownRef.current.includes(v.id))
+        setBack(shownHit ? shownHit.reversed : hit.length > 0 && hit.every((v) => v.reversed))
       } else {
         setSelectedId(null)
         setCandidates([])
@@ -397,5 +401,21 @@ export function useSavedRoutes<T extends VariantSummary>(
 
   const selected = variants.find((v) => v.id === selectedId) ?? null
 
-  return { variants, error, loading, reload, selected, select, openList, candidates, back, flip, lit, litVariants, resting }
+  return {
+    variants,
+    error,
+    loading,
+    reload,
+    selected,
+    select,
+    openList,
+    candidates,
+    back,
+    flip,
+    highlight,
+    highlightCard: setHighlight,
+    showCard: setCardShows,
+    lit,
+    litVariants,
+  }
 }

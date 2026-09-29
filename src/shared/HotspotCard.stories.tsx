@@ -1,5 +1,7 @@
+import type { ComponentProps } from 'react'
+import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { fn, userEvent, within } from 'storybook/test'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import { HotspotCard } from './HotspotCard'
 import type { VariantSummary } from './routes'
 import type { StopRow } from './stops'
@@ -44,9 +46,34 @@ const terminal: StopRow = {
   created_at: '2026-09-12T00:00:00Z',
 }
 
+/** Keeps the Selected card as the public map does, so the RouteCards stories can be tapped through. */
+function Picking(props: ComponentProps<typeof HotspotCard>) {
+  const [selected, setSelected] = useState(props.routeCards?.selected ?? null)
+  const routeCards = props.routeCards
+  return (
+    <HotspotCard
+      {...props}
+      routeCards={
+        routeCards && {
+          ...routeCards,
+          selected,
+          onSelect: (p) => {
+            routeCards.onSelect(p)
+            setSelected(p?.from ?? null)
+          },
+        }
+      }
+    />
+  )
+}
+
+/** The public map's RouteCards, nothing picked yet. */
+const routeCards = { selected: null, onSelect: fn(), onShown: fn() }
+
 const meta = {
   title: 'Shared/HotspotCard',
   component: HotspotCard,
+  render: (args) => <Picking {...args} />,
   // The card is placed against the map, so give it a map-sized box to sit in.
   // `@container` is what the card's `@wide:` classes measure, and the `phone`
   // parameter shrinks that box to a handset so the bottom sheet shows instead.
@@ -130,8 +157,8 @@ export const Phone: Story = {
 }
 
 /**
- * Drawn directions, each line `km` long (so the fare is a real fare): the
- * owner's two routes out of Tala, both through SM Fairview. Sample data.
+ * Drawn directions, each line `km` long: the owner's two routes out of
+ * Tala, both through SM Fairview. Sample data.
  */
 const drawn = (key: string, name: string, direction: string, km: number, reversed = false): VariantSummary => ({
   ...outbound,
@@ -152,14 +179,15 @@ const talaRoutes = [
 /**
  * The public map's card (`routeCards`, the owner's ask of 2026-09-29): the
  * routes through here as his RouteCards, edge to edge — his SM Fairview
- * screenshot, Tala with its two ways out, in a colour drawn at random. No
- * pesos on a hintuan's cards: the whole ride from Tala is not the fare from
- * here (his call, 2026-09-29); RouteCardsTerminal keeps them. The rest of the
- * card waits for his hintuan design.
+ * screenshot, Tala with its two ways out, in a colour drawn at random. The
+ * map lights every route they show; a tap on a card off its rows narrows
+ * that to its own; a row opens its trip straight away. No pesos on any card since his State set: the trip's
+ * Expected fare carries them. The rest of the card waits for his hintuan
+ * design.
  */
 export const RouteCards: Story = {
   args: {
-    routeCards: true,
+    routeCards,
     stop: fairviewBoxes[2]!,
     stops: fairviewBoxes,
     onPickSibling: fn(),
@@ -168,13 +196,20 @@ export const RouteCards: Story = {
   },
 }
 
-/** ⇄ pressed: the way back, a card per place — Novaliches, SM Fairview — never alike side by side. */
+/** Tala's card picked: pressed in, its routes lit on the map. */
+export const RouteCardsSelected: Story = { args: { ...RouteCards.args, routeCards: { selected: 'Tala', onSelect: fn(), onShown: fn() } } }
+
+/** ⇄ pressed: the way back, a card per place — Novaliches, SM Fairview — never alike side by side; it lets a picked card go. */
 export const RouteCardsTheWayBack: Story = {
-  args: RouteCards.args,
-  play: async ({ canvasElement }) => {
+  args: RouteCardsSelected.args,
+  play: async ({ args, canvasElement }) => {
     const flip = within(canvasElement).getByTestId('card-flip')
     await userEvent.click(flip)
     flip.blur()
+    await expect(args.routeCards?.onSelect).toHaveBeenCalledWith(null)
+    // The map is told the way back is what the cards show now.
+    await expect(args.routeCards?.onShown).toHaveBeenLastCalledWith(expect.arrayContaining(['nova-back', 'sm-back']))
+    await expect(args.routeCards?.onShown).not.toHaveBeenLastCalledWith(expect.arrayContaining(['nova-out']))
   },
 }
 
@@ -210,11 +245,11 @@ export const RouteCardsNothingTheOtherWay: Story = {
 /** A terminal's card, "Routes that stage here": the same RouteCards (the owner, 2026-09-29). */
 export const RouteCardsTerminal: Story = {
   args: {
-    routeCards: true,
+    routeCards,
     linkedVariantIds: talaRoutes.map((v) => v.id),
     variants: talaRoutes,
   },
 }
 
 /** Only slots are linked here yet: the RouteCards list drawn ways only, so there is nothing to list. */
-export const RouteCardsNothingDrawn: Story = { args: { routeCards: true } }
+export const RouteCardsNothingDrawn: Story = { args: { routeCards } }

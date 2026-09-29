@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { haversine, type LngLat } from './geo'
-import { LINE_BLUE, endRadius, litWidthAt } from './lineStyle'
+import { MAP_COLOURS } from '../design-system/foundation/mapColours'
+import { endRadius, litWidthAt } from './lineStyle'
 import { ROUTES_HIT_LAYER } from './tap'
 
 /**
@@ -13,9 +14,11 @@ import { ROUTES_HIT_LAYER } from './tap'
  * second offset line, only on what is lit — on every resting line they would
  * be clutter once a road carries three routes — and **flowing smoothly**
  * along it from the start of the ride to its end. No glow: he asked for it
- * and then asked for it gone. What is lit is the chosen direction, or, since
- * 2026-09-25, every route under a tap the way round the sheet shows them;
- * where two of those share a road they flow as one stream, not two.
+ * and then asked for it gone. What is lit is the chosen direction; or, since
+ * 2026-09-29, the Selected RouteCard's directions (a route list's card or a
+ * hotspot's); or else every route a list shows, the way round it shows them
+ * (since 2026-09-25), or a hotspot's cards do (2026-09-29). Where two of
+ * those share a road they flow as one stream, not two.
  *
  * The mark is a white chevron, one to a place and all alike, with no trail:
  * his call the night of 2026-09-23, after white arrows, a train of four
@@ -269,7 +272,10 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     // other way round.
     if (!map || map.getSource(SRC) || !map.getLayer(ROUTES_HIT_LAYER)) return
     map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-    map.addLayer({ id: CHEVRONS, type: 'fill', source: SRC, paint: { 'fill-color': '#ffffff' } }, ROUTES_HIT_LAYER)
+    map.addLayer(
+      { id: CHEVRONS, type: 'fill', source: SRC, paint: { 'fill-color': MAP_COLOURS['Map/RouteLine/Arrow/Rest'] } },
+      ROUTES_HIT_LAYER,
+    )
     map.addSource(ENDS_SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
     map.addLayer(
       {
@@ -279,7 +285,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
         paint: {
           'circle-radius': endRadius(),
           'circle-color': '#ffffff',
-          'circle-stroke-color': LINE_BLUE,
+          'circle-stroke-color': MAP_COLOURS['Map/RouteLine/surface-selected'],
           'circle-stroke-width': 2,
         },
       },

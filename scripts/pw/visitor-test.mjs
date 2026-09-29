@@ -106,19 +106,34 @@ await page.addInitScript(() => {
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
   // Since 2026-09-25 a tap is feature state, not a filter or a paint
   // expression naming ids (useLighting in src/shared/useSavedRoutes.ts).
-  // The directions a source has lit; and the level the line layer paints a
-  // direction nobody tapped: dim while anything is lit, at rest otherwise —
-  // its own expression's branches, read through the state, as MapLibre does.
+  // The directions a source has lit.
   window.__lit = async (src) => {
     const m = window.__map
     const fc = await m?.getSource(src)?.getData()
     if (!fc) return null
     return [...new Set(fc.features.map((f) => f.properties.id))].filter((id) => !!m.getFeatureState({ source: src, id }).lit)
   }
-  window.__restLevel = async () => {
-    const o = window.__map.getPaintProperty('saved-routes-line', 'line-opacity')
-    if (!Array.isArray(o)) return o
-    return ((await window.__lit('saved-routes')) ?? []).length ? o[4] : o[o.length - 1]
+  // The route lines' paint, the owner's two looks of 2026-09-29: the colour a
+  // line rests in, the colour of the lit copy drawn over it, and any
+  // saved-routes layer whose opacity shades a line rather than switching it
+  // on or off — the outputs of its expression, read branch by branch.
+  window.__paint = () => {
+    const m = window.__map
+    const outputs = (e) =>
+      typeof e === 'number' ? [e]
+      : !Array.isArray(e) ? []
+      : e[0] === 'case' ? [...e.slice(2, -1).filter((_, i) => i % 2 === 0), e.at(-1)].flatMap(outputs)
+      : e[0] === 'step' ? [e[2], ...e.slice(4).filter((_, i) => i % 2 === 0)].flatMap(outputs)
+      : e[0] === 'interpolate' ? e.slice(4).filter((_, i) => i % 2 === 0).flatMap(outputs)
+      : []
+    const shaded = m.getStyle().layers
+      .filter((l) => l.id.startsWith('saved-routes') && l.type === 'line')
+      .flatMap((l) => outputs(m.getPaintProperty(l.id, 'line-opacity') ?? 1).filter((o) => o > 0 && o < 1).map((o) => `${l.id} at ${o}`))
+    return {
+      rest: m.getPaintProperty('saved-routes-line', 'line-color'),
+      lit: m.getPaintProperty('saved-routes-selected', 'line-color'),
+      shaded,
+    }
   }
 })
 const errors = []
@@ -183,6 +198,28 @@ check(
 )
 
 // 2. Read the map's own data before asserting anything about it.
+// The owner's two looks for the lines (2026-09-29): every one opaque in
+// Map/RouteLine/surface-default, the lit ones drawn over them in
+// …/surface-selected, and no layer shading a line. The hexes are
+// mapColours.ts's, read from the dev server; a server that cannot serve it
+// is held to two different colours.
+const MAP = await page.evaluate(async () => {
+  try {
+    return (await import('/src/design-system/foundation/mapColours.ts')).MAP_COLOURS
+  } catch {
+    return null
+  }
+})
+const paintNow = () => page.evaluate(() => (window.__map.getLayer('saved-routes-line') ? window.__paint() : null))
+/** The directions lit on the map now. */
+const litNow = async () => (await page.evaluate(() => window.__lit('saved-routes'))) ?? []
+/** The directions a RouteCard's rows open, as the card names them. */
+const cardDirections = (card) => card.locator('button[data-testid$="-item"]').evaluateAll((els) => els.map((e) => e.dataset.direction))
+const sameIds = (a, b) => a.length === b.length && a.every((id) => b.includes(id))
+const twoLooks = (p) =>
+  !!p && p.shaded.length === 0 &&
+  (MAP ? p.rest === MAP['Map/RouteLine/surface-default'] && p.lit === MAP['Map/RouteLine/surface-selected'] : !!p.rest && p.rest !== p.lit)
+
 const snapshot = await page.evaluate(async () => {
   const m = window.__map
   const stopsFC = await window.__src('saved-stops')
@@ -303,18 +340,32 @@ for (const [i, p] of snapshot.polys.entries()) {
     const places = (await cards.allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim())
     const colours = await cards.evaluateAll((els) => els.map((e) => e.getAttribute('data-livery')))
     check(`  its routes are RouteCards, a card per place they leave from`, places.length > 0 && places.every((t) => t.length > 0) && colours.every((c) => !!c), places.map((t, i) => `${colours[i]}: ${t}`).join(' | '))
-    // A card's pesos are the whole ride from where it leaves: a rider at a
-    // hintuan, mid-route, would read them as theirs, so a hintuan's cards
-    // carry none (the owner, 2026-09-29).
-    if (!isTerminal) check(`  and no pesos on a hintuan's cards`, places.every((t) => !t.includes('₱')), places.join(' | '))
+    // The pesos left the cards with the owner's State set (2026-09-29): the
+    // trip's Expected fare carries them.
+    check(`  and no pesos on any card`, places.every((t) => !t.includes('₱')), places.join(' | '))
     // ⇄ only where both ways pass: a box passed one way only has nothing to flip to.
     const flip = page.locator('[data-testid="card-flip"]')
     check(`  and ⇄ offers the way back, or the box is passed one way only`, (await flip.count()) <= 1)
+    // A hotspot's cards light every route they show, the way round ⇄ has
+    // them (the owner, 2026-09-29: "on hintuan it should light its routes");
+    // a tap on a card off its rows narrows that to its own, a second lets it
+    // go; a row opens its trip straight away, and ‹ comes back to every card
+    // at rest (his "back to normal", the same day).
+    const firstCard = cards.first()
+    const name = firstCard.locator('[data-testid="card-select"]')
+    const shownIds = (await cardDirections(page.locator('[data-testid="card"]').first())).filter(Boolean)
+    const litBefore = await litNow()
+    check(`  every route its cards show is lit`, shownIds.length > 0 && sameIds(litBefore, shownIds), `${litBefore.length} lit, ${shownIds.length} shown`)
+    await name.click()
+    await page.waitForTimeout(250)
+    const cardIds = await cardDirections(firstCard)
+    const picked = await litNow()
+    check(`  a tap on its first card selects it and lights just its routes`, (await firstCard.getAttribute('data-state')) === 'selected' && sameIds(picked, cardIds), `${picked.length} lit for ${cardIds.length} row(s) of ${shownIds.length}`)
     const label = (await rows.first().innerText()).replace(/\s+/g, ' ').trim()
     await rows.first().click()
     await page.waitForTimeout(350)
     const after = await cardKind()
-    check(`  its first route row opens a route card`, after.kind === 'route', `row "${label}" -> ${after.kind}`)
+    check(`  its first route row opens a route card straight away`, after.kind === 'route', `row "${label}" -> ${after.kind}`)
     if (after.kind === 'route') {
       // In its card's colour, the hotspot's card kept behind it for its ‹
       // (the owner, 2026-09-29).
@@ -330,12 +381,31 @@ for (const [i, p] of snapshot.polys.entries()) {
       await page.waitForTimeout(350)
       const again = await cardKind()
       check(`  ‹ on the trip goes back to the hotspot's card, lit again`, again.kind === 'hotspot' && again.text === opened && (await stopsLit()).includes(p.id), `card ${again.kind}; lit ${JSON.stringify(await stopsLit())}`)
+      const relit = await litNow()
+      check(`  ‹ comes back to its cards at rest, every route lit again`, (await page.locator('[data-testid="card"] [data-testid="card-origin"][data-state="selected"]').count()) === 0 && sameIds(relit, shownIds), `${relit.length} lit of ${shownIds.length}`)
+      // Picked, a second tap lets it go.
+      await name.click()
+      await page.waitForTimeout(250)
+      const repicked = (await firstCard.getAttribute('data-state')) === 'selected'
+      await name.click()
+      await page.waitForTimeout(250)
+      const letGo = await litNow()
+      check(`  a second tap on a picked card lets it go: every route lit again`, repicked && (await firstCard.getAttribute('data-state')) === 'rest' && sameIds(letGo, shownIds), `picked ${repicked}; ${letGo.length} lit`)
+      // ✕ closes it, a picked card and all: nothing stays lit.
+      await name.click()
+      await page.waitForTimeout(250)
+      const pickedAgain = (await firstCard.getAttribute('data-state')) === 'selected'
+      await closeCard()
+      await page.waitForTimeout(250)
+      const closed = await litNow()
+      check(`  ✕ closes it all: nothing lit`, pickedAgain && closed.length === 0, `picked ${pickedAgain}; ${closed.length} lit`)
     }
   } else {
     const noneMsg = isTerminal ? 'None recorded yet.' : 'No saved route passes through here yet.'
     check(`  no linked routes: shows "${noneMsg}"`, opened.includes(noneMsg))
   }
-  await closeCard()
+  // Closed already where ✕ was tried; the helper would wait out its timeout.
+  if ((await cardKind()).kind !== 'none') await closeCard()
   await page.waitForTimeout(200)
 }
 
@@ -370,16 +440,33 @@ if (!hit) {
     // The owner's pick of 2026-09-29: the count stays the routes', a card each.
     const title = `${cardCount} ${cardCount === 1 ? 'Route' : 'Routes'}`
     check(`  headed "${title}": the routes' count, not the hotspot's`, text.split('\n').includes(title), text.split('\n')[0])
-    // The level of a direction the list does not show (the listed routes'
-    // other way round stays at rest, the owner's pick of 2026-09-25).
-    const fadedWhileAsking = await page.evaluate(() => window.__restLevel())
-    check('  the rest of the map fades while the list asks', fadedWhileAsking < 0.3, String(fadedWhileAsking))
+    // A list lights every route it shows; a tap on a card off its rows
+    // narrows the lights to its routes, dark blue over the rest, and a
+    // second lets it go; a row opens its trip straight away, and ‹ comes
+    // back to every card at rest (the owner, 2026-09-29).
+    const listedNow = async () => (await cardDirections(chooser.first())).filter(Boolean)
+    const listed = await listedNow()
+    const asking = await litNow()
+    check('  the list lights every route it shows', listed.length > 0 && sameIds(asking, listed), `${asking.length} lit, ${listed.length} listed`)
     const row = items.last()
-    const colour = await row.locator('xpath=ancestor::*[@data-livery][1]').getAttribute('data-livery')
+    const card = row.locator('xpath=ancestor::*[@data-livery][1]')
+    const colour = await card.getAttribute('data-livery')
+    const name = card.locator('[data-testid="chooser-select"]')
+    await name.click()
+    await page.waitForTimeout(250)
+    const cardIds = await cardDirections(card)
+    const picked = await litNow()
+    const looks = await paintNow()
+    check('  a tap on a card selects it, dark blue over the rest', (await card.getAttribute('data-state')) === 'selected' && twoLooks(looks), JSON.stringify(looks))
+    // Narrower than the list only where the list has other cards.
+    if (cardIds.length < listed.length) check('  and lights just its routes', sameIds(picked, cardIds), `${picked.length} lit for ${cardIds.length} row(s) of ${listed.length}`)
+    else skip('  and lights just its routes', 'one card lists every route this way round under this tap')
+    // Its row, the card picked: the trip opens, and ‹ brings the list back
+    // at rest.
     await row.click()
     await page.waitForTimeout(350)
     const state = await cardKind()
-    check("  the route's row opens the route card", state.kind === 'route', state.kind)
+    check("  the route's row opens the route card straight away", state.kind === 'route', state.kind)
     if (state.kind === 'route') {
       const tripColour = await page.locator('[data-testid="trip"]').first().getAttribute('data-livery')
       check('  in the colour of the card it was picked from', !!colour && tripColour === colour, `card ${colour}, trip ${tripColour}`)
@@ -397,20 +484,56 @@ if (!hit) {
         again === text && (await cardKind()).kind === 'none' && (await stopsLit()).includes(hit.hotspot.id),
         again ? `card ${(await cardKind()).kind}; lit ${JSON.stringify(await stopsLit())}` : 'the list did not come back',
       )
+      const relit = await litNow()
+      const stillSelected = await chooser.locator('[data-state="selected"]').count()
+      check('  ‹ brings it back at rest: no card picked, every route lit', stillSelected === 0 && sameIds(relit, listed), `${stillSelected} Selected; ${relit.length} lit, ${listed.length} listed`)
+      // Picked, a second tap lets it go.
+      await name.click()
+      await page.waitForTimeout(250)
+      const repicked = (await card.getAttribute('data-state')) === 'selected'
+      await name.click()
+      await page.waitForTimeout(250)
+      const letGo = await litNow()
+      check('  a second tap on a picked card lets it go: every route it shows lit again', repicked && (await card.getAttribute('data-state')) === 'rest' && sameIds(letGo, listed), `picked ${repicked}; ${letGo.length} lit, ${listed.length} listed`)
+      // SWITCH lets a picked card go and lights all of the other way round;
+      // there, where each place is a card of its own, a pick narrows it.
+      const flip = chooser.locator('[data-testid="chooser-flip"]')
+      if (!(await flip.isEnabled())) {
+        skip('  SWITCH lets a picked card go: nothing Selected, the other way round lit', 'nothing drawn the other way round under this tap')
+      } else {
+        await name.click()
+        await page.waitForTimeout(250)
+        const pickedAgain = (await card.getAttribute('data-state')) === 'selected'
+        await flip.click()
+        await page.waitForTimeout(300)
+        const switched = await litNow()
+        const otherWay = await listedNow()
+        const stillPicked = await chooser.locator('[data-state="selected"]').count()
+        check('  SWITCH lets a picked card go: nothing Selected, the other way round lit', pickedAgain && stillPicked === 0 && otherWay.length > 0 && sameIds(switched, otherWay), `picked ${pickedAgain}; ${switched.length} lit, ${otherWay.length} listed, ${stillPicked} Selected`)
+        const backCards = chooser.locator('[data-testid="chooser-origin"]')
+        if ((await backCards.count()) < 2) {
+          skip("  a pick there lights just its card's routes, fewer than the list's", 'one card the other way round too')
+        } else {
+          const one = backCards.first()
+          await one.locator('[data-testid="chooser-select"]').click()
+          await page.waitForTimeout(250)
+          const oneIds = await cardDirections(one)
+          const narrowed = await litNow()
+          check("  a pick there lights just its card's routes, fewer than the list's", oneIds.length > 0 && oneIds.length < otherWay.length && sameIds(narrowed, oneIds), `${narrowed.length} lit for ${oneIds.length} of ${otherWay.length}`)
+        }
+      }
     }
     await closeCard()
   }
 }
 
-// 4b. Rest and lit: every direction rests light; one route alone under the
-// tap opens its card directly, drawn bright while the rest fade; closing the
-// card rests everything again.
+// 4b. Rest and lit: every direction rests in one light blue, opaque; one
+// route alone under the tap opens its card directly, drawn dark blue over
+// the rest; closing the card lights nothing again. Nothing fades and nothing
+// is see-through (the owner's two looks, 2026-09-29).
 {
-  // What the rest are at: the level of a direction nobody tapped (a lit
-  // direction's way back rests, the owner's pick of 2026-09-25).
-  const opacity = () => page.evaluate(() => window.__restLevel())
-  const rest = await opacity()
-  check('the lines rest in a light blue (opacity under 0.6)', typeof rest === 'number' && rest > 0 && rest < 0.6, String(rest))
+  const looks = await paintNow()
+  check('the lines rest opaque in Map/RouteLine/surface-default, lit in …/surface-selected, none shaded', twoLooks(looks), JSON.stringify(looks))
   const clean = findVertexOutsideHotspots(snapshot.routes, snapshot.polys)
   if (!clean) {
     skip('a tap on one route opens its card straight away', 'every route vertex lies inside a hotspot or on a road another route shares today')
@@ -425,14 +548,13 @@ if (!hit) {
     check('a tap on one route opens its card straight away', state.kind === 'route' && chooserCount === 0, `card ${state.kind}, list count ${chooserCount}`)
     if (state.kind === 'route') {
       // Named for its direction, the trip runs from where that leaves (the
-      // top row, under the fare) to where it goes (the bottom row).
+      // top row, its pesos in a tile under the card since 3778:3183) to where
+      // it goes (the bottom row).
       const label = (await page.locator('[data-testid="card"]').first().getAttribute('aria-label')) ?? ''
       const [from = '', to = ''] = label.split(' → ')
       const row = (id) => page.locator(`[data-testid="${id}"]`).first().innerText().then((t) => t.replace(/\s+/g, ' ').trim(), () => '')
       const [top, bottom] = [await row('trip-origin'), await row('trip-destination')]
-      check('  the card runs from where its direction leaves to where it goes', !!from && !!to && top.endsWith(from) && bottom === to, `"${label}": top "${top}", bottom "${bottom}"`)
-      const faded = await opacity()
-      check('  the rest fade while one direction is lit', faded < rest, `${faded} vs rest ${rest}`)
+      check('  the card runs from where its direction leaves to where it goes', !!from && !!to && top === from && bottom === to, `"${label}": top "${top}", bottom "${bottom}"`)
       const litIds = (await page.evaluate(() => window.__lit('saved-routes'))) ?? []
       check('  exactly one direction is lit', litIds.length === 1, JSON.stringify(litIds))
       // The chevrons: flowing along the lit direction, each cut to exactly
@@ -464,9 +586,14 @@ if (!hit) {
       const stretches = await page.evaluate(async (id) => ((await window.__src('saved-routes-pass'))?.features ?? []).filter((f) => f.properties.id === id).length, litId)
       const passLit = (await page.evaluate(() => window.__lit('saved-routes-pass'))) ?? []
       check('  the orange stretches of the lit direction are lit with it', stretches > 0 && passLit.includes(litId), `${stretches} stretch(es); lit on the stretches: ${JSON.stringify(passLit)}`)
+      // Orange on the lit line only (the owner's two looks, 2026-09-29): no
+      // other direction's stretches lit, and no layer left painting them all.
+      const alwaysOn = await page.evaluate(() => !!window.__map.getLayer('saved-routes-pass'))
+      check('  and on no other line', passLit.length === 1 && !alwaysOn, `lit on the stretches: ${JSON.stringify(passLit)}; the old layer for every line ${alwaysOn ? 'still there' : 'gone'}`)
       await closeCard()
       await page.waitForTimeout(300)
-      check('  closing the card rests the map again', (await opacity()) === rest, String(await opacity()))
+      const after = (await page.evaluate(() => window.__lit('saved-routes'))) ?? []
+      check('  closing the card lights nothing again', after.length === 0, JSON.stringify(after))
     }
   }
 }

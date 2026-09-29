@@ -56,6 +56,11 @@ already is the Figma value.
   ramps of 2026-09-28 are the warning).
 - Renames in Figma rename the token here too, and every usage of the old
   class in `src/` (grep for it).
+- A **Map/…** semantic is also written into
+  `src/design-system/foundation/mapColours.ts`, keyed by its Figma name, as
+  the hex of the primitive it aliases: the map's paint (MapLibre) reads
+  neither var() nor Tailwind's oklch. `npm run test:map-colours` fails
+  until the two agree.
 
 ## 4. Prove and record
 

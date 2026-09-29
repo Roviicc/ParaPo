@@ -7,13 +7,14 @@
 // a time, grouped by the place they leave from ("Tala", then → SM Fairview
 // and → Novaliches), with a switch to show them all the way back — his route
 // list here too since 2026-09-29 ("Studio too"): a RouteCard per place, only
-// what is drawn, and SWITCH. The map lights
-// exactly what the list shows, each with flowing chevrons and a circle at
-// either end, and where two lit lines share a road their chevrons flow as
-// one stream. The same routes the other way round stay at rest, light blue,
-// and only a route the list does not show fades (the owner's pick of the
-// same day); a click on that light-blue way back switches the list to it,
-// and a click on a lit line where its outbound runs too keeps the lit one.
+// what is drawn, and SWITCH. The list lights every direction it shows; a
+// card picked narrows the lights to exactly its directions, each with
+// flowing chevrons and a circle at either end, and where two lit lines share
+// a road their chevrons flow as one stream; a second tap, or SWITCH, lets
+// the card go (the owner's picks of 2026-09-29). Nothing fades: the other way round and every route
+// the list does not show stay drawn as they rest. A click on the light-blue
+// way back switches the list to it, and a click on a shown line where its
+// outbound runs too keeps the shown one.
 // Reads the live tables, so it finds its own spot: a vertex of
 // one route lying on another route's line. SKIPs when no two routes share
 // a road.
@@ -32,19 +33,34 @@ await page.addInitScript(() => {
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
   // Since 2026-09-25 a tap is feature state, not a filter or a paint
   // expression naming ids (useLighting in src/shared/useSavedRoutes.ts).
-  // The directions a source has lit; and the level the line layer paints a
-  // direction nobody tapped: dim while anything is lit, at rest otherwise —
-  // its own expression's branches, read through the state, as MapLibre does.
+  // The directions a source has lit.
   window.__lit = async (src) => {
     const m = window.__map
     const fc = await m?.getSource(src)?.getData()
     if (!fc) return null
     return [...new Set(fc.features.map((f) => f.properties.id))].filter((id) => !!m.getFeatureState({ source: src, id }).lit)
   }
-  window.__restLevel = async () => {
-    const o = window.__map.getPaintProperty('saved-routes-line', 'line-opacity')
-    if (!Array.isArray(o)) return o
-    return ((await window.__lit('saved-routes')) ?? []).length ? o[4] : o[o.length - 1]
+  // The route lines' paint, the owner's two looks of 2026-09-29: the colour a
+  // line rests in, the colour of the lit copy drawn over it, and any
+  // saved-routes layer whose opacity shades a line rather than switching it
+  // on or off — the outputs of its expression, read branch by branch.
+  window.__paint = () => {
+    const m = window.__map
+    const outputs = (e) =>
+      typeof e === 'number' ? [e]
+      : !Array.isArray(e) ? []
+      : e[0] === 'case' ? [...e.slice(2, -1).filter((_, i) => i % 2 === 0), e.at(-1)].flatMap(outputs)
+      : e[0] === 'step' ? [e[2], ...e.slice(4).filter((_, i) => i % 2 === 0)].flatMap(outputs)
+      : e[0] === 'interpolate' ? e.slice(4).filter((_, i) => i % 2 === 0).flatMap(outputs)
+      : []
+    const shaded = m.getStyle().layers
+      .filter((l) => l.id.startsWith('saved-routes') && l.type === 'line')
+      .flatMap((l) => outputs(m.getPaintProperty(l.id, 'line-opacity') ?? 1).filter((o) => o > 0 && o < 1).map((o) => `${l.id} at ${o}`))
+    return {
+      rest: m.getPaintProperty('saved-routes-line', 'line-color'),
+      lit: m.getPaintProperty('saved-routes-selected', 'line-color'),
+      shaded,
+    }
   }
 })
 // The features of one of our GeoJSON sources once the page has some, asked
@@ -85,6 +101,25 @@ const offLine = (p, coords) => {
   return best
 }
 
+// The owner's two looks for the lines (2026-09-29), in the studio too: every
+// one opaque in Map/RouteLine/surface-default, the lit ones drawn over them
+// in …/surface-selected, and no layer shading a line. The hexes are
+// mapColours.ts's, read from the dev server; a server that cannot serve it
+// is held to two different colours.
+{
+  const MAP = await page.evaluate(async () => {
+    try {
+      return (await import('/src/design-system/foundation/mapColours.ts')).MAP_COLOURS
+    } catch {
+      return null
+    }
+  })
+  const p = await page.evaluate(() => window.__paint())
+  const twoLooks = p.shaded.length === 0 &&
+    (MAP ? p.rest === MAP['Map/RouteLine/surface-default'] && p.lit === MAP['Map/RouteLine/surface-selected'] : !!p.rest && p.rest !== p.lit)
+  check('the studio paints the lines in the same two looks, none shaded', twoLooks, JSON.stringify(p))
+}
+
 // A vertex in the middle stretch of one route that lies on another route's line.
 let spot = null
 for (const a of lines) {
@@ -114,20 +149,22 @@ if (!spot) {
   const showsBack = async () =>
     (await chooser.locator('[data-testid="chooser-flip"]').getAttribute('aria-pressed', { timeout: 2000 }).catch(() => null)) === 'true'
 
-  // What the list shows, what is lit, and what is drawn over it.
+  // What the list shows — each card's place, its rows and the directions
+  // they open — what is lit, and what is drawn over it.
   const read = async () => {
     const origins = []
     for (const o of await chooser.locator('[data-testid="chooser-origin"]').all()) {
-      // A RouteCard's place is its last line of words: the fare, when it has
-      // one, comes first.
-      const from = (await o.locator('p').last().innerText()).trim()
+      // A RouteCard's place is its name, the button that picks the card.
+      const from = (await o.locator('[data-testid="chooser-select"]').innerText()).trim()
       const rows = []
       for (const r of await o.locator('button[data-testid="chooser-item"]').all()) {
         const text = await r.innerText()
-        rows.push({ to: text.replace('→', '').split('\n').map((s) => s.trim()).filter(Boolean)[0], drawn: await r.isEnabled(), text })
+        rows.push({ id: await r.getAttribute('data-direction'), to: text.replace('→', '').split('\n').map((s) => s.trim()).filter(Boolean)[0], drawn: await r.isEnabled(), text })
       }
       origins.push({ from, rows })
     }
+    const listed = origins.flatMap((o) => o.rows.map((r) => r.id))
+    const selected = await chooser.locator('[data-state="selected"]').count()
     await page.waitForTimeout(300)
     const map = await page.evaluate(async () => {
       const m = window.__map
@@ -147,13 +184,25 @@ if (!spot) {
           if (Math.hypot(centres[i][0] - centres[j][0], centres[i][1] - centres[j][1]) < 3) doubled++
       return { lit, ends, endList, names, chevrons: centres.length, doubled }
     })
-    return { origins, ...map }
+    return { origins, listed, selected, ...map }
+  }
+  /**
+   * Picks the card with the most ways out — lines out of one place share its
+   * road, so their chevrons meet — by a tap off its rows, and reads what it
+   * lights: its directions alone (the owner, 2026-09-29).
+   */
+  const pick = async (r) => {
+    const i = r.origins.reduce((best, o, j) => (o.rows.length > r.origins[best].rows.length ? j : best), 0)
+    await chooser.locator('[data-testid="chooser-select"]').nth(i).click()
+    await page.waitForTimeout(500)
+    return { card: r.origins[i], at: i, ...(await read()) }
   }
 
   // What each line under the lit ones is drawn at, as the map works it out
   // line by line: the camera pulls back so every line is on screen, then
-  // returns, so the chevrons are still measured where they were.
-  const REST = 0.45
+  // returns, so the chevrons are still measured where they were. Unset is
+  // MapLibre's default, 1: since the owner's two looks (2026-09-29) nothing
+  // under the lit ones fades.
   const levels = () =>
     page.evaluate(async () => {
       const m = window.__map
@@ -165,12 +214,12 @@ if (!spot) {
       m.fitBounds([[w, s], [e, n]], { padding: 40, duration: 0 })
       await settle()
       const byId = {}
-      for (const f of m.queryRenderedFeatures({ layers: ['saved-routes-line'] })) byId[f.properties.id] = f.layer.paint['line-opacity']
+      for (const f of m.queryRenderedFeatures({ layers: ['saved-routes-line'] })) byId[f.properties.id] = f.layer.paint?.['line-opacity'] ?? 1
       m.jumpTo(camera)
       await settle()
       return byId
     })
-  const restingIn = (byId) => Object.keys(byId).filter((id) => byId[id] === REST)
+  const opaque = (byId, ids) => ids.every((id) => byId[id] === 1)
   const same = (a, b) => a.length === b.length && a.every((id) => b.includes(id))
   /**
    * Metres between two points, flat around the first: fine at street scale.
@@ -197,8 +246,13 @@ if (!spot) {
   }
 
   // `out` is the way round the list opens on, `back` the other: which is
-  // outbound depends on the lines under the tap.
-  const out = await read()
+  // outbound depends on the lines under the tap. Everything it shows is lit
+  // till a card is picked; then that card's directions, with their arrows,
+  // circles and names.
+  const opened = await read()
+  check('the list lights every direction it shows, no card picked', opened.selected === 0 && opened.listed.length > 0 && same([...new Set(opened.lit)], opened.listed),
+    `${new Set(opened.lit).size} lit, ${opened.listed.length} listed, ${opened.selected} Selected`)
+  const out = await pick(opened)
   // The routes under the tap, and every direction of theirs drawn: all of
   // them listed, one way round or the other.
   const tapped = new Set(caught.map((id) => lines.find((l) => l.id === id)?.route))
@@ -206,36 +260,56 @@ if (!spot) {
   const firstBack = await showsBack()
   const outRows = out.origins.flatMap((o) => o.rows)
   const litOut = [...new Set(out.lit)]
+  const listedOut = out.listed
   console.log(`      first (${firstBack ? 'the way back' : 'outbound'}): ${out.origins.map((o) => `${o.from} → ${o.rows.map((r) => r.to + (r.drawn ? '' : ' (not mapped)')).join(', ')}`).join(' | ')}`)
   check('the routes are listed under the place they leave from', out.origins.length >= 1 && outRows.length >= 2,
     `${out.origins.length} place(s), ${outRows.length} row(s)`)
   check('  one place per name, no place listed twice', new Set(out.origins.map((o) => o.from.toLowerCase())).size === out.origins.length)
-  check('  the map lights exactly the drawn directions listed', litOut.length === outRows.filter((r) => r.drawn).length,
-    `${litOut.length} lit, ${outRows.filter((r) => r.drawn).length} drawn row(s)`)
+  check(`  picking ${out.card.from}'s card lights exactly its directions`, out.selected === 1 && same(litOut, out.card.rows.map((r) => r.id)),
+    `${litOut.length} lit for ${out.card.rows.length} row(s)`)
+  if (out.card.rows.length < opened.listed.length) {
+    check('  fewer than the list lit before', litOut.length < new Set(opened.lit).size, `${litOut.length} of ${new Set(opened.lit).size}`)
+  } else {
+    skip('  fewer than the list lit before', 'the busiest card lists everything this way round')
+  }
   check('  a circle at each end of each lit direction', out.ends === 2 * litOut.length, `${out.ends} circle(s)`)
   // Every end named with the list's own words, each place once where its
   // ends meet: two ends of one name are one place within 150 m (SAME_END_M
   // in directionArrows.ts), and each has its name further apart — as the
   // routes into SM Fairview from Tala and from Bagong Silang Phase 5 do, 649
   // m apart ("two labels are right", the owner, 2026-09-29).
-  const placesOut = new Set(out.origins.flatMap((o) => [o.from, ...o.rows.filter((r) => r.drawn).map((r) => r.to)]))
+  const placesOut = new Set([out.card.from, ...out.card.rows.map((r) => r.to)])
   check('  each end is named, with the names the list uses, each place once where its ends meet',
     namedRight(out.endList, placesOut),
     `named ${out.names.join(', ')}`)
   check('  chevrons flow on them', out.chevrons > 0, `${out.chevrons} chevron(s)`)
   check('  where lit lines share a road, one stream: no chevron drawn twice', out.doubled === 0, `${out.doubled} doubled pair(s)`)
   const levelsOut = await levels()
+  // A second tap on the card lets it go: everything listed lit again.
+  await chooser.locator('[data-testid="chooser-select"]').nth(out.at).click()
+  await page.waitForTimeout(500)
+  const letGo = await read()
+  check('  a second tap lets it go: nothing Selected, every direction listed lit again', letGo.selected === 0 && same([...new Set(letGo.lit)], letGo.listed),
+    `${new Set(letGo.lit).size} lit, ${letGo.listed.length} listed, ${letGo.selected} Selected`)
 
   const flip = chooser.locator('[data-testid="chooser-flip"]')
   check('the list offers SWITCH', (await flip.count()) === 1 && (await flip.isEnabled()))
+  // Picked again, so SWITCH has a card to let go.
+  await chooser.locator('[data-testid="chooser-select"]').nth(out.at).click()
+  await page.waitForTimeout(300)
+  const repicked = (await chooser.locator('[data-state="selected"]').count()) === 1
   await flip.click({ timeout: 3000 }).catch(() => {})
   await page.waitForTimeout(500)
-  const back = await read()
+  const switched = await read()
+  check('  SWITCH lets a picked card go: the other way round, all of it lit, nothing Selected', repicked && switched.selected === 0 && switched.listed.length > 0 && same([...new Set(switched.lit)], switched.listed),
+    `picked ${repicked}; ${new Set(switched.lit).size} lit, ${switched.listed.length} listed, ${switched.selected} Selected`)
+  const back = await pick(switched)
   const backRows = back.origins.flatMap((o) => o.rows)
   const litBack = [...new Set(back.lit)]
+  const listedBack = back.listed
   console.log(`      after SWITCH: ${back.origins.map((o) => `${o.from} → ${o.rows.map((r) => r.to + (r.drawn ? '' : ' (not mapped)')).join(', ')}`).join(' | ')}`)
-  check('SWITCH lists the same routes the other way round', same([...litOut, ...litBack], drawnHere),
-    `${litOut.length} + ${litBack.length} lit, ${drawnHere.length} drawn under the tap`)
+  check('SWITCH lists the same routes the other way round', same([...listedOut, ...listedBack], drawnHere),
+    `${listedOut.length} + ${listedBack.length} listed, ${drawnHere.length} drawn under the tap`)
   // By name only where every route under the tap is drawn both ways: a way
   // still to draw is not listed, so its place has no row to go back to.
   if (![...tapped].every((r) => lines.filter((l) => l.route === r).length === 2)) {
@@ -244,32 +318,32 @@ if (!spot) {
     check('  each leaves from where it was going',
       out.origins.every((o) => o.rows.every((r) => back.origins.some((b) => b.from === r.to && b.rows.some((s) => s.to === o.from)))))
   }
-  check('  the lit lines change over, none kept', litBack.every((id) => !litOut.includes(id)) && litBack.length === backRows.filter((r) => r.drawn).length,
+  check(`  picking ${back.card.from}'s card then lights its directions, none of the first`, same(litBack, back.card.rows.map((r) => r.id)) && litBack.every((id) => !litOut.includes(id)),
     `${litBack.length} lit`)
   check('  the circles follow', back.ends === 2 * litBack.length, `${back.ends} circle(s)`)
-  const placesBack = new Set(back.origins.filter((o) => o.rows.some((r) => r.drawn)).flatMap((o) => [o.from, ...o.rows.filter((r) => r.drawn).map((r) => r.to)]))
+  const placesBack = new Set([back.card.from, ...back.card.rows.map((r) => r.to)])
   check('  and so do the names', namedRight(back.endList, placesBack), `named ${back.names.join(', ')}`)
   // The owner dropped "not mapped yet" from the list (2026-09-28): a row
   // that opens nothing is no row.
   check('  only drawn directions are listed, each row one that opens',
-    [...outRows, ...backRows].every((r) => r.drawn) && outRows.length === litOut.length && backRows.length === litBack.length,
+    [...outRows, ...backRows].every((r) => r.drawn) && [...listedOut, ...listedBack].every((id) => drawnHere.includes(id)),
     `${outRows.length} + ${backRows.length} row(s), ${[...outRows, ...backRows].filter((r) => !r.drawn).length} disabled`)
   // Outbound where an outbound line was under the tap, the way back where only ways back were.
-  const outbound = firstBack ? litBack : litOut
+  const outbound = firstBack ? listedBack : listedOut
   check('the list opened the way round under the tap', firstBack === !caught.some((id) => outbound.includes(id)),
     `caught ${caught.length} line(s), ${caught.filter((id) => outbound.includes(id)).length} outbound; opened ${firstBack ? 'the way back' : 'outbound'}`)
 
-  // The other way round rests; only what the list does not show fades.
+  // Two looks, no fading (the owner, 2026-09-29): the other way round, and
+  // whatever the list does not show, stay drawn as they rest, opaque.
   const levelsBack = await levels()
-  const [restOut, restBack] = [restingIn(levelsOut), restingIn(levelsBack)]
-  check('the other way round rests in light blue while one way is listed', same(restOut, litBack),
-    `${restOut.length} resting, ${litBack.length} drawn the other way`)
-  check('  after SWITCH the first way rests instead', same(restBack, litOut), `${restBack.length} resting, ${litOut.length} drawn the first way`)
-  const unlisted = lines.map((l) => l.id).filter((id) => !litOut.includes(id) && !litBack.includes(id))
+  check('the other way round still shows, opaque, while one way is listed', opaque(levelsOut, listedBack),
+    `${listedBack.length} drawn the other way: ${listedBack.map((id) => levelsOut[id]).join(', ')}`)
+  check('  after SWITCH the first way does', opaque(levelsBack, listedOut), `${listedOut.length} drawn the first way: ${listedOut.map((id) => levelsBack[id]).join(', ')}`)
+  const unlisted = lines.map((l) => l.id).filter((id) => !listedOut.includes(id) && !listedBack.includes(id))
   if (unlisted.length === 0) {
-    skip('  a route the list does not show fades', 'every saved route is under this tap')
+    skip('  a route the list does not show stays as it rests', 'every saved route is under this tap')
   } else {
-    check('  a route the list does not show fades', unlisted.every((id) => levelsOut[id] < REST && levelsBack[id] < REST),
+    check('  a route the list does not show stays as it rests', opaque(levelsOut, unlisted) && opaque(levelsBack, unlisted),
       `${unlisted.length} not listed: ${unlisted.map((id) => `${levelsOut[id]}/${levelsBack[id]}`).join(', ')}`)
   }
 
@@ -279,19 +353,22 @@ if (!spot) {
   if (!place || !row) {
     skip('a row opens that direction', 'nothing drawn the way back')
   } else {
-    await chooser.locator('[data-testid="chooser-origin"]').filter({ hasText: place.from }).locator('button[data-testid="chooser-item"]:enabled').first().click()
+    // Straight away, whether its card is picked or not (the owner, 2026-09-29).
+    const placeCard = chooser.locator('[data-testid="chooser-origin"]').nth(back.origins.indexOf(place))
+    await placeCard.locator('button[data-testid="chooser-item"]:enabled').first().click()
     await page.waitForTimeout(600)
     const title = await page.locator('[data-testid="card-direction"]').first().innerText().catch(() => '')
     check('a row opens that direction\'s card', title === `${place.from} → ${row.to}`, title)
     const litOne = ((await page.evaluate(() => window.__lit('saved-routes'))) ?? []).length
     const endsOne = await page.evaluate(async () => ((await window.__src('direction-ends'))?.features ?? []).length)
     check('  lit alone, with its two circles', litOne === 1 && endsOne === 2, `${litOne} lit, ${endsOne} circle(s)`)
-    // Its way back rests in light blue, as in the list (the owner's pick, 2026-09-25).
+    // Its way back, and every other line, stay as they rest (two looks).
     const openId = ((await page.evaluate(() => window.__lit('saved-routes'))) ?? [''])[0]
     const openRoute = lines.find((l) => l.id === openId)?.route
     const twins = lines.filter((l) => l.route === openRoute && l.id !== openId).map((l) => l.id)
-    const restOne = restingIn(await levels())
-    check('  its way back rests in light blue, nothing else', same(restOne, twins), `${restOne.length} resting, ${twins.length} way back drawn`)
+    const one = await levels()
+    const others = Object.keys(one).filter((id) => id !== openId)
+    check('  its way back, and the rest, stay as they rest', opaque(one, [...twins, ...others]), `${twins.length} way back, ${others.length} other line(s)`)
     await page.locator('[data-testid="card"] button[aria-label="Close"]').first().click()
     await page.waitForTimeout(400)
     const endsNone = await page.evaluate(async () => ((await window.__src('direction-ends'))?.features ?? []).length)
@@ -300,7 +377,12 @@ if (!spot) {
 
   // ------------------------------------------- clicks while the list is open
 
-  /** Tap the spot again and set the list the way round asked for; what it lights. */
+  /**
+   * Tap the spot again and set the list the way round asked for; what it
+   * shows, no card picked: the directions it lists that way round, all lit,
+   * and what a tap where directions overlap keeps to (useSavedRoutes'
+   * `shown`).
+   */
   const reopen = async (wantBack) => {
     await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 17 }), spot)
     await page.waitForTimeout(700)
@@ -310,7 +392,7 @@ if (!spot) {
       await chooser.locator('[data-testid="chooser-flip"]').click()
       await page.waitForTimeout(500)
     }
-    return [...new Set((await read()).lit)]
+    return (await read()).listed
   }
   /** The first of up to eight points, spread along `coords`, where what the app's own mouse box (±5 px) catches at zoom 17 passes `ok`. */
   const findSpot = async (coords, ok) => {
@@ -328,7 +410,7 @@ if (!spot) {
     }
     return null
   }
-  /** Click there; what is lit afterwards, and what the list or card says. */
+  /** Click there; what is shown afterwards — the list's directions, or the card's lit one — and what the list or card says. */
   const clickAt = async (p) => {
     await page.mouse.click(p.x, p.y)
     await page.waitForTimeout(700)
@@ -336,65 +418,87 @@ if (!spot) {
     const shown = now.origins.length
       ? `list: ${now.origins.map((o) => `${o.from} → ${o.rows.map((r) => r.to).join(', ')}`).join(' | ')}`
       : `card: ${await page.locator('[data-testid="card-direction"]').first().innerText().catch(() => 'none')}`
-    return { lit: [...new Set(now.lit)], sheet: now.origins.length > 0, shown }
+    return { lit: now.origins.length > 0 ? now.listed : [...new Set(now.lit)], sheet: now.origins.length > 0, shown }
   }
   const every3 = (l) => l.coords.filter((_, i) => i % 3 === 0)
   const routeOf = (id) => lines.find((l) => l.id === id)?.route
 
   // With the list on the outbound, a click on the light-blue way back, away
-  // from the lit lines, switches to it: the owner's report of 2026-09-25,
+  // from the lines it shows, switches to it: the owner's report of 2026-09-25,
   // "it's not switching". Where two ways back share a road the click catches
   // both, and the list opened on the outbound again, lighting lines nowhere
   // near the click.
   {
-    const litNow = await reopen(false)
-    const resting = restingIn(await levels())
-    const litLines = lines.filter((l) => litNow.includes(l.id))
-    const far = lines.filter((l) => resting.includes(l.id)).flatMap(every3).filter((c) => litLines.every((l) => offLine(c, l.coords) > 40))
-    const target = await findSpot(far, (p) => p.ids.length > 0 && !p.ids.some((id) => litNow.includes(id)))
+    const shownNow = await reopen(false)
+    // The way back: the listed routes' lines the list is not showing.
+    const wayBack = lines.filter((l) => !shownNow.includes(l.id) && shownNow.some((id) => routeOf(id) === l.route))
+    const shownLines = lines.filter((l) => shownNow.includes(l.id))
+    const far = wayBack.flatMap(every3).filter((c) => shownLines.every((l) => offLine(c, l.coords) > 40))
+    const target = await findSpot(far, (p) => p.ids.length > 0 && !p.ids.some((id) => shownNow.includes(id)))
     if (!target) {
-      skip('a click on the light-blue way back switches to it', 'no stretch of a way back runs 40 m clear of the lit lines')
+      skip('a click on the light-blue way back switches to it', 'no stretch of a way back runs 40 m clear of the lines shown')
     } else {
       const after = await clickAt(target)
       check('a click on the light-blue way back switches to it',
-        target.ids.every((id) => after.lit.includes(id)) && !after.lit.some((id) => litNow.includes(id)) && (!after.sheet || (await showsBack())),
+        target.ids.every((id) => after.lit.includes(id)) && !after.lit.some((id) => shownNow.includes(id)) && (!after.sheet || (await showsBack())),
         `caught ${target.ids.length} line(s), ${after.shown}`)
     }
   }
 
-  // With the list on the way back, a click on a lit line where its route's
-  // outbound runs on the same road keeps the lit one: the owner's ask of
+  // With the list on the way back, a click on a line it shows where its
+  // route's outbound runs on the same road keeps the shown one: the owner's ask of
   // 2026-09-25 (a click on the lit Novaliches → Tala opened Tala →
   // Novaliches). One route under the click opens its card; more keep the list.
-  {
-    const litNow = await reopen(true)
+  /** Where one route alone runs both ways on one road, one of them shown; and which. */
+  const bothWaysSpot = async (shownNow) => {
     const twinOf = (l) => lines.find((o) => o.route === l.route && o.id !== l.id)
     const bothWays = lines
-      .filter((l) => litNow.includes(l.id) && twinOf(l))
+      .filter((l) => shownNow.includes(l.id) && twinOf(l))
       .flatMap((l) => every3(l).filter((c) => offLine(c, twinOf(l).coords) < 2 && lines.every((o) => o.route === l.route || offLine(c, o.coords) > 40)))
-    const alone = await findSpot(bothWays, (p) => p.ids.length === 2 && p.stops === 0 && p.ids.some((id) => litNow.includes(id)))
-    if (!alone) {
-      skip('a click on a lit line where its outbound runs too keeps the lit one', 'no stretch where one route alone runs both ways on one road')
+    const alone = await findSpot(bothWays, (p) => p.ids.length === 2 && p.stops === 0 && p.ids.some((id) => shownNow.includes(id)))
+    return alone && { alone, litId: alone.ids.find((id) => shownNow.includes(id)) }
+  }
+  {
+    const spot = await bothWaysSpot(await reopen(true))
+    if (!spot) {
+      skip('a click on a shown line where its outbound runs too keeps the shown one', 'no stretch where one route alone runs both ways on one road')
     } else {
-      const litId = alone.ids.find((id) => litNow.includes(id))
-      const after = await clickAt(alone)
-      check('a click on a lit line where its outbound runs too keeps the lit one', after.lit.length === 1 && after.lit[0] === litId, after.shown)
+      const after = await clickAt(spot.alone)
+      check('a click on a shown line where its outbound runs too keeps the shown one', after.lit.length === 1 && after.lit[0] === spot.litId, after.shown)
+    }
+  }
+  // The same with another card of the list picked, lighting its own lines
+  // only: what the list shows still decides (useSavedRoutes' `shown`,
+  // 2026-09-29), not the outbound rule the unlit line would fall to.
+  {
+    const spot = await bothWaysSpot(await reopen(true))
+    const other = spot ? (await read()).origins.findIndex((o) => !o.rows.some((r) => r.id === spot.litId)) : -1
+    if (!spot) {
+      skip('  and so it does with another card picked', 'no stretch where one route alone runs both ways on one road')
+    } else if (other < 0) {
+      skip('  and so it does with another card picked', "the list has no card but the shown line's")
+    } else {
+      await chooser.locator('[data-testid="chooser-select"]').nth(other).click()
+      await page.waitForTimeout(500)
+      const picked = (await read()).selected === 1
+      const after = await clickAt(spot.alone)
+      check('  and so it does with another card picked', picked && after.lit.length === 1 && after.lit[0] === spot.litId, `picked ${picked}; ${after.shown}`)
     }
   }
   {
-    const litNow = await reopen(true)
+    const shownNow = await reopen(true)
     const near = lines
-      .filter((l) => litNow.includes(l.id))
+      .filter((l) => shownNow.includes(l.id))
       .flatMap(every3)
-      .filter((c) => lines.some((o) => !litNow.includes(o.id) && offLine(c, o.coords) < 8))
+      .filter((c) => lines.some((o) => !shownNow.includes(o.id) && offLine(c, o.coords) < 8))
     const mixed = await findSpot(near, (p) =>
-      p.ids.some((id) => litNow.includes(id)) && p.ids.some((id) => !litNow.includes(id)) && new Set(p.ids.map(routeOf)).size >= 2)
+      p.ids.some((id) => shownNow.includes(id)) && p.ids.some((id) => !shownNow.includes(id)) && new Set(p.ids.map(routeOf)).size >= 2)
     if (!mixed) {
       skip('  and where more routes run, the list keeps the way back', 'no lit stretch where another route and an outbound run too')
     } else {
       const after = await clickAt(mixed)
       check('  and where more routes run, the list keeps the way back',
-        after.sheet && (await showsBack()) && mixed.ids.filter((id) => litNow.includes(id)).every((id) => after.lit.includes(id)),
+        after.sheet && (await showsBack()) && mixed.ids.filter((id) => shownNow.includes(id)).every((id) => after.lit.includes(id)),
         `caught ${mixed.ids.length} line(s), ${after.shown}`)
     }
   }

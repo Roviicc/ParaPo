@@ -3,67 +3,52 @@ import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { variantLine, type VariantSummary } from './routes'
 import { passBounds, passStretches, stopRing, type StopSummary } from './stops'
 import { bboxOf, bboxesOverlap } from './geo'
-import { PASS_ORANGE, litWidth, roadWidth } from './lineStyle'
-import { SELECTED_CASING_LAYER, litOpacity, unlitOpacity, useLighting } from './useSavedRoutes'
+import { PASS_ORANGE, litWidth } from './lineStyle'
+import { litOpacity, useLighting } from './useSavedRoutes'
 import { ROUTES_HIT_LAYER } from './tap'
 
 /**
- * Where a direction passes a hintuan, the line turns orange for that stretch.
+ * Where a lit direction passes a hintuan, the line turns orange for that
+ * stretch.
  *
  * The owner's design of 2026-09-23 (his Figma frame: blue, a band of colour,
  * blue). What is painted is decided by the one "passes" rule — inside the
  * box or within five metres of it — so a box is orange on a direction
  * exactly when the timeline lists it. Hintuans only: the ends are the ends.
- * The paint follows the line's three levels, rest, faded and lit, so a
- * resting route's stretches never shout over a lit one, and it fades out
- * below zoom 15, where a box is a couple of pixels and the line would only
- * look speckled.
+ * On the lit directions only, since the map's two looks of 2026-09-29: a
+ * resting line is one light blue end to end, and no route line is
+ * see-through (the owner's call). Shown from zoom 15, where a box is more
+ * than a couple of pixels and the stretch no longer looks speckled — at
+ * once, not faded in: a fade is a see-through line on its way.
  */
 
 const SRC = 'saved-routes-pass'
-const PASS = 'saved-routes-pass'
 const SELECTED_PASS = 'saved-routes-selected-pass'
 
-/** Gone at 14, full at 15.5: a stretch appears as the zoom makes it legible. `to` may read feature state. */
-function fadingIn(to: number | never) {
-  return ['interpolate', ['linear'], ['zoom'], 14, 0, 15.5, to] as never
-}
-
-/** Draw the orange stretches of every direction; `lit`, `resting` and `hiddenVariantId` as the line hook has them. */
+/** Draw the orange stretches of the lit directions; `lit` and `hiddenVariantId` as the line hook has them. */
 export function usePassStretches(
   map: MapLibreMap | null,
   variants: readonly VariantSummary[],
   stops: readonly StopSummary[],
   lit: readonly string[],
-  resting: readonly string[],
   hiddenVariantId: string | null = null,
 ): void {
-  // Between the resting line and the lit one, and the lit copy under the hit
-  // area: the line hook's layers must be there first, and are, since it is
-  // called before this one on both surfaces.
+  // Over the lit copy and under the hit area: the line hook's layers must be
+  // there first, and are, since it is called before this one on both
+  // surfaces.
   useEffect(() => {
-    if (!map || map.getSource(SRC) || !map.getLayer(SELECTED_CASING_LAYER)) return
+    if (!map || map.getSource(SRC) || !map.getLayer(ROUTES_HIT_LAYER)) return
     // `promoteId`: every stretch of a direction carries its id, so one feature
     // state lights them all.
     map.addSource(SRC, { type: 'geojson', promoteId: 'id', data: { type: 'FeatureCollection', features: [] } })
     map.addLayer(
       {
-        id: PASS,
+        id: SELECTED_PASS,
         type: 'line',
         source: SRC,
         // Square ends: the paint stops where the box does.
         layout: { 'line-cap': 'butt', 'line-join': 'round' },
-        paint: { 'line-color': PASS_ORANGE, 'line-width': roadWidth(0), 'line-opacity': fadingIn(unlitOpacity('line')) },
-      },
-      SELECTED_CASING_LAYER,
-    )
-    map.addLayer(
-      {
-        id: SELECTED_PASS,
-        type: 'line',
-        source: SRC,
-        layout: { 'line-cap': 'butt', 'line-join': 'round' },
-        paint: { 'line-color': PASS_ORANGE, 'line-width': litWidth(), 'line-opacity': fadingIn(litOpacity()) },
+        paint: { 'line-color': PASS_ORANGE, 'line-width': litWidth(), 'line-opacity': ['step', ['zoom'], 0, 15, litOpacity()] as never },
       },
       ROUTES_HIT_LAYER,
     )
@@ -99,13 +84,10 @@ export function usePassStretches(
   }, [map, features])
 
   useEffect(() => {
-    if (!map || !map.getLayer(PASS)) return
-    const hidden = ['!=', ['get', 'id'], hiddenVariantId ?? '']
-    map.setFilter(PASS, hidden as never)
-    map.setFilter(SELECTED_PASS, hidden as never)
+    if (!map || !map.getLayer(SELECTED_PASS)) return
+    map.setFilter(SELECTED_PASS, ['!=', ['get', 'id'], hiddenVariantId ?? ''] as never)
   }, [map, hiddenVariantId])
 
   // The stretches follow their direction: the same state, on this source.
-  const ids = useMemo(() => variants.map((v) => v.id), [variants])
-  useLighting(map, SRC, ids, lit, resting)
+  useLighting(map, SRC, lit)
 }

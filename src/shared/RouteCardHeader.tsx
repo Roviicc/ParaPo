@@ -48,8 +48,9 @@ type Props = {
  * at the top of the screen.
  */
 export function RouteCardHeader({ routeCount, onBackToList, onSwitch, switchable, back, onClose }: Props) {
+  // Over a trip, 8 below, where its card follows (3778:3183); 12 over the list.
   return (
-    <div className="flex w-full items-center gap-2 bg-surface p-3">
+    <div className={'flex w-full items-center gap-2 bg-surface px-3 pt-3 ' + (routeCount !== undefined ? 'pb-3' : 'pb-2')}>
       {routeCount !== undefined ? (
         <div className="flex min-w-0 flex-1 items-center gap-2 text-content-primary">
           <span aria-hidden className="size-6 shrink-0 *:size-full">

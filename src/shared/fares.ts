@@ -1,5 +1,4 @@
-import { lineLength } from './geo'
-import { variantLine, type TransportMode, type VariantSummary } from './routes'
+import type { TransportMode } from './routes'
 
 /**
  * LTFRB's jeepney fare rule, the "add-on method": a minimum for the first
@@ -87,18 +86,17 @@ export function pesoRange(low: number, high: number): string {
 }
 
 /**
- * The whole rides of one or more directions, from the cheapest to the
- * dearest — `₱26–28` — as the route cards lead with it: a place's card in
- * the list, over all its ways out, and a trip's card, over its one. Nothing
- * unless every one has a fare rule: a UV Express beside a jeepney must not
- * wear the jeepney's pesos. The owner's routes are jeepneys (the Jeep in the
- * list's header says so); the studio can save other modes.
+ * One ride of `metres` by `mode`, as the cards write pesos — `₱14`, `₱24–26`
+ * — or nothing when no fare rule prices the mode: the trip card's Expected
+ * fare, over its whole ride (the owner's 3778:3183, 2026-09-29). The only
+ * pesos on the public map since his RouteCard State set took them off the
+ * cards (wholeRideFare, their range over a place's ways out, went with
+ * them); the studio's RouteSheet keeps its own fare details.
  */
-export function wholeRideFare(vs: readonly VariantSummary[], date = manilaDate()): string | undefined {
+export function rideFare(mode: TransportMode | undefined, metres: number, date = manilaDate()): string | undefined {
   const today = ruleOn(date)
-  if (!today || vs.length === 0 || !vs.every((v) => hasFareRule(v.route?.mode))) return undefined
-  const priced = vs.map((v) => fareFor(lineLength(variantLine(v)), today.rule))
-  const low = Math.min(...priced.map((f) => f.low.regular))
-  const high = Math.max(...priced.map((f) => f.high.regular))
-  return pesoRange(low, high)
+  if (!today || !hasFareRule(mode)) return undefined
+  const { low, high } = fareFor(metres, today.rule)
+  return pesoRange(low.regular, high.regular)
 }
+

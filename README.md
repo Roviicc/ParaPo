@@ -4,7 +4,14 @@ Ground-truthed jeepney routes for Metro Manila, on a map anyone can open.
 
 - **The map:** https://parapo.villaralvorovic2.workers.dev — on an Android
   phone, Chrome offers to install it as **Para Po**; it then opens full screen
-  and keeps working without a signal, showing the routes it last saw.
+  and keeps working without a signal, showing the routes it last saw. It is
+  `main`, and changes only when a release is merged.
+- **Staging:** https://staging-parapo.villaralvorovic2.workers.dev — the
+  `staging` branch, each piece of work there as soon as its checks pass,
+  before it is merged. For looking: its `/studio/` edits the same database
+  as the live one, so routes are edited on the live studio only. Every other
+  branch gets a link of its own, `https://<branch>-parapo.villaralvorovic2.workers.dev`,
+  kept out of search engines as staging is.
 - **How it is built, and what comes next:** [PLAN.md](PLAN.md). The words the
   app, the plan and the owner use: [CONTEXT.md](CONTEXT.md). Decisions and
   research: [docs/](docs/).
@@ -35,6 +42,13 @@ database's address ever gets in.
 
     npm install
     npm run dev                     # http://localhost:5173 and /studio/
+    npm run dev:phone               # the same, and on the home Wi-Fi too
+
+`dev:phone` lets a phone on the same Wi-Fi open the dev server at
+`http://<this computer's address>:5173` and see each edit as it is saved.
+Only on a network you trust: it answers anyone on it. Over plain http a
+phone's browser refuses its position and the offline app, so "Where am I"
+and installing are tried on staging instead.
 
 The editor needs the project's address and publishable key in `.env.local`
 (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`); the public map needs
