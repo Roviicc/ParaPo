@@ -1311,13 +1311,45 @@ const restore = async (want) => {
   return (await sheetState()) === want
 }
 
+/**
+ * What the page held when a handle check failed: on some GitHub runs the
+ * Philcoa card's first handle tap and drags answered nothing, touch or mouse,
+ * and passed on others (2026-09-29) — every card on the page, what lies on
+ * top of the handle, and the events the last gestures made there.
+ */
+const sheetDiag = () =>
+  page.evaluate(() => {
+    const name = (el) => (el instanceof Element ? el.closest('[data-testid]')?.getAttribute('data-testid') ?? el.tagName.toLowerCase() : String(el))
+    const cards = [...document.querySelectorAll('[data-testid="card"]')].map(
+      (c) => `${c.tagName.toLowerCase()}${c.hidden ? ' hidden' : ''} sheet=${c.getAttribute('data-sheet')} "${(c.textContent ?? '').trim().slice(0, 30)}"`,
+    )
+    const h = document.querySelector('[data-testid="card"] button[data-testid="sheet-handle"]')
+    const r = h?.getBoundingClientRect()
+    const top = r ? name(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)) : '(no handle)'
+    return `cards [${cards.join(' | ')}]; on the handle ${top}; chooser ${document.querySelectorAll('[data-testid="chooser"]').length}; events ${(window.__sheetEvents ?? []).slice(-14).join(', ')}`
+  })
+
 if (!hotspot) {
   skip("the sheet handle opens and closes a hotspot's card", 'no hotspot clear of every route to open a card on (see 4b)')
 } else {
+  await page.evaluate(() => {
+    window.__sheetEvents = []
+    const t0 = performance.now()
+    for (const t of ['pointerdown', 'pointerup', 'pointercancel', 'click', 'contextmenu', 'touchstart', 'touchend', 'touchcancel'])
+      document.addEventListener(
+        t,
+        (e) => {
+          const el = e.target instanceof Element ? e.target.closest('[data-testid]')?.getAttribute('data-testid') ?? e.target.tagName.toLowerCase() : ''
+          window.__sheetEvents.push(`${Math.round(performance.now() - t0)} ${t}@${el}`)
+        },
+        true,
+      )
+  })
   await openSheet()
 
   const hadHandle = await tapHandle()
-  check("a tap on a hotspot card's handle opens the sheet", hadHandle && (await sheetState()) === 'open', hadHandle ? `data-sheet=${await sheetState()}` : 'no button[data-testid="sheet-handle"]')
+  const firstTap = hadHandle && (await sheetState()) === 'open'
+  check("a tap on a hotspot card's handle opens the sheet", firstTap, hadHandle ? `data-sheet=${await sheetState()}${firstTap ? '' : `; ${await sheetDiag()}`}` : 'no button[data-testid="sheet-handle"]')
   check('  no horizontal scroll with the sheet open', await noHScroll(page))
 
   await tapHandle()
@@ -1329,7 +1361,8 @@ if (!hotspot) {
   // be reached is itself a failure: the drag after it would prove nothing.
   const readyUp = await restore('peek')
   const up = await dragHandle(-60)
-  check('dragging the handle up opens the sheet', readyUp && (await sheetState()) === 'open', `${readyUp ? '' : 'could not get back to peek first; '}${up.how}; data-sheet=${await sheetState()}`)
+  const upOpened = readyUp && (await sheetState()) === 'open'
+  check('dragging the handle up opens the sheet', upOpened, `${readyUp ? '' : 'could not get back to peek first; '}${up.how}; data-sheet=${await sheetState()}${upOpened ? '' : `; ${await sheetDiag()}`}`)
 
   const readyDown = await restore('open')
   const down = await dragHandle(60)
