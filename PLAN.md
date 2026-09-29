@@ -3381,5 +3381,7 @@ swap of head and tail is refused too: a direction's way round is kept
 against its route's head, so a swap would mislabel both lines — change one
 end at a time. Terminal links are left as the owner set them. Drawing a
 return trip still leaves the route as it is. `save-test` covers the edit,
-the rename of both directions, the untouched terminal links and the
-refusal.
+the rename of both directions, the untouched terminal links and both
+refusals; SavePanel's stories show the open panel and the two refusals. A
+way back being edited looks for a picked end's box from its own start, the
+tail.

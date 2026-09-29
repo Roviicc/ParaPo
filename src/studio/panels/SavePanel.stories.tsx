@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { fn } from 'storybook/test'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import type { LngLat, Segment } from '../../shared/geo/geo'
-import type { RouteRow } from '../../shared/model/routes'
+import type { RouteRow, VariantRow } from '../../shared/model/routes'
 import type { StopRow } from '../../shared/model/stops'
 import { SavePanel } from './SavePanel'
 import type { Drawing } from '../drawing/useDrawing'
@@ -230,5 +230,62 @@ export const PassesBesideTheRoad: Story = {
       roadside('h-far', 'Fatima', 121.0428, -12),
       roadside('h-near-2', 'Pangarap', 121.0422, 3),
     ],
+  },
+}
+
+/** Tala – SM Fairview's outbound as the list holds it, for Edit route. */
+const talaFairviewOut: VariantRow = {
+  id: 'sample-out',
+  route_id: 'sample-route',
+  direction_name: 'Tala → SM Fairview',
+  origin_terminal: null,
+  destination_terminal: null,
+  shape: null,
+  reversed: false,
+  confidence: 'drawn',
+  owner_id: 'sample-owner',
+  updated_at: '2026-09-21T00:00:00Z',
+  route: { ...talaFairview, name: 'Tala – SM Fairview' },
+}
+
+/** A third place, and a route that already runs from it to SM Fairview. */
+const lagro: StopRow = { ...terminal('sample-lagro', 'Lagro Terminal', [121.06, 14.74]), informal: 'Lagro' }
+const lagroFairviewOut: VariantRow = {
+  ...talaFairviewOut,
+  id: 'sample-lagro-out',
+  route_id: 'sample-route-2',
+  direction_name: 'Lagro → SM Fairview',
+  route: { ...talaFairview, id: 'sample-route-2', head_stop_id: 'sample-lagro', name: 'Lagro – SM Fairview' },
+}
+
+/**
+ * Edit route on a saved direction (the owner's ask, 2026-09-29): Head, Tail,
+ * Via, Signboard, Mode and Fare note are open, and the panel says they are
+ * the route's, so a change is a change to both directions.
+ */
+export const EditRoute: Story = {
+  args: { existing: talaFairviewOut, stops: [...stops, lagro], variants: [talaFairviewOut, lagroFairviewOut] },
+}
+
+/** Edit route onto ends another route already has: refused in one sentence, before anything is written. */
+export const EditRouteEndsTaken: Story = {
+  args: EditRoute.args,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.selectOptions(canvas.getByTestId('save-head'), 'Lagro')
+    await userEvent.click(canvas.getByRole('button', { name: 'Update' }))
+    await expect(await canvas.findByText(/Another route already runs between these two places/)).toBeVisible()
+  },
+}
+
+/** Edit route with Head and Tail swapped: refused, since each direction keeps its way round against the head. */
+export const EditRouteTurnedRound: Story = {
+  args: EditRoute.args,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.selectOptions(canvas.getByTestId('save-head'), 'SM Fairview')
+    await userEvent.selectOptions(canvas.getByTestId('save-tail'), 'Tala')
+    await userEvent.click(canvas.getByRole('button', { name: 'Update' }))
+    await expect(await canvas.findByText(/Head and tail swapped would turn the route round/)).toBeVisible()
   },
 }

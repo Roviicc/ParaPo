@@ -36,8 +36,9 @@ type Props = {
   /** Every hotspot, for the two end pickers and for generating the name. */
   stops: StopRow[]
   /**
-   * Every saved direction: for what an Extend borrowed from, and for noticing
-   * that the chosen ends already make a route whose empty slot this fills.
+   * Every saved direction: for what an Extend borrowed from, for noticing
+   * that the chosen ends already make a route whose empty slot this fills,
+   * and, in Edit route, for refusing ends another route already has.
    */
   variants?: VariantRow[]
   onSaved: (v: VariantRow) => void
@@ -125,15 +126,19 @@ export function SavePanel({
   const placeOf = (id: string) => places.find((p) => p.boxes.some((s) => s.id === id))
   const lineStart = line[0]
   const lineEnd = line[line.length - 1]
+  // Where a picked end's box is looked for: the head where the line starts,
+  // the tail where it finishes — the other way round for a way back being
+  // edited, whose line starts at the tail.
+  const [nearHead, nearTail] = existing?.reversed ? [lineEnd, lineStart] : [lineStart, lineEnd]
 
   const [signboard, setSignboard] = useState(parent?.signboard ?? '')
   const [mode, setMode] = useState<TransportMode>(parent?.mode ?? 'jeepney')
   const [fareNote, setFareNote] = useState(parent?.fare_note ?? '')
   const [via, setVia] = useState(parent?.via ?? '')
-  // The ends are the route's, so an existing route fixes them; a new one is
-  // guessed from where the line actually starts and finishes — the nearest
-  // box, then that box's place, then the place's own box — and corrected by
-  // hand when the guess is wrong.
+  // The ends are the route's: a return trip takes them as they are, and Edit
+  // route starts from them; a new route's are guessed from where the line
+  // actually starts and finishes — the nearest box, then that box's place,
+  // then the place's own box — and corrected by hand when the guess is wrong.
   const guess = (to: LngLat | undefined) => {
     const place = placeOf(nearestStop(stops, to))
     return place ? boxFor(place, to) : ''
@@ -436,7 +441,7 @@ export function SavePanel({
               required
               disabled={routeLocked}
               value={headPlace?.key ?? ''}
-              onChange={(e) => setHeadId(pickPlace(e.target.value, lineStart))}
+              onChange={(e) => setHeadId(pickPlace(e.target.value, nearHead))}
               className={field}
               data-testid="save-head"
             >
@@ -454,7 +459,7 @@ export function SavePanel({
               required
               disabled={routeLocked}
               value={tailPlace?.key ?? ''}
-              onChange={(e) => setTailId(pickPlace(e.target.value, lineEnd))}
+              onChange={(e) => setTailId(pickPlace(e.target.value, nearTail))}
               className={field}
               data-testid="save-tail"
             >
