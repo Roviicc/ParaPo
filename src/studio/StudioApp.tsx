@@ -133,6 +133,13 @@ function Workshop({
   const signedIn = !!session
   const userId = session?.user.id ?? null
 
+  // Signed in from the dialog Done opened: the dialog hides itself on the
+  // session, so its flag is cleared here — left set, it kept the drawing keys
+  // (Ctrl+Z, Enter, F) off for the rest of the visit (finding 9).
+  useEffect(() => {
+    if (signedIn) setSigningIn(false)
+  }, [signedIn])
+
   // Back from a valid reset link: the link gave us a session, now set the password.
   const resetting = recovery.recovering && signedIn
 
