@@ -3386,3 +3386,31 @@ refusals; SavePanel's stories show the open panel and the two refusals. A
 picked end's box is looked for at the line's end nearer the route's head,
 whichever way it was drawn, and a swap is refused by place, as the pickers
 choose.
+
+**Stage 10 — the big files, 2026-09-29.** One file a pull request, in the
+plan's order, each moving code and changing none, the suites' counts the
+same on every one. `useDrawing.ts` is five files (the draft, the gap
+resolver, the draw layers, the pointer's events, and the hook's state and
+edits). `StudioApp.tsx` keeps the workshop's composition; `useSaveTarget`,
+`useFollow`, the account pill, the new buttons and the auth dialogs have
+files. `SavePanel.tsx`: the places model is `places.ts` (pure,
+`places-test`), the derived facts `useSaveFacts`, the save
+`saveRouteAndLinks`, the notices `SaveNotices`. `snap.ts` is the router's
+client, `uturns.ts` (pure, `uturns-test`) and the streets.
+`CommuterApp.tsx`: `useShareLink`, `status.ts`, `Notices.tsx`,
+`TripCard.tsx` with `useTripLivery`. `geo.ts` is the primitives, `ring.ts`,
+`pass.ts` (the 5 m rule with its helpers from `stops.ts`) and
+`rightOfLine.ts`; `routes.ts` the types and names, `departures.ts` and
+`ride.ts`; `stops.ts` the types and names, `places.ts` and `timeline.ts`.
+`useSavedRoutes`/`useSavedStops` keep their data; their layers, taps and
+what shows (pure, `shown-test`) have files each. `directionArrows.ts` keeps
+the flow; the chevrons' geometry is `chevrons.ts` (pure, `chevrons-test`).
+`RouteTripDetail`'s card and rail are `TripTimeline.tsx`, with stories. Then
+the duplicates with several answers: one travel-order rule
+(`drawnFromTheEnd`), one metres-per-degree (`M_PER_DEG`, haversine's sphere)
+and one point-to-segment in `geo.ts`, and the publish importing the
+thinning, rounding, names and schema from `src/` instead of writing them
+again — run on the live tables, one point in one line and in four overviews
+moves, which the first publish from `main` after the release writes. Stage
+11 went in after `useDrawing.ts`, before the other splits, so the owner's
+ask was not written twice.
