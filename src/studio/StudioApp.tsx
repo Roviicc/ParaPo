@@ -6,30 +6,27 @@ import { MapView } from '../shared/map/MapView'
 import { RouteCardList } from '../shared/cards/RouteCardList'
 import { RouteSheet } from '../shared/cards/RouteSheet'
 import { useRideTo } from '../shared/map/rideTo'
-import { lineOf, listVariants, loadStopsFromSupabase, withDrawing } from './data/live'
+import { lineOf, listVariants, loadStopsFromSupabase } from './data/live'
 import {
   directionEnds,
   isDrawn,
   otherDirection,
   routeTimeline,
   travelLine,
-  variantLine,
-  type VariantDrawing,
   type VariantRow,
 } from '../shared/model/routes'
-import { hotspotCount, placeKey, stopLabel, stopRing, type StopRow } from '../shared/model/stops'
-import type { LngLat } from '../shared/geo/geo'
-import { lineToFollow } from './drawing/borrow'
+import { hotspotCount, stopLabel, stopRing, type StopRow } from '../shared/model/stops'
 import { getSupabase, supabaseConfigError } from './data/supabase'
 import { useDirectionArrows } from '../shared/map/directionArrows'
 import { usePassStretches } from '../shared/geo/passStretches'
 import { useSavedRoutes } from '../shared/map/useSavedRoutes'
 import { useSavedStops } from '../shared/map/useSavedStops'
 import { CardActions } from './panels/CardActions'
-import { ChangePassword } from './auth/ChangePassword'
+import { AuthDialogs } from './auth/AuthDialogs'
+import { AccountPill } from './panels/AccountPill'
+import { NewButtons } from './panels/NewButtons'
 import { DrawToolbar } from './drawing/DrawToolbar'
 import { HotspotPanel } from './panels/HotspotPanel'
-import { ResetPassword } from './auth/ResetPassword'
 import { SavePanel } from './panels/SavePanel'
 import { SignIn } from './auth/SignIn'
 import { Toast } from './panels/Toast'
@@ -37,6 +34,8 @@ import { deleteVariant } from './data/routesWrite'
 import { deleteStop } from './data/stopsWrite'
 import { skipSignInForTests } from './auth/testBypass'
 import { useDrawing } from './drawing/useDrawing'
+import { useFollow } from './drawing/useFollow'
+import { useSaveTarget } from './panels/useSaveTarget'
 import { usePasswordRecovery } from './auth/usePasswordRecovery'
 import { useSession } from './auth/useSession'
 
@@ -95,7 +94,6 @@ function Workshop({
   const [signingIn, setSigningIn] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [hotspotMenu, setHotspotMenu] = useState(false)
   // One toast at a time, the newest: a save's, or a problem.
   const [toast, setToast] = useState<
     { kind: 'route'; v: VariantRow } | { kind: 'stop'; s: StopRow } | { kind: 'notice'; text: string } | null
@@ -157,101 +155,11 @@ function Workshop({
     if (recovery.error) setNotice(`Reset link problem: ${recovery.error}`)
   }, [recovery.error])
 
-  // What the save panel is saving into.
-  const editing = draw.target.variantId
-    ? (saved.variants.find((v) => v.id === draw.target.variantId) ?? null)
-    : null
-  const parentRoute =
-    !editing && draw.target.routeId
-      ? (saved.variants.find((v) => v.route_id === draw.target.routeId)?.route ?? null)
-      : null
-  // The direction this line is for: the route's slot with no line yet. Fixed
-  // here rather than read off the drawing, so a return trip started from the
-  // wrong end cannot land on top of the direction that already exists.
-  const slotReversed = parentRoute
-    ? (saved.variants.find((v) => v.route_id === parentRoute.id && v.shape === null)?.reversed ??
-      null)
-    : null
-
-  // While extending: the places the chosen direction runs between, in travel
-  // order, and whether its stored line runs the other way round.
-  const extendEnds = useMemo(() => {
-    const v = draw.picking?.variant
-    if (!v) return null
-    const head = stops.stops.find((s) => s.id === v.route.head_stop_id)
-    const tail = stops.stops.find((s) => s.id === v.route.tail_stop_id)
-    if (!head || !tail) return null
-    const [from, to] = v.reversed ? [tail, head] : [head, tail]
-    const travel = travelLine(v, stops.stops)
-    return { from: stopLabel(from), to: stopLabel(to), backwards: travel[0] !== variantLine(v)[0] }
-  }, [draw.picking?.variant, stops.stops])
-
-  // Where the line being drawn is going, when that is known: the far end of
-  // the direction being edited, or of the route's slot a return trip fills.
-  const destinationStopId = editing
-    ? editing.reversed
-      ? editing.route.head_stop_id
-      : editing.route.tail_stop_id
-    : parentRoute && slotReversed !== null
-      ? slotReversed
-        ? parentRoute.head_stop_id
-        : parentRoute.tail_stop_id
-      : null
-  const placeOfStop = (id: string | null) => {
-    const s = id ? stops.stops.find((x) => x.id === id) : undefined
-    return s ? placeKey(s) : null
-  }
-
-  /**
-   * A right-click on saved lines while drawing: join the one going the way
-   * the drawing goes — preferring one that ends where the drawing is headed —
-   * and follow it to its end. The two directions of a route often share a
-   * road, so the click may land on both.
-   */
-  const onFollow = (ids: string[], at: LngLat) => {
-    const gate = draw.joinGate()
-    if (!gate.go) {
-      if (gate.problem) setNotice(gate.problem)
-      return
-    }
-    const home = placeOfStop(destinationStopId)
-    const options = ids
-      .map((id) => saved.variants.find((v) => v.id === id))
-      .filter((v): v is VariantRow => !!v && isDrawn(v))
-      .map((v) => ({
-        v,
-        travel: travelLine(v, stops.stops),
-        endsAtDestination:
-          home !== null && placeOfStop(v.reversed ? v.route.head_stop_id : v.route.tail_stop_id) === home,
-      }))
-    const choice = lineToFollow(options, draw.line, at)
-    if (!choice) return
-    if ('against' in choice) {
-      setNotice(
-        `${choice.against.v.direction_name} runs the other way here. Right-click a line going the way you are drawing.`,
-      )
-      return
-    }
-    const v = choice.follow.v
-    const backwards = choice.follow.travel[0] !== variantLine(v)[0]
-    void opening(v, (d) => {
-      const problem = draw.connect(d, at, backwards)
-      if (problem) setNotice(problem)
-    })
-  }
-
-  /**
-   * A direction's drawing is not in the list (live.ts VARIANT_SELECT): read
-   * it for the one being opened, then hand it to the tool. A read that fails
-   * is a notice, and the tool is never started on an empty drawing.
-   */
-  const opening = async (v: VariantRow, then: (d: VariantDrawing) => void) => {
-    try {
-      then(await withDrawing(v))
-    } catch (e) {
-      setNotice(`Couldn't open ${v.direction_name ?? 'this direction'}: ${e instanceof Error ? e.message : String(e)}`)
-    }
-  }
+  // What the save panel saves into, and where the drawing is headed.
+  const target = useSaveTarget(draw, saved.variants, stops.stops)
+  const { editing, parentRoute, slotReversed, extendEnds } = target
+  // A right-click on saved lines while drawing, and opening a direction's drawing.
+  const { onFollow, opening } = useFollow({ draw, variants: saved.variants, stops: stops.stops, target, setNotice })
 
   const onDone = () => {
     if (!signedIn) setSigningIn(true)
@@ -449,47 +357,14 @@ function Workshop({
         />
       )}
       {!draw.drawing && !saved.selected && !stops.selected && !choosing && (
-        <div
-          className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-full bg-white/90
-                     px-3 py-1.5 text-xs text-neutral-600 shadow ring-1 ring-black/5 backdrop-blur"
-        >
-          {routeCount > 0 && (
-            <span className="text-neutral-500">
-              {routeCount} {routeCount === 1 ? 'route' : 'routes'}
-              {stops.stops.length > 0 && (
-                <> · {hotspotCount(stops.stops)} {hotspotCount(stops.stops) === 1 ? 'hotspot' : 'hotspots'}</>
-              )}{' '}
-              ·
-            </span>
-          )}
-          {signedIn ? (
-            <>
-              <span className="max-w-[16ch] truncate">{session.user.email}</span>
-              <button
-                type="button"
-                onClick={() => setChangingPassword(true)}
-                className="font-medium text-neutral-900 underline underline-offset-2"
-              >
-                Password
-              </button>
-              <button
-                type="button"
-                onClick={() => getSupabase()?.auth.signOut()}
-                className="font-medium text-neutral-900 underline underline-offset-2"
-              >
-                Sign out
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setSigningIn(true)}
-              className="font-medium text-neutral-900 underline underline-offset-2"
-            >
-              Sign in
-            </button>
-          )}
-        </div>
+        <AccountPill
+          routes={routeCount}
+          hotspots={stops.stops.length > 0 ? hotspotCount(stops.stops) : 0}
+          email={signedIn ? (session.user.email ?? '') : null}
+          onSignIn={() => setSigningIn(true)}
+          onPassword={() => setChangingPassword(true)}
+          onSignOut={() => void getSupabase()?.auth.signOut()}
+        />
       )}
 
       {toast?.kind === 'stop' && !draw.drawing && (
@@ -542,75 +417,17 @@ function Workshop({
           1024 px wide the list docks along the bottom, and these would stand
           on its corner (the owner, 2026-09-29).
         */
-        <div className="absolute bottom-6 right-6 z-10 flex flex-col items-end gap-2">
-          {hotspotMenu && (
-            <div
-              role="menu"
-              className="mb-1 overflow-hidden rounded-xl bg-white text-sm shadow-lg ring-1 ring-black/10"
-            >
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setHotspotMenu(false)
-                  draw.startArea('terminal')
-                }}
-                className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-neutral-50"
-              >
-                <span className="h-3 w-3 rounded-sm bg-sky-500" />
-                <span>
-                  <span className="font-medium text-neutral-900">Terminal</span>
-                  <span className="block text-xs text-neutral-500">Where routes start and stage</span>
-                </span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setHotspotMenu(false)
-                  draw.startArea('hintuan')
-                }}
-                className="flex w-full items-center gap-2 border-t border-neutral-100 px-4 py-2.5 text-left hover:bg-neutral-50"
-              >
-                <span className="h-3 w-3 rounded-sm bg-orange-500" />
-                <span>
-                  <span className="font-medium text-neutral-900">Hintuan</span>
-                  <span className="block text-xs text-neutral-500">Where people wait and board</span>
-                </span>
-              </button>
-            </div>
-          )}
-          <button
-            type="button"
-            disabled={!map}
-            onClick={() => draw.start()}
-            title="Draw a route"
-            className="rounded-full bg-white px-5 py-3 text-sm font-medium text-neutral-800
-                       shadow-lg ring-1 ring-black/10 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            + New Route
-          </button>
-          <button
-            type="button"
-            disabled={!map}
-            onClick={() => setHotspotMenu((open) => !open)}
-            aria-expanded={hotspotMenu}
-            title="Trace a terminal or hintuan"
-            className="rounded-full bg-white px-5 py-3 text-sm font-medium text-neutral-800
-                       shadow-lg ring-1 ring-black/10 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            + New hotspot
-          </button>
-        </div>
+        <NewButtons ready={!!map} onNewRoute={() => draw.start()} onNewHotspot={(kind) => draw.startArea(kind)} />
       )}
 
-      {signingIn && !signedIn && <SignIn onDismiss={() => setSigningIn(false)} />}
-
-      {resetting && <ResetPassword onDone={recovery.done} />}
-
-      {changingPassword && session?.user.email && !resetting && (
-        <ChangePassword email={session.user.email} onDone={() => setChangingPassword(false)} />
-      )}
+      <AuthDialogs
+        signingIn={signingIn && !signedIn}
+        onSignInDismiss={() => setSigningIn(false)}
+        resetting={resetting}
+        onResetDone={recovery.done}
+        changingPasswordFor={changingPassword && !resetting ? (session?.user.email ?? null) : null}
+        onPasswordDone={() => setChangingPassword(false)}
+      />
 
       {saving && draw.drawing && draw.area && (
         <HotspotPanel
