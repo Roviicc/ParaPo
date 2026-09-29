@@ -9,21 +9,13 @@
 // auth result arriving at / is handed to /studio/ untouched. That no production
 // file mentions e2e is checked by scripts/checks/check-build.mjs.
 import { chromium } from 'playwright'
+import { BASE, harness, nodeFetch } from './lib/harness.mjs'
 
-const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
-const results = []
-const check = (name, ok, detail = '') => {
-  results.push(ok)
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  ' + detail : ''}`)
-}
+const { check, tally } = harness()
 
 const b = await chromium.launch()
 const page = await b.newPage({ viewport: { width: 1280, height: 800 } })
-// PARAPO_NODE_FETCH=1: serve every https request through Node fetch. Needed only
-// where the browser cannot reach the internet but Node can (sandboxed CI).
-if (process.env.PARAPO_NODE_FETCH) {
-await page.route(/^https:\/\//, async (route) => { const req = route.request(); try { const h={...req.headers()}; delete h['accept-encoding']; const r = await fetch(req.url(), { method: req.method(), headers: h, body: ['GET','HEAD'].includes(req.method())?undefined:req.postDataBuffer() }); const body=Buffer.from(await r.arrayBuffer()); const hh={}; r.headers.forEach((v,k)=>{ if(!['content-encoding','content-length','transfer-encoding'].includes(k)) hh[k]=v }); await route.fulfill({status:r.status,headers:hh,body}) } catch { await route.abort() } })
-}
+await nodeFetch(page)
 const errors = []
 page.on('pageerror', (e) => errors.push(String(e)))
 
@@ -101,6 +93,4 @@ check('a bare ?code= or ?error= is not an auth result: / stays put', new URL(pag
 check('no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
 await page.screenshot({ path: 'studio-gate.png' })
 await b.close()
-const failed = results.filter((r) => !r).length
-console.log(`\n${results.length - failed} passed, ${failed} failed`)
-process.exit(failed ? 1 : 0)
+tally()

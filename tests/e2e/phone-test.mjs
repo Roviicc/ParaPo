@@ -24,14 +24,11 @@
 // buttons for a mouse either since 2026-09-29, attribution bottom right);
 // and housekeeping.
 import { chromium } from 'playwright'
+import { BASE, harness, nodeFetch, waitForSource } from './lib/harness.mjs'
+import { centroidOf, pointInPolygon } from './lib/geo.mjs'
+import { lookReaders, paintNow, rideLook } from './lib/looks.mjs'
 
-const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
-const results = []
-const check = (name, ok, detail = '') => {
-  results.push(ok)
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  ' + detail : ''}`)
-}
-const skip = (name, reason) => console.log(`SKIP  ${name}  ${reason}`)
+const { check, skip, tally } = harness()
 
 // ------------------------------------------------------------------ geometry
 // Metres from degrees, flat-earth style. Everything here is within a few km of
@@ -79,21 +76,6 @@ function distToBbox(p, [w, s, e, n], k) {
   const dy = Math.max(s - p[1], 0, p[1] - n) * M_PER_DEG_LAT
   return Math.hypot(dx, dy)
 }
-
-const pointInPolygon = ([x, y], ring) => {
-  let inside = false
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i]
-    const [xj, yj] = ring[j]
-    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
-  }
-  return inside
-}
-
-const centroidOf = (ring) => [
-  ring.reduce((a, c) => a + c[0], 0) / ring.length,
-  ring.reduce((a, c) => a + c[1], 0) / ring.length,
-]
 
 /** Metres from p to the nearest hotspot ring, 0 if p is inside one. */
 function distToHotspots(p, polys, k) {
@@ -166,12 +148,6 @@ const context = await b.newContext({
 const page = await context.newPage()
 watch(page)
 
-// PARAPO_NODE_FETCH=1: serve every https request through Node fetch. Needed only
-// where the browser cannot reach the internet but Node can (sandboxed CI).
-const nodeFetch = async (p) => {
-  if (!process.env.PARAPO_NODE_FETCH) return
-  await p.route(/^https:\/\//, async (route) => { const req = route.request(); try { const h={...req.headers()}; delete h['accept-encoding']; const r = await fetch(req.url(), { method: req.method(), headers: h, body: ['GET','HEAD'].includes(req.method())?undefined:req.postDataBuffer() }); const body=Buffer.from(await r.arrayBuffer()); const hh={}; r.headers.forEach((v,k)=>{ if(!['content-encoding','content-length','transfer-encoding'].includes(k)) hh[k]=v }); await route.fulfill({status:r.status,headers:hh,body}) } catch { await route.abort() } })
-}
 await nodeFetch(page)
 await page.addInitScript(() => {
   // Pointer presses the page has seen: on some GitHub runs Chromium stopped
@@ -197,38 +173,8 @@ await page.addInitScript(() => {
     const s = window.__map?.getSource(id)
     return s ? await s.getData() : null
   }
-  // Since 2026-09-25 a tap is feature state, not a filter or a paint
-  // expression naming ids (useLighting in src/shared/map/savedRoutesLayers.ts).
-  // The directions a source has lit.
-  window.__lit = async (src) => {
-    const m = window.__map
-    const fc = await m?.getSource(src)?.getData()
-    if (!fc) return null
-    return [...new Set(fc.features.map((f) => f.properties.id))].filter((id) => !!m.getFeatureState({ source: src, id }).lit)
-  }
-  // The route lines' paint, the owner's two looks of 2026-09-29: the colour a
-  // line rests in, the colour of the lit copy drawn over it, and any
-  // saved-routes layer whose opacity shades a line rather than switching it
-  // on or off — the outputs of its expression, read branch by branch.
-  window.__paint = () => {
-    const m = window.__map
-    const outputs = (e) =>
-      typeof e === 'number' ? [e]
-      : !Array.isArray(e) ? []
-      : e[0] === 'case' ? [...e.slice(2, -1).filter((_, i) => i % 2 === 0), e.at(-1)].flatMap(outputs)
-      : e[0] === 'step' ? [e[2], ...e.slice(4).filter((_, i) => i % 2 === 0)].flatMap(outputs)
-      : e[0] === 'interpolate' ? e.slice(4).filter((_, i) => i % 2 === 0).flatMap(outputs)
-      : []
-    const shaded = m.getStyle().layers
-      .filter((l) => l.id.startsWith('saved-routes') && l.type === 'line')
-      .flatMap((l) => outputs(m.getPaintProperty(l.id, 'line-opacity') ?? 1).filter((o) => o > 0 && o < 1).map((o) => `${l.id} at ${o}`))
-    return {
-      rest: m.getPaintProperty('saved-routes-line', 'line-color'),
-      lit: m.getPaintProperty('saved-routes-selected', 'line-color'),
-      shaded,
-    }
-  }
 })
+await page.addInitScript(lookReaders)
 
 // ------------------------------------------------------------- 1. the pointer
 // Everything below assumes the page believes it is being touched. Playwright's
@@ -248,24 +194,9 @@ if (!isCoarse) {
 }
 check('the page reports a coarse pointer', isCoarse, isCoarse ? `via ${coarseVia}` : 'matchMedia("(pointer: coarse)") is false — every check below is meaningless')
 
-// The features of one of our GeoJSON sources once the page has some, asked
-// every 100 ms from here for up to `ms`; [] when none came in time. Not
-// `page.waitForFunction` with an async function: under Playwright's default
-// polling that resolves after the function's first call whatever it returned,
-// so a slow database (GitHub's runners are far from it) let the checks start
-// on an empty map. Seen on the first CI run, 2026-09-25.
-const waitForSource = async (id, ms = 20000) => {
-  const until = Date.now() + ms
-  for (;;) {
-    const fs = await page.evaluate(async (id) => (await window.__src(id))?.features ?? [], id)
-    if (fs.length > 0 || Date.now() > until) return fs
-    await page.waitForTimeout(100)
-  }
-}
-
 await page.goto(`${BASE}/`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
-await waitForSource('saved-routes')
+await waitForSource(page, 'saved-routes')
 await page.waitForTimeout(1200)
 
 /**
@@ -793,7 +724,6 @@ const MAP = await page.evaluate(async () => {
     return null
   }
 })
-const paintNow = () => page.evaluate(() => (window.__map.getLayer('saved-routes-line') ? window.__paint() : null))
 const twoLooks = (p, lit = MAP?.['Map/RouteLine/surface-selected']) =>
   !!p && p.shaded.length === 0 &&
   (MAP ? p.rest === MAP['Map/RouteLine/surface-default'] && p.lit === lit : !!p.rest && p.rest !== p.lit)
@@ -811,17 +741,6 @@ const LOOKS = await page.evaluate(async () => {
     return null
   }
 })
-/** The lit line's paint now: its colour, its chevrons', and its end circles' ring. */
-const rideLook = () =>
-  page.evaluate(() => {
-    const m = window.__map
-    const get = (layer, prop) => (m.getLayer(layer) ? m.getPaintProperty(layer, prop) : null)
-    return {
-      line: get('saved-routes-selected', 'line-color'),
-      arrow: get('direction-arrow-chevrons', 'fill-color'),
-      ends: get('direction-end-circles', 'circle-stroke-color'),
-    }
-  })
 /** Whether the lit line wears `want` (a LineLook), chevrons and rings too; true when the looks cannot be read. */
 const wears = (seen, want) => !LOOKS || (!!want && seen.line === want.line && seen.arrow === want.arrow && seen.ends === want.line)
 /** The directions lit now, by id. */
@@ -946,7 +865,7 @@ if (routeA) {
     backShown === fanned,
     `‹ ${backShown ? 'shown' : 'not shown'}`,
   )
-  const looks = await paintNow()
+  const looks = await paintNow(page)
   const openColour = (await trip().count()) ? await trip().first().getAttribute('data-livery') : null
   check(
     "  the rest stay as they rest, opaque light blue, the trip's line in its card's colour: nothing fades (two looks)",
@@ -1083,7 +1002,7 @@ if (!shared) {
   const pickedIds = (await wanted.count()) ? await directionsIn(wantedCard) : []
   const litPicked = (await litIds(page)) ?? []
   check('  a tap on a card off its rows selects it, opening no trip', (await isPicked()) && (await trip().count()) === 0, `Selected ${await isPicked()}; trip open ${(await trip().count()) > 0}`)
-  const seenPicked = await rideLook()
+  const seenPicked = await rideLook(page)
   check("  its routes in the card's colour, chevrons and end circles too", wears(seenPicked, LOOKS?.byLivery[cardColour]), `${cardColour}: ${JSON.stringify(seenPicked)}`)
   // Narrower than the list only where the list has other cards.
   if (pickedIds.length > 0 && pickedIds.length < new Set(listedIds).size) {
@@ -1109,7 +1028,7 @@ if (!shared) {
   )
   const tripColour = (await trip().count()) ? await trip().first().getAttribute('data-livery') : null
   check('  the trip wears the colour of the card it was picked from', !!cardColour && tripColour === cardColour, `card ${cardColour}, trip ${tripColour}`)
-  const seenTrip = await rideLook()
+  const seenTrip = await rideLook(page)
   check("  and so does its line", wears(seenTrip, LOOKS?.byLivery[tripColour]), `${tripColour}: ${JSON.stringify(seenTrip)}`)
   const trip3 = await tripChecks()
   const back = card().getByRole('button', { name: 'Back' })
@@ -1125,7 +1044,7 @@ if (!shared) {
       again ? `card count ${await card().count()}; picked before ${pickedForTrip}, now ${await isPicked()}; ${litBack.length} lit` : 'the list did not come back',
     )
     if (trip3.picked) check('  and lets the picked hintuan go', await noPickLeft())
-    const seenRest = await rideLook()
+    const seenRest = await rideLook(page)
     check('  and its lines are the selected blue again', wears(seenRest, LOOKS?.lit), JSON.stringify(seenRest))
     // Picked, then a tap on the map where the list opened: a fresh list,
     // nothing Selected, every route it lists lit.
@@ -1730,6 +1649,4 @@ check('no request to router.project-osrm.org', !osrmHit)
 check('no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
 
 await b.close()
-const failed = results.filter((x) => !x).length
-console.log(`\n${results.length - failed} passed, ${failed} failed`)
-process.exit(failed ? 1 : 0)
+tally()

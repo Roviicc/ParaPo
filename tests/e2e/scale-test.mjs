@@ -18,9 +18,10 @@ import { chromium } from 'playwright'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { COPIES, shift } from './lib/big-map.mjs'
+import { BASE, bareStyle, harness } from './lib/harness.mjs'
+import { countLongTasks, startProfile, whereItWent } from './lib/profile.mjs'
 
-const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
-const COPIES = Number(process.env.PARAPO_SCALE_COPIES ?? 250)
 /** Seconds from the navigation to the first route line on the screen. */
 const LINES_WITHIN_S = 5
 /** Seconds the main thread may spend in long tasks while opening. */
@@ -28,17 +29,12 @@ const BUSY_WITHIN_S = 5
 /** Seconds from a tap on a line to its orange stretches, its full line read. */
 const LIT_WITHIN_S = 5
 
-const results = []
-const check = (name, ok, detail = '') => {
-  results.push({ name, ok })
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  ' + detail : ''}`)
-}
+const { check, tally } = harness()
 
 // ---------------------------------------------------------------- the map
 const data = fileURLToPath(new URL('../../public/data/', import.meta.url))
 const m = JSON.parse(readFileSync(join(data, 'index.json'), 'utf8'))
 const lineOf = (id) => JSON.parse(readFileSync(join(data, 'lines', `${id}.json`), 'utf8')).shape
-const shift = (k) => [(k % 25) * 0.03, Math.floor(k / 25) * 0.03]
 const mv = (c, [dx, dy]) => [c[0] + dx, c[1] + dy]
 const moved = (line, d) => line && { ...line, coordinates: line.coordinates.map((c) => mv(c, d)) }
 const big = { ...m, variants: [], stops: [], links: [] }
@@ -80,15 +76,7 @@ page.on('pageerror', (e) => errors.push(String(e)))
 page.on('console', (msg) => {
   if (msg.type() === 'error') errors.push(msg.text().slice(0, 160))
 })
-await page.route(/tiles\.openfreemap\.org/, (route) =>
-  /\/styles\//.test(route.request().url())
-    ? route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#eeeeee' } }] }),
-      })
-    : route.fulfill({ status: 404, body: '' }),
-)
+await bareStyle(page)
 await page.route(/\/data\/index\.json/, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: file }))
 await page.route(/\/data\/lines\/.+\.json/, (route) => {
   const id = decodeURIComponent(new URL(route.request().url()).pathname.split('/').pop().replace(/\.json$/, ''))
@@ -97,22 +85,15 @@ await page.route(/\/data\/lines\/.+\.json/, (route) => {
     ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ schema: 2, id, shape }) })
     : route.fulfill({ status: 404, body: '' })
 })
+await page.addInitScript(countLongTasks)
 await page.addInitScript(() => {
-  window.__long = 0
-  new PerformanceObserver((l) => {
-    for (const e of l.getEntries()) window.__long += e.duration
-  }).observe({ entryTypes: ['longtask'] })
   window.__src = async (id) => {
     const s = window.__map?.getSource(id)
     return s ? await s.getData() : null
   }
 })
 
-// A CPU profile of the opening, so a failure says where the time went.
-const cdp = await page.context().newCDPSession(page)
-await cdp.send('Profiler.enable')
-await cdp.send('Profiler.setSamplingInterval', { interval: 1000 })
-await cdp.send('Profiler.start')
+const cdp = await startProfile(page)
 
 const t0 = Date.now()
 await page.goto(`${BASE}/`, { waitUntil: 'load' })
@@ -164,18 +145,7 @@ check(`the first line is on the screen within ${LINES_WITHIN_S} s`, marks['lines
 check(`the main thread is busy under ${BUSY_WITHIN_S} s while opening`, busy <= BUSY_WITHIN_S * 1000, `${(busy / 1000).toFixed(1)} s in long tasks`)
 check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
 
-// Where the time went: the functions with the most self time.
-const self = new Map()
-const byId = new Map(profile.nodes.map((n) => [n.id, n]))
-for (let i = 0; i < profile.samples.length; i++) {
-  const f = byId.get(profile.samples[i]).callFrame
-  const key = `${f.functionName || '(anon)'} ${f.url.replace(/^.*\/(src|node_modules)\//, '$1/').split('?')[0]}:${f.lineNumber + 1}`
-  self.set(key, (self.get(key) ?? 0) + (profile.timeDeltas[i] ?? 0))
-}
-console.log('\n  where the opening went (self time):')
-for (const [k, us] of [...self.entries()].sort((x, y) => y[1] - x[1]).slice(0, 8)) console.log(`  ${String(Math.round(us / 1000)).padStart(6)} ms  ${k}`)
+whereItWent(profile)
 
 await b.close()
-const failed = results.filter((r) => !r.ok).length
-console.log(`\n${results.length - failed} passed, ${failed} failed`)
-process.exit(failed ? 1 : 0)
+tally()

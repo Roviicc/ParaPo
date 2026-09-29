@@ -18,32 +18,16 @@
 // hotspot — including one hotspot with a route drawn through it — opens the
 // right card with the right content.
 import { chromium } from 'playwright'
+import { BASE, harness, nodeFetch, waitForSource } from './lib/harness.mjs'
+import { centroidOf, pointInPolygon } from './lib/geo.mjs'
+import { lookReaders, paintNow, rideLook } from './lib/looks.mjs'
 
-const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
-const results = []
-const check = (name, ok, detail = '') => {
-  results.push(ok)
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  ' + detail : ''}`)
-}
-const skip = (name, reason) => console.log(`SKIP  ${name}  ${reason}`)
+const { check, skip, tally } = harness()
 
 // ------------------------------------------------------------------ geometry
-// Plain point-in-polygon (ray casting) and a handful of "probably inside"
-// guesses for a ring, computed here in Node rather than hard-coded, since we
+// A handful of "probably inside" guesses for a ring (point-in-polygon itself
+// is lib/geo.mjs's), computed here in Node rather than hard-coded, since we
 // do not know the shape of today's hotspots ahead of time.
-const pointInPolygon = ([x, y], ring) => {
-  let inside = false
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i]
-    const [xj, yj] = ring[j]
-    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
-  }
-  return inside
-}
-const centroidOf = (ring) => [
-  ring.reduce((a, c) => a + c[0], 0) / ring.length,
-  ring.reduce((a, c) => a + c[1], 0) / ring.length,
-]
 const interiorCandidates = (ring) => {
   const c = centroidOf(ring)
   const uniq = ring.filter((v, i) => i === 0 || v[0] !== ring[i - 1][0] || v[1] !== ring[i - 1][1])
@@ -97,45 +81,11 @@ const findVertexOutsideHotspots = (routes, polys) => {
 }
 const b = await chromium.launch()
 const page = await b.newPage({ viewport: { width: 1280, height: 800 } })
-// PARAPO_NODE_FETCH=1: serve every https request through Node fetch. Needed only
-// where the browser cannot reach the internet but Node can (sandboxed CI).
-if (process.env.PARAPO_NODE_FETCH) {
-await page.route(/^https:\/\//, async (route) => { const req = route.request(); try { const h={...req.headers()}; delete h['accept-encoding']; const r = await fetch(req.url(), { method: req.method(), headers: h, body: ['GET','HEAD'].includes(req.method())?undefined:req.postDataBuffer() }); const body=Buffer.from(await r.arrayBuffer()); const hh={}; r.headers.forEach((v,k)=>{ if(!['content-encoding','content-length','transfer-encoding'].includes(k)) hh[k]=v }); await route.fulfill({status:r.status,headers:hh,body}) } catch { await route.abort() } })
-}
+await nodeFetch(page)
 await page.addInitScript(() => {
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
-  // Since 2026-09-25 a tap is feature state, not a filter or a paint
-  // expression naming ids (useLighting in src/shared/map/savedRoutesLayers.ts).
-  // The directions a source has lit.
-  window.__lit = async (src) => {
-    const m = window.__map
-    const fc = await m?.getSource(src)?.getData()
-    if (!fc) return null
-    return [...new Set(fc.features.map((f) => f.properties.id))].filter((id) => !!m.getFeatureState({ source: src, id }).lit)
-  }
-  // The route lines' paint, the owner's two looks of 2026-09-29: the colour a
-  // line rests in, the colour of the lit copy drawn over it, and any
-  // saved-routes layer whose opacity shades a line rather than switching it
-  // on or off — the outputs of its expression, read branch by branch.
-  window.__paint = () => {
-    const m = window.__map
-    const outputs = (e) =>
-      typeof e === 'number' ? [e]
-      : !Array.isArray(e) ? []
-      : e[0] === 'case' ? [...e.slice(2, -1).filter((_, i) => i % 2 === 0), e.at(-1)].flatMap(outputs)
-      : e[0] === 'step' ? [e[2], ...e.slice(4).filter((_, i) => i % 2 === 0)].flatMap(outputs)
-      : e[0] === 'interpolate' ? e.slice(4).filter((_, i) => i % 2 === 0).flatMap(outputs)
-      : []
-    const shaded = m.getStyle().layers
-      .filter((l) => l.id.startsWith('saved-routes') && l.type === 'line')
-      .flatMap((l) => outputs(m.getPaintProperty(l.id, 'line-opacity') ?? 1).filter((o) => o > 0 && o < 1).map((o) => `${l.id} at ${o}`))
-    return {
-      rest: m.getPaintProperty('saved-routes-line', 'line-color'),
-      lit: m.getPaintProperty('saved-routes-selected', 'line-color'),
-      shaded,
-    }
-  }
 })
+await page.addInitScript(lookReaders)
 const errors = []
 page.on('pageerror', (e) => errors.push(String(e)))
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 160)) })
@@ -163,24 +113,9 @@ const cardKind = async () => {
   return { kind: 'unknown', text }
 }
 
-// The features of one of our GeoJSON sources once the page has some, asked
-// every 100 ms from here for up to `ms`; [] when none came in time. Not
-// `page.waitForFunction` with an async function: under Playwright's default
-// polling that resolves after the function's first call whatever it returned,
-// so a slow database (GitHub's runners are far from it) let the checks start
-// on an empty map. Seen on the first CI run, 2026-09-25.
-const waitForSource = async (id, ms = 20000) => {
-  const until = Date.now() + ms
-  for (;;) {
-    const fs = await page.evaluate(async (id) => (await window.__src(id))?.features ?? [], id)
-    if (fs.length > 0 || Date.now() > until) return fs
-    await page.waitForTimeout(100)
-  }
-}
-
 await page.goto(`${BASE}/`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
-await waitForSource('saved-stops')
+await waitForSource(page, 'saved-stops')
 await page.waitForTimeout(1200)
 
 // 1. No editor chrome on the visitor page.
@@ -211,7 +146,6 @@ const MAP = await page.evaluate(async () => {
     return null
   }
 })
-const paintNow = () => page.evaluate(() => (window.__map.getLayer('saved-routes-line') ? window.__paint() : null))
 /** The directions lit on the map now. */
 const litNow = async () => (await page.evaluate(() => window.__lit('saved-routes'))) ?? []
 /** The directions a RouteCard's rows open, as the card names them. */
@@ -234,17 +168,6 @@ const LOOKS = await page.evaluate(async () => {
     return null
   }
 })
-/** The lit line's paint now: its colour, its chevrons', and its end circles' ring. */
-const rideLook = () =>
-  page.evaluate(() => {
-    const m = window.__map
-    const get = (layer, prop) => (m.getLayer(layer) ? m.getPaintProperty(layer, prop) : null)
-    return {
-      line: get('saved-routes-selected', 'line-color'),
-      arrow: get('direction-arrow-chevrons', 'fill-color'),
-      ends: get('direction-end-circles', 'circle-stroke-color'),
-    }
-  })
 /** Whether the lit line wears `want` (a LineLook), chevrons and rings too; true when the looks cannot be read. */
 const wears = (seen, want) => !LOOKS || (!!want && seen.line === want.line && seen.arrow === want.arrow && seen.ends === want.line)
 
@@ -484,14 +407,14 @@ if (!hit) {
     await page.waitForTimeout(250)
     const cardIds = await cardDirections(card)
     const picked = await litNow()
-    const looks = await paintNow()
+    const looks = await paintNow(page)
     const cardLook = LOOKS?.byLivery[colour]
     check(
       "  a tap on a card selects it, its routes drawn over the rest in the card's colour",
       (await card.getAttribute('data-state')) === 'selected' && twoLooks(looks, cardLook?.line ?? MAP?.['Map/RouteLine/surface-selected']),
       JSON.stringify(looks),
     )
-    const seenPicked = await rideLook()
+    const seenPicked = await rideLook(page)
     check("  its chevrons in the card's words' colour, its end circles ringed in its own", wears(seenPicked, cardLook), `${colour}: ${JSON.stringify(seenPicked)}`)
     // Narrower than the list only where the list has other cards.
     if (cardIds.length < listed.length) check('  and lights just its routes', sameIds(picked, cardIds), `${picked.length} lit for ${cardIds.length} row(s) of ${listed.length}`)
@@ -505,7 +428,7 @@ if (!hit) {
     if (state.kind === 'route') {
       const tripColour = await page.locator('[data-testid="trip"]').first().getAttribute('data-livery')
       check('  in the colour of the card it was picked from', !!colour && tripColour === colour, `card ${colour}, trip ${tripColour}`)
-      const seenTrip = await rideLook()
+      const seenTrip = await rideLook(page)
       check("  its line in the trip card's colour too", wears(seenTrip, LOOKS?.byLivery[tripColour]), `${tripColour}: ${JSON.stringify(seenTrip)}`)
       // The list stays behind the trip, hidden, for its ‹, and its hotspot
       // goes dark under the trip till then (the owner, 2026-09-29).
@@ -524,7 +447,7 @@ if (!hit) {
       const relit = await litNow()
       const stillSelected = await chooser.locator('[data-state="selected"]').count()
       check('  ‹ brings it back at rest: no card picked, every route lit', stillSelected === 0 && sameIds(relit, listed), `${stillSelected} Selected; ${relit.length} lit, ${listed.length} listed`)
-      const seenRest = await rideLook()
+      const seenRest = await rideLook(page)
       check('  in the selected blue again', wears(seenRest, LOOKS?.lit), JSON.stringify(seenRest))
       // Picked, a second tap lets it go.
       await name.click()
@@ -571,7 +494,7 @@ if (!hit) {
 // the rest; closing the card lights nothing again. Nothing fades and nothing
 // is see-through (the owner's two looks, 2026-09-29).
 {
-  const looks = await paintNow()
+  const looks = await paintNow(page)
   check('the lines rest opaque in Map/RouteLine/surface-default, lit in …/surface-selected, none shaded', twoLooks(looks), JSON.stringify(looks))
   const clean = findVertexOutsideHotspots(snapshot.routes, snapshot.polys)
   if (!clean) {
@@ -812,6 +735,4 @@ check(
 check('no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
 
 await b.close()
-const failed = results.filter((r) => !r).length
-console.log(`\n${results.length - failed} passed, ${failed} failed`)
-process.exit(failed ? 1 : 0)
+tally()

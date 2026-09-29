@@ -27,27 +27,17 @@
 // that updates rather than inserts (13); the drawing keys alive after signing
 // in from Done (9); no React warnings (the duplicate key).
 import { chromium } from 'playwright'
-import { readFileSync } from 'node:fs'
+import { readPublished } from './lib/big-map.mjs'
+import { BASE, bareStyle, harness } from './lib/harness.mjs'
 
-const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
 /** The project ref in VITE_SUPABASE_URL, which names the storage key. */
 const PROJECT_REF = 'smzwbqxttdyvohuizynl'
 /** A request line past this is trouble at the gateway; the link sync once sent 19 kB. */
 const URL_LIMIT = 2000
 
-const results = []
-const check = (name, ok, detail = '') => {
-  results.push(ok)
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  ' + detail : ''}`)
-}
+const { check, tally } = harness()
 
 // ------------------------------------------------------------- the tables
-/** The published map with every line in full: the index, each line from lines/<id>.json beside it. */
-const readPublished = () => {
-  const at = (name) => JSON.parse(readFileSync(new URL(`../../public/data/${name}`, import.meta.url), 'utf8'))
-  const index = at('index.json')
-  return { ...index, variants: index.variants.map(({ overview, ...v }) => ({ ...v, shape: overview ? at(`lines/${v.id}.json`).shape : null })) }
-}
 const m = readPublished()
 const now = '2026-09-25T12:00:00+00:00'
 const OWNER = '11111111-1111-4111-8111-111111111111'
@@ -255,11 +245,7 @@ async function open(signedIn, path) {
   page.on('pageerror', (e) => warnings.push('pageerror: ' + String(e)))
   page.on('console', (msg) => { if (msg.type() === 'error' && /Warning|key/.test(msg.text())) warnings.push(msg.text().slice(0, 160)) })
   page.on('dialog', (d) => d.accept())
-  await page.route(/tiles\.openfreemap\.org/, (r) =>
-    /\/styles\//.test(r.request().url())
-      ? r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#e8e8e8' } }] }) })
-      : r.fulfill({ status: 404, body: '' }),
-  )
+  await bareStyle(page, '#e8e8e8')
   await page.route(/\/rest\/v1\//, async (r) => {
     const out = await serve(r.request())
     const headers = { 'access-control-expose-headers': 'content-range', 'access-control-allow-origin': '*' }
@@ -604,6 +590,4 @@ await page.waitForTimeout(300)
 check('no page errors or React warnings (the duplicate key)', warnings.length === 0, warnings.slice(0, 3).join(' | '))
 await page.screenshot({ path: 'save-test.png' })
 await b.close()
-const failed = results.filter((r) => !r).length
-console.log(`\n${results.length - failed} passed, ${failed} failed`)
-process.exit(failed ? 1 : 0)
+tally()
