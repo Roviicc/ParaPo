@@ -155,9 +155,13 @@ export function HotspotCard({
         </p>
       ) : routeCards ? (
         // Edge to edge, as the route list stacks them (the owner, 2026-09-29);
-        // the rest of this card waits for his hintuan design.
+        // the rest of this card waits for his hintuan design. No pesos on a
+        // hintuan's: a card's fare is the whole ride from where it leaves, and
+        // a rider standing mid-route would read it as theirs (his call, the
+        // same day). A terminal's routes leave from the terminal, so its keep
+        // theirs.
         <div className="-mx-4 mt-1">
-          <RouteCardStack routes={linked} back={back} onRoute={onSelectVariant} testId="card" />
+          <RouteCardStack routes={linked} back={back} onRoute={onSelectVariant} testId="card" fares={isTerminal} />
         </div>
       ) : (
         <ul className="-mx-4 mt-1 border-t border-neutral-200">

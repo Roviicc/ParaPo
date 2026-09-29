@@ -303,6 +303,10 @@ for (const [i, p] of snapshot.polys.entries()) {
     const places = (await cards.allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim())
     const colours = await cards.evaluateAll((els) => els.map((e) => e.getAttribute('data-livery')))
     check(`  its routes are RouteCards, a card per place they leave from`, places.length > 0 && places.every((t) => t.length > 0) && colours.every((c) => !!c), places.map((t, i) => `${colours[i]}: ${t}`).join(' | '))
+    // A card's pesos are the whole ride from where it leaves: a rider at a
+    // hintuan, mid-route, would read them as theirs, so a hintuan's cards
+    // carry none (the owner, 2026-09-29).
+    if (!isTerminal) check(`  and no pesos on a hintuan's cards`, places.every((t) => !t.includes('₱')), places.join(' | '))
     // ⇄ only where both ways pass: a box passed one way only has nothing to flip to.
     const flip = page.locator('[data-testid="card-flip"]')
     check(`  and ⇄ offers the way back, or the box is passed one way only`, (await flip.count()) <= 1)

@@ -13,6 +13,8 @@ type Props = {
   onRoute: (v: VariantSummary, livery: Livery) => void
   /** What the suites call each card and row (RouteCard). */
   testId: 'chooser' | 'card'
+  /** Whether the cards carry their whole rides' pesos; a hintuan's card leaves them off. Default true. */
+  fares?: boolean
 }
 
 /**
@@ -21,12 +23,13 @@ type Props = {
  * random, kept for the visit, never two alike side by side — with a row per
  * drawn direction, and the whole rides' pesos: one direction's range, or from
  * the cheapest to the dearest of several, the same pesos its trip card leads
- * with, and only when every way out has a fare rule. The route list stacks
+ * with, and only when every way out has a fare rule — never on a hintuan's
+ * card, where a rider mid-route would read it as theirs. The route list stacks
  * them under its header; the public map's hotspot card under "Routes that
  * pass through", or a terminal's "Routes that stage here" (the owner,
  * 2026-09-29), edge to edge in both.
  */
-export function RouteCardStack({ routes, back, onRoute, testId }: Props) {
+export function RouteCardStack({ routes, back, onRoute, testId, fares = true }: Props) {
   const places = drawnDepartures(routes, back)
 
   // Drawn once per stack, not per render: a place whose kept colour would
@@ -43,7 +46,7 @@ export function RouteCardStack({ routes, back, onRoute, testId }: Props) {
           key={p.from}
           testId={testId}
           livery={liveries[i]}
-          fare={wholeRideFare(p.directions.map((d) => d.v))}
+          fare={fares ? wholeRideFare(p.directions.map((d) => d.v)) : undefined}
           routeOrigin={p.from}
           endPoints={p.directions.map((d) => ({ id: d.v.id, routeDirection: d.to }))}
           onPick={(id) => {

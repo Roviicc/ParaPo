@@ -152,8 +152,10 @@ const talaRoutes = [
 /**
  * The public map's card (`routeCards`, the owner's ask of 2026-09-29): the
  * routes through here as his RouteCards, edge to edge — his SM Fairview
- * screenshot, Tala with its two ways out, in a colour drawn at random. The
- * rest of the card waits for his hintuan design.
+ * screenshot, Tala with its two ways out, in a colour drawn at random. No
+ * pesos on a hintuan's cards: the whole ride from Tala is not the fare from
+ * here (his call, 2026-09-29); RouteCardsTerminal keeps them. The rest of the
+ * card waits for his hintuan design.
  */
 export const RouteCards: Story = {
   args: {
