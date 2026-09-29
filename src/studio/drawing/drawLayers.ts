@@ -11,7 +11,7 @@ import type { AreaTarget, Picking } from './useDrawing'
 /**
  * What the drawing paints on the map: its sources and layers, laid once, and
  * the data and colours they show as the drawing changes. The `draw-*` ids are
- * a contract — the suites and check-build read them — and never change.
+ * a contract — the suites read them — and never change.
  */
 
 const EMPTY = { type: 'FeatureCollection', features: [] } as const
