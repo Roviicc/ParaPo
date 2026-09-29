@@ -1,5 +1,6 @@
-import { useEffect, useRef, type ReactNode, type Ref } from 'react'
+import { useRef, type ReactNode, type Ref } from 'react'
 import { useDialogFocus } from './useDialogFocus'
+import { useEscape } from './useEscape'
 
 type Props = {
   /** What a screen reader calls it: the list by its count, a trip by its direction. */
@@ -32,15 +33,7 @@ type Props = {
 export function RouteDock({ label, testId, header, onClose, hidden = false, ref, children }: Props) {
   const own = useRef<HTMLDivElement>(null)
   useDialogFocus(own, hidden)
-  // Escape closes, as it does any dialog.
-  useEffect(() => {
-    if (hidden) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose, hidden])
+  useEscape(onClose, !hidden)
 
   return (
     <div

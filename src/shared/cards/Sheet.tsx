@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { useDialogFocus } from './useDialogFocus'
+import { useEscape } from './useEscape'
 
 /** How far a drag must travel before it counts as a pull rather than a tap. */
 const DRAG_PX = 24
@@ -80,15 +81,7 @@ export function Sheet({ label, peek, children, onClose, hidden = false }: Props)
   const rootRef = useRef<HTMLDivElement>(null)
   useDialogFocus(rootRef, hidden)
 
-  // Escape closes, as it does any dialog.
-  useEffect(() => {
-    if (hidden) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose, hidden])
+  useEscape(onClose, !hidden)
 
   // A pointer drag and a tap arrive as the same gesture until it has travelled
   // far enough, so the decision waits for pointermove/pointerup. `handled`
