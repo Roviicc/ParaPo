@@ -4,9 +4,8 @@
 //   node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/fares-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TRADITIONAL, fareFor, fareForKm, manilaDate, peso, pesoRange, rideFare, ruleOn, wholeRideFare } from '../src/shared/fares.ts'
-import { kmLabel, lineLength } from '../src/shared/geo.ts'
-import { variantLine } from '../src/shared/routes.ts'
+import { TRADITIONAL, fareFor, fareForKm, manilaDate, peso, pesoRange, rideFare, ruleOn } from '../src/shared/fares.ts'
+import { kmLabel } from '../src/shared/geo.ts'
 
 const [y2023, y2026] = TRADITIONAL
 
@@ -71,42 +70,19 @@ test("the official guide of 28 Sep 2026: all 50 printed rows reproduce", () => {
   }
 })
 
-/** A direction whose line runs `km` straight north: sample data, shaped like the published file. */
-const direction = (km, mode = 'jeepney') => ({
-  shape: { type: 'LineString', coordinates: [[121.04, 14.7], [121.04, 14.7 + km / 111.2]] },
-  route: { mode },
-})
-
-test("the cards' pesos: one direction's range, several from the cheapest to the dearest", () => {
-  // 9.4 km on the 28 Sep 2026 rule: ₱24 counting the part km down, ₱26 up.
-  assert.equal(wholeRideFare([direction(9.4)], '2026-09-29'), '₱24–26')
-  assert.equal(wholeRideFare([direction(3), direction(9.4)], '2026-09-29'), '₱14–26')
-})
-
-test("the cards' pesos: none unless every direction has a fare rule, or before any rule", () => {
-  assert.equal(wholeRideFare([direction(5), direction(5, 'uv_express')], '2026-09-29'), undefined)
-  assert.equal(wholeRideFare([direction(5)], '2020-01-01'), undefined)
-  assert.equal(wholeRideFare([], '2026-09-29'), undefined)
-})
-
 test("one ride's pesos: the trip's Expected fare", () => {
   // Up to the minimum's 4 km it is one number, part km or not.
   assert.equal(rideFare('jeepney', 3_100, '2026-09-29'), '₱14')
   assert.equal(rideFare('jeepney', 4_000, '2026-09-29'), '₱14')
   // 12.8 km: ₱14 + ₱2 × 8 counting the part km down, × 9 up.
   assert.equal(rideFare('jeepney', 12_800, '2026-09-29'), '₱30–32')
+  // 9.4 km: ₱24 counting the part km down, ₱26 up.
+  assert.equal(rideFare('jeepney', 9_400, '2026-09-29'), '₱24–26')
   // The old rule, before 28 Sep 2026: ₱13 + ₱1.80 × 5.
   assert.equal(rideFare('jeepney', 9_000, '2026-09-27'), '₱22')
   assert.equal(rideFare('uv_express', 5_000, '2026-09-29'), undefined)
   assert.equal(rideFare(undefined, 5_000, '2026-09-29'), undefined)
   assert.equal(rideFare('jeepney', 5_000, '2020-01-01'), undefined)
-})
-
-test("a direction's whole ride is the same pesos either way it is asked", () => {
-  for (const km of [0.5, 3, 4, 4.2, 9.4, 12.8, 31.05]) {
-    const d = direction(km)
-    assert.equal(rideFare('jeepney', lineLength(variantLine(d)), '2026-09-29'), wholeRideFare([d], '2026-09-29'), `${km} km`)
-  }
 })
 
 test('the Kilometer tile: to a tenth, no space', () => {

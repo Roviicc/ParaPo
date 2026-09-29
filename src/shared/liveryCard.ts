@@ -36,12 +36,21 @@ export const CARD_SHADOW = {
   yellow: 'shadow-route-card-inverse',
 } satisfies Record<Livery, string>
 
+// A RouteCard's State=Selected (2026-09-29): pressed in, and nothing else
+// changes — the fill, the words, the Blob stay the Rest card's.
+export const CARD_SHADOW_SELECTED = {
+  red: 'shadow-route-card-primary-selected',
+  orange: 'shadow-route-card-primary-selected',
+  mist: 'shadow-route-card-inverse-selected',
+  yellow: 'shadow-route-card-inverse-selected',
+} satisfies Record<Livery, string>
+
 // Figma's Blob, Primary and Inverse: a white glow over the card's top,
 // 539×270 around its centre, 73px above it. The files carry 128px of blur
 // room on every side, so the image is placed 128px further out (BLOB_PLACE).
 // It lies behind the words (-z-10 inside the card's own stacking context,
 // `isolate`), so nothing above it needs `relative` — which would trap a
-// one-row card's stretched target inside that element instead of the card.
+// card's name, stretched over the card, inside that element instead.
 //
 // The Blob's "image 13" layer is left out: it sits some 840px below the card,
 // where nothing shows. One correction to Figma's export of the Primary Blob:

@@ -52,8 +52,8 @@ export default function CommuterApp() {
   // Where a lit direction passes a hintuan, the line turns orange for that stretch.
   usePassStretches(map, saved.variants, stops.stops, saved.lit)
 
-  // Which way the jeep goes, on what is lit only — the chosen direction, or
-  // the routes under a tap the way round the sheet shows them: chevrons
+  // Which way the jeep goes, on what is lit only — the chosen direction, the
+  // Selected card's directions, or else a list's or a hotspot card's: chevrons
   // flowing inside each line from where the ride starts, and each end a
   // circle with its place's name.
   const rides = useMemo(
@@ -96,10 +96,11 @@ export default function CommuterApp() {
   const wornBehind = choosing || !!stops.selected
 
   // The trip's ‹: back to what it was picked from, kept behind it as it was
-  // left — the route list, a hotspot's card (the owner's "back to that
-  // card", 2026-09-29). Opened with nothing behind it — a tap on its
-  // line, a shared link — it lists its route and those sharing its head or
-  // its tail, the way the trip goes, as a tap where they all run would: Tala
+  // left, every card at rest — the route list, a hotspot's card (the
+  // owner's "back to that card" and "back to normal", 2026-09-29). Opened
+  // with nothing behind it — a tap on its line, a shared link — it lists
+  // its route and those sharing its head or its tail, the way the trip
+  // goes, as a tap where they all run would: Tala
   // → Novaliches ‹ to Tala's card, Tala → Novaliches and SM Fairview. The
   // owner's ask of 2026-09-29, drawn with a shared head; a shared tail counts
   // too (PLAN.md's "grouped by the end it shares"), and the way back lists
@@ -108,7 +109,7 @@ export default function CommuterApp() {
   const trip = saved.selected
   const fan = trip ? sharingAnEnd(saved.variants, trip) : []
   const backToList = stops.selected
-    ? () => saved.select(null)
+    ? () => saved.select(null, { keepList: true })
     : choosing
       ? () => saved.select(null, { keepList: true })
       : trip && fan.filter((v) => v.reversed === trip.reversed && isDrawn(v)).length > 1
@@ -234,18 +235,28 @@ export default function CommuterApp() {
       */}
       {stops.selected && (
         <HotspotCard
-          routeCards
+          routeCards={{
+            selected: saved.highlight?.where === 'hotspot' ? saved.highlight.from : null,
+            onSelect: (p) => saved.highlightCard(p && { where: 'hotspot', ...p }),
+            onShown: saved.showCard,
+          }}
           hidden={!!saved.selected}
           stop={stops.selected}
           linkedVariantIds={stops.linkedVariantIds(stops.selected.id)}
           variants={saved.variants}
           onSelectVariant={(v, livery) => {
             setWorn(livery ? { id: v.id, livery } : null)
-            saved.select(v.id)
+            saved.select(v.id, { keepList: true })
           }}
           stops={stops.stops}
-          onPickSibling={stops.show}
-          onClose={() => stops.select(null)}
+          onPickSibling={(id) => {
+            saved.highlightCard(null)
+            stops.show(id)
+          }}
+          onClose={() => {
+            saved.highlightCard(null)
+            stops.select(null)
+          }}
         />
       )}
 
@@ -263,6 +274,8 @@ export default function CommuterApp() {
           stops={stops.candidates}
           back={saved.back}
           onFlip={saved.flip}
+          selected={saved.highlight?.where === 'list' ? saved.highlight.from : null}
+          onSelect={(p) => saved.highlightCard(p && { where: 'list', ...p })}
           onRoute={(v, livery) => {
             setWorn({ id: v.id, livery })
             saved.select(v.id, { keepList: true })
@@ -411,9 +424,7 @@ function TripCard({
   const [livery] = useState(() => worn ?? liveriesFor([from])[0])
   const sibling = otherDirection(variants, variant)
   const switchable = !!sibling && isDrawn(sibling)
-  // The whole ride, measured once: its Kilometer and its Expected fare, the
-  // pesos wholeRideFare gives this one direction (fares-test holds the two
-  // sums alike).
+  // The whole ride, measured once: its Kilometer and its Expected fare.
   const metres = lineLength(variantLine(variant))
   return (
     <RouteTripDetail

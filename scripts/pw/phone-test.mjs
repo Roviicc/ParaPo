@@ -16,7 +16,7 @@
 // RouteTripDetail, 2026-09-29) — its ends, its fold, SWITCH keeping its
 // colour, ‹ only where another route sharing an end runs its way; the route list
 // where two routes share a road ("N Routes", a card per place), the trip a
-// row opens in its card's colour and ‹ back to the list as it was; a tap
+// row opens in its card's colour and ‹ back to the list, every card at rest; a tap
 // just outside a hotspot, and the bottom sheet on a hotspot's card — tap and
 // drag the handle, peek → open → peek → gone; the ?r=<id> share link and the
 // view it restores; a trip opened on its own whose ‹ lists the routes sharing
@@ -475,13 +475,14 @@ const tripChecks = async () => {
   const [tripId] = (await litIds(page)) ?? []
   const want = await page.evaluate(async (id) => {
     try {
-      const [{ wholeRideFare }, { kmLabel, lineLength }, { variantLine }] = await Promise.all([
+      const [{ rideFare }, { kmLabel, lineLength }, { variantLine }] = await Promise.all([
         import('/src/shared/fares.ts'),
         import('/src/shared/geo.ts'),
         import('/src/shared/routes.ts'),
       ])
       const v = (await fetch('/data/map.json').then((r) => r.json())).variants.find((x) => x.id === id)
-      return v ? { km: kmLabel(lineLength(variantLine(v))), fare: wholeRideFare([v]) ?? null } : null
+      const metres = v && lineLength(variantLine(v))
+      return v ? { km: kmLabel(metres), fare: rideFare(v.route?.mode, metres) ?? null } : null
     } catch {
       return null
     }
@@ -783,9 +784,38 @@ if (!shared) {
   const wanted = items.filter({ hasText: endsOf(shared.b.signboard)[1] })
   const listShown = async () => (await chooser.count()) > 0 && (await chooser.first().isVisible())
   // The colour of the card the row sits on: the trip it opens wears it.
-  const cardColour = (await wanted.count())
-    ? await wanted.first().locator('xpath=ancestor::*[@data-livery][1]').getAttribute('data-livery')
-    : null
+  const wantedCard = wanted.first().locator('xpath=ancestor::*[@data-livery][1]')
+  const cardColour = (await wanted.count()) ? await wantedCard.getAttribute('data-livery') : null
+  // A list lights every route it lists. A tap on a card off its rows — its
+  // name — narrows the lights to its routes, and a second lets it go; a row
+  // opens its trip straight away, and ‹ comes back to every card at rest
+  // (the owner, 2026-09-29).
+  const sameSet = (a, b) => {
+    const [x, y] = [[...new Set(a)], [...new Set(b)]]
+    return x.length === y.length && x.every((id) => y.includes(id))
+  }
+  const directionsIn = (where) => where.locator('button[data-testid="chooser-item"]').evaluateAll((els) => els.map((e) => e.dataset.direction).filter(Boolean))
+  const listedIds = has ? await directionsIn(chooser.first().locator('[data-testid="chooser-origin"]')) : []
+  const litOpen = (await litIds(page)) ?? []
+  check('  it lights every route it lists', listedIds.length > 0 && sameSet(litOpen, listedIds), `${litOpen.length} lit, ${listedIds.length} listed`)
+  const isPicked = async () => (await wanted.count()) > 0 && (await wantedCard.getAttribute('data-state')) === 'selected'
+  const wantedName = wantedCard.locator('[data-testid="chooser-select"]')
+  await buttonTap(wantedName, isPicked)
+  const pickedIds = (await wanted.count()) ? await directionsIn(wantedCard) : []
+  const litPicked = (await litIds(page)) ?? []
+  check('  a tap on a card off its rows selects it, opening no trip', (await isPicked()) && (await trip().count()) === 0, `Selected ${await isPicked()}; trip open ${(await trip().count()) > 0}`)
+  // Narrower than the list only where the list has other cards.
+  if (pickedIds.length > 0 && pickedIds.length < new Set(listedIds).size) {
+    check('  and lights just its routes', sameSet(litPicked, pickedIds), `${litPicked.length} lit for ${pickedIds.length} row(s) of ${listedIds.length}`)
+  } else {
+    skip('  and lights just its routes', 'the picked card holds every route the list shows today')
+  }
+  await buttonTap(wantedName, async () => !(await isPicked()))
+  const litLetGo = (await litIds(page)) ?? []
+  check('  a second tap lets it go, every route it lists lit again', !(await isPicked()) && sameSet(litLetGo, listedIds), `Selected ${await isPicked()}; ${litLetGo.length} lit`)
+  // Picked again, its row opens the trip; ‹ will bring the list back at rest.
+  await buttonTap(wantedName, isPicked)
+  const pickedForTrip = await isPicked()
   await buttonTap(wanted, async () => (await trip().count()) > 0)
   // The trip card takes the list's place, and the list stays behind it,
   // hidden, for the trip's ‹ (the owner's frames, 2026-09-28).
@@ -805,11 +835,24 @@ if (!shared) {
   } else {
     await buttonTap(back, listShown)
     const again = (await listShown()) ? await chooser.first().innerText() : ''
+    const litBack = (await litIds(page)) ?? []
     check(
-      '  ‹ on the trip goes back to the list, as it was',
-      again === chooserText && (await card().count()) === 0,
-      again ? `card count ${await card().count()}` : 'the list did not come back',
+      '  ‹ on the trip, from a picked card, goes back to the list at rest: no card picked, every route it lists lit',
+      again === chooserText && (await card().count()) === 0 && pickedForTrip && !(await isPicked()) && sameSet(litBack, listedIds),
+      again ? `card count ${await card().count()}; picked before ${pickedForTrip}, now ${await isPicked()}; ${litBack.length} lit` : 'the list did not come back',
     )
+    // Picked, then a tap on the map where the list opened: a fresh list,
+    // nothing Selected, every route it lists lit.
+    await buttonTap(wantedName, isPicked)
+    const repicked = await isPicked()
+    await jumpTo(page, shared.point)
+    const anchor2 = await project(page, shared.point)
+    const box2 = await canvasBox()
+    await mapTap(box2.x + anchor2[0], box2.y + anchor2[1])
+    await page.waitForTimeout(600)
+    const litTapped = (await litIds(page)) ?? []
+    const pickedAfter = await chooser.locator('[data-state="selected"]').count()
+    check('  a map tap lets it go: nothing Selected, every route it lists lit', repicked && pickedAfter === 0 && (await listShown()) && sameSet(litTapped, listedIds), `picked ${repicked}; ${pickedAfter} Selected; ${litTapped.length} lit`)
   }
   await closeCard()
 }

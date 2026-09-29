@@ -1,3 +1,5 @@
+import type { ComponentProps } from 'react'
+import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { fn } from 'storybook/test'
 import { RouteCardList } from './RouteCardList'
@@ -10,8 +12,8 @@ function route(id: string, name: string): VariantSummary['route'] {
 }
 
 /**
- * One direction, its line `km` long straight north (so the fare is a real
- * fare); `drawn` false leaves it a slot.
+ * One direction, its line `km` long straight north; `drawn` false leaves it
+ * a slot.
  */
 function variant(key: string, name: string, direction: string, km: number, reversed = false, drawn = true): VariantSummary {
   return {
@@ -73,13 +75,36 @@ const FRAME = {
 } satisfies Record<Frame, string>
 const frameOf = (p: { frame?: Frame }) => FRAME[p.frame ?? 'phone']
 
+/** Keeps the Selected card as the apps do, so a story can be tapped through; SWITCH lets it go. */
+function Picking(props: ComponentProps<typeof RouteCardList>) {
+  const [selected, setSelected] = useState(props.selected)
+  const [back, setBack] = useState(props.back)
+  return (
+    <RouteCardList
+      {...props}
+      back={back}
+      onFlip={() => {
+        props.onFlip()
+        setBack((b) => !b)
+        setSelected(null)
+      }}
+      selected={selected}
+      onSelect={(p) => {
+        props.onSelect(p)
+        setSelected(p?.from ?? null)
+      }}
+    />
+  )
+}
+
 const meta = {
   title: 'Shared/RouteCardList',
   component: RouteCardList,
+  render: (args) => <Picking {...args} />,
   // A map-sized box, marked @container as the apps' roots are: the list docks
-  // along its bottom, and floats top-left from 1024 wide (`@float:`) — the
-  // owner's frames at 393, 640 and 1024. Never taller than the canvas, so the
-  // story itself does not scroll.
+  // along its bottom, and sits in the top-left corner from 1024 wide
+  // (`@float:`) — the owner's frames at 393, 640 and 1024. Never taller than
+  // the canvas, so the story itself does not scroll.
   decorators: [
     (Story, ctx) => (
       <div className={'relative h-dvh overflow-hidden bg-neutral-200 @container ' + frameOf(ctx.parameters)}>
@@ -88,7 +113,7 @@ const meta = {
     ),
   ],
   parameters: { layout: 'fullscreen' },
-  args: { routes: talaRoutes, back: false, onFlip: fn(), onRoute: fn(), onStop: fn(), onClose: fn() },
+  args: { routes: talaRoutes, back: false, selected: null, onFlip: fn(), onSelect: fn(), onRoute: fn(), onStop: fn(), onClose: fn() },
 } satisfies Meta<typeof RouteCardList>
 
 export default meta
@@ -100,7 +125,10 @@ export const Phone: Story = {}
 /** SWITCHed: out of Tala both ways, one card — "1 Route". */
 export const Switched: Story = { args: { back: true } }
 
-/** From 1024 wide, floating top-left, 368 wide. */
+/** Tala's card picked: pressed in, its routes alone lit on the map (the owner, 2026-09-29). */
+export const ACardSelected: Story = { args: { back: true, selected: 'Tala' } }
+
+/** From 1024 wide, flush in the top-left corner, 384 wide (the owner's 3750:1911). */
 export const Floating: Story = { parameters: { frame: 'wide' } }
 
 /** The owner's 640 frame: still docked, as wide as the screen — the glow runs edge to edge. */

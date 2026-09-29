@@ -21,9 +21,10 @@ type Props = {
 /**
  * Where the route list and a trip's card sit, one at a time, in the owner's
  * frames (2026-09-28, 2026-09-29): docked along the bottom with its top
- * corners rounded until `@float:`, then floating top-left, 368 wide. Taller
- * than the room, the body scrolls under the header, with no scrollbar drawn
- * (his ask, 2026-09-28).
+ * corners rounded until `@float:`, then flush in the top-left corner, square,
+ * 384 wide — no room above it or to its left (his 3750:1911, 2026-09-29).
+ * Taller than the room, the body scrolls under the header, with no scrollbar
+ * drawn (his ask, 2026-09-28).
  */
 export function RouteDock({ label, testId, header, onClose, hidden = false, children }: Props) {
   // Escape closes, as it does any dialog.
@@ -44,8 +45,8 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, chil
       hidden={hidden}
       className="absolute inset-x-0 bottom-0 z-10 flex max-h-[60vh] flex-col overflow-clip rounded-t-3xl bg-surface
                  pb-[env(safe-area-inset-bottom)]
-                 @float:inset-x-auto @float:bottom-auto @float:top-4 @float:left-4 @float:max-h-[calc(100%-2rem)]
-                 @float:w-92 @float:pb-0"
+                 @float:inset-x-auto @float:bottom-auto @float:top-0 @float:left-0 @float:max-h-full
+                 @float:w-96 @float:rounded-none @float:pb-0"
     >
       {header}
       <div className="min-h-0 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden">{children}</div>

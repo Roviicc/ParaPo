@@ -116,8 +116,8 @@ function Workshop({
   // Where a lit direction passes a hintuan, the line turns orange for that stretch.
   usePassStretches(map, saved.variants, stops.stops, saved.lit, draw.target.variantId)
 
-  // Which way the jeep goes, on what is lit only — the chosen direction, or
-  // the routes under a tap the way round the sheet shows them: chevrons
+  // Which way the jeep goes, on what is lit only — the chosen direction, the
+  // Selected card's directions, or else a list's: chevrons
   // flowing inside each line from where the ride starts, and each end a
   // circle with its place's name.
   const rides = useMemo(
@@ -313,6 +313,8 @@ function Workshop({
           stops={stops.candidates}
           back={saved.back}
           onFlip={saved.flip}
+          selected={saved.highlight?.where === 'list' ? saved.highlight.from : null}
+          onSelect={(p) => saved.highlightCard(p && { where: 'list', ...p })}
           onRoute={(v) => {
             stops.select(null)
             saved.select(v.id)

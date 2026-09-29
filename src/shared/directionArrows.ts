@@ -14,9 +14,11 @@ import { ROUTES_HIT_LAYER } from './tap'
  * second offset line, only on what is lit — on every resting line they would
  * be clutter once a road carries three routes — and **flowing smoothly**
  * along it from the start of the ride to its end. No glow: he asked for it
- * and then asked for it gone. What is lit is the chosen direction, or, since
- * 2026-09-25, every route under a tap the way round the sheet shows them;
- * where two of those share a road they flow as one stream, not two.
+ * and then asked for it gone. What is lit is the chosen direction; or, since
+ * 2026-09-29, the Selected RouteCard's directions (a route list's card or a
+ * hotspot's); or else every route a list shows, the way round it shows them
+ * (since 2026-09-25), or a hotspot's cards do (2026-09-29). Where two of
+ * those share a road they flow as one stream, not two.
  *
  * The mark is a white chevron, one to a place and all alike, with no trail:
  * his call the night of 2026-09-23, after white arrows, a train of four

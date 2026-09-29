@@ -16,8 +16,9 @@ const HIT = ROUTES_HIT_LAYER
 /**
  * Two looks, the owner's of 2026-09-29, and no opacity: every direction
  * rests in Map/RouteLine/surface-default, opaque, in its white casing; the
- * lit ones — the trip open, or the routes a list is showing — are drawn
- * again on top in Map/RouteLine/surface-selected, thicker. See-through lines
+ * lit ones — the trip open, the Selected card's directions, or else every
+ * direction a list or a hotspot's card shows — are drawn again on top in
+ * Map/RouteLine/surface-selected, thicker. See-through lines
  * stacked on a shared road and read as one muddle (his words: "it can stack
  * and confuse the user"), so nothing fades any more: the three levels of
  * 2026-09-22 (rest, faded, lit) and the resting way back of 2026-09-25 went
@@ -59,6 +60,13 @@ export function useLighting(map: MapLibreMap | null, source: string, lit: readon
 }
 
 /**
+ * The RouteCard picked in a list of them — the route list's, or a hotspot's
+ * card's (`where`) — by its place, and the directions its rows list: what
+ * the map lights while no trip is open (the owner, 2026-09-29).
+ */
+export type Highlight = { where: 'list' | 'hotspot'; from: string; ids: readonly string[] }
+
+/**
  * Every saved route direction, drawn for everyone. This is the public half of
  * ParaPo: no sign-in, no editor, just the map with what has been recorded.
  *
@@ -87,20 +95,40 @@ export function useSavedRoutes<T extends VariantSummary>(
   const [candidates, setCandidates] = useState<T[]>([])
   /**
    * Which way round the sheet shows the routes under a tap: outbound, or the
-   * way back. One way at a time, each lit with its arrows; ⇄ flips all of
-   * them together. The owner's ask of 2026-09-25.
+   * way back. One way at a time; ⇄ flips all of them together. The owner's
+   * ask of 2026-09-25.
    */
   const [back, setBack] = useState(false)
-  const flip = useCallback(() => setBack((b) => !b), [])
+  /**
+   * The Selected RouteCard, whose directions alone are lit while no trip is
+   * open; with none picked, a list lights every direction it shows (the
+   * owner, 2026-09-29, after seeing a list light nothing). SWITCH, a new
+   * list, a map tap, opening a trip and closing let it go.
+   */
+  const [highlight, setHighlight] = useState<Highlight | null>(null)
+  /**
+   * What a hotspot's RouteCards show, the way round its ⇄ has them: lit as a
+   * list's are, till one of its cards is picked (the owner, 2026-09-29: "on
+   * hintuan it should light its routes"). The card says what it shows, and
+   * nothing once it closes.
+   */
+  const [cardShows, setCardShows] = useState<readonly string[]>([])
+  const flip = useCallback(() => {
+    setBack((b) => !b)
+    setHighlight(null)
+  }, [])
 
   /**
    * Choosing one direction answers the question the chooser was asking, so
-   * the list goes — unless `keepList`: the public map's trip card keeps the
-   * list it was picked from behind it, for its ‹ (the owner's frames of
-   * 2026-09-28); ‹ is then `select(null, { keepList: true })`.
+   * the list goes — unless `keepList`: the public map's trip card keeps what
+   * it was picked from behind it, the list or a hotspot's card, for its ‹
+   * (the owner's frames of 2026-09-28); ‹ is then `select(null, { keepList:
+   * true })`. A Selected card is let go either way, so ‹ comes back to every
+   * card at rest (the owner, 2026-09-29: "back to normal").
    */
   const select = useCallback((id: string | null, opts: { keepList?: boolean } = {}) => {
     setSelectedId(id)
+    setHighlight(null)
     if (!opts.keepList) setCandidates([])
   }, [])
 
@@ -114,13 +142,16 @@ export function useSavedRoutes<T extends VariantSummary>(
     setSelectedId(null)
     setCandidates([...directions])
     setBack(way)
+    setHighlight(null)
   }, [])
 
   const drawingRef = useRef(opts.drawing ?? false)
   drawingRef.current = opts.drawing ?? false
   // A chooser left open when drawing starts would come back, stale, after it.
   useEffect(() => {
-    if (opts.drawing) setCandidates([])
+    if (!opts.drawing) return
+    setCandidates([])
+    setHighlight(null)
   }, [opts.drawing])
 
   // The click handler is bound once; this is how it reads today's variants.
@@ -180,11 +211,12 @@ export function useSavedRoutes<T extends VariantSummary>(
       },
       before,
     )
-    // The lit directions — the one chosen, or everything under a tap — drawn
-    // once more above the rest, in the selected blue: over a shared road,
-    // they are the line that shows. Every direction is in these layers, the
-    // unlit ones switched off: a filter naming the lit ones would lay the
-    // whole source out again at every tap (see `useLighting`).
+    // The lit directions — the one chosen, the Selected card's, or else
+    // everything a list or a hotspot's card shows — drawn once more above
+    // the rest, in the selected blue: over a shared road, they are the line
+    // that shows. Every direction is in these layers, the unlit ones switched
+    // off: a filter naming the lit ones would lay the whole source out again
+    // at every tap (see `useLighting`).
     map.addLayer(
       {
         id: SELECTED_CASING,
@@ -264,23 +296,41 @@ export function useSavedRoutes<T extends VariantSummary>(
     for (const id of [CASING, LINE, SELECTED_CASING, SELECTED, HIT]) map.setFilter(id, filter as never)
   }, [map, opts.hiddenVariantId])
 
-  // What is lit: the chosen direction alone, or, while the sheet asks which,
-  // the routes under the tap the way round it is showing them.
+  // What is shown: the routes under the tap, the way round the list is
+  // showing them — or, with no list, what a hotspot's cards show.
+  const showing = useMemo(
+    () =>
+      candidates.length > 0
+        ? candidates.filter((v) => v.reversed === back && isDrawn(v))
+        : variants.filter((v) => cardShows.includes(v.id) && isDrawn(v)),
+    [candidates, back, variants, cardShows],
+  )
+  // What is lit: the chosen direction alone; or the Selected card's; or,
+  // with none picked, everything shown.
   const litVariants = useMemo(
     () =>
       selectedId
         ? variants.filter((v) => v.id === selectedId && isDrawn(v))
-        : candidates.filter((v) => v.reversed === back && isDrawn(v)),
-    [selectedId, variants, candidates, back],
+        : highlight
+          ? variants.filter((v) => highlight.ids.includes(v.id) && isDrawn(v))
+          : showing,
+    [selectedId, variants, highlight, showing],
   )
   const lit = useMemo(() => litVariants.map((v) => v.id), [litVariants])
   useLighting(map, SRC, lit)
 
-  // The click handler is bound once; this is how it reads what is lit now.
-  const litRef = useRef<readonly string[]>([])
+  // What a tap where directions overlap keeps to: what is lit — but with a
+  // card picked, everything shown, so the taps of 2026-09-25 below keep to
+  // the way round the list shows. The click handler is bound once; this is
+  // how it reads it.
+  const shown = useMemo(
+    () => (selectedId || showing.length === 0 ? lit : showing.map((v) => v.id)),
+    [selectedId, lit, showing],
+  )
+  const shownRef = useRef<readonly string[]>([])
   useEffect(() => {
-    litRef.current = lit
-  }, [lit])
+    shownRef.current = shown
+  }, [shown])
 
   // ----------------------------------------------------------------- events
 
@@ -290,27 +340,29 @@ export function useSavedRoutes<T extends VariantSummary>(
 
     // One handler, one box. A finger is wider than a pixel, so we ask what is
     // near the tap: nothing deselects, one route opens its card, several
-    // things — routes, hotspots or both — light up and go to the sheet. The
-    // candidates are whole routes, slots included, so the sheet can say
-    // "return not mapped yet". The stops hook reads the same tap and keeps
-    // its own half.
+    // things — routes, hotspots or both — go to the list, the routes lit the
+    // way round it shows them. The candidates are whole routes, slots
+    // included, so the studio's rows can say "return not mapped yet".
+    // The stops hook reads the same tap and keeps its own half.
     const onMapClick = (e: MapMouseEvent) => {
       if (drawingRef.current) return
+      // Whatever the tap opens, the card picked before it is let go.
+      setHighlight(null)
       const out = resolveTap(tapTargets(map, e.point, e.originalEvent))
       const all = [...byId.current.values()]
       if (out.kind === 'route') {
         // The line under the finger wins: where a route's two directions run
         // on different roads, tapping the other one must open it (the owner's
-        // check, 2026-09-22). Where both overlap, the one already lit stays
+        // check, 2026-09-22). Where both overlap, the one already shown stays
         // (the owner's ask of 2026-09-25: a tap on the lit Novaliches → Tala
-        // opened Tala → Novaliches); with neither lit, the outbound rule
+        // opened Tala → Novaliches); with neither shown, the outbound rule
         // decides.
         const under = out.routeIds.map((id) => byId.current.get(id)).filter((v) => !!v)
         const routeId = under[0]?.route_id
         const open =
           under.length === 1
             ? under[0]!
-            : (under.find((v) => litRef.current.includes(v.id)) ?? directionToOpen(all.filter((v) => v.route_id === routeId)))
+            : (under.find((v) => shownRef.current.includes(v.id)) ?? directionToOpen(all.filter((v) => v.route_id === routeId)))
         setSelectedId(open?.id ?? null)
         setCandidates([])
       } else if (out.kind === 'several') {
@@ -320,11 +372,11 @@ export function useSavedRoutes<T extends VariantSummary>(
         // The way round under the finger, as for one route: outbound where an
         // outbound line was hit, the way back where only ways back were — so
         // a tap on the light-blue way back switches to it (the owner's
-        // report, 2026-09-25) — and, where a lit line was hit, the way round
-        // already lit.
+        // report, 2026-09-25) — and, where a line shown was hit, the way
+        // round already shown.
         const hit = out.routeIds.map((id) => byId.current.get(id)).filter((v) => !!v)
-        const litHit = hit.find((v) => litRef.current.includes(v.id))
-        setBack(litHit ? litHit.reversed : hit.length > 0 && hit.every((v) => v.reversed))
+        const shownHit = hit.find((v) => shownRef.current.includes(v.id))
+        setBack(shownHit ? shownHit.reversed : hit.length > 0 && hit.every((v) => v.reversed))
       } else {
         setSelectedId(null)
         setCandidates([])
@@ -349,5 +401,21 @@ export function useSavedRoutes<T extends VariantSummary>(
 
   const selected = variants.find((v) => v.id === selectedId) ?? null
 
-  return { variants, error, loading, reload, selected, select, openList, candidates, back, flip, lit, litVariants }
+  return {
+    variants,
+    error,
+    loading,
+    reload,
+    selected,
+    select,
+    openList,
+    candidates,
+    back,
+    flip,
+    highlight,
+    highlightCard: setHighlight,
+    showCard: setCardShows,
+    lit,
+    litVariants,
+  }
 }

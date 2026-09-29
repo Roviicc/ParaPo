@@ -1,6 +1,6 @@
 import type { Livery } from './liveries'
 import { RouteCardHeader } from './RouteCardHeader'
-import { RouteCardStack } from './RouteCardStack'
+import { RouteCardStack, type PickedPlace } from './RouteCardStack'
 import { RouteDock } from './RouteDock'
 import { drawnDepartures, type VariantSummary } from './routes'
 import { hotspotCount, stopLabel, type StopSummary } from './stops'
@@ -14,12 +14,16 @@ type Props = {
   back: boolean
   /** SWITCH: show them all the other way round. */
   onFlip: () => void
-  /** Called with the direction picked, and the colour its card wore: its trip wears the same. */
+  /** The place whose card is Selected, by name; null when none is. */
+  selected: string | null
+  /** A card was picked — the map lights its directions alone — or let go (null): everything listed lit again. */
+  onSelect: (place: PickedPlace | null) => void
+  /** Called with the direction a row opens, and the colour its card wore: its trip wears the same. */
   onRoute: (v: VariantSummary, livery: Livery) => void
   /** A hotspot's row: open its card. */
   onStop: (s: StopSummary) => void
   onClose: () => void
-  /** Kept but not shown, while a trip picked from it is on top: ‹ comes back to it as it was. */
+  /** Kept but not shown, while a trip picked from it is on top: ‹ comes back to it as it was left, every card at rest. */
   hidden?: boolean
 }
 
@@ -27,10 +31,14 @@ type Props = {
  * Everything under a tap that hit more than one thing — the owner's
  * RouteCardExample (Figma 3746:1237 and its layouts, 3750:1911, 2026-09-28):
  * RouteCardHeader over a RouteCard per place the routes leave from
- * (RouteCardStack: each in its own livery, its fare, its drawn ways out). The
+ * (RouteCardStack: each in its own livery, its drawn ways out). The
  * grouping is today's (departures): one way round at a time, SWITCH flips
  * them all, and the count is of cards — "1 Route" for Tala with its two ways
- * out, as his frame has it.
+ * out, as his frame has it. The map lights every direction listed, the way
+ * round it is showing them; a tap on a card off its rows narrows that to the
+ * card's, and a second tap, SWITCH, a map tap or closing let it go. A row
+ * opens its trip straight away and picks no card, and the trip's ‹ comes
+ * back to every card at rest (the owner, 2026-09-29).
  *
  * Only drawn directions are listed: the owner dropped "not mapped yet"
  * (2026-09-28), and a row that opens nothing is no row. SWITCH rests
@@ -47,7 +55,7 @@ type Props = {
  *
  * It sits where RouteDock puts it, as the trip card does.
  */
-export function RouteCardList({ routes, stops = [], back, onFlip, onRoute, onStop, onClose, hidden }: Props) {
+export function RouteCardList({ routes, stops = [], back, onFlip, selected, onSelect, onRoute, onStop, onClose, hidden }: Props) {
   const places = drawnDepartures(routes, back)
   const switchable = drawnDepartures(routes, !back).length > 0
   const hotspots = hotspotCount(stops)
@@ -87,7 +95,7 @@ export function RouteCardList({ routes, stops = [], back, onFlip, onRoute, onSto
           ))}
         </ul>
       )}
-      <RouteCardStack routes={routes} back={back} onRoute={onRoute} testId="chooser" />
+      <RouteCardStack routes={routes} back={back} selected={selected} onSelect={onSelect} onRoute={onRoute} testId="chooser" />
     </RouteDock>
   )
 }

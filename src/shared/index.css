@@ -12,8 +12,8 @@
  * card stops covering the thing it describes.
  *
  * The redesigned route cards (the owner's frames of 2026-09-28) dock at the
- * bottom until `@float:` and only then float top-left: he drew them floating
- * at 1024 and 1536 wide, docked at 640 and 393.
+ * bottom until `@float:` and only then sit in the top-left corner: he drew
+ * them there at 1024 and 1536 wide, docked at 640 and 393.
  */
 @theme {
   --container-wide: 40rem;

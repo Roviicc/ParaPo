@@ -1,35 +1,39 @@
 import { useMemo } from 'react'
-import { wholeRideFare } from './fares'
 import { liveriesFor, type Livery } from './liveries'
 import { RouteCard } from './RouteCard'
 import { drawnDepartures, type VariantSummary } from './routes'
+
+/** A card picked: the place it stands for, and the directions its rows list, for the map to light. */
+export type PickedPlace = { from: string; ids: readonly string[] }
 
 type Props = {
   /** Every direction of every route to show, slots included, as the hooks hand them over. */
   routes: readonly VariantSummary[]
   /** Whether they are shown the way back rather than outbound. */
   back: boolean
-  /** Called with the direction picked, and the colour its card wore: its trip wears the same. */
+  /** The place whose card is Selected, by name; null when none is. */
+  selected: string | null
+  /** A card was picked, or let go (null). */
+  onSelect: (place: PickedPlace | null) => void
+  /** Called with the direction a row opens, and the colour its card wore: its trip wears the same. */
   onRoute: (v: VariantSummary, livery: Livery) => void
   /** What the suites call each card and row (RouteCard). */
   testId: 'chooser' | 'card'
-  /** Whether the cards carry their whole rides' pesos; a hintuan's card leaves them off. Default true. */
-  fares?: boolean
 }
 
 /**
  * Routes one way round as the owner's RouteCards (2026-09-28): a card per
  * place they leave from (departures), each in its livery — liveries.ts: at
  * random, kept for the visit, never two alike side by side — with a row per
- * drawn direction, and the whole rides' pesos: one direction's range, or from
- * the cheapest to the dearest of several, the same pesos its trip card leads
- * with, and only when every way out has a fare rule — never on a hintuan's
- * card, where a rider mid-route would read it as theirs. The route list stacks
- * them under its header; the public map's hotspot card under "Routes that
- * pass through", or a terminal's "Routes that stage here" (the owner,
- * 2026-09-29), edge to edge in both.
+ * drawn direction. One card at a time is Selected, and the map lights its
+ * directions alone; a row opens its trip straight away, whether its card is
+ * picked or not, and picks none — selecting it too was confusing — and the
+ * trip's ‹ comes back to every card at rest (the owner's calls, 2026-09-29).
+ * The route list stacks them under its header; the public map's
+ * hotspot card under "Routes that pass through", or a terminal's "Routes
+ * that stage here", edge to edge in both.
  */
-export function RouteCardStack({ routes, back, onRoute, testId, fares = true }: Props) {
+export function RouteCardStack({ routes, back, selected, onSelect, onRoute, testId }: Props) {
   const places = drawnDepartures(routes, back)
 
   // Drawn once per stack, not per render: a place whose kept colour would
@@ -46,9 +50,10 @@ export function RouteCardStack({ routes, back, onRoute, testId, fares = true }: 
           key={p.from}
           testId={testId}
           livery={liveries[i]}
-          fare={fares ? wholeRideFare(p.directions.map((d) => d.v)) : undefined}
+          state={selected === p.from ? 'selected' : 'rest'}
           routeOrigin={p.from}
           endPoints={p.directions.map((d) => ({ id: d.v.id, routeDirection: d.to }))}
+          onSelect={() => onSelect(selected === p.from ? null : { from: p.from, ids: p.directions.map((d) => d.v.id) })}
           onPick={(id) => {
             const v = byId.get(id)
             if (v) onRoute(v, liveries[i])

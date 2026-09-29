@@ -38,9 +38,9 @@ const meta = {
   title: 'Shared/RouteTripDetail',
   component: RouteTripDetail,
   // A map-sized box, marked @container as the apps' roots are: the trip
-  // docks along its bottom where the list did, and floats top-left from 1024
-  // wide (`@float:`). Never taller than the canvas, so the story itself does
-  // not scroll.
+  // docks along its bottom where the list did, and sits in the top-left
+  // corner from 1024 wide (`@float:`). Never taller than the canvas, so the
+  // story itself does not scroll.
   decorators: [
     (Story, ctx) => (
       <div className={'relative h-dvh overflow-hidden bg-neutral-200 @container ' + frameOf(ctx.parameters)}>
@@ -129,10 +129,10 @@ export const LongNames: Story = {
   play: openFold,
 }
 
-/** From 1024 wide, floating top-left where the list floats. */
+/** From 1024 wide, in the top-left corner where the list sits. */
 export const Floating: Story = { parameters: { frame: 'wide' } }
 
-/** Floating and opened: the owner's Tala → Novaliches is taller than 640, so the rail scrolls. */
+/** In the corner and opened: the owner's Tala → Novaliches is taller than 640, so the rail scrolls. */
 export const FloatingOpened: Story = { parameters: { frame: 'wide' }, play: openFold }
 
 /** The owner's 640 frame: still docked, as wide as the screen. */
