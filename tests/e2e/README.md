@@ -21,11 +21,11 @@ Chromium does.
     npm run build                             # also checks import boundaries, that no editor code reaches /, and the installable app's files
     node tests/e2e/studio-scale-test.mjs      # 12: /studio/?e2e=1 with 1,000 directions and 500 hotspots as the database keeps them, served by a stand-in for its REST API, no tiles, no router — the list carries no drawings, a followed line's drawing is read on its own, the links pages are asked for together, the first line and a click's lighting within their budgets
     node tests/e2e/scale-test.mjs             # 5: / with 1,000 directions and 500 hotspots made from today's map, no tiles — the first line on the screen within 30 s, the main thread busy under 20 s; prints where the opening went
-    node tests/e2e/studio-standin.mjs         # not a suite: the studio's save flows signed in, against a stand-in for the database (today's map as the tables, writes echoed back) and a faked stored session — a route saved, a hintuan traced and saved, a card picked and edited; prints each step and screenshots it. The seed for a save-flow suite (docs/plan-cleanup-2026-09-29.md, stage 4)
+    node tests/e2e/save-test.mjs             # 43: the studio's save flows signed in, against a stand-in for the database (today's map plus 500 far-off hintuans, answered as PostgREST answers: filters, unique indexes, foreign keys, cascades) and a faked stored session, no router, no tiles — the pill counts routes and the stop table is read once a load; a route saved with its empty slot, the return trip offered while the slot is empty and written into it, an edit writing its one row, a delete emptying the direction into a slot and a redraw filling it; request lines short with 541 hotspots and the hintuans read in pages; a hotspot saved with its links; a route's end refused a delete in words; undo to no points leaving no draft; a failed link sync and a retry that updates; the drawing keys alive after signing in from Done
     node tests/e2e/pwa-test.mjs               # 41: the installable app, against the build in its own `vite preview` on :4173 — manifest, worker, offline, slow network, update
 
 **On GitHub, every push runs these** (`.github/workflows/ci.yml`): one job builds
-and runs gate, visitor, phone, where, scale and pwa; a second runs studio-scale, then the
+and runs gate, visitor, phone, where, scale and pwa; a second runs studio-scale and save, then the
 drawing suites one at a time, with one retry after a minute for the shared router. A red check on a
 branch means the push broke something; the failing suite's screenshots are
 kept as the run's artifact.

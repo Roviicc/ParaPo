@@ -3229,3 +3229,25 @@ of the one stylesheet, so a page's own look stops being global. Pure moves
 and import paths; the boundary guard needed no change (it reads the area).
 The ds-reviewer's import rule now states what the guard enforces, the
 design system included (finding 11).
+
+**Stage 4 — the studio's correctness, 2026-09-29.** One commit per finding.
+The return trip is offered only while its route has an empty slot, and the
+slot update carries `shape is null`, so a drawn direction is never
+overwritten (2). Delete empties a direction into a slot — links gone, a
+line extended from it forgetting its parent — and the route goes only when
+both ways are empty, so the card still flips and a redraw fills the slot
+(3); every step reads its error (16). The link sync reads the direction's
+own links and drops only the hintuan links it no longer earns, and reads the
+hintuans in pages: its request line had grown to 19 kB at 500 hintuans (4).
+One stop read a load, shared by both hooks (6). The pill counts routes (7).
+A saved hotspot reloads the directions, so a renamed end renames its routes
+(8). Signing in from Done clears the flag that kept the drawing keys off
+(9). Undo to no points removes the draft (12). A save whose link sync fails
+keeps the row it wrote and retries as an update (13). A hotspot that is a
+route's end is refused a delete in a sentence naming the routes (15). A
+timeline row's key carries its index. `tests/e2e/save-test.mjs` — grown from
+the review's stand-in, which it replaces — runs the save flows signed in
+against an in-memory PostgREST (filters, unique indexes, foreign keys,
+cascades, a refusal on demand) with 500 extra hintuans: 43 checks, in CI's
+studio job, no account and no router. Run against stage 3's code it fails
+on findings 2, 3, 4, 6, 7 and 15 before the old panel's dead end stops it.
