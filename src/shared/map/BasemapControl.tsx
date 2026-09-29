@@ -17,10 +17,12 @@ type Props = {
  * (2026-09-29) — then the button takes the corner itself.
  */
 type Above = 'attribution' | 'zoom' | 'nothing'
+// Below the status bar on an installed iPhone: the map's own corner controls
+// already sit inside the safe area (styles/index.css), and these follow them.
 const TOP = {
-  attribution: 'top-12',
-  zoom: 'top-[7.5rem]',
-  nothing: 'top-2.5',
+  attribution: 'top-[calc(3rem+env(safe-area-inset-top))]',
+  zoom: 'top-[calc(7.5rem+env(safe-area-inset-top))]',
+  nothing: 'top-[calc(0.625rem+env(safe-area-inset-top))]',
 } satisfies Record<Above, string>
 
 /**
@@ -54,7 +56,7 @@ export function BasemapControl({ map, initial, under }: Props) {
   return (
     <div
       ref={rootRef}
-      className={`absolute right-2.5 z-10 flex flex-col items-end gap-1 ${TOP[under]}`}
+      className={`absolute right-[calc(0.625rem+env(safe-area-inset-right))] z-10 flex flex-col items-end gap-1 ${TOP[under]}`}
     >
       <button
         type="button"

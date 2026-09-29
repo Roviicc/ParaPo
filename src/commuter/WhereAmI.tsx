@@ -39,7 +39,12 @@ export function WhereAmIButton({ where, coarse }: Props) {
   const label = !on ? 'Where am I' : follow ? 'Stop following me' : 'Follow me again'
   const state = !on ? status : follow ? 'following' : 'on'
   return (
-    <div className={`absolute right-2.5 z-10 flex flex-col items-end gap-1 ${coarse ? 'top-[5.25rem]' : 'top-[2.875rem]'}`}>
+    // Inside the safe area, as the map-design button above it is.
+    <div
+      className={`absolute right-[calc(0.625rem+env(safe-area-inset-right))] z-10 flex flex-col items-end gap-1 ${
+        coarse ? 'top-[calc(5.25rem+env(safe-area-inset-top))]' : 'top-[calc(2.875rem+env(safe-area-inset-top))]'
+      }`}
+    >
       <button
         type="button"
         onClick={() => (on && follow ? stop() : ask())}
