@@ -1,30 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
-import {
-  joinSegments,
-  lineLength,
-  type LngLat,
-  type Segment,
-  type SnapMode,
-} from '../../shared/geo/geo'
-import { HOTSPOT_COLOUR } from '../../shared/map/colours'
-import { MAP_PAINT } from '../../design-system/foundation/mapColours'
-import { findUTurns, snapSegments, straightSegment } from './snap'
-import { variantLine, type VariantDrawing } from '../../shared/model/routes'
+import type { MapLibreMap } from 'maplibre-gl'
+import { joinSegments, lineLength, type LngLat, type Segment, type SnapMode } from '../../shared/geo/geo'
+import { findUTurns, straightSegment } from './snap'
+import type { VariantDrawing } from '../../shared/model/routes'
 import { cutAt, nearestSpot, reverseDrawing, type BorrowPart, type LineSpot } from './borrow'
-import { ROUTES_HIT_LAYER } from '../../shared/map/tap'
-import { LAYERS } from '../../shared/map/layers'
-
-const EMPTY = { type: 'FeatureCollection', features: [] } as const
+import { readDraft, useDraftSaving } from './draft'
+import { useDrawLayers, useDrawRendering } from './drawLayers'
+import { useDrawEvents } from './useDrawEvents'
+import { useGapResolver } from './gapResolver'
 
 /**
- * An in-progress drawing lives here until it is saved or discarded. Signing in
- * via magic link reloads the page, and a refresh is one keystroke away; either
- * would otherwise throw away twenty minutes of clicking.
+ * The drawing tool: a route's control points and the road between them, or a
+ * hotspot's outline, from the first click to the save. This file keeps the
+ * state, the edits and the modes; what it paints is drawLayers.ts, how the
+ * pointer drives it useDrawEvents.ts, the router's answers gapResolver.ts,
+ * and the draft on this device draft.ts (split 2026-09-29, stage 10 of the
+ * clean-up; nothing it does changed).
  */
-const DRAFT_KEY = 'parapo.draft.v1'
 
-type Target = { routeId: string | null; variantId: string | null }
+/** What a save will write to: an existing direction, a new direction on an existing route, or (both null) a new route. */
+export type Target = { routeId: string | null; variantId: string | null }
 
 /** Which kind of hotspot an area trace will become. */
 export type HotspotKind = 'terminal' | 'hintuan'
@@ -50,55 +45,6 @@ export type Borrow = { variantId: string; part: BorrowPart }
  */
 export type Picking = { variant: VariantDrawing; spot: LineSpot | null }
 
-/** A gap still waiting for the router when the draft was written is marked `pending`. */
-type DraftSegment = Segment & { pending?: boolean }
-
-type Draft = {
-  controlPoints: LngLat[]
-  segments: DraftSegment[]
-  target: Target
-  area?: AreaTarget | null
-  borrow?: Borrow | null
-  /** Index of the join point, when new points go in before a borrowed end. */
-  join?: number | null
-}
-
-function readDraft(): Draft | null {
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY)
-    if (!raw) return null
-    const d = JSON.parse(raw) as Draft
-    return Array.isArray(d.controlPoints) && d.controlPoints.length > 0 ? d : null
-  } catch {
-    return null
-  }
-}
-
-const LINE_SRC = 'draw-line'
-const POINT_SRC = 'draw-points'
-const AREA_SRC = 'draw-area'
-const UTURN_SRC = 'draw-uturns'
-const BORROW_SRC = 'draw-borrow'
-const POINT_LAYER = 'draw-point-dots'
-const HIT_LAYER = 'draw-line-hit'
-const AREA_FILL_LAYER = 'draw-area-fill'
-
-const ROUTE_COLOUR = MAP_PAINT['Paint/draw-line']
-const UTURN_COLOUR = MAP_PAINT['Paint/draw-uturn']
-
-const BORROW_COLOUR = MAP_PAINT['Paint/draw-borrow']
-
-/** A tap this many pixels off the line being extended does not pick a spot on it. */
-const PICK_PX = 40
-
-/** The closing edge of an area is a feature in the line source with this index. */
-const CLOSING = -1
-
-type IndexedFeature = { properties?: { index?: number } }
-
-/** A router request still wanted: the stand-ins its answer will replace. */
-type Request = { standIns: Segment[]; controller: AbortController }
-
 export type Drawing = ReturnType<typeof useDrawing>
 
 export function useDrawing(
@@ -114,7 +60,6 @@ export function useDrawing(
   const [drawing, setDrawing] = useState(false)
   const [controlPoints, setControlPoints] = useState<LngLat[]>([])
   const [segments, setSegments] = useState<Segment[]>([])
-  const [snapping, setSnapping] = useState(0)
   const [freehand, setFreehand] = useState(false)
   /** What a save will write to: an existing direction, a new direction on an
    *  existing route, or (both null) a brand-new route. */
@@ -159,105 +104,14 @@ export function useDrawing(
    */
   const connectedRef = useRef<{ spot: LngLat; end: LngLat } | null>(null)
 
-  /**
-   * Straight stand-ins: drawn while the router is asked, and while a point is
-   * dragged. A router answer is written only where its stand-in still is, no
-   * U-turn is ever reported against one, and none can be saved.
-   */
-  const standInRef = useRef(new WeakSet<Segment>())
-  const requestsRef = useRef(new Set<Request>())
-
-  const writeSegments = useCallback((next: Segment[]) => {
-    segRef.current = next
-    setSegments(next)
-    // A request whose stand-ins are all gone has nowhere to write: stop it,
-    // and give its place in the router queue to one that is still wanted.
-    for (const request of requestsRef.current) {
-      if (!request.standIns.some((s) => next.includes(s))) {
-        request.controller.abort()
-        requestsRef.current.delete(request)
-      }
-    }
-  }, [])
-
-  const writeSegment = useCallback(
-    (i: number, seg: Segment) => {
-      const next = [...segRef.current]
-      next[i] = seg
-      writeSegments(next)
-    },
-    [writeSegments],
-  )
+  // The segments and the router's answers for them.
+  const gaps = useGapResolver(useMemo(() => ({ points: cpRef, segments: segRef, area: areaRef }), []), setSegments)
+  const { writeSegments, resolveGaps, isStandIn, markStandIn } = gaps
 
   const writePoints = useCallback((pts: LngLat[]) => {
     cpRef.current = pts
     setControlPoints(pts)
   }, [])
-
-  /**
-   * Resolve the gaps that start at control point `first`, one per mode given.
-   *
-   * Adjacent routed gaps go to the router as one request. Until it answers,
-   * each shows a straight stand-in, and the answer is written wherever that
-   * stand-in is by then: moved along if a point was inserted or deleted before
-   * it, dropped if it is gone (the point dragged again, the stretch
-   * straightened, the point undone, another route opened) — in which case the
-   * request is called off too.
-   */
-  const resolveGaps = useCallback(
-    async (first: number, modes: SnapMode[]) => {
-      const pts = cpRef.current.slice(first, first + modes.length + 1)
-      if (modes.length === 0 || pts.length < modes.length + 1) return
-
-      // A hotspot's edges are never routed: it is an outline, not a path.
-      const routed = modes.map((mode) => mode === 'snapped' && !areaRef.current)
-      const next = [...segRef.current]
-      const standIns = modes.map((_, k) => {
-        if (!routed[k]) {
-          next[first + k] = straightSegment(pts[k], pts[k + 1])
-          return null
-        }
-        const seg: Segment = { snap: 'snapped', coordinates: [pts[k], pts[k + 1]] }
-        standInRef.current.add(seg)
-        next[first + k] = seg
-        return seg
-      })
-      writeSegments(next)
-
-      // Runs of adjacent routed gaps, as [from, to] offsets from `first`.
-      const runs: [number, number][] = []
-      routed.forEach((r, k) => {
-        if (!r) return
-        const last = runs[runs.length - 1]
-        if (last && last[1] === k - 1) last[1] = k
-        else runs.push([k, k])
-      })
-
-      await Promise.all(
-        runs.map(async ([a, b]) => {
-          const request: Request = {
-            standIns: standIns.slice(a, b + 1) as Segment[],
-            controller: new AbortController(),
-          }
-          requestsRef.current.add(request)
-          setSnapping((n) => n + 1)
-          try {
-            const answer = await snapSegments(pts.slice(a, b + 2), request.controller.signal)
-            answer.forEach((seg, j) => {
-              const at = segRef.current.indexOf(request.standIns[j])
-              if (at !== -1) writeSegment(at, seg)
-            })
-          } catch (err) {
-            if (!(err instanceof Error && err.name === 'AbortError')) throw err
-          } finally {
-            requestsRef.current.delete(request)
-            setSnapping((n) => n - 1)
-          }
-        }),
-      )
-    },
-    [writeSegment, writeSegments],
-  )
 
   const addPoint = useCallback(
     async (point: LngLat) => {
@@ -566,340 +420,20 @@ export function useDrawing(
     })
   }, [writePoints, writeSegments, resolveGaps])
 
-  useEffect(() => {
-    try {
-      if (drawing && controlPoints.length > 0) {
-        const marked: DraftSegment[] = segments.map((s) =>
-          s && standInRef.current.has(s) ? { ...s, pending: true } : s,
-        )
-        const join = joinRef.current ? controlPoints.indexOf(joinRef.current) : -1
-        localStorage.setItem(
-          DRAFT_KEY,
-          JSON.stringify({ controlPoints, segments: marked, target, area, borrow, join: join === -1 ? null : join }),
-        )
-      } else {
-        // Not drawing, or drawing with every point undone: nothing to keep.
-        // Only the first was cleared once, so a reload brought back what Undo
-        // had taken away (finding 12).
-        localStorage.removeItem(DRAFT_KEY)
-      }
-    } catch {
-      /* storage unavailable: drafts simply do not persist */
-    }
-  }, [drawing, controlPoints, segments, target, area, borrow])
+  useDraftSaving({ drawing, controlPoints, segments, target, area, borrow }, joinRef, isStandIn)
 
-  // ----------------------------------------------------------------- layers
+  // ------------------------------------------------------ layers and events
 
-  useEffect(() => {
-    if (!map || map.getSource(LINE_SRC)) return
-
-    map.addSource(LINE_SRC, { type: 'geojson', data: EMPTY })
-    map.addSource(POINT_SRC, { type: 'geojson', data: EMPTY })
-    map.addSource(AREA_SRC, { type: 'geojson', data: EMPTY })
-    map.addSource(UTURN_SRC, { type: 'geojson', data: EMPTY })
-    map.addSource(BORROW_SRC, { type: 'geojson', data: EMPTY })
-
-    // The hotspot fill sits under its own outline and under the route layers.
-    map.addLayer({
-      id: AREA_FILL_LAYER,
-      type: 'fill',
-      source: AREA_SRC,
-      paint: { 'fill-color': ROUTE_COLOUR, 'fill-opacity': 0.18 },
-    })
-    // The direction being extended, while its spot is picked: wide and pale,
-    // so the tap has something to land on, with the spot as a ringed dot.
-    map.addLayer({
-      id: 'draw-borrow-line',
-      type: 'line',
-      source: BORROW_SRC,
-      filter: ['==', ['geometry-type'], 'LineString'],
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': BORROW_COLOUR, 'line-width': 10, 'line-opacity': 0.35 },
-    })
-    map.addLayer({
-      id: 'draw-borrow-spot',
-      type: 'circle',
-      source: BORROW_SRC,
-      filter: ['==', ['geometry-type'], 'Point'],
-      paint: {
-        'circle-radius': 8,
-        'circle-color': MAP_PAINT['Paint/casing'],
-        'circle-stroke-color': BORROW_COLOUR,
-        'circle-stroke-width': 3,
-      },
-    })
-    map.addLayer({
-      id: LAYERS.drawCasing,
-      type: 'line',
-      source: LINE_SRC,
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': MAP_PAINT['Paint/casing'], 'line-width': 8, 'line-opacity': 0.9 },
-    })
-    // Routed and freehand are separate layers because line-dasharray cannot be
-    // driven by a feature property.
-    map.addLayer({
-      id: LAYERS.drawSnapped,
-      type: 'line',
-      source: LINE_SRC,
-      filter: ['==', ['get', 'snap'], 'snapped'],
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': ROUTE_COLOUR, 'line-width': 4 },
-    })
-    map.addLayer({
-      id: LAYERS.drawFreehand,
-      type: 'line',
-      source: LINE_SRC,
-      filter: ['==', ['get', 'snap'], 'freehand'],
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: {
-        'line-color': ROUTE_COLOUR,
-        'line-width': 4,
-        'line-dasharray': [2, 1.5],
-      },
-    })
-    // Where the route turns back on itself, the doubled-back stretch overlaps
-    // or runs beside the line and would be invisible. Paint it amber over it.
-    map.addLayer({
-      id: 'draw-uturn-stub',
-      type: 'line',
-      source: UTURN_SRC,
-      filter: ['==', ['geometry-type'], 'LineString'],
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': UTURN_COLOUR, 'line-width': 5 },
-    })
-    // A 4px line is far too thin to hit reliably; this invisible one is not.
-    map.addLayer({
-      id: HIT_LAYER,
-      type: 'line',
-      source: LINE_SRC,
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': MAP_PAINT['Paint/hit'], 'line-width': 22, 'line-opacity': 0 },
-    })
-    // …and ring the control point it turns at.
-    map.addLayer({
-      id: 'draw-uturn-ring',
-      type: 'circle',
-      source: UTURN_SRC,
-      filter: ['==', ['geometry-type'], 'Point'],
-      paint: {
-        'circle-radius': 12,
-        'circle-opacity': 0,
-        'circle-stroke-color': UTURN_COLOUR,
-        'circle-stroke-width': 3,
-      },
-    })
-    map.addLayer({
-      id: POINT_LAYER,
-      type: 'circle',
-      source: POINT_SRC,
-      paint: {
-        'circle-radius': 6,
-        'circle-color': MAP_PAINT['Paint/casing'],
-        'circle-stroke-color': ROUTE_COLOUR,
-        'circle-stroke-width': 2.5,
-      },
-    })
-  }, [map])
-
-  // ----------------------------------------------------------------- events
-
-  useEffect(() => {
-    if (!map || !drawing) return
-    if (!map.getLayer(POINT_LAYER) || !map.getLayer(HIT_LAYER)) return
-
-    const canvas = map.getCanvas()
-    canvas.style.cursor = 'crosshair'
-
-    // Shift+drag is MapLibre's box zoom and it swallows shift+click, which is
-    // our "straighten this segment" gesture. Double-click zoom would fire on a
-    // quick pair of route clicks. Neither belongs in drawing mode.
-    map.boxZoom.disable()
-    map.doubleClickZoom.disable()
-
-    // Clicking empty map appends a point; clicking the route itself does not.
-    const onMapClick = (e: MapMouseEvent) => {
-      // Choosing where a new route leaves a saved one: a tap near its line
-      // picks the nearest spot on it; a tap elsewhere is ignored.
-      const p = pickingRef.current
-      if (p) {
-        const spot = nearestSpot(p.variant.segments ?? [], [e.lngLat.lng, e.lngLat.lat])
-        if (!spot) return
-        const px = map.project(spot.point)
-        if (Math.hypot(px.x - e.point.x, px.y - e.point.y) > PICK_PX) return
-        const next = { variant: p.variant, spot }
-        pickingRef.current = next
-        setPicking(next)
-        return
-      }
-      const hits = map.queryRenderedFeatures(e.point, {
-        layers: [POINT_LAYER, HIT_LAYER],
-      })
-      if (hits.length > 0) return
-      void addPoint([e.lngLat.lng, e.lngLat.lat])
-    }
-
-    const onLineClick = (e: MapMouseEvent & { features?: IndexedFeature[] }) => {
-      // A click on a point's dot is a press on that point, not a click on the
-      // line beneath it: inserting here would stack a second point on the first.
-      if (map.queryRenderedFeatures(e.point, { layers: [POINT_LAYER] }).length > 0) return
-      const gap = e.features?.[0]?.properties?.index
-      if (typeof gap !== 'number') return
-      // Clicking the closing edge of a hotspot appends a corner: the ring
-      // re-closes through the new point, which is what "insert here" means
-      // on that edge. Nothing to straighten — area edges are already straight.
-      if (gap === CLOSING) {
-        if (!e.originalEvent.shiftKey) void addPoint([e.lngLat.lng, e.lngLat.lat])
-        return
-      }
-      if (e.originalEvent.shiftKey) {
-        if (!areaRef.current) void toggleSegment(gap)
-      } else void insertPoint(gap, [e.lngLat.lng, e.lngLat.lat])
-    }
-
-    const onPointContext = (e: MapMouseEvent & { features?: IndexedFeature[] }) => {
-      e.preventDefault()
-      const idx = e.features?.[0]?.properties?.index
-      if (typeof idx === 'number') void deletePoint(idx)
-    }
-
-    // A right-click on a saved line — not on one of the drawing's points,
-    // which deletes it — asks to join that line and follow it to its end.
-    const onMapContext = (e: MapMouseEvent) => {
-      if (areaRef.current || pickingRef.current || !followRef.current) return
-      if (!map.getLayer(ROUTES_HIT_LAYER)) return
-      if (map.queryRenderedFeatures(e.point, { layers: [POINT_LAYER] }).length > 0) return
-      const ids = [
-        ...new Set(
-          map
-            .queryRenderedFeatures(e.point, { layers: [ROUTES_HIT_LAYER] })
-            .map((f) => f.properties?.id)
-            .filter((id): id is string => typeof id === 'string'),
-        ),
-      ]
-      if (ids.length === 0) return
-      e.preventDefault()
-      followRef.current(ids, [e.lngLat.lng, e.lngLat.lat])
-    }
-
-    let dragIdx: number | null = null
-    let dragMoved = false
-    let dragModes: [SnapMode | undefined, SnapMode | undefined] = [
-      undefined,
-      undefined,
-    ]
-
-    const onDragMove = (e: MapMouseEvent) => {
-      const i = dragIdx
-      if (i === null) return
-      dragMoved = true
-      const point: LngLat = [e.lngLat.lng, e.lngLat.lat]
-      const pts = [...cpRef.current]
-      if (pts[i] === joinRef.current) joinRef.current = point
-      pts[i] = point
-      writePoints(pts)
-
-      // Rubber-band the two neighbours while dragging; they re-route on release.
-      const next = [...segRef.current]
-      if (i > 0 && pts[i - 1]) {
-        next[i - 1] = { snap: dragModes[0] ?? 'snapped', coordinates: [pts[i - 1], point] }
-        standInRef.current.add(next[i - 1])
-      }
-      if (i < pts.length - 1 && pts[i + 1]) {
-        next[i] = { snap: dragModes[1] ?? 'snapped', coordinates: [point, pts[i + 1]] }
-        standInRef.current.add(next[i])
-      }
-      writeSegments(next)
-    }
-
-    const onDragEnd = () => {
-      const i = dragIdx
-      dragIdx = null
-      map.off('mousemove', onDragMove)
-      map.off('mouseup', onDragEnd)
-      document.removeEventListener('mouseup', onDragEnd)
-      canvas.style.cursor = 'crosshair'
-      map.dragPan.enable()
-      // A press and release that never moved is not an edit: both segments are
-      // still right, so the router is not asked again.
-      if (i === null || !dragMoved) return
-      // Only the two segments touching the moved point are stale, and they go
-      // to the router together, as one request.
-      const before = dragModes[0] ?? 'snapped'
-      const after = dragModes[1] ?? 'snapped'
-      const last = cpRef.current.length - 1
-      if (i > 0 && i < last) void resolveGaps(i - 1, [before, after])
-      else if (i > 0) void resolveGaps(i - 1, [before])
-      else if (i < last) void resolveGaps(i, [after])
-    }
-
-    const onPointDown = (e: MapMouseEvent & { features?: IndexedFeature[] }) => {
-      const idx = e.features?.[0]?.properties?.index
-      if (typeof idx !== 'number') return
-      // Left button only. A right-click must reach the contextmenu handler;
-      // starting a drag here would swallow it.
-      if (e.originalEvent.button !== 0) return
-      e.preventDefault()
-      dragIdx = idx
-      dragMoved = false
-      dragModes = [segRef.current[idx - 1]?.snap, segRef.current[idx]?.snap]
-      canvas.style.cursor = 'grabbing'
-      map.dragPan.disable()
-      map.on('mousemove', onDragMove)
-      map.once('mouseup', onDragEnd)
-      // MapLibre reports mouseup only over the map. Released over the toolbar,
-      // the drag would never end and its stand-ins would stay.
-      document.addEventListener('mouseup', onDragEnd)
-    }
-
-    const enterPoint = () => {
-      if (dragIdx === null) canvas.style.cursor = 'grab'
-    }
-    const enterLine = () => {
-      if (dragIdx === null) canvas.style.cursor = 'copy'
-    }
-    const leave = () => {
-      if (dragIdx === null) canvas.style.cursor = 'crosshair'
-    }
-
-    map.on('click', onMapClick)
-    map.on('click', HIT_LAYER, onLineClick)
-    map.on('mousedown', POINT_LAYER, onPointDown)
-    map.on('contextmenu', POINT_LAYER, onPointContext)
-    map.on('contextmenu', onMapContext)
-    map.on('mouseenter', POINT_LAYER, enterPoint)
-    map.on('mouseleave', POINT_LAYER, leave)
-    map.on('mouseenter', HIT_LAYER, enterLine)
-    map.on('mouseleave', HIT_LAYER, leave)
-
-    return () => {
-      map.off('click', onMapClick)
-      map.off('click', HIT_LAYER, onLineClick)
-      map.off('mousedown', POINT_LAYER, onPointDown)
-      map.off('contextmenu', POINT_LAYER, onPointContext)
-      map.off('contextmenu', onMapContext)
-      map.off('mouseenter', POINT_LAYER, enterPoint)
-      map.off('mouseleave', POINT_LAYER, leave)
-      map.off('mouseenter', HIT_LAYER, enterLine)
-      map.off('mouseleave', HIT_LAYER, leave)
-      map.off('mousemove', onDragMove)
-      map.off('mouseup', onDragEnd)
-      document.removeEventListener('mouseup', onDragEnd)
-      map.dragPan.enable()
-      map.boxZoom.enable()
-      map.doubleClickZoom.enable()
-      canvas.style.cursor = ''
-    }
-  }, [
+  useDrawLayers(map)
+  useDrawEvents(
     map,
     drawing,
-    addPoint,
-    insertPoint,
-    deletePoint,
-    toggleSegment,
-    resolveGaps,
-    writePoints,
-    writeSegments,
-  ])
+    useMemo(
+      () => ({ points: cpRef, segments: segRef, area: areaRef, picking: pickingRef, join: joinRef, follow: followRef }),
+      [],
+    ),
+    { setPicking, addPoint, insertPoint, deletePoint, toggleSegment, resolveGaps, writePoints, writeSegments, markStandIn },
+  )
 
   // -------------------------------------------------------------- rendering
 
@@ -907,133 +441,25 @@ export function useDrawing(
 
   /** Control points where the route turns back on itself. Shown, never changed. */
   const uTurns = useMemo(
-    () => (area ? [] : findUTurns(segments, (s) => standInRef.current.has(s))),
-    [segments, area],
+    () => (area ? [] : findUTurns(segments, isStandIn)),
+    [segments, area, isStandIn],
   )
 
   /** A stand-in is still on the line: not road geometry yet, so not ready to save. */
   const unresolved = useMemo(
-    () => segments.some((s) => !!s && standInRef.current.has(s)),
-    [segments],
+    () => segments.some((s) => !!s && isStandIn(s)),
+    [segments, isStandIn],
   )
 
-  useEffect(() => {
-    if (!map) return
-    const lineSrc = map.getSource(LINE_SRC) as GeoJSONSource | undefined
-    const pointSrc = map.getSource(POINT_SRC) as GeoJSONSource | undefined
-    if (!lineSrc || !pointSrc) return
-
-    // Index before filtering: the feature's `index` must stay the segment's
-    // real position, or editing one segment would edit another.
-    const lineFeatures = segments
-      .map((s, i) => ({ s, i }))
-      .filter(({ s }) => (s?.coordinates?.length ?? 0) > 1)
-      .map(({ s, i }) => ({
-        type: 'Feature' as const,
-        properties: { index: i, snap: s.snap },
-        geometry: { type: 'LineString' as const, coordinates: s.coordinates },
-      }))
-
-    // A hotspot closes itself once it has three corners. The closing edge is a
-    // real, clickable feature so a corner can be inserted on it; it carries a
-    // sentinel index because no segment backs it.
-    if (area && controlPoints.length >= 3) {
-      lineFeatures.push({
-        type: 'Feature' as const,
-        properties: { index: CLOSING, snap: 'freehand' as const },
-        geometry: {
-          type: 'LineString' as const,
-          coordinates: [controlPoints[controlPoints.length - 1], controlPoints[0]],
-        },
-      })
-    }
-
-    lineSrc.setData({ type: 'FeatureCollection', features: lineFeatures })
-
-    pointSrc.setData({
-      type: 'FeatureCollection',
-      features: controlPoints.map((c, i) => ({
-        type: 'Feature' as const,
-        properties: { index: i },
-        geometry: { type: 'Point' as const, coordinates: c },
-      })),
-    })
-
-    const areaSrc = map.getSource(AREA_SRC) as GeoJSONSource | undefined
-    areaSrc?.setData(
-      area && controlPoints.length >= 3
-        ? {
-            type: 'FeatureCollection',
-            features: [
-              {
-                type: 'Feature',
-                properties: {},
-                geometry: {
-                  type: 'Polygon',
-                  coordinates: [[...controlPoints, controlPoints[0]]],
-                },
-              },
-            ],
-          }
-        : EMPTY,
-    )
-
-    const uturnSrc = map.getSource(UTURN_SRC) as GeoJSONSource | undefined
-    const stubs = uTurns.map((u) => ({
-      type: 'Feature' as const,
-      properties: { point: u.point, metres: Math.round(u.metres) },
-      geometry: { type: 'LineString' as const, coordinates: u.stub },
-    }))
-    const rings = uTurns
-      .filter((u) => controlPoints[u.point])
-      .map((u) => ({
-        type: 'Feature' as const,
-        properties: { point: u.point, metres: Math.round(u.metres) },
-        geometry: { type: 'Point' as const, coordinates: controlPoints[u.point] },
-      }))
-    uturnSrc?.setData({ type: 'FeatureCollection', features: [...stubs, ...rings] })
-  }, [map, segments, controlPoints, area, uTurns])
-
-  useEffect(() => {
-    if (!map) return
-    const src = map.getSource(BORROW_SRC) as GeoJSONSource | undefined
-    if (!src) return
-    if (!picking) {
-      src.setData(EMPTY)
-      return
-    }
-    const line = {
-      type: 'Feature' as const,
-      properties: {},
-      geometry: { type: 'LineString' as const, coordinates: variantLine(picking.variant) },
-    }
-    const spot = picking.spot && {
-      type: 'Feature' as const,
-      properties: {},
-      geometry: { type: 'Point' as const, coordinates: picking.spot.point },
-    }
-    src.setData({ type: 'FeatureCollection', features: spot ? [line, spot] : [line] })
-  }, [map, picking])
-
-  // Route traces are rose; a hotspot trace takes its kind's colour, and its
-  // straight edges are drawn solid rather than in the freehand dash.
-  useEffect(() => {
-    if (!map || !map.getLayer(AREA_FILL_LAYER)) return
-    const colour = area ? HOTSPOT_COLOUR[area.kind] : ROUTE_COLOUR
-    map.setPaintProperty(LAYERS.drawSnapped, 'line-color', colour)
-    map.setPaintProperty(LAYERS.drawFreehand, 'line-color', colour)
-    map.setPaintProperty(LAYERS.drawFreehand, 'line-dasharray', area ? [1, 0] : [2, 1.5])
-    map.setPaintProperty(POINT_LAYER, 'circle-stroke-color', colour)
-    map.setPaintProperty(AREA_FILL_LAYER, 'fill-color', colour)
-  }, [map, area])
+  useDrawRendering(map, { segments, controlPoints, area, uTurns, picking })
 
   return {
     drawing,
     controlPoints,
     segments,
     line,
-    snapping,
-    /** True while a stand-in is still on the line (see standInRef). */
+    snapping: gaps.snapping,
+    /** True while a stand-in is still on the line (gapResolver.ts). */
     unresolved,
     freehand,
     setFreehand,
