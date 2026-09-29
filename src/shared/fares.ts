@@ -1,4 +1,5 @@
-import type { TransportMode } from './routes'
+import { lineLength } from './geo'
+import { variantLine, type TransportMode, type VariantSummary } from './routes'
 
 /**
  * LTFRB's jeepney fare rule, the "add-on method": a minimum for the first
@@ -83,4 +84,21 @@ export function peso(centavos: number): string {
 /** `₱26` or `₱26–28`. */
 export function pesoRange(low: number, high: number): string {
   return low === high ? peso(low) : `${peso(low)}–${peso(high).slice(1)}`
+}
+
+/**
+ * The whole rides of one or more directions, from the cheapest to the
+ * dearest — `₱26–28` — as the route cards lead with it: a place's card in
+ * the list, over all its ways out, and a trip's card, over its one. Nothing
+ * unless every one has a fare rule: a UV Express beside a jeepney must not
+ * wear the jeepney's pesos. The owner's routes are jeepneys (the Jeep in the
+ * list's header says so); the studio can save other modes.
+ */
+export function wholeRideFare(vs: readonly VariantSummary[], date = manilaDate()): string | undefined {
+  const today = ruleOn(date)
+  if (!today || vs.length === 0 || !vs.every((v) => hasFareRule(v.route?.mode))) return undefined
+  const priced = vs.map((v) => fareFor(lineLength(variantLine(v)), today.rule))
+  const low = Math.min(...priced.map((f) => f.low.regular))
+  const high = Math.max(...priced.map((f) => f.high.regular))
+  return pesoRange(low, high)
 }

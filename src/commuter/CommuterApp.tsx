@@ -5,11 +5,13 @@ import { HotspotCard } from '../shared/HotspotCard'
 import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from '../shared/mapFile'
 import { reloadToUpdate, useNeedRefresh } from './pwa'
 import { MapView, coarse } from '../shared/MapView'
+import { wholeRideFare } from '../shared/fares'
+import { liveriesFor, type Livery } from '../shared/liveries'
 import { RouteCardList } from '../shared/RouteCardList'
-import { RouteSheet } from '../shared/RouteSheet'
-import { useRideTo } from '../shared/rideTo'
+import { RouteTripDetail } from '../shared/RouteTripDetail'
 import {
   directionEnds,
+  isDrawn,
   otherDirection,
   routeTimeline,
   travelLine,
@@ -21,7 +23,7 @@ import { usePassStretches } from '../shared/passStretches'
 import { useBabaanSides } from '../shared/babaanSides'
 import { useSavedRoutes } from '../shared/useSavedRoutes'
 import { useSavedStops } from '../shared/useSavedStops'
-import { hotspotCount } from '../shared/stops'
+import { hotspotCount, type Timeline } from '../shared/stops'
 import { Walker } from './Walker'
 import { WhereAmIButton } from './WhereAmI'
 import { useWhereAmI } from './useWhereAmI'
@@ -43,7 +45,6 @@ export default function CommuterApp() {
   // One file, fetched once, shared by both hooks.
   const saved = useSavedRoutes(map, loadVariantsFromFile)
   const stops = useSavedStops(map, loadStopsFromFile)
-  const ride = useRideTo(map, saved.selected, stops.stops)
   const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW
 
   // Where a direction passes a hintuan, the line turns orange for that stretch.
@@ -72,10 +73,19 @@ export default function CommuterApp() {
   // so a fresh tap gets a fresh, open sheet.
   const choice = [...saved.candidates, ...stops.candidates]
   const choosing = choice.length > 1
-  const closeChooser = () => {
+  // Routes alone under the tap: the owner's route list. It stays behind a
+  // trip picked from it, hidden, for the trip's ‹.
+  const listing = choosing && stops.candidates.length === 0
+  // ✕ on the list, the Chooser or a trip: everything the tap opened closes.
+  const closeAll = () => {
     saved.select(null)
     stops.select(null)
   }
+  // The colour a card wore in the list, for the trip picked from it — only
+  // while that list stands behind the trip: a clash colour is "for this list
+  // only" (liveries.ts), so the same trip opened any other way wears its
+  // place's kept colour.
+  const [worn, setWorn] = useState<{ id: string; livery: Livery } | null>(null)
 
   return (
     <div className="@container relative h-full w-full overflow-hidden">
@@ -161,15 +171,17 @@ export default function CommuterApp() {
       )}
 
       {saved.selected && (
-        <RouteSheet
+        // Keyed on the route: SWITCH leaves the hintuans open or folded as
+        // they were; another route opens folded.
+        <TripCard
+          key={saved.selected.route_id}
           variant={saved.selected}
+          variants={saved.variants}
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
-          rideTo={ride.rideTo}
-          onRideTo={ride.pick}
-          sibling={otherDirection(saved.variants, saved.selected)}
-          onSwitch={(v) => saved.select(v.id)}
-          actions={<ShareButton variant={saved.selected} />}
-          onClose={() => saved.select(null)}
+          worn={listing && worn?.id === saved.selected.id ? worn.livery : undefined}
+          onBackToList={listing ? () => saved.select(null, { keepList: true }) : null}
+          onSwitch={(v) => saved.select(v.id, { keepList: true })}
+          onClose={closeAll}
         />
       )}
 
@@ -189,20 +201,23 @@ export default function CommuterApp() {
       )}
 
       {/*
-        Routes alone under the tap: the owner's route list (2026-09-28). With a
-        hotspot among them, the Chooser still asks, until he redraws it.
+        Routes alone under the tap: the owner's route list (2026-09-28), kept
+        hidden behind the trip picked from it (2026-09-29). With a hotspot
+        among them, the Chooser still asks, until he redraws it.
       */}
-      {choosing && stops.candidates.length === 0 && (
+      {listing && (
         <RouteCardList
           key={choice.map((c) => c.id).join()}
+          hidden={!!saved.selected}
           routes={saved.candidates}
           back={saved.back}
           onFlip={saved.flip}
-          onRoute={(v) => {
+          onRoute={(v, livery) => {
             stops.select(null)
-            saved.select(v.id)
+            setWorn({ id: v.id, livery })
+            saved.select(v.id, { keepList: true })
           }}
-          onClose={closeChooser}
+          onClose={closeAll}
         />
       )}
 
@@ -221,7 +236,7 @@ export default function CommuterApp() {
             saved.select(null)
             stops.select(s.id)
           }}
-          onClose={closeChooser}
+          onClose={closeAll}
         />
       )}
 
@@ -332,58 +347,60 @@ function useShareLink(
 }
 
 /**
- * Shares the current address: the phone's share sheet where there is one, the
- * clipboard elsewhere. Browsers allow neither on a plain-http page (a build
- * served on the home network to try on a phone), so the last resort is to show
- * the link itself, selected, to copy by hand.
+ * The chosen direction as the owner's trip card (RouteTripDetail,
+ * 2026-09-29), from what the map file knows: its ends as the list names
+ * them, the whole ride's pesos, the hintuans on the way, and the colour of
+ * the place it leaves from — the one its card wore in the list, when it was
+ * picked from there. SWITCH turns it round, the list staying behind it, and
+ * the card then wears its new origin's colour.
+ *
+ * Share, the length, the mode, the status and the ride-to preview went with
+ * the old card: the owner dropped them for now, to design later (2026-09-28).
+ * So did the old card's fare details — the students/seniors/PWDs price, the
+ * fare rule line, the route's fare_note, the estimate's source line and the
+ * "old ₱13" grace warning (fare.previous): his frames carry only the pesos,
+ * and he dropped them all on 2026-09-29. RouteSheet still shows them in the
+ * studio.
+ *
+ * The address still follows the card (useShareLink), so a link can be copied
+ * from the address bar, and still opens its trip.
  */
-function ShareButton({ variant }: { variant: VariantSummary }) {
-  const [state, setState] = useState<'idle' | 'copied' | 'shown'>('idle')
-  useEffect(() => {
-    if (state !== 'copied') return
-    const t = window.setTimeout(() => setState('idle'), 2000)
-    return () => window.clearTimeout(t)
-  }, [state])
-
-  const share = async () => {
-    const url = window.location.href
-    const title = `${variant.route?.name ?? 'Para Po'} — ${variant.direction_name ?? ''}`
-    if (typeof navigator.share === 'function') {
-      try {
-        await navigator.share({ title, url })
-        return
-      } catch (e) {
-        // Dismissing the share sheet rejects with AbortError; nothing to tell the visitor.
-        if (e instanceof DOMException && e.name === 'AbortError') return
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(url)
-      setState('copied')
-    } catch {
-      setState('shown')
-    }
-  }
-
+function TripCard({
+  variant,
+  variants,
+  timeline,
+  worn,
+  onBackToList,
+  onSwitch,
+  onClose,
+}: {
+  variant: VariantSummary
+  variants: readonly VariantSummary[]
+  timeline: Timeline
+  worn: Livery | undefined
+  onBackToList: (() => void) | null
+  onSwitch: (sibling: VariantSummary) => void
+  onClose: () => void
+}) {
+  const { from, to } = directionEnds(variant)
+  // The place's colour for the visit (liveries.ts): drawn when first met, kept after.
+  const kept = useMemo(() => liveriesFor([from])[0], [from])
+  const sibling = otherDirection(variants, variant)
+  const switchable = !!sibling && isDrawn(sibling)
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-2">
-      <button
-        type="button"
-        onClick={() => void share()}
-        data-testid="share"
-        className="self-start rounded-lg bg-neutral-900 px-3 py-1.5 text-sm text-white hover:bg-neutral-700"
-      >
-        {state === 'copied' ? 'Link copied' : 'Share'}
-      </button>
-      {state === 'shown' && (
-        <input
-          readOnly
-          value={window.location.href}
-          onFocus={(e) => e.currentTarget.select()}
-          aria-label="Link to this route"
-          className="w-full rounded-lg bg-neutral-100 px-2 py-1 text-xs text-neutral-700 ring-1 ring-black/10"
-        />
-      )}
-    </div>
+    <RouteTripDetail
+      livery={worn ?? kept}
+      fare={wholeRideFare([variant])}
+      routeOrigin={from}
+      hintuans={timeline.between}
+      routeDirection={to}
+      switchable={switchable}
+      back={variant.reversed}
+      onSwitch={() => {
+        if (sibling && switchable) onSwitch(sibling)
+      }}
+      onBackToList={onBackToList}
+      onClose={onClose}
+    />
   )
 }

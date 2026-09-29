@@ -152,7 +152,8 @@ const cardKind = async () => {
   if ((await el.count()) === 0) return { kind: 'none', text: '' }
   const text = await el.first().innerText()
   if (text.includes('Routes that')) return { kind: 'hotspot', text }
-  if (/drawn, not yet ridden|verified by riding/.test(text)) return { kind: 'route', text }
+  // A route's card is the owner's trip card since 2026-09-29: its rail of stops.
+  if ((await el.first().locator('[data-testid="trip"]').count()) > 0) return { kind: 'route', text }
   return { kind: 'unknown', text }
 }
 
@@ -394,8 +395,13 @@ if (!hit) {
     const chooserCount = await page.locator('[data-testid="chooser"]').count()
     check('a tap on one route opens its card straight away', state.kind === 'route' && chooserCount === 0, `card ${state.kind}, sheet count ${chooserCount}`)
     if (state.kind === 'route') {
-      const title = await page.locator('[data-testid="card-direction"]').first().innerText().catch(() => '')
-      check('  the card leads with a direction', /→/.test(title), title)
+      // Named for its direction, the trip runs from where that leaves (the
+      // top row, under the fare) to where it goes (the bottom row).
+      const label = (await page.locator('[data-testid="card"]').first().getAttribute('aria-label')) ?? ''
+      const [from = '', to = ''] = label.split(' → ')
+      const row = (id) => page.locator(`[data-testid="${id}"]`).first().innerText().then((t) => t.replace(/\s+/g, ' ').trim(), () => '')
+      const [top, bottom] = [await row('trip-origin'), await row('trip-destination')]
+      check('  the card runs from where its direction leaves to where it goes', !!from && !!to && top.endsWith(from) && bottom === to, `"${label}": top "${top}", bottom "${bottom}"`)
       const faded = await opacity()
       check('  the rest fade while one direction is lit', faded < rest, `${faded} vs rest ${rest}`)
       const litIds = (await page.evaluate(() => window.__lit('saved-routes'))) ?? []

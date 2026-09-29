@@ -9,7 +9,7 @@ public map at `/` and the editor at `/studio/`. Complements `scripts/uitest.mjs`
     node scripts/pw/gate-test.mjs             # 15: the studio's sign-in door, ?e2e=1, the reset-link forwarder
     node scripts/pw/visitor-test.mjs          # 225 today: the public map — no editor, no database, cards, chips, the sheet on a shared tap, rest/lit, names only close in
     node scripts/pw/where-test.mjs            # 22: "Where am I" on / at 390×844 with an emulated GPS — off until asked, the figure standing over its accuracy halo, walking and facing its way, flying at jeep speed, the map following until dragged, a tap following again, off, and a browser that refuses (PARAPO_NO_TILES=1 where tiles are blocked; PARAPO_VIDEO=dir records it)
-    node scripts/pw/phone-test.mjs            # 40 (38 run, 2 SKIP today): / at 390×844 — the bottom sheet, the ±20 px tap, the chooser, ?r=
+    node scripts/pw/phone-test.mjs            # 31 (27 run, 4 SKIP today): / at 390×844 — the ±20 px tap, the route list and the trip card it opens (the fold, SWITCH, ‹ back to the list), a hotspot card's bottom sheet, ?r=
     node scripts/pw/regression-gestures.mjs   # 29: route and hotspot gestures on /studio/?e2e=1
     node scripts/pw/hotspot-test.mjs          # 22: hotspot tracing, draft reload, a routed segment on /studio/?e2e=1
     node scripts/pw/snap-test.mjs             # 20: far clicks go freehand, U-turns at joins shown not changed, street names

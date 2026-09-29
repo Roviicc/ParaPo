@@ -10,13 +10,16 @@
 // hotspot edge with no line beside it, then projects those to screen pixels and
 // taps them. A check today's data cannot support prints SKIP instead of failing.
 //
-// Covers (43 checks today): touch chrome — no zoom buttons, attribution moved
-// to the top right, no horizontal scroll; the forgiving ±20 px tap, with a
-// negative control well outside the box; the bottom sheet — tap and drag the
-// handle, peek → open → peek → gone; the route list where two routes share
-// a road ("N Routes", a card per place); a tap just outside a hotspot; the ?r=<id> share link,
-// the view it restores and its copy button; the fine-pointer desktop control
-// (±5 px, zoom buttons back, attribution bottom right); and housekeeping.
+// Covers: touch chrome — no zoom buttons, attribution moved to the top right,
+// no horizontal scroll; the forgiving ±20 px tap, with a negative control well
+// outside the box; the trip card a lone route opens (the owner's
+// RouteTripDetail, 2026-09-29) — its ends, its fold, SWITCH, no ‹ with no list
+// behind it; the route list where two routes share a road ("N Routes", a card
+// per place), the trip a row opens and ‹ back to the list as it was; a tap
+// just outside a hotspot, and the bottom sheet on a hotspot's card — tap and
+// drag the handle, peek → open → peek → gone; the ?r=<id> share link and the
+// view it restores; the fine-pointer desktop control (±5 px, zoom buttons
+// back, attribution bottom right); and housekeeping.
 import { chromium } from 'playwright'
 
 const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
@@ -157,7 +160,6 @@ const context = await b.newContext({
   isMobile: true,
   hasTouch: true,
 })
-await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE })
 const page = await context.newPage()
 watch(page)
 
@@ -411,8 +413,53 @@ const perpendicular = (p, a, bPt, line = [a, bPt], away = 20) =>
 
 const card = () => page.locator('[data-testid="card"]')
 // The chooser is a sheet too, handle and all, so every sheet locator is scoped
-// to the card — never to the page.
+// to the card — never to the page. A route's trip card has no handle: it is
+// a card with its rail of stops in it (RouteTripDetail, 2026-09-29), named
+// for its direction, "Tala → Novaliches".
 const handle = () => card().locator('button[data-testid="sheet-handle"]')
+const trip = () => card().locator('[data-testid="trip"]')
+const tripLabel = async () => ((await trip().count()) ? ((await card().first().getAttribute('aria-label')) ?? '') : '')
+const tripRow = async (id) => {
+  const row = card().locator(`[data-testid="${id}"]`)
+  return (await row.count()) ? (await row.first().innerText()).replace(/\s+/g, ' ').trim() : ''
+}
+
+/**
+ * A trip card's own parts, on whichever trip is open: its hintuans fold into
+ * one row that opens and folds again (the owner's 3762:3546; a lone hintuan
+ * is shown as it is), and SWITCH turns it round. Run where a trip opens — a
+ * lone route's tap, a row of the route list — as today's data allows.
+ */
+const tripChecks = async () => {
+  // The hintuans fold into one row, "N more hintuan"; opened, each is a row
+  // of its own, and "View less" folds them again (the owner's 3762:3546). A
+  // lone hintuan is shown as it is, with nothing to fold.
+  const fold = card().locator('button[data-testid="trip-fold"]')
+  const hintuanRows = () => card().locator('[data-testid="trip-hintuan"]').count()
+  if ((await fold.count()) === 0) {
+    skip('  its hintuans fold into one row, and open', (await hintuanRows()) === 0 ? 'no hintuan on this direction yet' : 'one hintuan on the way, shown as it is: nothing to fold')
+  } else {
+    const folded = (await fold.first().innerText()).trim()
+    const n = Number(/^(\d+) more hintuan$/.exec(folded)?.[1] ?? NaN)
+    await buttonTap(fold, async () => (await fold.first().getAttribute('aria-expanded')) === 'true')
+    const shown = await hintuanRows()
+    check('  its hintuans fold into one row, "N more hintuan", that opens to N rows', n > 1 && shown === n && (await fold.first().innerText()).includes('View less'), `"${folded}" opened to ${shown} row(s)`)
+    await buttonTap(fold, async () => (await fold.first().getAttribute('aria-expanded')) === 'false')
+    check('  "View less" folds them again', (await hintuanRows()) === 0 && (await fold.first().innerText()).trim() === folded, await fold.first().innerText())
+  }
+
+  // SWITCH turns the trip round: the same route, the other way.
+  const sw = card().locator('button[data-testid="card-switch"]')
+  if ((await sw.count()) === 0 || (await sw.first().isDisabled())) {
+    skip('  SWITCH turns the trip round', (await sw.count()) === 0 ? 'no SWITCH on the card' : "this route's other way is not drawn yet")
+  } else {
+    const before = await tripLabel()
+    await buttonTap(sw, async () => (await tripLabel()) !== before)
+    const after = await tripLabel()
+    const same = (s) => s.split(' → ').sort().join(' | ')
+    check('  SWITCH turns the trip round', after !== before && same(after) === same(before), `"${before}" → "${after}"`)
+  }
+}
 const cardText = async () => ((await card().count()) ? (await card().first().innerText()) : '')
 const sheetState = async () =>
   (await card().count()) ? await card().first().getAttribute('data-sheet') : null
@@ -523,18 +570,29 @@ if (routeA) {
 
   const text = await cardText()
   check(`a tap 14 px beside a lone route line selects it`, (await card().count()) > 0, `${desc}; [data-testid="card"] count ${await card().count()}`)
-  check('  it opens as a sheet in "peek"', (await sheetState()) === 'peek', `data-sheet=${await sheetState()}`)
-  // The small line reads the route the way the opened direction rides it, so check both ends, not the order.
-  const peekEnds = r.signboard.split(' – ').map((e) => e.replace(/ via .*$/, ''))
-  check('  the peek names both ends of the route', peekEnds.length === 2 && peekEnds.every((e) => text.includes(e)), r.signboard)
-  check('  the peek leads with a direction (→)', text.includes('→'))
-  check('  the peek hides "Length" until it is opened', text !== '' && !text.includes('Length'))
+  // The owner's trip card (2026-09-29), named for its direction: it runs from
+  // where that leaves (the top row, under the fare) to where it goes (the
+  // bottom row). Which way round is the tap's to decide, so the route's two
+  // ends are checked, not their order.
+  const label = await tripLabel()
+  const [from = '', to = ''] = label.split(' → ')
+  const origin = await tripRow('trip-origin')
+  const end = await tripRow('trip-destination')
+  check('  it opens the trip card, from where its direction leaves to where it goes', !!from && !!to && origin.endsWith(from) && end === to, `"${label}": top "${origin}", bottom "${end}"`)
+  const routeEnds = r.signboard.split(' – ').map((e) => e.replace(/ via .*$/, ''))
+  check("  its ends are the route's two ends", routeEnds.length === 2 && routeEnds.every((e) => text.includes(e)), r.signboard)
+  // Dropped by the owner for now, to design later (2026-09-28).
+  const gone = ['Length', 'Mode', 'Status', 'Share', 'Signboard'].filter((s) => text.includes(s))
+  check("  the old card's extras are gone: no Length, Mode, Status, Share or signboard", text !== '' && gone.length === 0, gone.join(', '))
+  check('  no list behind it, so no ‹', (await card().getByRole('button', { name: 'Back' }).count()) === 0)
 
   // The tap opens the route's drawn outbound, whichever direction was under the finger (2026-09-22).
   const sameRoute = snapshot.routes.filter((o) => o.routeId === r.routeId).map((o) => o.id)
   const lit = (await litIds(page)) ?? []
   check('  one direction of that route is lit', lit.length === 1 && sameRoute.includes(lit[0]), JSON.stringify(lit))
   check('  the other lines fade below the light rest', (await lineOpacity(page)) < REST_OPACITY, String(await lineOpacity(page)))
+
+  await tripChecks()
 
   // Negative control: 40 px out is twice as far as the box reaches — but only
   // where the line does not curve back and no hotspot sits on that side, so
@@ -562,111 +620,7 @@ if (routeA) {
   await closeCard()
 }
 
-// ------------------------------------------------------------- 3. the sheet
-const tapHandle = async () => {
-  if ((await handle().count()) === 0) return false
-  const hb = await handle().first().boundingBox()
-  if (!hb) return false
-  await page.touchscreen.tap(hb.x + hb.width / 2, hb.y + hb.height / 2)
-  await page.waitForTimeout(450)
-  return true
-}
-/** Drag the handle by dy CSS px. Touch first (CDP), mouse as a fallback. */
-const dragHandle = async (dy) => {
-  if ((await handle().count()) === 0) return { ok: false, how: 'no handle' }
-  const before = await sheetState()
-  const hb = await handle().first().boundingBox()
-  if (!hb) return { ok: false, how: 'handle not visible' }
-  const x = hb.x + hb.width / 2
-  const y = hb.y + hb.height / 2
-  const steps = 8
-  try {
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
-    for (let i = 1; i <= steps; i++) {
-      await cdp.send('Input.dispatchTouchEvent', {
-        type: 'touchMove',
-        touchPoints: [{ x, y: y + (dy * i) / steps }],
-      })
-      await page.waitForTimeout(16)
-    }
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
-  } catch (e) {
-    return { ok: false, how: `Input.dispatchTouchEvent threw: ${String(e).slice(0, 80)}` }
-  }
-  await page.waitForTimeout(450)
-  if ((await sheetState()) !== before || (await card().count()) === 0) return { ok: true, how: 'touch' }
-  // The sheet ignored the synthetic touch; try the same gesture with a mouse.
-  await page.mouse.move(x, y)
-  await page.mouse.down()
-  for (let i = 1; i <= steps; i++) {
-    await page.mouse.move(x, y + (dy * i) / steps)
-    await page.waitForTimeout(16)
-  }
-  await page.mouse.up()
-  await page.waitForTimeout(450)
-  return { ok: true, how: 'mouse (the sheet did not answer a synthetic touch drag)' }
-}
-
-/** Select route A again by tapping 14 px beside its lonely vertex. */
-const openRouteA = async () => {
-  await jumpTo(page, routeA.point)
-  const anchor = await project(page, routeA.point)
-  const perp = await perpendicular(page, routeA.point, routeA.neighbour, routeA.route.coords, 40)
-  const box = await canvasBox()
-  await mapTap(box.x + anchor[0] + perp[0] * 14, box.y + anchor[1] + perp[1] * 14)
-  await page.waitForTimeout(600)
-}
-/** Each gesture below is judged on its own, so put the sheet back if one broke it. */
-const restore = async (want) => {
-  if ((await card().count()) === 0) await openRouteA()
-  if ((await sheetState()) !== want) await tapHandle()
-  return (await sheetState()) === want
-}
-
-if (!routeA) {
-  skip('the sheet handle opens and closes the card', 'no lone route vertex to open a card on')
-} else {
-  await openRouteA()
-
-  const hadHandle = await tapHandle()
-  check('a tap on the handle opens the sheet', hadHandle && (await sheetState()) === 'open', hadHandle ? `data-sheet=${await sheetState()}` : 'no button[data-testid="sheet-handle"]')
-  const openText = await cardText()
-  const missing = ['Length', 'Mode', 'Status'].filter((s) => !openText.includes(s))
-  check('  the open sheet shows Length, Mode and Status', missing.length === 0, missing.length ? `missing ${missing.join(', ')}` : '')
-  check('  no horizontal scroll with the sheet open', await noHScroll(page))
-
-  await tapHandle()
-  const afterSecond = (await card().count()) === 0 ? 'the whole card vanished' : `data-sheet=${await sheetState()}`
-  check('a second tap on the handle goes back to peek', (await sheetState()) === 'peek', afterSecond)
-
-  // From here each gesture starts from a known state, so one broken gesture
-  // does not report the next three as broken too. A start state that cannot
-  // be reached is itself a failure: the drag after it would prove nothing.
-  const readyUp = await restore('peek')
-  const up = await dragHandle(-60)
-  check('dragging the handle up opens the sheet', readyUp && (await sheetState()) === 'open', `${readyUp ? '' : 'could not get back to peek first; '}${up.how}; data-sheet=${await sheetState()}`)
-
-  const readyDown = await restore('open')
-  const down = await dragHandle(60)
-  check('dragging the handle down goes back to peek', readyDown && (await sheetState()) === 'peek', `${readyDown ? '' : 'could not get back to open first; '}${down.how}; data-sheet=${await sheetState()}`)
-
-  const readyPeek = await restore('peek')
-  const down2 = await dragHandle(60)
-  check('dragging down again at peek dismisses the card', readyPeek && (await card().count()) === 0, `${readyPeek ? '' : 'could not get back to peek first; '}${down2.how}; [data-testid="card"] count ${await card().count()}`)
-  await closeCard()
-
-  // The click the browser sends after a handle tap must not be swallowed for
-  // long, or the ✕ pressed right after would be lost too.
-  const readyClose = await restore('peek')
-  await tapHandle()
-  const cb = await card().getByRole('button', { name: 'Close' }).first().boundingBox()
-  if (cb) await page.touchscreen.tap(cb.x + cb.width / 2, cb.y + cb.height / 2)
-  await page.waitForTimeout(400)
-  check('✕ pressed right after a handle tap still closes the card', readyClose && !!cb && (await card().count()) === 0, `[data-testid="card"] count ${await card().count()}`)
-  await closeCard()
-}
-
-// ------------------------------------------------------------- 4. the chooser
+// ------------------------------------------------------------- 3. the chooser
 // Two routes sharing a road: a vertex of one that lies within 15 m of another's
 // line, with no third route inside the tap box.
 let shared = null
@@ -722,16 +676,34 @@ if (!shared) {
     `${itemTexts.length} row(s): ${itemTexts.map((t) => t.replace(/\n/g, ' / ')).join(' | ')}`,
   )
   const wanted = items.filter({ hasText: endsOf(shared.b.signboard)[1] })
-  await buttonTap(wanted, async () => (await chooser.count()) === 0)
+  const listShown = async () => (await chooser.count()) > 0 && (await chooser.first().isVisible())
+  await buttonTap(wanted, async () => (await trip().count()) > 0)
+  // The trip card takes the list's place, and the list stays behind it,
+  // hidden, for the trip's ‹ (the owner's frames, 2026-09-28).
+  const [bHead, bTail] = endsOf(shared.b.signboard)
+  const picked = await tripLabel()
   check(
-    `  tapping "${shared.b.signboard}" opens that route and closes the chooser`,
-    (await cardText()).includes(shared.b.signboard) && (await chooser.count()) === 0,
-    `card "${(await cardText()).split('\n')[0] ?? ''}", chooser count ${await chooser.count()}`,
+    `  tapping "${shared.b.signboard}" opens its trip in the list's place`,
+    picked.includes(bHead) && picked.includes(bTail) && !(await listShown()),
+    `card "${picked}", list shown ${await listShown()}`,
   )
+  await tripChecks()
+  const back = card().getByRole('button', { name: 'Back' })
+  if ((await back.count()) === 0) {
+    check('  ‹ on the trip goes back to the list, as it was', false, 'no ‹ on a trip picked from the list')
+  } else {
+    await buttonTap(back, listShown)
+    const again = (await listShown()) ? await chooser.first().innerText() : ''
+    check(
+      '  ‹ on the trip goes back to the list, as it was',
+      again === chooserText && (await card().count()) === 0,
+      again ? `card count ${await card().count()}` : 'the list did not come back',
+    )
+  }
   await closeCard()
 }
 
-// -------------------------------------------------- 5. hotspots, forgivingly
+// -------------------------------------------------- 4. hotspots, forgivingly
 // A route drawn right under the tapped pixel wins (the hit line is 18 px wide,
 // so "under" reaches 9 px); a route merely inside the ±20 px box shares a
 // chooser with the hotspot; no route near, and the hotspot opens on its own.
@@ -743,7 +715,7 @@ const UNDER_M = 9 * M_HOT + 3 * M_HOT
 const NEAR_M = 20 * M_HOT + 9 * M_HOT
 const badgeOf = (poly) => (poly.kind === 'terminal' ? 'Terminal · routes start here' : 'Hintuan · wait and board here')
 
-// 5a. Inside a hotspot, on a pixel no route covers. The normal case for a
+// 4a. Inside a hotspot, on a pixel no route covers. The normal case for a
 // terminal is that its own route runs through it, so this is the tap the
 // chooser exists for: "1 route · 1 hotspot here".
 let inside = null
@@ -799,7 +771,7 @@ if (!inside) {
   await closeCard()
 }
 
-// 5b. 15 px outside the ring, with no route within reach of the tap at all.
+// 4b. 15 px outside the ring, with no route within reach of the tap at all.
 const RING_CLEAR_M = 15 * M_HOT + NEAR_M + 3 * M_HOT
 let hotspot = null
 let bestRingClear = 0
@@ -844,13 +816,120 @@ if (snapshot.polys.length === 0) {
   await closeCard()
 }
 
+// ------------------------------------- 4c. the sheet, on a hotspot's card
+// A route's card is the owner's trip card since 2026-09-29, with no sheet
+// to pull; a hotspot's card still is one, handle and all.
+const tapHandle = async () => {
+  if ((await handle().count()) === 0) return false
+  const hb = await handle().first().boundingBox()
+  if (!hb) return false
+  await page.touchscreen.tap(hb.x + hb.width / 2, hb.y + hb.height / 2)
+  await page.waitForTimeout(450)
+  return true
+}
+/** Drag the handle by dy CSS px. Touch first (CDP), mouse as a fallback. */
+const dragHandle = async (dy) => {
+  if ((await handle().count()) === 0) return { ok: false, how: 'no handle' }
+  const before = await sheetState()
+  const hb = await handle().first().boundingBox()
+  if (!hb) return { ok: false, how: 'handle not visible' }
+  const x = hb.x + hb.width / 2
+  const y = hb.y + hb.height / 2
+  const steps = 8
+  try {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
+    for (let i = 1; i <= steps; i++) {
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x, y: y + (dy * i) / steps }],
+      })
+      await page.waitForTimeout(16)
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  } catch (e) {
+    return { ok: false, how: `Input.dispatchTouchEvent threw: ${String(e).slice(0, 80)}` }
+  }
+  await page.waitForTimeout(450)
+  if ((await sheetState()) !== before || (await card().count()) === 0) return { ok: true, how: 'touch' }
+  // The sheet ignored the synthetic touch; try the same gesture with a mouse.
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  for (let i = 1; i <= steps; i++) {
+    await page.mouse.move(x, y + (dy * i) / steps)
+    await page.waitForTimeout(16)
+  }
+  await page.mouse.up()
+  await page.waitForTimeout(450)
+  return { ok: true, how: 'mouse (the sheet did not answer a synthetic touch drag)' }
+}
+
+/** Open that hotspot's card again, with the tap 15 px outside its ring that 4b checks. */
+const openSheet = async () => {
+  const { vertex, centre } = hotspot
+  await jumpTo(page, vertex, Z_HOT)
+  const anchor = await project(page, vertex)
+  const inward = await project(page, centre)
+  const dx = anchor[0] - inward[0]
+  const dy = anchor[1] - inward[1]
+  const len = Math.hypot(dx, dy) || 1
+  const box = await canvasBox()
+  await mapTap(box.x + anchor[0] + (dx / len) * 15, box.y + anchor[1] + (dy / len) * 15)
+  await page.waitForTimeout(600)
+}
+/** Each gesture below is judged on its own, so put the sheet back if one broke it. */
+const restore = async (want) => {
+  if ((await card().count()) === 0) await openSheet()
+  if ((await sheetState()) !== want) await tapHandle()
+  return (await sheetState()) === want
+}
+
+if (!hotspot) {
+  skip("the sheet handle opens and closes a hotspot's card", 'no hotspot clear of every route to open a card on (see 4b)')
+} else {
+  await openSheet()
+
+  const hadHandle = await tapHandle()
+  check("a tap on a hotspot card's handle opens the sheet", hadHandle && (await sheetState()) === 'open', hadHandle ? `data-sheet=${await sheetState()}` : 'no button[data-testid="sheet-handle"]')
+  check('  no horizontal scroll with the sheet open', await noHScroll(page))
+
+  await tapHandle()
+  const afterSecond = (await card().count()) === 0 ? 'the whole card vanished' : `data-sheet=${await sheetState()}`
+  check('a second tap on the handle goes back to peek', (await sheetState()) === 'peek', afterSecond)
+
+  // From here each gesture starts from a known state, so one broken gesture
+  // does not report the next three as broken too. A start state that cannot
+  // be reached is itself a failure: the drag after it would prove nothing.
+  const readyUp = await restore('peek')
+  const up = await dragHandle(-60)
+  check('dragging the handle up opens the sheet', readyUp && (await sheetState()) === 'open', `${readyUp ? '' : 'could not get back to peek first; '}${up.how}; data-sheet=${await sheetState()}`)
+
+  const readyDown = await restore('open')
+  const down = await dragHandle(60)
+  check('dragging the handle down goes back to peek', readyDown && (await sheetState()) === 'peek', `${readyDown ? '' : 'could not get back to open first; '}${down.how}; data-sheet=${await sheetState()}`)
+
+  const readyPeek = await restore('peek')
+  const down2 = await dragHandle(60)
+  check('dragging down again at peek dismisses the card', readyPeek && (await card().count()) === 0, `${readyPeek ? '' : 'could not get back to peek first; '}${down2.how}; [data-testid="card"] count ${await card().count()}`)
+  await closeCard()
+
+  // The click the browser sends after a handle tap must not be swallowed for
+  // long, or the ✕ pressed right after would be lost too.
+  const readyClose = await restore('peek')
+  await tapHandle()
+  const cb = await card().getByRole('button', { name: 'Close' }).first().boundingBox()
+  if (cb) await page.touchscreen.tap(cb.x + cb.width / 2, cb.y + cb.height / 2)
+  await page.waitForTimeout(400)
+  check('✕ pressed right after a handle tap still closes the card', readyClose && !!cb && (await card().count()) === 0, `[data-testid="card"] count ${await card().count()}`)
+  await closeCard()
+}
+
 // Overlapping hotspots share the chooser; today's data has none.
 const overlapping = snapshot.polys.some((a) =>
   snapshot.polys.some((bPoly) => bPoly.id !== a.id && a.ring.some((v) => pointInPolygon(v, bPoly.ring))),
 )
 if (!overlapping) skip('two overlapping hotspots open the chooser', 'no two hotspot polygons overlap today')
 
-// --------------------------------------------------------------- 6. sharing
+// --------------------------------------------------------------- 5. sharing
 if (!routeA) {
   skip('selecting a route puts ?r=<id> in the address', 'no lone route vertex to select')
 } else {
@@ -893,31 +972,17 @@ if (!routeA) {
   const spanKm = ((e - w) * mPerDegLng(view.lat) * 0.001).toFixed(1)
   check('  it zooms in from the metro-wide view (≥ 12)', view.zoom >= 12, `zoom ${view.zoom.toFixed(2)} for a route ${spanKm} km wide`)
 
-  // Share lives in the body of the sheet, so pull it up before pressing it.
-  if ((await sheetState()) === 'peek') await tapHandle()
-  const shareBtn = card().locator('[data-testid="share"]')
-  const sb = (await shareBtn.count()) ? await shareBtn.first().boundingBox() : null
-  if (!sb) {
-    check('the Share button copies the link', false, (await shareBtn.count()) === 0 ? 'no [data-testid="share"] on the card' : 'the Share button is on the card but not visible')
-    skip('  the clipboard holds that link', 'no Share button to press')
-  } else {
-    await page.touchscreen.tap(sb.x + sb.width / 2, sb.y + sb.height / 2)
-    await page.waitForTimeout(600)
-    check('the Share button copies the link', (await page.getByText('Link copied').count()) > 0)
-    let clip = null
-    let clipErr = ''
-    try {
-      await page.bringToFront()
-      clip = await page.evaluate(() => navigator.clipboard.readText())
-    } catch (err) {
-      clipErr = String(err).slice(0, 120).replace(/\s+/g, ' ')
-    }
-    if (clip === null) skip('  the clipboard holds that link', `navigator.clipboard.readText() unavailable: ${clipErr}`)
-    else check('  the clipboard holds that link', clip === page.url(), `"${clip}" vs "${page.url()}"`)
-  }
+  // Opened by a link, there is no list behind the trip, so no ‹; and no
+  // Share button since the owner dropped it for now (2026-09-28) — the
+  // address bar is the link.
+  check(
+    '  opened by a link, the trip has no ‹',
+    (await trip().count()) > 0 && (await card().getByRole('button', { name: 'Back' }).count()) === 0,
+    `trip ${await trip().count()}`,
+  )
 }
 
-// -------------------------------------------- 7. the desktop control, ±5 px
+// -------------------------------------------- 6. the desktop control, ±5 px
 const desktop = await b.newContext({ viewport: { width: 1280, height: 800 } })
 const dpage = await desktop.newPage()
 watch(dpage)
@@ -970,7 +1035,7 @@ if (!routeA) {
   )
 }
 
-// --------------------------------------------------------- 8. housekeeping
+// --------------------------------------------------------- 7. housekeeping
 if (tapsByHand) console.log(`\n(${tapsByHand} tap(s) needed the click sent by hand: the runner dropped the touch${lateClicks ? `; ${lateClicks} of those got the touch's own click afterwards too` : ''})\n`)
 check('no request to router.project-osrm.org', !osrmHit)
 check('no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))

@@ -4,7 +4,7 @@
 //   node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/fares-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TRADITIONAL, fareFor, fareForKm, manilaDate, peso, pesoRange, ruleOn } from '../src/shared/fares.ts'
+import { TRADITIONAL, fareFor, fareForKm, manilaDate, peso, pesoRange, ruleOn, wholeRideFare } from '../src/shared/fares.ts'
 
 const [y2023, y2026] = TRADITIONAL
 
@@ -67,4 +67,22 @@ test("the official guide of 28 Sep 2026: all 50 printed rows reproduce", () => {
     const want = { regular: k <= 4 ? 1400 : 1400 + 200 * (k - 4), discounted: k <= 4 ? 1125 : DISC[k - 5] }
     assert.deepEqual(fareForKm(k, y2026), want, `km ${k}`)
   }
+})
+
+/** A direction whose line runs `km` straight north: sample data, shaped like the published file. */
+const direction = (km, mode = 'jeepney') => ({
+  shape: { type: 'LineString', coordinates: [[121.04, 14.7], [121.04, 14.7 + km / 111.2]] },
+  route: { mode },
+})
+
+test("the cards' pesos: one direction's range, several from the cheapest to the dearest", () => {
+  // 9.4 km on the 28 Sep 2026 rule: ₱24 counting the part km down, ₱26 up.
+  assert.equal(wholeRideFare([direction(9.4)], '2026-09-29'), '₱24–26')
+  assert.equal(wholeRideFare([direction(3), direction(9.4)], '2026-09-29'), '₱14–26')
+})
+
+test("the cards' pesos: none unless every direction has a fare rule, or before any rule", () => {
+  assert.equal(wholeRideFare([direction(5), direction(5, 'uv_express')], '2026-09-29'), undefined)
+  assert.equal(wholeRideFare([direction(5)], '2020-01-01'), undefined)
+  assert.equal(wholeRideFare([], '2026-09-29'), undefined)
 })

@@ -128,10 +128,15 @@ export function useSavedRoutes<T extends VariantSummary>(
   const [back, setBack] = useState(false)
   const flip = useCallback(() => setBack((b) => !b), [])
 
-  /** Choosing one direction answers the question the chooser was asking. */
-  const select = useCallback((id: string | null) => {
+  /**
+   * Choosing one direction answers the question the chooser was asking, so
+   * the list goes — unless `keepList`: the public map's trip card keeps the
+   * list it was picked from behind it, for its ‹ (the owner's frames of
+   * 2026-09-28); ‹ is then `select(null, { keepList: true })`.
+   */
+  const select = useCallback((id: string | null, opts: { keepList?: boolean } = {}) => {
     setSelectedId(id)
-    setCandidates([])
+    if (!opts.keepList) setCandidates([])
   }, [])
 
   const drawingRef = useRef(opts.drawing ?? false)
