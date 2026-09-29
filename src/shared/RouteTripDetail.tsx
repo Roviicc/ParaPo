@@ -22,6 +22,8 @@ type Props = {
   onPick: (id: string) => void
   /** The picked hintuan's pill: the pesos from where the trip leaves to it, `₱18–20`. Omitted when unpriced, and the pill with it. */
   pickedFare?: string
+  /** The origin's row (`from`) or the destination's (`to`) was tapped: the whole ride again, and that end shown. */
+  onEnd: (end: 'from' | 'to') => void
   /** Figma's Route on TimelineBottomEndRoute: the place the trip goes to. */
   routeDirection: string
   /** SWITCH: the same route the other way. */
@@ -75,7 +77,10 @@ type Props = {
  * and a pill beside it gives the pesos from where the trip leaves to there,
  * while the map draws the ride dark only that far. Tapping it again lets it
  * go; one at a time. The tiles keep the whole ride. Folded away, a picked
- * row stays picked (the default he kept).
+ * row stays picked (the default he kept). The origin's and the
+ * destination's rows are buttons too, never picked: a tap on either lets a
+ * pick go, the ride whole again, and the map glides to that end, so a rider
+ * can look along the route from end to end (his ask, 2026-09-29).
  */
 export function RouteTripDetail({
   livery,
@@ -86,6 +91,7 @@ export function RouteTripDetail({
   picked,
   onPick,
   pickedFare,
+  onEnd,
   routeDirection,
   onSwitch,
   switchable,
@@ -129,7 +135,7 @@ export function RouteTripDetail({
           {/* The fold row keeps its place among the children whether open or not,
               so a keyboard's focus stays on it while the hintuans come and go. */}
           <ol className="flex w-full flex-col">
-            <TimelineTop rail={rail} routeOrigin={routeOrigin} />
+            <TimelineTop rail={rail} routeOrigin={routeOrigin} onTap={() => onEnd('from')} />
             {hintuans.map((h, i) => (
               <TimelineHintuan
                 key={i + ':' + h.id}
@@ -146,7 +152,7 @@ export function RouteTripDetail({
             {folds && (
               <TimelineDisclosure rail={rail} open={open} count={hintuans.length} onToggle={() => setOpen((o) => !o)} />
             )}
-            <TimelineBottomEndRoute rail={rail} routeDirection={routeDirection} />
+            <TimelineBottomEndRoute rail={rail} routeDirection={routeDirection} onTap={() => onEnd('to')} />
           </ol>
           <span aria-hidden className={'pointer-events-none absolute inset-0 rounded-[inherit] ' + CARD_SHADOW[livery]} />
         </div>
@@ -199,17 +205,19 @@ function TimelineDot({ rail, selected = false }: { rail: string; selected?: bool
 /** The rail's column, 24 wide, as tall as its row. */
 const STICK = 'flex w-6 shrink-0 flex-col items-center self-stretch'
 
-/** Figma's TimelineTop: the dot the rail leaves from, and the origin in SN Pro Black. */
-function TimelineTop({ rail, routeOrigin }: { rail: string; routeOrigin: string }) {
+/** Figma's TimelineTop: the dot the rail leaves from, and the origin in SN Pro Black; the whole row is its button. */
+function TimelineTop({ rail, routeOrigin, onTap }: { rail: string; routeOrigin: string; onTap: () => void }) {
   return (
-    <li data-testid="trip-origin" className="flex w-full items-center pl-4">
-      <span aria-hidden className={STICK}>
-        <TimelineDot rail={rail} />
-        <span className={'min-h-px w-2 flex-1 ' + rail} />
-      </span>
-      <div className="flex min-w-0 flex-1 flex-col justify-center pb-2.5 pl-3">
-        <p className="text-2xl/8 font-black">{routeOrigin}</p>
-      </div>
+    <li data-testid="trip-origin">
+      <button type="button" onClick={onTap} className="flex w-full items-center pl-4 text-left">
+        <span aria-hidden className={STICK}>
+          <TimelineDot rail={rail} />
+          <span className={'min-h-px w-2 flex-1 ' + rail} />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col justify-center pb-2.5 pl-3">
+          <span className="text-2xl/8 font-black">{routeOrigin}</span>
+        </span>
+      </button>
     </li>
   )
 }
@@ -331,20 +339,22 @@ function TimelineDisclosure({
   )
 }
 
-/** Figma's TimelineBottomEndRoute: the rail's last dot, and where the trip goes, behind the list's arrow. */
-function TimelineBottomEndRoute({ rail, routeDirection }: { rail: string; routeDirection: string }) {
+/** Figma's TimelineBottomEndRoute: the rail's last dot, and where the trip goes, behind the list's arrow; the whole row is its button. */
+function TimelineBottomEndRoute({ rail, routeDirection, onTap }: { rail: string; routeDirection: string; onTap: () => void }) {
   return (
-    <li data-testid="trip-destination" className="flex w-full items-center pl-4">
-      <span aria-hidden className={STICK}>
-        <span className={'-mb-0.5 h-5 w-2 shrink-0 ' + rail} />
-        <TimelineDot rail={rail} />
-      </span>
-      <p className="flex min-w-0 flex-1 items-start gap-1 pt-4 pl-2">
-        <span aria-hidden className="shrink-0 p-1 *:size-5">
-          <CircleArrowRightIcon />
+    <li data-testid="trip-destination">
+      <button type="button" onClick={onTap} className="flex w-full items-center pl-4 text-left">
+        <span aria-hidden className={STICK}>
+          <span className={'-mb-0.5 h-5 w-2 shrink-0 ' + rail} />
+          <TimelineDot rail={rail} />
         </span>
-        <span className="min-w-0 flex-1 text-xl/7 font-medium">{routeDirection}</span>
-      </p>
+        <span className="flex min-w-0 flex-1 items-start gap-1 pt-4 pl-2">
+          <span aria-hidden className="shrink-0 p-1 *:size-5">
+            <CircleArrowRightIcon />
+          </span>
+          <span className="min-w-0 flex-1 text-xl/7 font-medium">{routeDirection}</span>
+        </span>
+      </button>
     </li>
   )
 }

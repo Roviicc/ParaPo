@@ -28,7 +28,7 @@ const openFold: Story['play'] = async ({ canvasElement }) => {
   fold.blur()
 }
 
-/** Keeps the pick as the public map does (useRideTo): a row picks its hintuan, and again lets it go. */
+/** Keeps the pick as the public map does (useRideTo): a row picks its hintuan, and again lets it go; an end row lets it go. */
 function Picking(props: ComponentProps<typeof RouteTripDetail>) {
   const [picked, setPicked] = useState(props.picked)
   return (
@@ -38,6 +38,10 @@ function Picking(props: ComponentProps<typeof RouteTripDetail>) {
       onPick={(id) => {
         props.onPick(id)
         setPicked((cur) => (cur === id ? null : id))
+      }}
+      onEnd={(end) => {
+        props.onEnd(end)
+        setPicked(null)
       }}
     />
   )
@@ -83,6 +87,7 @@ const meta = {
     onClose: fn(),
     picked: null,
     onPick: fn(),
+    onEnd: fn(),
     // Amparo's, fourth on the way: from Tala to there on today's map.
     pickedFare: '₱18–20',
   },
@@ -210,6 +215,31 @@ export const PickAndLetGo: Story = {
     await userEvent.click(canvas.getByRole('button', { name: /Amparo/, pressed: true }))
     await expect(canvas.queryByTestId('trip-hintuan-fare')).toBeNull()
     await expect(canvasElement.querySelectorAll('[data-state="selected"]').length).toBe(0)
+  },
+}
+
+/**
+ * The ends are buttons too, never picked (the owner's ask, 2026-09-29): Tala
+ * lets Amparo go, the whole ride again, and says which end to show; so does
+ * Novaliches.
+ */
+export const EndsShowTheWhole: Story = {
+  args: { picked: 'h3' },
+  play: async (ctx) => {
+    const { canvasElement, args } = ctx
+    const canvas = within(canvasElement)
+    const selected = () => canvasElement.querySelectorAll('[data-testid="trip-hintuan"][data-state="selected"]').length
+    await expect(selected()).toBe(1)
+    await userEvent.click(canvas.getByRole('button', { name: 'Tala' }))
+    await expect(args.onEnd).toHaveBeenLastCalledWith('from')
+    await expect(selected()).toBe(0)
+    await openFold(ctx)
+    await userEvent.click(await canvas.findByRole('button', { name: /Amparo/, pressed: false }))
+    await expect(selected()).toBe(1)
+    await userEvent.click(canvas.getByRole('button', { name: 'Novaliches' }))
+    await expect(args.onEnd).toHaveBeenLastCalledWith('to')
+    await expect(selected()).toBe(0)
+    await expect(canvas.queryByTestId('trip-hintuan-fare')).toBeNull()
   },
 }
 

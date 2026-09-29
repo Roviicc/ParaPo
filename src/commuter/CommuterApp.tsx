@@ -236,6 +236,7 @@ export default function CommuterApp() {
           picked={ride.pickedId}
           pickedMetres={ride.rideTo?.metres}
           onPick={ride.pick}
+          onEnd={ride.toEnd}
           dockRef={tripDock}
         />
       )}
@@ -427,6 +428,7 @@ function TripCard({
   picked,
   pickedMetres,
   onPick,
+  onEnd,
   dockRef,
 }: {
   variant: VariantSummary
@@ -440,6 +442,8 @@ function TripCard({
   picked: string | null
   pickedMetres: number | undefined
   onPick: (id: string) => void
+  /** The origin's or the destination's row: the whole ride, and that end on the map. */
+  onEnd: (end: 'from' | 'to') => void
   dockRef: Ref<HTMLDivElement>
 }) {
   const { from, to } = directionEnds(variant)
@@ -462,6 +466,7 @@ function TripCard({
       picked={picked}
       pickedFare={pickedMetres === undefined ? undefined : rideFare(variant.route?.mode, pickedMetres)}
       onPick={onPick}
+      onEnd={onEnd}
       dockRef={dockRef}
       routeDirection={to}
       switchable={switchable}

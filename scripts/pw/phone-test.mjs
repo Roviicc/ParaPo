@@ -635,7 +635,50 @@ const tripChecks = async () => {
       !(await isPicked()) && (await pill.count()) === 0 && letGo.rest === 0 && letGo.lit.length === 1,
       `${letGo.rest} at rest, ${letGo.lit.length} lit`,
     )
+    // The ends are buttons too (the owner's ask, 2026-09-29): with a hintuan
+    // picked, a tap on where the trip goes, then on where it leaves from,
+    // lets it go — the whole ride dark again, the trip still lit — and
+    // glides the map to that end of the line, above the card.
+    const ends = await page.evaluate(async (id) => {
+      try {
+        const { travelLine } = await import('/src/shared/routes.ts')
+        const m = await fetch('/data/map.json').then((r) => r.json())
+        const line = travelLine(m.variants.find((x) => x.id === id), m.stops)
+        return line.length > 1 ? { from: line[0], to: line[line.length - 1] } : null
+      } catch {
+        return null
+      }
+    }, tripId)
+    for (const [end, testId] of [['to', 'trip-destination'], ['from', 'trip-origin']]) {
+      const endButton = card().locator(`[data-testid="${testId}"] button`)
+      // The last pass scrolled the card to its far end: back to the row first.
+      await pickButton.scrollIntoViewIfNeeded()
+      await buttonTap(pickButton, isPicked)
+      const wasPicked = await isPicked()
+      await endButton.first().scrollIntoViewIfNeeded()
+      await buttonTap(endButton, async () => !(await isPicked()))
+      await page.waitForTimeout(200)
+      await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+      const after = await page.evaluate(async (at) => {
+        const m = window.__map
+        const c = m.getCanvas().getBoundingClientRect()
+        const d = document.querySelector('[data-testid="card"]').getBoundingClientRect()
+        const q = at && m.project(at)
+        return {
+          rest: ((await window.__src('ride-rest'))?.features ?? []).length,
+          lit: (await window.__lit('saved-routes')) ?? [],
+          above: q ? c.top + q.y > c.top + 16 && c.top + q.y < d.top - 16 && q.x > 16 && q.x < c.width - 16 : null,
+          padding: Object.values(m.getPadding()).every((v) => v === 0),
+        }
+      }, ends?.[end] ?? null)
+      check(
+        `  ${end === 'to' ? 'where the trip goes' : 'where it leaves from'}, tapped, lets the pick go and glides there, above the card`,
+        wasPicked && !(await isPicked()) && after.rest === 0 && after.lit.length === 1 && after.lit[0] === tripId && after.above !== false && after.padding,
+        `picked first ${wasPicked}; ${after.rest} at rest, ${after.lit.length} lit; in the map above the card ${after.above ?? 'not measured'}`,
+      )
+    }
     // Picked again, for SWITCH — or ✕ and ‹ — to let go.
+    await pickButton.scrollIntoViewIfNeeded()
     await buttonTap(pickButton, isPicked)
     picked = await isPicked()
   }

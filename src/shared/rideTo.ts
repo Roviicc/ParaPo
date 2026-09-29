@@ -3,7 +3,7 @@ import { Marker, type GeoJSONSource, type MapLibreMap } from 'maplibre-gl'
 import { MAP_COLOURS } from '../design-system/foundation/mapColours'
 import { haversine } from './geo'
 import { CASING_EXTRA, litWidth } from './lineStyle'
-import { rideCut, type VariantSummary } from './routes'
+import { rideCut, travelLine, type VariantSummary } from './routes'
 import type { StopSummary } from './stops'
 
 const SRC = 'ride-rest'
@@ -28,7 +28,9 @@ const REST_LINE = 'ride-rest-line'
  * moves the get-off side without moving the hintuan. The circles are DOM
  * markers, like the walker: their taps stay their own and never fall
  * through to the route or the box below. Tapping the row again, an end row,
- * another route or the card away puts the whole route back.
+ * another route or the card away puts the whole route back. On the public
+ * map an end row also glides there (`toEnd`), so a rider can look along the
+ * route from end to end (the owner's ask, 2026-09-29).
  */
 export function useRideTo(
   map: MapLibreMap | null,
@@ -54,6 +56,10 @@ export function useRideTo(
   // again: start it whole.
   useEffect(() => setPicked(null), [selected?.id])
 
+  // Read as a glide starts, so a fresh function each render moves nothing.
+  const offset = useRef(opts.offset)
+  offset.current = opts.offset
+
   const cut = useMemo(
     () => (selected && live ? rideCut(selected, stops, live.rowId, live.endId) : null),
     [selected, stops, live],
@@ -70,6 +76,18 @@ export function useRideTo(
       )
     },
     [selectedId],
+  )
+
+  /** An end row: the whole ride again, and the map gliding to where it leaves from or goes to, at the height it is at. */
+  const toEnd = useCallback(
+    (end: 'from' | 'to') => {
+      setPicked(null)
+      if (!map || !selected) return
+      const line = travelLine(selected, stops)
+      if (line.length < 2) return
+      map.easeTo({ center: end === 'from' ? line[0] : line[line.length - 1], offset: offset.current?.() ?? [0, 0], duration: 700 })
+    },
+    [map, selected, stops],
   )
 
   // The way not ridden, as a line at rest. Added on first use — long after
@@ -168,8 +186,6 @@ export function useRideTo(
   // (2026-09-28). `offset`, never `padding`: MapLibre keeps a padding for
   // every later move, and a shared link's fit or "Where am I" would land off
   // centre ever after.
-  const offset = useRef(opts.offset)
-  offset.current = opts.offset
   useEffect(() => {
     if (!map || !cut) return
     map.easeTo({ center: cut.at, offset: offset.current?.() ?? [0, 0], duration: 700 })
@@ -180,5 +196,6 @@ export function useRideTo(
     /** The row picked, cut or not: a row whose box the line misses is still shown picked, with nothing to price. */
     pickedId: live?.rowId ?? null,
     pick,
+    toEnd,
   }
 }

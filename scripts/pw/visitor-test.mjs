@@ -664,6 +664,40 @@ if (!hit) {
         await page.waitForTimeout(250)
         const letGo = await page.evaluate(async () => ((await window.__src('ride-rest'))?.features ?? []).length)
         check('  a second tap lets it go', (await row.getAttribute('data-state')) === 'rest' && letGo === 0, `${letGo} at rest`)
+        // Where the trip goes is a button too (the owner's ask, 2026-09-29):
+        // picked again, a tap there lets the pick go and glides the map to
+        // the line's end, right of the card in the corner.
+        const end = await page.evaluate(async (id) => {
+          try {
+            const { travelLine } = await import('/src/shared/routes.ts')
+            const m = await fetch('/data/map.json', { headers: { 'x-parapo-test': 'sums' } }).then((r) => r.json())
+            const line = travelLine(m.variants.find((x) => x.id === id), m.stops)
+            return line.length > 1 ? line[line.length - 1] : null
+          } catch {
+            return null
+          }
+        }, litId)
+        await pick.click()
+        await page.waitForTimeout(250)
+        const wasPicked = (await row.getAttribute('data-state')) === 'selected'
+        await cardEl.locator('[data-testid="trip-destination"] button').click()
+        await page.waitForTimeout(250)
+        await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+        const atEnd = await page.evaluate(async (at) => {
+          const m = window.__map
+          const c = m.getCanvas().getBoundingClientRect()
+          const d = document.querySelector('[data-testid="card"]').getBoundingClientRect()
+          const q = at && m.project(at)
+          return {
+            rest: ((await window.__src('ride-rest'))?.features ?? []).length,
+            right: q ? c.left + q.x > d.right + 24 && q.x < c.width - 16 && q.y > 16 && q.y < c.height - 16 : null,
+          }
+        }, end)
+        check(
+          '  where the trip goes, tapped, lets the pick go and glides there, right of the card',
+          wasPicked && (await row.getAttribute('data-state')) === 'rest' && atEnd.rest === 0 && atEnd.right !== false,
+          `picked first ${wasPicked}; ${atEnd.rest} at rest; right of the card ${atEnd.right ?? 'not measured'}`,
+        )
         // Picked again, for ✕ to let go.
         await pick.click()
         await page.waitForTimeout(250)
