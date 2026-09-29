@@ -4,7 +4,8 @@ import { HotspotCard } from '../shared/HotspotCard'
 import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from '../shared/mapFile'
 import { reloadToUpdate, useNeedRefresh } from './pwa'
 import { MapView, coarse } from '../shared/MapView'
-import { wholeRideFare } from '../shared/fares'
+import { rideFare } from '../shared/fares'
+import { lineLength } from '../shared/geo'
 import { liveriesFor, type Livery } from '../shared/liveries'
 import { RouteCardList } from '../shared/RouteCardList'
 import { RouteTripDetail } from '../shared/RouteTripDetail'
@@ -368,7 +369,7 @@ function useShareLink(
 /**
  * The chosen direction as the owner's trip card (RouteTripDetail,
  * 2026-09-29), from what the map file knows: its ends as the list names
- * them, the whole ride's pesos, the hintuans on the way, and the colour of
+ * them, the whole ride's length and pesos, the hintuans on the way, and the colour of
  * the place it leaves from — the one its RouteCard wore, when it was picked
  * from one, in the list or in a hotspot's card. SWITCH turns it round, what
  * it was picked from staying behind it, and the card keeps the colour it
@@ -410,10 +411,15 @@ function TripCard({
   const [livery] = useState(() => worn ?? liveriesFor([from])[0])
   const sibling = otherDirection(variants, variant)
   const switchable = !!sibling && isDrawn(sibling)
+  // The whole ride, measured once: its Kilometer and its Expected fare, the
+  // pesos wholeRideFare gives this one direction (fares-test holds the two
+  // sums alike).
+  const metres = lineLength(variantLine(variant))
   return (
     <RouteTripDetail
       livery={livery}
-      fare={wholeRideFare([variant])}
+      metres={metres}
+      fare={rideFare(variant.route?.mode, metres)}
       routeOrigin={from}
       hintuans={timeline.between}
       routeDirection={to}

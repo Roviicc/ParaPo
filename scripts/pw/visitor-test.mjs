@@ -425,12 +425,13 @@ if (!hit) {
     check('a tap on one route opens its card straight away', state.kind === 'route' && chooserCount === 0, `card ${state.kind}, list count ${chooserCount}`)
     if (state.kind === 'route') {
       // Named for its direction, the trip runs from where that leaves (the
-      // top row, under the fare) to where it goes (the bottom row).
+      // top row, its pesos in a tile above the card since 3778:3183) to where
+      // it goes (the bottom row).
       const label = (await page.locator('[data-testid="card"]').first().getAttribute('aria-label')) ?? ''
       const [from = '', to = ''] = label.split(' → ')
       const row = (id) => page.locator(`[data-testid="${id}"]`).first().innerText().then((t) => t.replace(/\s+/g, ' ').trim(), () => '')
       const [top, bottom] = [await row('trip-origin'), await row('trip-destination')]
-      check('  the card runs from where its direction leaves to where it goes', !!from && !!to && top.endsWith(from) && bottom === to, `"${label}": top "${top}", bottom "${bottom}"`)
+      check('  the card runs from where its direction leaves to where it goes', !!from && !!to && top === from && bottom === to, `"${label}": top "${top}", bottom "${bottom}"`)
       const faded = await opacity()
       check('  the rest fade while one direction is lit', faded < rest, `${faded} vs rest ${rest}`)
       const litIds = (await page.evaluate(() => window.__lit('saved-routes'))) ?? []

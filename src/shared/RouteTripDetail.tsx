@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { kmLabel } from './geo'
 import type { Livery } from './liveries'
 import { BLOB_PLACE, CARD_BLOB, CARD_SHADOW, CARD_SURFACE, CARD_TEXT, TIMELINE_SURFACE } from './liveryCard'
 import { RouteCardHeader } from './RouteCardHeader'
@@ -7,7 +8,9 @@ import { ChevronDownIcon, CircleArrowRightIcon } from './RouteIcons'
 
 type Props = {
   livery: Livery
-  /** Figma's Fare on TimelineTop: the whole ride's pesos, `₱24–28`. Omitted when unpriced. */
+  /** Figma's Kilometer tile: the whole ride's length, in metres; written `12.8km`. */
+  metres: number
+  /** Figma's Expected fare tile: the whole ride's pesos, `₱24–28`. Omitted when unpriced, and the tile with it. */
   fare?: string
   /** Figma's Route on TimelineTop: the place the trip leaves from. */
   routeOrigin: string
@@ -27,14 +30,17 @@ type Props = {
 }
 
 /**
- * One direction as a trip — the owner's RouteTripDetail (Figma 3732:2516,
- * folded as his section 3762:3546 draws it, 2026-09-29): RouteCardHeader's
- * Variant2 over a card in the livery of the place the trip leaves from,
- * where a rail runs from the fare and the origin (TimelineTop) down to the
- * place it goes to (TimelineBottomEndRoute).
+ * One direction as a trip — the owner's RouteTripDetail (Figma 3778:3183,
+ * 2026-09-29): RouteCardHeader's Variant2; two tiles, the ride's Kilometer
+ * and its Expected fare; then a card in the livery of the place the trip
+ * leaves from, inset from the sides and rounded, where a rail runs from the
+ * origin (TimelineTop) down to the place it goes to (TimelineBottomEndRoute).
+ * The pesos moved off the rail into their tile with this set; a route no
+ * fare rule prices has no Expected fare tile, and Kilometer takes the row
+ * (the owner kept that default, 2026-09-29: nothing is drawn for it).
  *
- * The hintuans between fold into one row, "10 more hintuan" (the owner
- * writes hintuan without an s); opened, every one of them shows alike — a
+ * The hintuans between fold into one row, "10 more hintuans" (with an s
+ * since this set); opened, every one of them shows alike — a
  * place other routes end at, SM Fairview on the way to Novaliches, is a
  * hintuan like the rest (his redrawing of the 28th's big mid-route row) —
  * and "View less" folds them again. It opens folded. A lone hintuan is shown
@@ -57,6 +63,7 @@ type Props = {
  */
 export function RouteTripDetail({
   livery,
+  metres,
   fare,
   routeOrigin,
   hintuans,
@@ -86,32 +93,55 @@ export function RouteTripDetail({
         />
       }
     >
-      <div
-        data-testid="trip"
-        data-livery={livery}
-        className={
-          'relative isolate flex w-full flex-col overflow-clip border-y-[0.6px] py-4 font-sn-pro ' +
-          CARD_SURFACE[livery] +
-          ' ' +
-          CARD_TEXT[livery]
-        }
-      >
-        <img src={CARD_BLOB[livery].src} alt="" aria-hidden className={BLOB_PLACE + ' ' + CARD_BLOB[livery].className} />
-        {/* The fold row keeps its place among the children whether open or not,
-            so a keyboard's focus stays on it while the hintuans come and go. */}
-        <ol className="flex w-full flex-col">
-          <TimelineTop rail={rail} fare={fare} routeOrigin={routeOrigin} />
-          {hintuans.map((h, i) => (
-            <TimelineHintuan key={i + ':' + h.id} rail={rail} label={h.label} shown={!folds || open} />
-          ))}
-          {folds && (
-            <TimelineDisclosure rail={rail} open={open} count={hintuans.length} onToggle={() => setOpen((o) => !o)} />
-          )}
-          <TimelineBottomEndRoute rail={rail} routeDirection={routeDirection} />
-        </ol>
-        <span aria-hidden className={'pointer-events-none absolute inset-0 ' + CARD_SHADOW[livery]} />
+      <dl className="flex w-full gap-2 bg-surface px-4 pt-3 pb-2 text-center font-sn-pro">
+        <Tile testId="trip-km" label="Kilometer" value={kmLabel(metres)} />
+        {fare && <Tile testId="trip-fare" label="Expected fare" value={fare} />}
+      </dl>
+      <div className="w-full px-3 pb-4">
+        <div
+          data-testid="trip"
+          data-livery={livery}
+          className={
+            'relative isolate flex w-full flex-col overflow-clip rounded-2xl border-y-[0.6px] py-4 font-sn-pro ' +
+            CARD_SURFACE[livery] +
+            ' ' +
+            CARD_TEXT[livery]
+          }
+        >
+          <img src={CARD_BLOB[livery].src} alt="" aria-hidden className={BLOB_PLACE + ' ' + CARD_BLOB[livery].className} />
+          {/* The fold row keeps its place among the children whether open or not,
+              so a keyboard's focus stays on it while the hintuans come and go. */}
+          <ol className="flex w-full flex-col">
+            <TimelineTop rail={rail} routeOrigin={routeOrigin} />
+            {hintuans.map((h, i) => (
+              <TimelineHintuan key={i + ':' + h.id} rail={rail} label={h.label} shown={!folds || open} />
+            ))}
+            {folds && (
+              <TimelineDisclosure rail={rail} open={open} count={hintuans.length} onToggle={() => setOpen((o) => !o)} />
+            )}
+            <TimelineBottomEndRoute rail={rail} routeDirection={routeDirection} />
+          </ol>
+          <span aria-hidden className={'pointer-events-none absolute inset-0 rounded-[inherit] ' + CARD_SHADOW[livery]} />
+        </div>
       </div>
     </RouteDock>
+  )
+}
+
+/**
+ * One of the two tiles over the card, in Figma's row of them (3771:3055): a
+ * figure under its name, on Background/surface-secondary, read out as the
+ * pair it is. Figma writes the figure in a raw black; Content/primary is the
+ * token nearest it.
+ */
+function Tile({ testId, label, value }: { testId: 'trip-km' | 'trip-fare'; label: string; value: string }) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-2 rounded-2xl bg-surface-secondary p-4">
+      <dt className="text-sm/5 font-normal text-content-tertiary">{label}</dt>
+      <dd data-testid={testId} className="text-2xl/8 font-bold text-content-primary">
+        {value}
+      </dd>
+    </div>
   )
 }
 
@@ -130,8 +160,8 @@ function TimelineDot({ rail }: { rail: string }) {
 /** The rail's column, 24 wide, as tall as its row. */
 const STICK = 'flex w-6 shrink-0 flex-col items-center self-stretch'
 
-/** Figma's TimelineTop: the dot the rail leaves from, the fare, the origin in SN Pro Black. */
-function TimelineTop({ rail, fare, routeOrigin }: { rail: string; fare?: string; routeOrigin: string }) {
+/** Figma's TimelineTop: the dot the rail leaves from, and the origin in SN Pro Black. */
+function TimelineTop({ rail, routeOrigin }: { rail: string; routeOrigin: string }) {
   return (
     <li data-testid="trip-origin" className="flex w-full items-center pl-4">
       <span aria-hidden className={STICK}>
@@ -139,11 +169,6 @@ function TimelineTop({ rail, fare, routeOrigin }: { rail: string; fare?: string;
         <span className={'min-h-px w-2 flex-1 ' + rail} />
       </span>
       <div className="flex min-w-0 flex-1 flex-col justify-center pb-2.5 pl-3">
-        {fare && (
-          <p data-testid="trip-fare" className="text-sm/5 font-normal">
-            {fare}
-          </p>
-        )}
         <p className="text-2xl/8 font-black">{routeOrigin}</p>
       </div>
     </li>
@@ -177,7 +202,7 @@ function TimelineHintuan({ rail, label, shown }: { rail: string; label: string; 
             <TimelineDot rail={rail} />
             <span className={'min-h-px w-2 flex-1 ' + rail} />
           </span>
-          <p className="min-w-0 flex-1 py-2.5 pl-3 text-sm/5 font-medium">{label}</p>
+          <p className="min-w-0 flex-1 py-2.5 pl-3 text-base/6 font-medium">{label}</p>
         </div>
       </div>
     </li>
@@ -219,7 +244,7 @@ function TimelineDisclosure({
           >
             <ChevronDownIcon />
           </span>
-          {open ? 'View less' : `${count} more hintuan`}
+          {open ? 'View less' : `${count} more hintuans`}
         </span>
       </button>
     </li>
@@ -238,7 +263,7 @@ function TimelineBottomEndRoute({ rail, routeDirection }: { rail: string; routeD
         <span aria-hidden className="shrink-0 p-1 *:size-5">
           <CircleArrowRightIcon />
         </span>
-        <span className="min-w-0 flex-1 text-lg/7 font-medium">{routeDirection}</span>
+        <span className="min-w-0 flex-1 text-xl/7 font-medium">{routeDirection}</span>
       </p>
     </li>
   )

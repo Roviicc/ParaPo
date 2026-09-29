@@ -87,6 +87,19 @@ export function pesoRange(low: number, high: number): string {
 }
 
 /**
+ * One ride of `metres` by `mode`, as the cards write pesos — `₱14`, `₱24–26`
+ * — or nothing when no fare rule prices the mode: the trip card's Expected
+ * fare, over its whole ride (the owner's 3778:3183, 2026-09-29). The same
+ * pesos as wholeRideFare gives that one direction.
+ */
+export function rideFare(mode: TransportMode | undefined, metres: number, date = manilaDate()): string | undefined {
+  const today = ruleOn(date)
+  if (!today || !hasFareRule(mode)) return undefined
+  const { low, high } = fareFor(metres, today.rule)
+  return pesoRange(low.regular, high.regular)
+}
+
+/**
  * The whole rides of one or more directions, from the cheapest to the
  * dearest — `₱26–28` — as the route cards lead with it: a place's card in
  * the list, over all its ways out, and a trip's card, over its one. Nothing

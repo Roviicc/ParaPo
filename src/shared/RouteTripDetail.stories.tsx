@@ -21,7 +21,7 @@ const aLongWay = hintuans(...Array.from({ length: 30 }, (_, i) => `Hintuan ${i +
 
 /** Opens the fold, as a rider's tap would — and lets go of it, since a tap draws no focus ring. */
 const openFold: Story['play'] = async ({ canvasElement }) => {
-  const fold = within(canvasElement).getByRole('button', { name: /more hintuan/ })
+  const fold = within(canvasElement).getByRole('button', { name: /more hintuans/ })
   await userEvent.click(fold)
   fold.blur()
 }
@@ -51,7 +51,9 @@ const meta = {
   parameters: { layout: 'fullscreen' },
   args: {
     livery: 'yellow',
-    fare: '₱24–28',
+    // 12.8 km, as the owner's frame has it; its pesos on today's rule.
+    metres: 12_800,
+    fare: '₱30–32',
     routeOrigin: 'Tala',
     hintuans: talaToNovaliches,
     routeDirection: 'Novaliches',
@@ -66,7 +68,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** On a phone, the owner's frame: Tala → Novaliches, its ten hintuans folded. */
+/** On a phone, the owner's frame (3778:3183, Variant2): Tala → Novaliches, its Kilometer and Expected fare, its ten hintuans folded. */
 export const Folded: Story = {}
 
 /** Opened: every hintuan alike — SM Fairview among them — then View less. */
@@ -80,12 +82,12 @@ export const ToSMFairview: Story = {
 
 /** One hintuan on the way: shown as it is, not folded behind a row of its own size. */
 export const OneHintuan: Story = {
-  args: { routeOrigin: 'Fatima', hintuans: hintuans('Lagro'), routeDirection: 'SM Fairview', fare: '₱14' },
+  args: { routeOrigin: 'Fatima', hintuans: hintuans('Lagro'), routeDirection: 'SM Fairview', metres: 3_100, fare: '₱14' },
 }
 
 /** None on the way yet: the rail runs straight from the origin to the end. */
 export const NoHintuan: Story = {
-  args: { routeOrigin: 'Lagro', hintuans: [], routeDirection: 'SM Fairview', fare: '₱14' },
+  args: { routeOrigin: 'Lagro', hintuans: [], routeDirection: 'SM Fairview', metres: 2_400, fare: '₱14' },
 }
 
 /** In red, the Timeline set's own colour, with Content/inverse words. */
@@ -108,7 +110,7 @@ export const NothingToGoBackTo: Story = { render: (args) => <RouteTripDetail {..
 /** The route's other way is not drawn yet: SWITCH rests disabled. */
 export const NothingTheOtherWay: Story = { args: { switchable: false } }
 
-/** A mode with no fare rule: no pesos over the origin. */
+/** A mode with no fare rule: no Expected fare tile, and Kilometer takes the row (nothing drawn for it; the owner kept this, 2026-09-29). */
 export const Unpriced: Story = { args: { fare: undefined } }
 
 /** Thirty hintuans, opened: taller than the room, the rail scrolls under the header. */
@@ -118,6 +120,8 @@ export const ALongWay: Story = { args: { hintuans: aLongWay }, play: openFold }
 export const LongNames: Story = {
   args: {
     livery: 'orange',
+    metres: 8_600,
+    fare: '₱22–24',
     routeOrigin: 'Novaliches (Bayan) via Zabarte',
     hintuans: hintuans('Lagro', 'Quirino Highway corner Zabarte Road, Robinsons Novaliches', 'Bistek'),
     routeDirection: 'Fairview Teraccess Transport Terminal',

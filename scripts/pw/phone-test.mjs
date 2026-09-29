@@ -446,15 +446,43 @@ const tripRow = async (id) => {
 }
 
 /**
- * A trip card's own parts, on whichever trip is open: its hintuans fold into
- * one row that opens and folds again (the owner's 3762:3546; a lone hintuan
- * is shown as it is), and SWITCH turns it round. Run where a trip opens — a
- * lone route's tap, a row of the route list — as today's data allows.
+ * A trip card's own parts, on whichever trip is open: its Kilometer and
+ * Expected fare tiles (the owner's 3778:3183), its hintuans folding into one
+ * row that opens and folds again (a lone hintuan is shown as it is), and
+ * SWITCH turning it round. Run where a trip opens — a lone route's tap, a row
+ * of the route list — as today's data allows.
  */
 const tripChecks = async () => {
-  // The hintuans fold into one row, "N more hintuan"; opened, each is a row
-  // of its own, and "View less" folds them again (the owner's 3762:3546). A
-  // lone hintuan is shown as it is, with nothing to fold.
+  // Two tiles over the card: the whole ride's length and pesos, as the app's
+  // own sums give them on the published line (read from the dev server's
+  // modules; a server that cannot serve them skips the check). The pesos
+  // left the rail for their tile with this set.
+  const [tripId] = (await litIds(page)) ?? []
+  const want = await page.evaluate(async (id) => {
+    try {
+      const [{ wholeRideFare }, { kmLabel, lineLength }, { variantLine }] = await Promise.all([
+        import('/src/shared/fares.ts'),
+        import('/src/shared/geo.ts'),
+        import('/src/shared/routes.ts'),
+      ])
+      const v = (await fetch('/data/map.json').then((r) => r.json())).variants.find((x) => x.id === id)
+      return v ? { km: kmLabel(lineLength(variantLine(v))), fare: wholeRideFare([v]) ?? null } : null
+    } catch {
+      return null
+    }
+  }, tripId)
+  const tile = async (id) => {
+    const t = card().locator(`[data-testid="${id}"]`)
+    return (await t.count()) ? (await t.first().innerText()).trim() : null
+  }
+  const [km, fare] = [await tile('trip-km'), await tile('trip-fare')]
+  if (!want) skip('  its tiles: the Kilometer and Expected fare of the whole ride', 'the sums cannot be read from this server')
+  else check('  its tiles: the Kilometer and Expected fare of the whole ride', km === want.km && fare === want.fare, `"${km}" / "${fare}", the sums "${want.km}" / "${want.fare}"`)
+
+  // The hintuans fold into one row, "N more hintuans"; opened, each is a row
+  // of its own, and "View less" folds them again (the owner's 3762:3546,
+  // with an s since 3778:3183). A lone hintuan is shown as it is, with
+  // nothing to fold.
   const fold = card().locator('button[data-testid="trip-fold"]')
   // The rows in sight: folded ones stay in the card, invisible, so that they
   // can close in view (the fold's motion, 2026-09-29).
@@ -470,11 +498,11 @@ const tripChecks = async () => {
     skip('  its hintuans fold into one row, and open', (await hintuanRows()) === 0 ? 'no hintuan on this direction yet' : 'one hintuan on the way, shown as it is: nothing to fold')
   } else {
     const folded = (await fold.first().innerText()).trim()
-    const n = Number(/^(\d+) more hintuan$/.exec(folded)?.[1] ?? NaN)
+    const n = Number(/^(\d+) more hintuans$/.exec(folded)?.[1] ?? NaN)
     await buttonTap(fold, async () => (await fold.first().getAttribute('aria-expanded')) === 'true')
     const opening = await rowMotion()
     const shown = await restingRows()
-    check('  its hintuans fold into one row, "N more hintuan", that opens to N rows', n > 1 && shown === n && (await fold.first().innerText()).includes('View less'), `"${folded}" opened to ${shown} row(s)`)
+    check('  its hintuans fold into one row, "N more hintuans", that opens to N rows', n > 1 && shown === n && (await fold.first().innerText()).includes('View less'), `"${folded}" opened to ${shown} row(s)`)
     await buttonTap(fold, async () => (await fold.first().getAttribute('aria-expanded')) === 'false')
     const folding = await rowMotion()
     check('  "View less" folds them again', (await restingRows()) === 0 && (await fold.first().innerText()).trim() === folded, await fold.first().innerText())
@@ -609,14 +637,14 @@ if (routeA) {
   const text = await cardText()
   check(`a tap 14 px beside a lone route line selects it`, (await card().count()) > 0, `${desc}; [data-testid="card"] count ${await card().count()}`)
   // The owner's trip card (2026-09-29), named for its direction: it runs from
-  // where that leaves (the top row, under the fare) to where it goes (the
-  // bottom row). Which way round is the tap's to decide, so the route's two
-  // ends are checked, not their order.
+  // where that leaves (the top row, no pesos on it since 3778:3183) to where
+  // it goes (the bottom row). Which way round is the tap's to decide, so the
+  // route's two ends are checked, not their order.
   const label = await tripLabel()
   const [from = '', to = ''] = label.split(' → ')
   const origin = await tripRow('trip-origin')
   const end = await tripRow('trip-destination')
-  check('  it opens the trip card, from where its direction leaves to where it goes', !!from && !!to && origin.endsWith(from) && end === to, `"${label}": top "${origin}", bottom "${end}"`)
+  check('  it opens the trip card, from where its direction leaves to where it goes', !!from && !!to && origin === from && end === to, `"${label}": top "${origin}", bottom "${end}"`)
   const routeEnds = r.signboard.split(' – ').map((e) => e.replace(/ via .*$/, ''))
   check("  its ends are the route's two ends", routeEnds.length === 2 && routeEnds.every((e) => text.includes(e)), r.signboard)
   // Dropped by the owner for now, to design later (2026-09-28).
