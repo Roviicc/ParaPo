@@ -50,6 +50,14 @@ function toRad(deg: number) {
   return (deg * Math.PI) / 180
 }
 
+/**
+ * Metres in a degree of latitude — and of longitude, times the cosine of the
+ * latitude — on the sphere `haversine` measures on: 111,194.9. The one
+ * figure every flat patch and padded box uses (the review's 6.5: there were
+ * four, 110,574 to 111,320, and a padding metre to cover the gap).
+ */
+export const M_PER_DEG = toRad(1) * EARTH_RADIUS_M
+
 /** Great-circle distance in metres. */
 export function haversine([lng1, lat1]: LngLat, [lng2, lat2]: LngLat): number {
   const dLat = toRad(lat2 - lat1)
@@ -83,15 +91,27 @@ export function kmLabel(metres: number): string {
   return (metres / 1000).toFixed(1) + 'km'
 }
 
-/** Metres from point p to segment a–b, on a flat patch around the segment (fine at street scale). */
-export function pointToSegmentM(p: LngLat, a: LngLat, b: LngLat): number {
+/**
+ * The point of segment a–b nearest p, and how far along a–b it is (0–1), on
+ * a flat patch around a (fine at street scale).
+ */
+export function nearestOnSegment(p: LngLat, a: LngLat, b: LngLat): { point: LngLat; t: number } {
   const k = Math.cos(toRad(a[1]))
   const [px, py] = [(p[0] - a[0]) * k, p[1] - a[1]]
   const [bx, by] = [(b[0] - a[0]) * k, b[1] - a[1]]
   const l2 = bx * bx + by * by
   const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, (px * bx + py * by) / l2))
-  const [dx, dy] = [px - t * bx, py - t * by]
-  return toRad(Math.hypot(dx, dy)) * EARTH_RADIUS_M
+  return { point: [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])], t }
+}
+
+/**
+ * Metres from point p to segment a–b, on the same flat patch: the one
+ * point-to-segment every file measures with (the review's 6.5).
+ */
+export function pointToSegmentM(p: LngLat, a: LngLat, b: LngLat): number {
+  const { point } = nearestOnSegment(p, a, b)
+  const k = Math.cos(toRad(a[1]))
+  return Math.hypot((p[0] - point[0]) * k, p[1] - point[1]) * M_PER_DEG
 }
 
 /**
@@ -154,7 +174,7 @@ export function bboxOf(points: readonly LngLat[], padM = 0): BBox {
     if (y > n) n = y
   }
   if (padM <= 0 || points.length === 0) return [w, s, e, n]
-  const padLat = padM / 111_000
+  const padLat = padM / M_PER_DEG
   const padLng = padLat / Math.cos((((s + n) / 2) * Math.PI) / 180)
   return [w - padLng, s - padLat, e + padLng, n + padLat]
 }

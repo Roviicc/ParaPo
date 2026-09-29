@@ -1,4 +1,4 @@
-import { haversine, type LngLat } from '../geo/geo'
+import { M_PER_DEG, haversine, pointToSegmentM, type LngLat } from '../geo/geo'
 
 /*
  * The chevrons' geometry: where along each lit line they sit, which stretches
@@ -91,16 +91,6 @@ export function measure(line: LngLat[]): Measured {
   }
 }
 
-/** Metres from p to segment a–b, on a flat patch around a. */
-function offSegmentM(p: LngLat, a: LngLat, b: LngLat): number {
-  const k = Math.cos((a[1] * Math.PI) / 180)
-  const [px, py] = [(p[0] - a[0]) * k, p[1] - a[1]]
-  const [bx, by] = [(b[0] - a[0]) * k, b[1] - a[1]]
-  const l2 = bx * bx + by * by
-  const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, (px * bx + py * by) / l2))
-  return Math.hypot(px - t * bx, py - t * by) * 111_320
-}
-
 /** How far apart two bearings are, 0–180°. */
 const turn = (a: number, b: number) => Math.abs(((((a - b) % 360) + 540) % 360) - 180)
 
@@ -110,7 +100,7 @@ const turn = (a: number, b: number) => Math.abs(((((a - b) % 360) + 540) % 360) 
  * SAME_WAY_DEG. Once per change of what is lit, not per frame.
  */
 export function markCovered(m: Measured, earlier: Measured[]): void {
-  const reach = SAME_ROAD_M / 111_320 / Math.cos((m.lat * Math.PI) / 180)
+  const reach = SAME_ROAD_M / M_PER_DEG / Math.cos((m.lat * Math.PI) / 180)
   for (let i = 0; i < m.bearing.length; i++) {
     const a = m.line[i]
     const b = m.line[i + 1]
@@ -121,7 +111,7 @@ export function markCovered(m: Measured, earlier: Measured[]): void {
         // Cheap reject first: a segment wholly to one side is far.
         if (Math.max(c[0], d[0]) < mid[0] - reach || Math.min(c[0], d[0]) > mid[0] + reach) continue
         if (Math.max(c[1], d[1]) < mid[1] - reach || Math.min(c[1], d[1]) > mid[1] + reach) continue
-        if (offSegmentM(mid, c, d) <= SAME_ROAD_M && turn(m.bearing[i], e.bearing[j]) <= SAME_WAY_DEG) return true
+        if (pointToSegmentM(mid, c, d) <= SAME_ROAD_M && turn(m.bearing[i], e.bearing[j]) <= SAME_WAY_DEG) return true
       }
       return false
     })

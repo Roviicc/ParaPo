@@ -1,4 +1,4 @@
-import { haversine, type LngLat, type Segment } from '../../shared/geo/geo'
+import { haversine, pointToSegmentM, type LngLat, type Segment } from '../../shared/geo/geo'
 
 /**
  * Where a routed line turns back on itself: pure geometry over the router's
@@ -42,18 +42,6 @@ function bearing([lng1, lat1]: LngLat, [lng2, lat2]: LngLat): number {
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360
 }
 
-/** Metres from p to the edge a–b, on a flat local projection: exact enough at street scale. */
-function distanceToEdge(p: LngLat, a: LngLat, b: LngLat): number {
-  const kx = 111_320 * Math.cos((a[1] * Math.PI) / 180)
-  const ky = 110_574
-  const px = (p[0] - a[0]) * kx
-  const py = (p[1] - a[1]) * ky
-  const bx = (b[0] - a[0]) * kx
-  const by = (b[1] - a[1]) * ky
-  const len2 = bx * bx + by * by
-  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, (px * bx + py * by) / len2))
-  return Math.hypot(px - t * bx, py - t * by)
-}
 
 /**
  * A segment's coordinates with repeats removed (a vertex within SAME_M of the
@@ -111,7 +99,7 @@ function oppositeEdges(p: LngLat[], n: LngLat[]): Turn | null {
   const d = Math.abs(bearing(a, join) - bearing(n[0], b)) % 360
   if ((d > 180 ? 360 - d : d) < UTURN_DEG) return null
   const shorterIn = inM <= outM
-  const off = shorterIn ? distanceToEdge(a, n[0], b) : distanceToEdge(b, a, join)
+  const off = shorterIn ? pointToSegmentM(a, n[0], b) : pointToSegmentM(b, a, join)
   const metres = Math.min(inM, outM)
   if (off > ALONG_M || metres < MIN_UTURN_M) return null
   return { stub: shorterIn ? [a, join] : [b, n[0]], metres }

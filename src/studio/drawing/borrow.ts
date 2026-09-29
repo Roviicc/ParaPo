@@ -1,4 +1,4 @@
-import { haversine, joinSegments, lineLength, type LngLat, type Segment, type StreetRun } from '../../shared/geo/geo'
+import { haversine, joinSegments, lineLength, nearestOnSegment, type LngLat, type Segment, type StreetRun } from '../../shared/geo/geo'
 
 /**
  * Extend at either end (PLAN.md, "The four actions"): a new route borrows part
@@ -18,15 +18,6 @@ export type BorrowPart = 'start' | 'end'
 /** A spot on a drawn line: segment `seg`, between its coordinates `edge` and `edge + 1`. */
 export type LineSpot = { seg: number; edge: number; point: LngLat; metres: number }
 
-/** Flat projection of p onto a–b around a (fine at street scale): the point and its fraction t. */
-function project(p: LngLat, a: LngLat, b: LngLat): { point: LngLat; t: number } {
-  const k = Math.cos((a[1] * Math.PI) / 180)
-  const [px, py] = [(p[0] - a[0]) * k, p[1] - a[1]]
-  const [bx, by] = [(b[0] - a[0]) * k, b[1] - a[1]]
-  const l2 = bx * bx + by * by
-  const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, (px * bx + py * by) / l2))
-  return { point: [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])], t }
-}
 
 /** The spot on the line nearest p, and how far p is from it. Null for a line with no edges. */
 export function nearestSpot(segments: Segment[], p: LngLat): (LineSpot & { off: number }) | null {
@@ -34,7 +25,7 @@ export function nearestSpot(segments: Segment[], p: LngLat): (LineSpot & { off: 
   segments.forEach((s, seg) => {
     const c = s?.coordinates ?? []
     for (let edge = 0; edge < c.length - 1; edge++) {
-      const { point } = project(p, c[edge], c[edge + 1])
+      const { point } = nearestOnSegment(p, c[edge], c[edge + 1])
       const off = haversine(p, point)
       if (!best || off < best.off) best = { seg, edge, point, metres: 0, off }
     }
@@ -135,7 +126,7 @@ const turn = (a: number, b: number) => Math.abs(((((a - b) % 360) + 540) % 360) 
 function nearestOnCoords(line: LngLat[], p: LngLat): { edge: number; point: LngLat; off: number } | null {
   let best: { edge: number; point: LngLat; off: number } | null = null
   for (let edge = 0; edge < line.length - 1; edge++) {
-    const { point } = project(p, line[edge], line[edge + 1])
+    const { point } = nearestOnSegment(p, line[edge], line[edge + 1])
     const off = haversine(p, point)
     if (!best || off < best.off) best = { edge, point, off }
   }
@@ -192,7 +183,7 @@ export function lineToFollow<V>(
 
 /** Metres from p to segment a–b. */
 function offEdge(p: LngLat, a: LngLat, b: LngLat): number {
-  return haversine(p, project(p, a, b).point)
+  return haversine(p, nearestOnSegment(p, a, b).point)
 }
 
 /**

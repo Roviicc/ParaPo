@@ -40,7 +40,9 @@ export function firstNearIndex(line: LngLat[], ring: Ring, withinM: number): num
   const n = ring.length
   if (n < 3 || line.length === 0) return -1
   // A segment within `withinM` of the ring reaches the ring's box padded by
-  // that much (a metre more, for the flat patch the metres are measured on).
+  // that much. A metre more: the box's longitude is scaled at its middle's
+  // latitude, a distance at its own vertex's, and the margin keeps the box
+  // from ever being the tighter of the two.
   const box = bboxOf(ring, withinM + 1)
   if (!bboxesOverlap(lineBounds(line), box)) return touch
   for (let i = 1; i < line.length; i++) {
