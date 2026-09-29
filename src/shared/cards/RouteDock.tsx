@@ -47,7 +47,7 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
       tabIndex={-1}
       data-testid={testId}
       hidden={hidden}
-      className="absolute inset-x-0 outline-none bottom-0 z-10 flex max-h-[60vh] flex-col overflow-clip rounded-t-3xl bg-surface
+      className="absolute inset-x-0 bottom-0 z-10 outline-none flex max-h-[60vh] flex-col overflow-clip rounded-t-3xl bg-surface
                  pb-[env(safe-area-inset-bottom)]
                  @float:inset-x-auto @float:bottom-auto @float:top-0 @float:left-0 @float:max-h-full
                  @float:w-96 @float:rounded-none @float:pb-0"

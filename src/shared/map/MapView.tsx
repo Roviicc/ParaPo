@@ -250,7 +250,7 @@ export function MapView({ onReady, zoomButtons = true, maxBounds }: Props) {
 
         So: size the WRAPPER, and hand MapLibre a plain child to restyle.
       */}
-      <div className="absolute inset-0 bg-neutral-100">
+      <div className="absolute inset-0 bg-surface-secondary">
         <div ref={containerRef} className="h-full w-full" />
       </div>
 

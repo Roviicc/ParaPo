@@ -56,10 +56,10 @@ export function WhereAmIButton({ where, coarse }: Props) {
         className={
           'grid h-[29px] w-[29px] place-items-center rounded shadow-[0_0_0_2px_rgba(0,0,0,0.1)] ' +
           (on && follow
-            ? 'bg-blue-600 text-white hover:bg-blue-700'
+            ? 'bg-blue-600 text-content-inverse hover:bg-blue-700'
             : on
-              ? 'bg-white text-blue-600 hover:bg-blue-50'
-              : 'bg-white text-neutral-800 hover:bg-neutral-100')
+              ? 'bg-surface text-blue-600 hover:bg-blue-50'
+              : 'bg-surface text-content-secondary hover:bg-surface-secondary')
         }
       >
         {/* A compass needle: the usual sign for "my location". */}
@@ -71,7 +71,7 @@ export function WhereAmIButton({ where, coarse }: Props) {
         <p
           role="status"
           data-testid="where-note"
-          className="max-w-[14rem] rounded-lg bg-neutral-900/90 px-3 py-2 text-right text-xs text-white shadow backdrop-blur"
+          className="max-w-[14rem] rounded-lg bg-neutral-900/90 px-3 py-2 text-right text-xs text-content-inverse shadow backdrop-blur"
         >
           {note}
         </p>

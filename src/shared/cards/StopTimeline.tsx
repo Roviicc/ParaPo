@@ -45,13 +45,13 @@ export function StopTimeline({
         const dot =
           s.end || picked
             ? 'h-3 w-3 rounded-full bg-neutral-900 ring-2 ring-white'
-            : 'h-3 w-3 rounded-full border-2 border-neutral-500 bg-white'
+            : 'h-3 w-3 rounded-full border-2 border-neutral-500 bg-surface'
         const inner = (
           <>
             <span className={'relative z-10 shrink-0 ' + dot} />
             <span
               className={
-                'min-w-0 truncate ' + (s.end || picked ? 'font-medium text-neutral-900' : 'text-neutral-800')
+                'min-w-0 truncate ' + (s.end || picked ? 'font-medium text-content-primary' : 'text-content-secondary')
               }
             >
               {s.label}

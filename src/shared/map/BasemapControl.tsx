@@ -65,8 +65,8 @@ export function BasemapControl({ map, initial, under }: Props) {
         aria-expanded={open}
         title={`Map design: ${current.label}`}
         data-testid="basemap"
-        className="grid h-[29px] w-[29px] place-items-center rounded bg-white text-neutral-800
-                   shadow-[0_0_0_2px_rgba(0,0,0,0.1)] hover:bg-neutral-100"
+        className="grid h-[29px] w-[29px] place-items-center rounded bg-surface text-content-secondary
+                   shadow-[0_0_0_2px_rgba(0,0,0,0.1)] hover:bg-surface-secondary"
       >
         {/* Three stacked sheets: the usual sign for "layers". */}
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
@@ -79,7 +79,7 @@ export function BasemapControl({ map, initial, under }: Props) {
         <ul
           role="menu"
           data-testid="basemap-menu"
-          className="min-w-28 overflow-hidden rounded-lg bg-white py-1 text-sm text-neutral-800 shadow-lg ring-1 ring-black/10"
+          className="min-w-28 overflow-hidden rounded-lg bg-surface py-1 text-sm text-content-secondary shadow-lg ring-1 ring-black/10"
         >
           {BASEMAPS.map((b) => (
             <li key={b.id}>
@@ -88,9 +88,9 @@ export function BasemapControl({ map, initial, under }: Props) {
                 role="menuitemradio"
                 aria-checked={b.id === current.id}
                 onClick={() => choose(b)}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-neutral-100"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-surface-secondary"
               >
-                <span className={`w-3 text-xs ${b.id === current.id ? 'text-neutral-900' : 'text-transparent'}`}>✓</span>
+                <span className={`w-3 text-xs ${b.id === current.id ? 'text-content-primary' : 'text-transparent'}`}>✓</span>
                 {b.label}
               </button>
             </li>

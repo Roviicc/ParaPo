@@ -73,7 +73,7 @@ export function RouteSheet({ variant, timeline, rideTo, onRideTo, sibling, onSwi
           <div className="flex items-start gap-2">
             <p
               data-testid="card-direction"
-              className="min-w-0 flex-1 truncate text-base font-semibold text-neutral-900"
+              className="min-w-0 flex-1 truncate text-base font-semibold text-content-primary"
             >
               {variant.direction_name ?? r?.name}
             </p>
@@ -93,8 +93,8 @@ export function RouteSheet({ variant, timeline, rideTo, onRideTo, sibling, onSwi
                     ? `Switch to ${sibling.direction_name}`
                     : `${sibling.direction_name} is not mapped yet`
                 }
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-neutral-700
-                           hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-35"
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-content-tertiary
+                           hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-35"
               >
                 <SwitchIcon />
               </button>
@@ -118,7 +118,7 @@ export function RouteSheet({ variant, timeline, rideTo, onRideTo, sibling, onSwi
       {timeline && (timeline.from || timeline.to || hintuanCount > 0) && (
         /* Collapsed by default: the title already says the ends; this is the way between them. */
         <details data-testid="card-timeline" className="mt-3 rounded-lg bg-neutral-50 px-3 py-2">
-          <summary className="cursor-pointer select-none text-xs font-medium text-neutral-600">
+          <summary className="cursor-pointer select-none text-xs font-medium text-content-quaternary">
             {hintuanCount === 0 ? 'No hintuan on the way yet' : passesThrough(hintuanCount)}
           </summary>
           <StopTimeline timeline={timeline} onPick={onRideTo} pickedId={rideTo?.stopId ?? null} />
@@ -126,15 +126,15 @@ export function RouteSheet({ variant, timeline, rideTo, onRideTo, sibling, onSwi
       )}
       <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
         <dt className="text-neutral-500">Mode</dt>
-        <dd className="text-neutral-900">{mode}</dd>
+        <dd className="text-content-primary">{mode}</dd>
         <dt className="text-neutral-500">Length</dt>
-        <dd className="text-neutral-900">
+        <dd className="text-content-primary">
           {rideLabel ? `${(rideMetres / 1000).toFixed(1)} km to ${rideLabel} · ${km} km end to end` : `${km} km`}
         </dd>
         {fare ? (
           <>
             <dt className="text-neutral-500">Fare</dt>
-            <dd data-testid="card-fare" className="text-neutral-900">
+            <dd data-testid="card-fare" className="text-content-primary">
               {/* The ride's pesos lead and the rule follows — the owner's ask
                   of 2026-09-28. "From Tala": the estimate boards at the head,
                   and a rider standing mid-route must not read it as theirs
@@ -143,7 +143,7 @@ export function RouteSheet({ variant, timeline, rideTo, onRideTo, sibling, onSwi
                 ? `${timeline?.from ? `From ${timeline.from.label} to` : 'To'} ${rideLabel}, about`
                 : 'Whole ride about'}{' '}
               {pesoRange(fare.whole.low.regular, fare.whole.high.regular)}
-              <p className="mt-0.5 text-xs text-neutral-600">
+              <p className="mt-0.5 text-xs text-content-quaternary">
                 Students, seniors, PWDs {pesoRange(fare.whole.low.discounted, fare.whole.high.discounted)} ·{' '}
                 {peso(fare.rule.minimum)} first {fare.rule.minimumKm} km, then {peso(fare.rule.perKm)} per km
               </p>
@@ -152,7 +152,7 @@ export function RouteSheet({ variant, timeline, rideTo, onRideTo, sibling, onSwi
                   Some jeeps still charge the old {peso(fare.previous.minimum)} until they post the new fare guide.
                 </p>
               )}
-              {r?.fare_note && <p className="mt-0.5 text-xs text-neutral-600">{r.fare_note}</p>}
+              {r?.fare_note && <p className="mt-0.5 text-xs text-content-quaternary">{r.fare_note}</p>}
               <p className="mt-0.5 text-xs text-neutral-400">Estimate · {fare.rule.source} · length of this line</p>
             </dd>
           </>
@@ -160,7 +160,7 @@ export function RouteSheet({ variant, timeline, rideTo, onRideTo, sibling, onSwi
           r?.fare_note && (
             <>
               <dt className="text-neutral-500">Fare</dt>
-              <dd className="text-neutral-900">{r.fare_note}</dd>
+              <dd className="text-content-primary">{r.fare_note}</dd>
             </>
           )
         )}
