@@ -188,7 +188,8 @@ export function SavePanel({
           {existing && " · the ends, via, signboard, mode and fare note are the route's: a change here is a change to both directions"}
         </p>
         <SaveNotices
-          draw={draw}
+          segments={draw.segments}
+          uTurns={draw.uTurns}
           stopsCount={stops.length}
           wrongWay={wrongWayRound && head && tail ? { direction, startsAt: stopLabel(reversed ? head : tail), from: stopLabel(reversed ? tail : head) } : null}
           borrowed={borrowParent && borrowedM > 0 ? { metres: borrowedM, parent: borrowParent } : null}
