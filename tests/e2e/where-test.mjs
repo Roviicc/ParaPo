@@ -1,7 +1,8 @@
 // "Where am I" on the public map: the walking figure that stands for the
 // visitor (src/commuter/whereAmI.ts, Walker.tsx, WhereAmI.tsx), driven by a
 // pretend GPS. Playwright's geolocation emulation feeds the browser's own
-// watchPosition, so the app's code path is the real one.
+// watchPosition, so the app's code path is the real one — except for the GPS
+// that never has a fix, which stands in for navigator.geolocation itself.
 //
 //   node tests/e2e/where-test.mjs                against http://localhost:5173
 //   PARAPO_NO_TILES=1 node tests/e2e/where-test.mjs   no basemap tiles (a sandbox)
@@ -110,7 +111,7 @@ const measuredMpp = () =>
   }, [P0.longitude, P0.latitude])
 const mpp = await measuredMpp()
 const haloPx = Number(await attr(page, 'data-halo-px'))
-// Never smaller than 28 px: at zoom 15 a pixel is 4.6 m, and 60 m would be a dot under the feet.
+// Never smaller than 28 px: at zoom 15 a pixel here is about 2.3 m, and 60 m across (26 px) would be a dot under the feet.
 check('  the halo is the accuracy in pixels at this zoom, 28 at least', Math.abs(haloPx - Math.max(28, (2 * 30) / mpp)) <= 3, `${haloPx} px for 60 m at zoom ${zoom.toFixed(1)}`)
 await page.evaluate(() => window.__map.zoomTo(18, { duration: 0 }))
 await page.waitForTimeout(300)
@@ -202,8 +203,9 @@ check('  the button is plain again, to try after the setting changes', (await pa
 await ctx2.close()
 
 // ---------------------------------------------------------- no fix, ever
-// A GPS that only times out: the browser's own watch, answering TIMEOUT
-// every second and never a position. The button stays on with a note, and a
+// A GPS that only times out: navigator.geolocation stood in for (Playwright
+// cannot make the real one time out), its watch answering TIMEOUT every
+// second and never a position. The button stays on with a note, and a
 // tap turns it off — once it read as off and a tap did nothing at all.
 const ctx3 = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
 const page3 = await ctx3.newPage()
