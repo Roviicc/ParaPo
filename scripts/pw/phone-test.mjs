@@ -526,6 +526,120 @@ const tripChecks = async () => {
     check('  the rows open over 300 ms and fold over 200 ms', opening.startsWith('0.3s') && folding.startsWith('0.2s'), `${opening} / ${folding}`)
   }
 
+  // A hintuan's row picks it (the owner's Timeline State=Selected,
+  // 2026-09-29): that one row Selected, its name Black, a pill with the pesos
+  // from where the trip leaves to there — the app's own sums over rideCut's
+  // metres on the published line — in the card's own colours swapped; the
+  // tiles keep the whole ride; the map dark only that far and at rest after
+  // it, no get-off circles, the camera gliding the hintuan clear of the
+  // card, and no padding left on the map; a second tap lets it go. Checked
+  // once, on the first trip with a hintuan; it is picked again after, for
+  // SWITCH, ✕ or ‹ to let go.
+  let picked = false
+  const rows = card().locator('[data-testid="trip-hintuan"]')
+  if (!picksChecked && (await rows.count()) > 0) {
+    picksChecked = true
+    if ((await fold.count()) > 0) {
+      await buttonTap(fold, async () => (await fold.first().getAttribute('aria-expanded')) === 'true')
+      await page.waitForTimeout(450)
+    }
+    const row = rows.nth(Math.floor(((await rows.count()) - 1) / 2))
+    const rowId = await row.getAttribute('data-hintuan')
+    const pickWant = await page.evaluate(async ([id, rowId]) => {
+      try {
+        const [{ rideFare }, { rideCut }] = await Promise.all([import('/src/shared/fares.ts'), import('/src/shared/routes.ts')])
+        const m = await fetch('/data/map.json').then((r) => r.json())
+        const v = m.variants.find((x) => x.id === id)
+        const cut = v && rideCut(v, m.stops, rowId)
+        return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, at: cut.at, rest: cut.rest } : null
+      } catch {
+        return null
+      }
+    }, [tripId, rowId])
+    const pickButton = row.locator('button[data-testid="trip-hintuan-pick"]')
+    const isPicked = async () => (await row.getAttribute('data-state')) === 'selected'
+    await pickButton.scrollIntoViewIfNeeded()
+    await buttonTap(pickButton, isPicked)
+    const selectedRows = await card().locator('[data-testid="trip-hintuan"][data-state="selected"]').count()
+    const weight = await pickButton.evaluate((b) => getComputedStyle(b.lastElementChild.firstElementChild).fontWeight)
+    check(
+      '  a hintuan row picks it: that one row Selected, its name Black',
+      (await isPicked()) && selectedRows === 1 && weight === '900' && (await pickButton.getAttribute('aria-pressed')) === 'true',
+      `${selectedRows} Selected, weight ${weight}`,
+    )
+    const pill = row.locator('[data-testid="trip-hintuan-fare"]')
+    const pillText = (await pill.count()) ? (await pill.first().innerText()).trim() : null
+    if (!pickWant) skip('  its pill: the pesos from where the trip leaves to there', 'the sums cannot be read from this server')
+    else check('  its pill: the pesos from where the trip leaves to there', pillText === pickWant.fare, `"${pillText}", the sums "${pickWant.fare}"`)
+    const colours = await page.evaluate(() => {
+      const pill = document.querySelector('[data-testid="trip-hintuan-fare"]')
+      const trip = document.querySelector('[data-testid="trip"]')
+      if (!pill || !trip) return null
+      const [p, t] = [getComputedStyle(pill), getComputedStyle(trip)]
+      return { swapped: p.backgroundColor === t.color && p.color === t.backgroundColor, detail: `${p.color} on ${p.backgroundColor}; the card ${t.color} on ${t.backgroundColor}` }
+    })
+    if (pickWant && pickWant.fare == null) skip("  in the card's own colours, swapped", 'an unpriced route shows no pill')
+    else check("  in the card's own colours, swapped", !!colours?.swapped, colours?.detail ?? 'no pill')
+    check('  the tiles keep the whole ride', (await tile('trip-km')) === km && (await tile('trip-fare')) === fare)
+    // The glide starts after the card has drawn the pick: let it start, then end.
+    await page.waitForTimeout(200)
+    await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+    const drawn = await page.evaluate(async () => {
+      const m = window.__map
+      const order = m.getStyle().layers.map((l) => l.id)
+      const at = (id) => order.indexOf(id)
+      const fs = (await window.__src('ride-rest'))?.features ?? []
+      const has = !!m.getLayer('ride-rest-line') && !!m.getLayer('ride-rest-casing')
+      return {
+        lit: (await window.__lit('saved-routes')) ?? [],
+        rest: fs.length === 1 ? fs[0].geometry.coordinates : null,
+        line: has ? m.getPaintProperty('ride-rest-line', 'line-color') : null,
+        casing: has ? m.getPaintProperty('ride-rest-casing', 'line-color') : null,
+        opacity: has ? (m.getPaintProperty('ride-rest-line', 'line-opacity') ?? 1) : null,
+        between: has && at('ride-rest-casing') > at('saved-routes-selected') && at('ride-rest-line') > at('ride-rest-casing') && (at('direction-end-circles') < 0 || at('ride-rest-line') < at('direction-end-circles')),
+        dots: document.querySelectorAll('[data-testid="ride-dot"]').length,
+        padding: Object.values(m.getPadding()).every((v) => v === 0),
+      }
+    })
+    const restRight = !!pickWant && !!drawn.rest && drawn.rest.length === pickWant.rest.length &&
+      Math.abs(drawn.rest[0][0] - pickWant.at[0]) < 1e-6 && Math.abs(drawn.rest[0][1] - pickWant.at[1]) < 1e-6
+    check(
+      '  the map: the trip still lit, and from the hintuan on, drawn at rest over it — opaque, in its casing, under the far end',
+      drawn.lit.length === 1 && drawn.lit[0] === tripId && (restRight || !pickWant) && !!drawn.rest &&
+        (MAP ? drawn.line === MAP['Map/RouteLine/surface-default'] : !!drawn.line) && drawn.casing === '#ffffff' && drawn.opacity === 1 && drawn.between,
+      `${drawn.lit.length} lit; ${drawn.rest?.length ?? 0} point(s) at rest; ${drawn.line} in ${drawn.casing}, opacity ${drawn.opacity}; in its place ${drawn.between}`,
+    )
+    check('  no get-off circles on the public map', drawn.dots === 0, `${drawn.dots}`)
+    if (pickWant) {
+      const where = await page.evaluate((at) => {
+        const m = window.__map
+        const c = m.getCanvas().getBoundingClientRect()
+        const q = m.project(at)
+        const d = document.querySelector('[data-testid="card"]').getBoundingClientRect()
+        return { x: c.left + q.x, y: c.top + q.y, left: c.left, right: c.right, top: c.top, cardTop: d.top }
+      }, pickWant.at)
+      check(
+        '  the camera glides it into the map above the card',
+        where.y > where.top + 16 && where.y < where.cardTop - 16 && where.x > where.left + 16 && where.x < where.right - 16,
+        `at ${Math.round(where.x)},${Math.round(where.y)}; the map ${Math.round(where.top)}–${Math.round(where.cardTop)} above the card`,
+      )
+    }
+    check('  and leaves no padding on the map for later moves', drawn.padding)
+    await buttonTap(pickButton, async () => !(await isPicked()))
+    const letGo = await page.evaluate(async () => ({
+      rest: ((await window.__src('ride-rest'))?.features ?? []).length,
+      lit: (await window.__lit('saved-routes')) ?? [],
+    }))
+    check(
+      '  a second tap lets it go: no pill, the whole ride dark again',
+      !(await isPicked()) && (await pill.count()) === 0 && letGo.rest === 0 && letGo.lit.length === 1,
+      `${letGo.rest} at rest, ${letGo.lit.length} lit`,
+    )
+    // Picked again, for SWITCH — or ✕ and ‹ — to let go.
+    await buttonTap(pickButton, isPicked)
+    picked = await isPicked()
+  }
+
   // SWITCH turns the trip round: the same route, the other way.
   const sw = card().locator('button[data-testid="card-switch"]')
   if ((await sw.count()) === 0 || (await sw.first().isDisabled())) {
@@ -540,8 +654,35 @@ const tripChecks = async () => {
     // Turned round, it is the same card: its colour stays (the owner, 2026-09-29).
     const now = await trip().first().getAttribute('data-livery')
     check('  and keeps its colour', !!colour && now === colour, `${colour} → ${now}`)
+    if (picked) {
+      // Another direction is another ride: the pick does not come with it.
+      const rest = await page.evaluate(async () => ((await window.__src('ride-rest'))?.features ?? []).length)
+      const still = await card().locator('[data-testid="trip-hintuan"][data-state="selected"]').count()
+      check('  and lets the picked hintuan go', rest === 0 && still === 0, `${still} Selected, ${rest} at rest`)
+      picked = false
+    }
   }
+  // A hintuan picked on the trip as it is left, for the caller's ✕ or ‹ to
+  // let go: SWITCH has let the checked one go.
+  if (!picked && (await rows.count()) > 0) {
+    if ((await fold.count()) > 0 && (await fold.first().getAttribute('aria-expanded')) !== 'true') {
+      await buttonTap(fold, async () => (await fold.first().getAttribute('aria-expanded')) === 'true')
+      await page.waitForTimeout(450)
+    }
+    const any = card().locator('button[data-testid="trip-hintuan-pick"]:visible').first()
+    if ((await any.count()) > 0) {
+      const on = async () => (await any.getAttribute('aria-pressed')) === 'true'
+      await buttonTap(any, on)
+      picked = await on()
+    }
+  }
+  return { picked }
 }
+/** Whether the hintuan pick has been checked: once, on the first trip with a hintuan. */
+let picksChecked = false
+/** The map's ride cut, gone: nothing drawn at rest over a trip, no get-off circle. */
+const noPickLeft = async () =>
+  page.evaluate(async () => ((await window.__src('ride-rest'))?.features ?? []).length + document.querySelectorAll('[data-testid="ride-dot"]').length === 0)
 const cardText = async () => ((await card().count()) ? (await card().first().innerText()) : '')
 const sheetState = async () =>
   (await card().count()) ? await card().first().getAttribute('data-sheet') : null
@@ -695,12 +836,15 @@ if (routeA) {
   const looks = await paintNow()
   check('  the rest stay as they rest, opaque light blue: nothing fades (two looks)', twoLooks(looks), JSON.stringify(looks))
 
-  await tripChecks()
+  const trip2 = await tripChecks()
 
   // Negative control: 40 px out is twice as far as the box reaches — but only
   // where the line does not curve back and no hotspot sits on that side, so
   // both sides of the line are measured and the clearer one is tapped.
   await closeCard()
+  if (trip2.picked) check('  ✕ lets the picked hintuan go', await noPickLeft())
+  // A pick glides the camera: back where the tap was measured.
+  await jumpTo(page, routeA.point)
   let far = null
   for (const side of [1, -1]) {
     const [fx, fy] = at(40 * side)
@@ -828,7 +972,7 @@ if (!shared) {
   )
   const tripColour = (await trip().count()) ? await trip().first().getAttribute('data-livery') : null
   check('  the trip wears the colour of the card it was picked from', !!cardColour && tripColour === cardColour, `card ${cardColour}, trip ${tripColour}`)
-  await tripChecks()
+  const trip3 = await tripChecks()
   const back = card().getByRole('button', { name: 'Back' })
   if ((await back.count()) === 0) {
     check('  ‹ on the trip goes back to the list, as it was', false, 'no ‹ on a trip picked from the list')
@@ -841,6 +985,7 @@ if (!shared) {
       again === chooserText && (await card().count()) === 0 && pickedForTrip && !(await isPicked()) && sameSet(litBack, listedIds),
       again ? `card count ${await card().count()}; picked before ${pickedForTrip}, now ${await isPicked()}; ${litBack.length} lit` : 'the list did not come back',
     )
+    if (trip3.picked) check('  and lets the picked hintuan go', await noPickLeft())
     // Picked, then a tap on the map where the list opened: a fresh list,
     // nothing Selected, every route it lists lit.
     await buttonTap(wantedName, isPicked)

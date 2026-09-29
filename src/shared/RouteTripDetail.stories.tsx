@@ -1,5 +1,7 @@
+import type { ComponentProps } from 'react'
+import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { fn, userEvent, within } from 'storybook/test'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import { RouteTripDetail } from './RouteTripDetail'
 
 /** Sample data only: the places of the owner's frames (3762:3546), not the real map. */
@@ -26,6 +28,21 @@ const openFold: Story['play'] = async ({ canvasElement }) => {
   fold.blur()
 }
 
+/** Keeps the pick as the public map does (useRideTo): a row picks its hintuan, and again lets it go. */
+function Picking(props: ComponentProps<typeof RouteTripDetail>) {
+  const [picked, setPicked] = useState(props.picked)
+  return (
+    <RouteTripDetail
+      {...props}
+      picked={picked}
+      onPick={(id) => {
+        props.onPick(id)
+        setPicked((cur) => (cur === id ? null : id))
+      }}
+    />
+  )
+}
+
 type Frame = 'phone' | 'tablet' | 'wide'
 const FRAME = {
   phone: 'max-h-[852px] w-[393px]',
@@ -37,6 +54,8 @@ const frameOf = (p: { frame?: Frame }) => FRAME[p.frame ?? 'phone']
 const meta = {
   title: 'Shared/RouteTripDetail',
   component: RouteTripDetail,
+  // Keyed on the pick, so the controls panel's `picked` starts it afresh.
+  render: (args) => <Picking key={String(args.picked)} {...args} />,
   // A map-sized box, marked @container as the apps' roots are: the trip
   // docks along its bottom where the list did, and sits in the top-left
   // corner from 1024 wide (`@float:`). Never taller than the canvas, so the
@@ -62,11 +81,34 @@ const meta = {
     onSwitch: fn(),
     onBackToList: fn(),
     onClose: fn(),
+    picked: null,
+    onPick: fn(),
+    // Amparo's, fourth on the way: from Tala to there on today's map.
+    pickedFare: '₱18–20',
   },
 } satisfies Meta<typeof RouteTripDetail>
 
 export default meta
 type Story = StoryObj<typeof meta>
+
+/**
+ * Opened to the picked row, which checks it as Figma's State=Selected draws
+ * it: the one row, its pesos, and the card's own colours swapped on its pill.
+ */
+const pickedAsDrawn: Story['play'] = async (ctx) => {
+  await openFold(ctx)
+  const { canvasElement, args } = ctx
+  const rows = canvasElement.querySelectorAll<HTMLElement>('[data-testid="trip-hintuan"][data-state="selected"]')
+  await expect(rows.length).toBe(1)
+  const pill = rows[0].querySelector<HTMLElement>('[data-testid="trip-hintuan-fare"]')
+  await expect(pill?.textContent).toBe(args.pickedFare)
+  const card = within(canvasElement).getByTestId('trip')
+  if (pill) {
+    // Its words' colour behind the pesos, its fill for them.
+    await expect(getComputedStyle(pill).backgroundColor).toBe(getComputedStyle(card).color)
+    await expect(getComputedStyle(pill).color).toBe(getComputedStyle(card).backgroundColor)
+  }
+}
 
 /** On a phone, the owner's frame (3778:3183, Variant2): Tala → Novaliches, its Kilometer and Expected fare, its ten hintuans folded. */
 export const Folded: Story = {}
@@ -137,3 +179,70 @@ export const FloatingOpened: Story = { parameters: { frame: 'wide' }, play: open
 
 /** The owner's 640 frame: still docked, as wide as the screen. */
 export const Tablet: Story = { parameters: { frame: 'tablet' } }
+
+/**
+ * A hintuan picked, red — the Timeline set's Selected row on the owner's
+ * card (3769:2895): Amparo's dot green in a white ring, its name Black, and
+ * a white pill with the pesos from Tala to there in the card's red. Opened,
+ * since the fold keeps it.
+ */
+export const PickedRed: Story = { args: { livery: 'red', picked: 'h3' }, play: pickedAsDrawn }
+
+/** Orange, as red: he drew no orange trip. */
+export const PickedOrange: Story = { args: { livery: 'orange', picked: 'h3' }, play: pickedAsDrawn }
+
+/** Mist (3785:4575): the pill near-black, Content/primary, its pesos in the card's mist. */
+export const PickedMist: Story = { args: { livery: 'mist', picked: 'h3' }, play: pickedAsDrawn }
+
+/** Yellow (3785:4462), as mist. */
+export const PickedYellow: Story = { args: { picked: 'h3' }, play: pickedAsDrawn }
+
+/** Tapped through: Amparo's row picks it, pill and all, and a second tap lets it go. */
+export const PickAndLetGo: Story = {
+  play: async (ctx) => {
+    await openFold(ctx)
+    const { canvasElement, args } = ctx
+    const canvas = within(canvasElement)
+    // The opened rows come into sight a frame or two after the tap.
+    await userEvent.click(await canvas.findByRole('button', { name: /Amparo/, pressed: false }))
+    await expect(args.onPick).toHaveBeenCalledWith('h3')
+    await expect(canvas.getByTestId('trip-hintuan-fare').textContent).toBe('₱18–20')
+    await userEvent.click(canvas.getByRole('button', { name: /Amparo/, pressed: true }))
+    await expect(canvas.queryByTestId('trip-hintuan-fare')).toBeNull()
+    await expect(canvasElement.querySelectorAll('[data-state="selected"]').length).toBe(0)
+  },
+}
+
+/** Folded away and opened again, the pick is still there, pill and all (the default he kept). */
+export const PickFoldedAway: Story = {
+  play: async (ctx) => {
+    await openFold(ctx)
+    const { canvasElement } = ctx
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('button', { name: /Amparo/, pressed: false }))
+    await userEvent.click(canvas.getByRole('button', { name: /View less/ }))
+    await expect(canvasElement.querySelectorAll('[data-testid="trip-hintuan"][data-state="selected"]').length).toBe(1)
+    await openFold(ctx)
+    await expect(await canvas.findByRole('button', { name: /Amparo/, pressed: true })).toBeTruthy()
+    await expect(canvas.getByTestId('trip-hintuan-fare').textContent).toBe('₱18–20')
+  },
+}
+
+/** The lone hintuan picked: no fold to open. */
+export const OneHintuanPicked: Story = {
+  args: { ...OneHintuan.args, picked: 'h0', pickedFare: '₱14' },
+}
+
+/**
+ * A mode with no fare rule: the row picked, and no pill, as there is no
+ * Expected fare tile. A row whose box the line misses would look the same
+ * beside the tile; the published map has none (timeline-test checks every
+ * row cuts).
+ */
+export const PickedUnpriced: Story = { args: { fare: undefined, picked: 'h3', pickedFare: undefined }, play: openFold }
+
+/** In the corner, picked. */
+export const FloatingPicked: Story = { args: { picked: 'h3' }, parameters: { frame: 'wide' }, play: openFold }
+
+/** A name too long for one line, picked: it wraps beside the pill, which keeps its line. Sample pesos. */
+export const LongNamesPicked: Story = { args: { ...LongNames.args, picked: 'h1', pickedFare: '₱16–18' }, play: openFold }

@@ -147,8 +147,9 @@ page.on('request', (req) => {
   if (/\.supabase\.co/.test(req.url())) supabaseHit = true
 })
 // Responses, not requests: a 404 is a request too, and would count as a load.
+// The pick checks read the file again for their sums, marked so as not to count.
 page.on('response', (res) => {
-  if (/\/data\/map\.json/.test(res.url())) mapFileStatuses.push(res.status())
+  if (/\/data\/map\.json/.test(res.url()) && !res.request().headers()['x-parapo-test']) mapFileStatuses.push(res.status())
 })
 
 const closeCard = () => page.getByRole('button', { name: 'Close' }).first().click().catch(() => {})
@@ -590,10 +591,89 @@ if (!hit) {
       // other direction's stretches lit, and no layer left painting them all.
       const alwaysOn = await page.evaluate(() => !!window.__map.getLayer('saved-routes-pass'))
       check('  and on no other line', passLit.length === 1 && !alwaysOn, `lit on the stretches: ${JSON.stringify(passLit)}; the old layer for every line ${alwaysOn ? 'still there' : 'gone'}`)
+      // A hintuan's row picks it (the owner's Timeline State=Selected,
+      // 2026-09-29), here with the card in the top-left corner: the pill's
+      // pesos are the app's own sums over rideCut's metres, the map is dark
+      // only that far, and the camera glides the hintuan to the right of the
+      // card; a second tap lets it go, and ✕ lets a pick go.
+      const cardEl = page.locator('[data-testid="card"]').first()
+      const rows = cardEl.locator('[data-testid="trip-hintuan"]')
+      if ((await rows.count()) === 0) {
+        skip('  a hintuan row picks it, priced from the start, the map dark that far', 'no hintuan on this direction yet')
+      } else {
+        const fold = cardEl.locator('button[data-testid="trip-fold"]')
+        if ((await fold.count()) > 0) {
+          await fold.first().click()
+          await page.waitForTimeout(450)
+        }
+        const row = rows.nth(Math.floor(((await rows.count()) - 1) / 2))
+        const rowId = await row.getAttribute('data-hintuan')
+        const want = await page.evaluate(async ([id, rowId]) => {
+          try {
+            const [{ rideFare }, { rideCut }] = await Promise.all([import('/src/shared/fares.ts'), import('/src/shared/routes.ts')])
+            const m = await fetch('/data/map.json', { headers: { 'x-parapo-test': 'sums' } }).then((r) => r.json())
+            const v = m.variants.find((x) => x.id === id)
+            const cut = v && rideCut(v, m.stops, rowId)
+            return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, at: cut.at, rest: cut.rest.length } : null
+          } catch {
+            return null
+          }
+        }, [litId, rowId])
+        const tilesBefore = await cardEl.locator('dl').innerText()
+        const pick = row.locator('button[data-testid="trip-hintuan-pick"]')
+        await pick.scrollIntoViewIfNeeded()
+        await pick.click()
+        await page.waitForTimeout(250)
+        await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+        const pill = (await row.locator('[data-testid="trip-hintuan-fare"]').count()) ? (await row.locator('[data-testid="trip-hintuan-fare"]').innerText()).trim() : null
+        const seen = await page.evaluate(async (at) => {
+          const m = window.__map
+          const fs = (await window.__src('ride-rest'))?.features ?? []
+          const c = m.getCanvas().getBoundingClientRect()
+          const d = document.querySelector('[data-testid="card"]').getBoundingClientRect()
+          const q = at && m.project(at)
+          return {
+            lit: (await window.__lit('saved-routes')) ?? [],
+            rest: fs.length === 1 ? fs[0].geometry.coordinates.length : 0,
+            line: m.getLayer('ride-rest-line') ? m.getPaintProperty('ride-rest-line', 'line-color') : null,
+            dots: document.querySelectorAll('[data-testid="ride-dot"]').length,
+            x: q ? c.left + q.x : null, y: q ? c.top + q.y : null, cardRight: d.right, top: c.top, bottom: c.bottom, right: c.right,
+            padding: Object.values(m.getPadding()).every((v) => v === 0),
+          }
+        }, want?.at ?? null)
+        check(
+          '  a hintuan row picks it: Selected, its pill the pesos from the start to there',
+          (await row.getAttribute('data-state')) === 'selected' && (!want || pill === want.fare),
+          `"${pill}"${want ? `, the sums "${want.fare}"` : ''}`,
+        )
+        check('  the tiles keep the whole ride', (await cardEl.locator('dl').innerText()) === tilesBefore)
+        check(
+          '  the map dark only that far: the trip still lit, the way past at rest over it, no get-off circles',
+          seen.lit.length === 1 && seen.lit[0] === litId && seen.rest > 1 && (!want || seen.rest === want.rest) &&
+            (MAP ? seen.line === MAP['Map/RouteLine/surface-default'] : !!seen.line) && seen.dots === 0,
+          `${seen.lit.length} lit; ${seen.rest} point(s) at rest in ${seen.line}; ${seen.dots} circle(s)`,
+        )
+        if (want) {
+          check(
+            '  the camera glides it right of the card in the corner, no padding left',
+            seen.x > seen.cardRight + 24 && seen.x < seen.right - 16 && seen.y > seen.top + 16 && seen.y < seen.bottom - 16 && seen.padding,
+            `at ${Math.round(seen.x)},${Math.round(seen.y)}; the card's right edge ${Math.round(seen.cardRight)}`,
+          )
+        }
+        await pick.click()
+        await page.waitForTimeout(250)
+        const letGo = await page.evaluate(async () => ((await window.__src('ride-rest'))?.features ?? []).length)
+        check('  a second tap lets it go', (await row.getAttribute('data-state')) === 'rest' && letGo === 0, `${letGo} at rest`)
+        // Picked again, for ✕ to let go.
+        await pick.click()
+        await page.waitForTimeout(250)
+      }
       await closeCard()
       await page.waitForTimeout(300)
       const after = (await page.evaluate(() => window.__lit('saved-routes'))) ?? []
       check('  closing the card lights nothing again', after.length === 0, JSON.stringify(after))
+      const restAfter = await page.evaluate(async () => ((await window.__src('ride-rest'))?.features ?? []).length)
+      check('  and lets a picked hintuan go', restAfter === 0, `${restAfter} at rest`)
     }
   }
 }

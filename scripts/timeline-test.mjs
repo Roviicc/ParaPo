@@ -141,6 +141,36 @@ test('a place the line never passes: null', () => {
   assert.equal(rideCut(vr(LINE), [...RIDE_STOPS.slice(0, 2), mini('off', 0.015, 'Elsewhere')], 'near'), null)
 })
 
+// The public map's trip card picks a hintuan by its row (the owner's
+// Timeline State=Selected, 2026-09-29). Its rows come from the published
+// links, the cut from the line's geometry: every row must cut, each further
+// along than the one before it, and short of the whole ride — so a pill
+// never prices more than the Expected fare tile.
+import { routeTimeline } from '../src/shared/routes.ts'
+
+test('the committed map: every trip-card row cuts, forward, short of the whole', () => {
+  const m = JSON.parse(readFileSync('public/data/map.json', 'utf8'))
+  let rows = 0
+  for (const v of m.variants.filter((x) => x.shape?.coordinates?.length > 1)) {
+    const along = m.links
+      .filter((l) => l.route_variant_id === v.id)
+      .sort((a, b) => a.stop_sequence - b.stop_sequence)
+      .map((l) => m.stops.find((s) => s.id === l.stop_id))
+      .filter(Boolean)
+    const whole = lineLength(variantLine(v))
+    let last = 0
+    for (const row of routeTimeline(v, m.stops, along).between) {
+      const cut = rideCut(v, m.stops, row.id)
+      assert.ok(cut, `${v.direction_name}: ${row.label} does not cut`)
+      assert.ok(cut.metres > last, `${v.direction_name}: ${row.label} at ${Math.round(cut.metres)} m, not past ${Math.round(last)} m`)
+      assert.ok(cut.metres < whole, `${v.direction_name}: ${row.label} past the whole ride`)
+      last = cut.metres
+      rows++
+    }
+  }
+  assert.ok(rows > 0, 'no rows on the committed map')
+})
+
 // The routes a trip's ‹ lists when it was opened on its own (src/shared/routes.ts, sharingAnEnd).
 import { sharingAnEnd } from '../src/shared/routes.ts'
 

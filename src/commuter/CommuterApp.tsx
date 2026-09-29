@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Ref } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { HotspotCard } from '../shared/HotspotCard'
 import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from '../shared/mapFile'
@@ -9,6 +9,8 @@ import { lineLength } from '../shared/geo'
 import { liveriesFor, type Livery } from '../shared/liveries'
 import { RouteCardList } from '../shared/RouteCardList'
 import { RouteTripDetail } from '../shared/RouteTripDetail'
+import { clearOfDock } from '../shared/RouteDock'
+import { useRideTo } from '../shared/rideTo'
 import {
   directionEnds,
   isDrawn,
@@ -63,6 +65,14 @@ export default function CommuterApp() {
   useDirectionArrows(map, rides)
   // The chosen direction's side of each hintuan it cuts across: its right.
   useBabaanSides(map, saved.selected, stops.stops)
+  // A hintuan picked on the trip card: the ride drawn dark only that far,
+  // the camera gliding there clear of the card, and no get-off circles (the
+  // owner's Timeline State=Selected, 2026-09-29).
+  const tripDock = useRef<HTMLDivElement>(null)
+  const ride = useRideTo(map, saved.selected, stops.stops, {
+    dots: false,
+    offset: () => (map ? clearOfDock(map.getContainer(), tripDock.current) : [0, 0]),
+  })
 
   useShareLink(map, saved)
   // The visitor's own position, when they ask for it: a walking figure.
@@ -223,6 +233,10 @@ export default function CommuterApp() {
           onBackToList={backToList}
           onSwitch={(v) => saved.select(v.id, { keepList: true })}
           onClose={closeAll}
+          picked={ride.pickedId}
+          pickedMetres={ride.rideTo?.metres}
+          onPick={ride.pick}
+          dockRef={tripDock}
         />
       )}
 
@@ -388,8 +402,11 @@ function useShareLink(
  * it was picked from staying behind it, and the card keeps the colour it
  * opened in: turned round, it is still the same card (the owner, 2026-09-29).
  *
- * Share, the length, the mode, the status and the ride-to preview went with
- * the old card: the owner dropped them for now, to design later (2026-09-28).
+ * Share, the length, the mode and the status went with the old card: the
+ * owner dropped them for now, to design later (2026-09-28). The ride-to
+ * preview went too, and came back as his picked hintuan (2026-09-29): its
+ * pill prices the ride from the trip's start to there, as the tile prices
+ * the whole.
  * So did the old card's fare details — the students/seniors/PWDs price, the
  * fare rule line, the route's fare_note, the estimate's source line and the
  * "old ₱13" grace warning (fare.previous): his frames carry only the pesos,
@@ -407,6 +424,10 @@ function TripCard({
   onBackToList,
   onSwitch,
   onClose,
+  picked,
+  pickedMetres,
+  onPick,
+  dockRef,
 }: {
   variant: VariantSummary
   variants: readonly VariantSummary[]
@@ -415,6 +436,11 @@ function TripCard({
   onBackToList: (() => void) | null
   onSwitch: (sibling: VariantSummary) => void
   onClose: () => void
+  /** The hintuan picked on the timeline (useRideTo), and how far the ride to it runs, when its line reaches it. */
+  picked: string | null
+  pickedMetres: number | undefined
+  onPick: (id: string) => void
+  dockRef: Ref<HTMLDivElement>
 }) {
   const { from, to } = directionEnds(variant)
   // Decided as the card opens — its RouteCard's, in the list or a hotspot's
@@ -433,6 +459,10 @@ function TripCard({
       fare={rideFare(variant.route?.mode, metres)}
       routeOrigin={from}
       hintuans={timeline.between}
+      picked={picked}
+      pickedFare={pickedMetres === undefined ? undefined : rideFare(variant.route?.mode, pickedMetres)}
+      onPick={onPick}
+      dockRef={dockRef}
       routeDirection={to}
       switchable={switchable}
       back={variant.reversed}

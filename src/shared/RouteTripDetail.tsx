@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, type Ref } from 'react'
 import { kmLabel } from './geo'
 import type { Livery } from './liveries'
-import { BLOB_PLACE, CARD_BLOB, CARD_SHADOW, CARD_SURFACE, CARD_TEXT, TIMELINE_SURFACE } from './liveryCard'
+import { BLOB_PLACE, CARD_BLOB, CARD_SHADOW, CARD_SURFACE, CARD_TEXT, TIMELINE_PILL, TIMELINE_SURFACE } from './liveryCard'
 import { RouteCardHeader } from './RouteCardHeader'
 import { RouteDock } from './RouteDock'
 import { ChevronDownIcon, CircleArrowRightIcon } from './RouteIcons'
@@ -16,6 +16,12 @@ type Props = {
   routeOrigin: string
   /** Figma's TimelineHintuan rows: every hintuan on the way, in the order the jeep reaches them. */
   hintuans: readonly { id: string; label: string }[]
+  /** The hintuan picked, by its row's id — Figma's Timeline State=Selected — or null. */
+  picked: string | null
+  /** A hintuan's row was tapped: pick it, or, picked, let it go. */
+  onPick: (id: string) => void
+  /** The picked hintuan's pill: the pesos from where the trip leaves to it, `₱18–20`. Omitted when unpriced, and the pill with it. */
+  pickedFare?: string
   /** Figma's Route on TimelineBottomEndRoute: the place the trip goes to. */
   routeDirection: string
   /** SWITCH: the same route the other way. */
@@ -27,6 +33,8 @@ type Props = {
   /** ‹: back to what the trip was picked from — the list, a hotspot's card — or to its route with those sharing an end; null when there is none. */
   onBackToList: (() => void) | null
   onClose: () => void
+  /** The dock the card sits in, for the map to glide clear of it. */
+  dockRef?: Ref<HTMLDivElement>
 }
 
 /**
@@ -61,6 +69,13 @@ type Props = {
  * The rows are the owner's Timeline set (3716:1894) — TimelineStick for the
  * rail, TimelineDot for the stops — drawn in red there; each livery takes
  * its own Card/<livery>/Timeline/surface.
+ *
+ * A hintuan's row picks it (his Timeline State=Selected, 3769:2847,
+ * 2026-09-29): its dot turns green in a white ring, its name black-weight,
+ * and a pill beside it gives the pesos from where the trip leaves to there,
+ * while the map draws the ride dark only that far. Tapping it again lets it
+ * go; one at a time. The tiles keep the whole ride. Folded away, a picked
+ * row stays picked (the default he kept).
  */
 export function RouteTripDetail({
   livery,
@@ -68,12 +83,16 @@ export function RouteTripDetail({
   fare,
   routeOrigin,
   hintuans,
+  picked,
+  onPick,
+  pickedFare,
   routeDirection,
   onSwitch,
   switchable,
   back,
   onBackToList,
   onClose,
+  dockRef,
 }: Props) {
   const [open, setOpen] = useState(false)
   const folds = hintuans.length > 1
@@ -81,6 +100,7 @@ export function RouteTripDetail({
 
   return (
     <RouteDock
+      ref={dockRef}
       label={`${routeOrigin} → ${routeDirection}`}
       testId="card"
       onClose={onClose}
@@ -111,7 +131,17 @@ export function RouteTripDetail({
           <ol className="flex w-full flex-col">
             <TimelineTop rail={rail} routeOrigin={routeOrigin} />
             {hintuans.map((h, i) => (
-              <TimelineHintuan key={i + ':' + h.id} rail={rail} label={h.label} shown={!folds || open} />
+              <TimelineHintuan
+                key={i + ':' + h.id}
+                id={h.id}
+                rail={rail}
+                label={h.label}
+                shown={!folds || open}
+                selected={h.id === picked}
+                fare={h.id === picked ? pickedFare : undefined}
+                pill={TIMELINE_PILL[livery]}
+                onPick={onPick}
+              />
             ))}
             {folds && (
               <TimelineDisclosure rail={rail} open={open} count={hintuans.length} onToggle={() => setOpen((o) => !o)} />
@@ -149,9 +179,17 @@ function Tile({ testId, label, value }: { testId: 'trip-km' | 'trip-fare'; label
 /**
  * Figma's TimelineDot: Content/inverse ringed in the rail's colour. It sits
  * 2px into the rail after it, as the TimelineStick's -2px gap lays them.
+ * Selected, the white grows and the ring thins to 2px round it, with a
+ * Content/success centre: 24 across either way, so nothing moves.
  */
-function TimelineDot({ rail }: { rail: string }) {
-  return (
+function TimelineDot({ rail, selected = false }: { rail: string; selected?: boolean }) {
+  return selected ? (
+    <span className={'-mb-0.5 flex shrink-0 rounded-full p-0.5 ' + rail}>
+      <span className="grid size-5 place-items-center rounded-full bg-content-inverse">
+        <span className="size-3.5 rounded-full bg-content-success" />
+      </span>
+    </span>
+  ) : (
     <span className={'-mb-0.5 flex shrink-0 rounded-full p-1.5 ' + rail}>
       <span className="size-3 rounded-full bg-content-inverse" />
     </span>
@@ -185,11 +223,36 @@ function TimelineTop({ rail, routeOrigin }: { rail: string; routeOrigin: string 
 const ROW_SHOWN = 'visible grid-rows-[1fr] duration-gentle ease-enter'
 const ROW_FOLDED = 'invisible grid-rows-[0fr] duration-base ease-exit'
 
-/** Figma's TimelineHintuan: a hintuan on the way, its dot on the rail. */
-function TimelineHintuan({ rail, label, shown }: { rail: string; label: string; shown: boolean }) {
+/**
+ * Figma's TimelineHintuan: a hintuan on the way, its dot on the rail; the
+ * whole row is its button. Selected (State=Selected), its name is Black and
+ * the pill with its pesos sits 8 after it, 16 in from the card's edge.
+ */
+function TimelineHintuan({
+  id,
+  rail,
+  label,
+  shown,
+  selected,
+  fare,
+  pill,
+  onPick,
+}: {
+  id: string
+  rail: string
+  label: string
+  shown: boolean
+  selected: boolean
+  fare: string | undefined
+  /** TIMELINE_PILL's classes for the card's livery. */
+  pill: string
+  onPick: (id: string) => void
+}) {
   return (
     <li
       data-testid="trip-hintuan"
+      data-hintuan={id}
+      data-state={selected ? 'selected' : 'rest'}
       className={
         'grid transition-[grid-template-rows,visibility] motion-reduce:transition-none ' +
         (shown ? ROW_SHOWN : ROW_FOLDED)
@@ -197,14 +260,30 @@ function TimelineHintuan({ rail, label, shown }: { rail: string; label: string; 
     >
       {/* Clipped, not squeezed: the row keeps its height inside, and shows from the top. */}
       <div className="min-h-0 overflow-hidden">
-        <div className="flex w-full items-start pl-4">
+        <button
+          type="button"
+          data-testid="trip-hintuan-pick"
+          aria-pressed={selected}
+          onClick={() => onPick(id)}
+          className="flex w-full items-start px-4 text-left"
+        >
           <span aria-hidden className={STICK}>
             <span className={'-mb-0.5 min-h-px w-2 flex-1 ' + rail} />
-            <TimelineDot rail={rail} />
+            <TimelineDot rail={rail} selected={selected} />
             <span className={'min-h-px w-2 flex-1 ' + rail} />
           </span>
-          <p className="min-w-0 flex-1 py-2.5 pl-3 text-base/6 font-medium">{label}</p>
-        </div>
+          <span className="flex min-w-0 flex-1 items-center gap-2 py-2.5 pl-3">
+            <span className={'min-w-0 flex-1 text-base/6 ' + (selected ? 'font-black' : 'font-medium')}>{label}</span>
+            {fare && (
+              <span
+                data-testid="trip-hintuan-fare"
+                className={'shrink-0 rounded-full px-1.5 py-0.5 text-sm/5 font-medium whitespace-nowrap ' + pill}
+              >
+                {fare}
+              </span>
+            )}
+          </span>
+        </button>
       </div>
     </li>
   )
