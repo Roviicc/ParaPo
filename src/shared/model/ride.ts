@@ -1,6 +1,8 @@
 import { haversine, lineLength, type LngLat } from '../geo/geo'
 import { passStretches } from '../geo/pass'
-import { placeKey, stopRing, timelineFor, type StopSummary, type Timeline } from './stops'
+import { placeKey } from './places'
+import { stopRing, type StopSummary } from './stops'
+import { timelineFor, type Timeline } from './timeline'
 import { variantLine, type VariantSummary } from './routes'
 
 /*

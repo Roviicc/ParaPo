@@ -5,7 +5,8 @@ import { RouteCardStack, type PickedPlace } from './RouteCardStack'
 import { departures, drawnDepartures } from '../model/departures'
 import type { VariantSummary } from '../model/routes'
 import { Sheet } from './Sheet'
-import { placeSummary, siblingsOf, stopLabel, type StopSummary } from '../model/stops'
+import { placeSummary, siblingsOf } from '../model/places'
+import { stopLabel, type StopSummary } from '../model/stops'
 import { SwitchIcon } from './SwitchIcon'
 
 type Props = {

@@ -4,7 +4,8 @@ import { RouteCardStack, type PickedPlace } from './RouteCardStack'
 import { RouteDock } from './RouteDock'
 import { drawnDepartures } from '../model/departures'
 import type { VariantSummary } from '../model/routes'
-import { hotspotCount, stopLabel, type StopSummary } from '../model/stops'
+import { hotspotCount } from '../model/places'
+import { stopLabel, type StopSummary } from '../model/stops'
 
 type Props = {
   /** Every direction of every route under the tap, slots included, as the hooks hand them over. */

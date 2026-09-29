@@ -5,7 +5,8 @@ import { rightOfLine } from './rightOfLine'
 import { ringToPolygon } from './ring'
 import { travelLine } from '../model/ride'
 import type { VariantSummary } from '../model/routes'
-import { hintuansAlong, stopRing, type StopSummary } from '../model/stops'
+import { hintuansAlong } from '../model/timeline'
+import { stopRing, type StopSummary } from '../model/stops'
 import { LAYERS, useLayerReady } from '../map/layers'
 
 /**

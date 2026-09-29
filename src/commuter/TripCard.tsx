@@ -5,7 +5,7 @@ import { rideFare } from '../shared/model/fares'
 import { liveriesFor, type Livery } from '../shared/model/liveries'
 import { directionEnds, isDrawn, variantLine, type VariantSummary } from '../shared/model/routes'
 import { otherDirection } from '../shared/model/departures'
-import type { Timeline } from '../shared/model/stops'
+import type { Timeline } from '../shared/model/timeline'
 
 /**
  * The trip's colour, one owner for it (the review's 6.6): decided as the trip

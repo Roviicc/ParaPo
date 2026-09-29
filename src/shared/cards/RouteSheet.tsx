@@ -5,7 +5,7 @@ import { MODES, routeName, variantLine, type VariantSummary } from '../model/rou
 import { Sheet } from './Sheet'
 import { StopTimeline, passesThrough } from './StopTimeline'
 import { SwitchIcon } from './SwitchIcon'
-import type { Timeline } from '../model/stops'
+import type { Timeline } from '../model/timeline'
 
 type Props = {
   variant: VariantSummary

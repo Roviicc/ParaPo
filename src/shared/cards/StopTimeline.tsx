@@ -1,4 +1,4 @@
-import type { Timeline, TimelineStop } from '../model/stops'
+import type { Timeline, TimelineStop } from '../model/timeline'
 
 /**
  * A direction as a line of stops, the way a train app shows a line: where it
