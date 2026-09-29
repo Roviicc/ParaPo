@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { HotspotCard } from '../shared/cards/HotspotCard'
 import { MAP_FILE_TOO_NEW, loadLine, loadStopsFromFile, loadVariantsFromFile } from './mapFile'
-import { useNeedRefresh } from './pwa'
+import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
 import { METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
 import type { Livery } from '../shared/model/liveries'
 import { RouteCardList } from '../shared/cards/RouteCardList'
@@ -159,9 +159,11 @@ export default function CommuterApp() {
           void saved.reload()
           void stops.reload()
         }}
+        onReloadNewer={() => void reloadForNewerApp()}
         offline={offline}
         age={age}
         needRefresh={needRefresh}
+        onUpdate={reloadToUpdate}
       />
 
       {saved.selected && tripLivery && (
