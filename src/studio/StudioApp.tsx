@@ -410,6 +410,7 @@ function Workshop({
       )}
       {!draw.drawing && !saved.selected && stops.selected && (
         <HotspotCard
+          key={stops.selected.id}
           stop={stops.selected}
           linkedVariantIds={stops.linkedVariantIds(stops.selected.id)}
           variants={saved.variants}

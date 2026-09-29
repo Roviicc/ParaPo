@@ -273,7 +273,10 @@ export default function CommuterApp() {
         `card` is then the trip while this one hides behind it.
       */}
       {stops.selected && (
+        // Keyed by the hotspot: "Part of …" → a sibling once reused this card
+        // as it was, flipped and pulled up.
         <HotspotCard
+          key={stops.selected.id}
           routeCards={{
             selected: saved.highlight?.where === 'hotspot' ? saved.highlight.from : null,
             onSelect: (p) => saved.highlightCard(p && { where: 'hotspot', ...p }),
