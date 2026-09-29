@@ -32,6 +32,7 @@ import { HotspotPanel } from './panels/HotspotPanel'
 import { ResetPassword } from './auth/ResetPassword'
 import { SavePanel } from './panels/SavePanel'
 import { SignIn } from './auth/SignIn'
+import { Toast } from './panels/Toast'
 import { deleteVariant } from './data/routesWrite'
 import { deleteStop } from './data/stopsWrite'
 import { skipSignInForTests } from './auth/testBypass'
@@ -95,9 +96,12 @@ function Workshop({
   const [changingPassword, setChangingPassword] = useState(false)
   const [saving, setSaving] = useState(false)
   const [hotspotMenu, setHotspotMenu] = useState(false)
-  const [justSaved, setJustSaved] = useState<VariantRow | null>(null)
-  const [justSavedStop, setJustSavedStop] = useState<StopRow | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  // One toast at a time, the newest: a save's, or a problem.
+  const [toast, setToast] = useState<
+    { kind: 'route'; v: VariantRow } | { kind: 'stop'; s: StopRow } | { kind: 'notice'; text: string } | null
+  >(null)
+  const setNotice = (text: string | null) => setToast(text === null ? null : { kind: 'notice', text })
+  const justSaved = toast?.kind === 'route' ? toast.v : null
 
   // A right-click on a saved line while drawing: decided below, once the
   // saved lines and hotspots are loaded (onFollow).
@@ -265,7 +269,7 @@ function Workshop({
     void saved.reload()
     // A moved line may have entered or left a hintuan; its links were re-synced.
     void stops.reload()
-    setJustSaved(v)
+    setToast({ kind: 'route', v })
   }
 
   const onSavedStop = (s: StopRow) => {
@@ -276,7 +280,7 @@ function Workshop({
     // their ends when they load, so a renamed end left every card, the list
     // and the pill on the old name until the next route save (finding 8).
     void saved.reload()
-    setJustSavedStop(s)
+    setToast({ kind: 'stop', s })
   }
 
   const onDeleteStop = async (s: StopRow) => {
@@ -488,69 +492,40 @@ function Workshop({
         </div>
       )}
 
-      {justSavedStop && !draw.drawing && (
-        <div
-          className="absolute bottom-24 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-full
-                     bg-neutral-900 px-4 py-2 text-sm text-white shadow-lg"
-        >
-          <span>
-            Saved {justSavedStop.kind === 'terminal' ? 'terminal' : 'hintuan'}{' '}
-            <strong>{stopLabel(justSavedStop)}</strong>
-          </span>
-          <button
-            type="button"
-            onClick={() => setJustSavedStop(null)}
-            aria-label="Dismiss"
-            className="text-neutral-400 hover:text-white"
-          >
-            ✕
-          </button>
-        </div>
+      {toast?.kind === 'stop' && !draw.drawing && (
+        <Toast onDismiss={() => setToast(null)}>
+          Saved {toast.s.kind === 'terminal' ? 'terminal' : 'hintuan'} <strong>{stopLabel(toast.s)}</strong>
+        </Toast>
       )}
 
       {/* After a save, the other direction is almost always next — while there is one to draw. */}
-      {justSaved && !draw.drawing && (
-        <div
-          className="absolute bottom-24 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-full
-                     bg-neutral-900 px-4 py-2 text-sm text-white shadow-lg"
+      {toast?.kind === 'route' && !draw.drawing && (
+        <Toast
+          onDismiss={() => setToast(null)}
+          action={
+            slotLeft && (
+              <button
+                type="button"
+                onClick={() => {
+                  const routeId = toast.v.route_id
+                  setToast(null)
+                  draw.start(routeId)
+                }}
+                className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900"
+              >
+                Draw the return trip
+              </button>
+            )
+          }
         >
-          <span>
-            Saved <strong>{justSaved.route?.name}</strong> · {justSaved.direction_name}
-          </span>
-          {slotLeft && (
-            <button
-              type="button"
-              onClick={() => {
-                const routeId = justSaved.route_id
-                setJustSaved(null)
-                draw.start(routeId)
-              }}
-              className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900"
-            >
-              Draw the return trip
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setJustSaved(null)}
-            aria-label="Dismiss"
-            className="text-neutral-400 hover:text-white"
-          >
-            ✕
-          </button>
-        </div>
+          Saved <strong>{toast.v.route?.name}</strong> · {toast.v.direction_name}
+        </Toast>
       )}
 
-      {notice && (
-        <div
-          className="absolute bottom-24 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-full
-                     bg-red-600 px-4 py-2 text-sm text-white shadow-lg"
-        >
-          <span>{notice}</span>
-          <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss">
-            ✕
-          </button>
-        </div>
+      {toast?.kind === 'notice' && (
+        <Toast tone="alert" onDismiss={() => setToast(null)}>
+          {toast.text}
+        </Toast>
       )}
 
       {draw.drawing ? (
