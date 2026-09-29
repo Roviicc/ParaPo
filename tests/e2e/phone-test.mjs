@@ -344,15 +344,23 @@ check('no horizontal scroll at load', await noHScroll(page), `scrollWidth ${awai
 const snapshot = await page.evaluate(async () => {
   const routesFC = await window.__src('saved-routes')
   const stopsFC = await window.__src('saved-stops')
+  // Each direction's full line, as the page reads it for a lit direction
+  // (mapFile.ts): the source holds overviews until then, and where two routes
+  // share a road is found on the lines themselves, as before the index.
+  const { loadLine } = await import('/src/commuter/mapFile.ts')
+  const routes = []
+  for (const f of routesFC?.features ?? []) {
+    if (f.geometry.type !== 'LineString' || f.geometry.coordinates.length < 2) continue
+    const full = await loadLine(f.properties.id).catch(() => null)
+    routes.push({
+      id: f.properties.id,
+      routeId: f.properties.route_id,
+      signboard: f.properties.name ?? '',
+      coords: full?.coordinates ?? f.geometry.coordinates,
+    })
+  }
   return {
-    routes: (routesFC?.features ?? [])
-      .filter((f) => f.geometry.type === 'LineString' && f.geometry.coordinates.length > 1)
-      .map((f) => ({
-        id: f.properties.id,
-        routeId: f.properties.route_id,
-        signboard: f.properties.name ?? '',
-        coords: f.geometry.coordinates,
-      })),
+    routes,
     polys: (stopsFC?.features ?? [])
       .filter((f) => f.geometry.type === 'Polygon')
       .map((f) => ({
