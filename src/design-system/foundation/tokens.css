@@ -1,0 +1,241 @@
+/*
+ * The design tokens, mirroring the Figma file's variables ("Para Po" →
+ * Primitive and Semantics collections). One place, as PLAN.md's design
+ * foundation asks. Tailwind v4 already ships every primitive the Figma file
+ * copied from it (gray/slate/neutral/stone, the hues, spacing, radius, type
+ * scale — the hex values match v4 exactly), so only what is OURS lives here:
+ *
+ *  1. Custom primitives — colour families Figma has that Tailwind lacks.
+ *  2. Semantics — the meanings, each an alias of a primitive, exactly the
+ *     aliases the Figma Semantics collection holds. They resolve through
+ *     :root custom properties so a dark mode later is one more block
+ *     redefining them (the same one-column job as a new Figma mode), and
+ *     `@theme inline` turns each into utilities: text-content-primary,
+ *     bg-surface, border-border-primary, bg-card-red-surface…
+ *
+ * The map's own working colours (route blue #406AF5, pass orange…) are NOT
+ * here yet: the owner is still choosing their naming (2026-09-28).
+ */
+
+@theme {
+  /* Primitive: between neutral-100 and neutral-200; Figma's color/neutral/150. */
+  --color-neutral-150: #f0f0f0;
+
+  /* Primitive: the desaturated families Figma adds beside Tailwind's. */
+  --color-mauve-50: #fafafa;
+  --color-mauve-100: #f3f1f3;
+  --color-mauve-200: #e7e4e7;
+  --color-mauve-300: #d7d0d7;
+  --color-mauve-400: #a89ea9;
+  --color-mauve-500: #79697b;
+  --color-mauve-600: #594c5b;
+  --color-mauve-700: #463947;
+  --color-mauve-800: #2a212c;
+  --color-mauve-900: #1d161e;
+  --color-mauve-950: #0c090c;
+
+  --color-olive-50: #fbfbf9;
+  --color-olive-100: #f4f4f0;
+  --color-olive-200: #e8e8e3;
+  --color-olive-300: #d8d8d0;
+  --color-olive-400: #abab9c;
+  --color-olive-500: #7c7c67;
+  --color-olive-600: #5b5b4b;
+  --color-olive-700: #474739;
+  --color-olive-800: #2b2b22;
+  --color-olive-900: #1d1d16;
+  --color-olive-950: #0c0c09;
+
+  --color-mist-50: #f9fbfb;
+  --color-mist-100: #f1f3f3;
+  --color-mist-200: #e3e7e8;
+  --color-mist-300: #d0d6d8;
+  --color-mist-400: #9ca8ab;
+  --color-mist-500: #67787c;
+  --color-mist-600: #4b585b;
+  --color-mist-700: #394447;
+  --color-mist-800: #22292b;
+  --color-mist-900: #161b1d;
+  --color-mist-950: #090b0c;
+
+  --color-taupe-50: #fbfaf9;
+  --color-taupe-100: #f3f1f1;
+  --color-taupe-200: #e8e4e3;
+  --color-taupe-300: #d8d2d0;
+  --color-taupe-400: #aba09c;
+  --color-taupe-500: #7c6d67;
+  --color-taupe-600: #5b4f4b;
+  --color-taupe-700: #473c39;
+  --color-taupe-800: #2b2422;
+  --color-taupe-900: #1d1816;
+  --color-taupe-950: #0c0a09;
+}
+
+/*
+ * Semantics, Light mode — the values of the Figma Semantics collection.
+ * A dark mode later redefines exactly these properties in its own block.
+ */
+:root {
+  /* Content — what is written. Figma: Content/… */
+  --content-primary: var(--color-neutral-900);
+  --content-secondary: var(--color-neutral-800);
+  --content-tertiary: var(--color-neutral-700);
+  --content-quaternary: var(--color-neutral-600);
+  --content-disabled: var(--color-neutral-500);
+  --content-inverse: var(--color-white);
+  --content-inverse-secondary: var(--color-neutral-200);
+  --content-error: var(--color-red-700);
+  --content-success: var(--color-green-700);
+
+  /* Border. Figma: Border/… */
+  --border-primary: var(--color-neutral-200);
+  --border-secondary: var(--color-neutral-300);
+  --border-tertiary: var(--color-neutral-400);
+  --border-error: var(--color-red-700);
+
+  /* Background. Figma: Background/… */
+  --surface: var(--color-white);
+  --surface-secondary: var(--color-neutral-100);
+  --surface-tertiary: var(--color-neutral-150);
+  --surface-quaternary: var(--color-neutral-200);
+  --surface-error: var(--color-red-100);
+  --surface-success: var(--color-green-100);
+
+  /* The jeepney-livery cards. Figma: Card/… */
+  --card-red-surface: var(--color-red-800);
+  --card-red-surface-pale: var(--color-red-700);
+  --card-red-border-primary: var(--color-red-900);
+  --card-red-timeline-surface: var(--color-red-900);
+  --card-orange-surface: var(--color-orange-700);
+  --card-orange-border-primary: var(--color-orange-800);
+  --card-orange-timeline-surface: var(--color-orange-900);
+  --card-mist-surface: var(--color-mist-300);
+  --card-mist-border-primary: var(--color-mist-400);
+  --card-mist-timeline-surface: var(--color-mist-400);
+  --card-yellow-surface: var(--color-yellow-300);
+  --card-yellow-border-primary: var(--color-yellow-500);
+  --card-yellow-timeline-surface: var(--color-yellow-500);
+
+  /* Error actions — the destructive button. Figma: Error/… (2026-09-28,
+     added for the Button so its fill stopped being the one primitive). */
+  --error-surface: var(--color-red-700);
+  --error-surface-secondary: var(--color-red-800);
+
+  /* Brand. Figma: Brand/… */
+  --brand-surface: var(--color-blue-700);
+  --brand-surface-secondary: var(--color-blue-800);
+  --brand-border: var(--color-blue-800);
+
+  /* One component's own colour. Figma: Components/… (the Tooltip, 2026-09-28). */
+  --components-tooltip-surface: var(--color-neutral-900);
+}
+
+/* The semantics as utilities: text-content-primary, bg-surface, border-border-primary… */
+@theme inline {
+  --color-content-primary: var(--content-primary);
+  --color-content-secondary: var(--content-secondary);
+  --color-content-tertiary: var(--content-tertiary);
+  --color-content-quaternary: var(--content-quaternary);
+  --color-content-disabled: var(--content-disabled);
+  --color-content-inverse: var(--content-inverse);
+  --color-content-inverse-secondary: var(--content-inverse-secondary);
+  --color-content-error: var(--content-error);
+  --color-content-success: var(--content-success);
+
+  --color-border-primary: var(--border-primary);
+  --color-border-secondary: var(--border-secondary);
+  --color-border-tertiary: var(--border-tertiary);
+  --color-border-error: var(--border-error);
+
+  --color-surface: var(--surface);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-surface-tertiary: var(--surface-tertiary);
+  --color-surface-quaternary: var(--surface-quaternary);
+  --color-surface-error: var(--surface-error);
+  --color-surface-success: var(--surface-success);
+
+  --color-card-red-surface: var(--card-red-surface);
+  --color-card-red-surface-pale: var(--card-red-surface-pale);
+  --color-card-red-border-primary: var(--card-red-border-primary);
+  --color-card-red-timeline-surface: var(--card-red-timeline-surface);
+  --color-card-orange-surface: var(--card-orange-surface);
+  --color-card-orange-border-primary: var(--card-orange-border-primary);
+  --color-card-orange-timeline-surface: var(--card-orange-timeline-surface);
+  --color-card-mist-surface: var(--card-mist-surface);
+  --color-card-mist-border-primary: var(--card-mist-border-primary);
+  --color-card-mist-timeline-surface: var(--card-mist-timeline-surface);
+  --color-card-yellow-surface: var(--card-yellow-surface);
+  --color-card-yellow-border-primary: var(--card-yellow-border-primary);
+  --color-card-yellow-timeline-surface: var(--card-yellow-timeline-surface);
+
+  --color-error-surface: var(--error-surface);
+  --color-error-surface-secondary: var(--error-surface-secondary);
+
+  --color-brand-surface: var(--brand-surface);
+  --color-brand-surface-secondary: var(--brand-surface-secondary);
+  --color-brand-border: var(--brand-border);
+
+  --color-components-tooltip-surface: var(--components-tooltip-surface);
+}
+
+/*
+ * Motion. Figma: the Motion collection (drafted with the owner and passed
+ * "good" on 2026-09-28; the Motion page there plays each one). Tailwind
+ * turns these namespaces into duration-quick, delay-tooltip, ease-enter.
+ * Every transition takes one duration and one ease from here, nothing in
+ * between; an exit runs about two thirds of its enter (tooltip: base in,
+ * quick out). Animate opacity and transform only — save a fold, which has
+ * to push what is below it down: the trip card's hintuans open and close
+ * their height (RouteTripDetail; the owner allowed it, 2026-09-29).
+ */
+@theme {
+  --transition-duration-instant: 100ms; /* press */
+  --transition-duration-quick: 150ms; /* hover, colour, shadow */
+  --transition-duration-base: 200ms; /* tooltips, small things appearing */
+  --transition-duration-gentle: 300ms; /* cards, panels, sheets */
+  --transition-duration-slow: 450ms; /* big moves, full screen */
+
+  --transition-delay-tooltip: 800ms; /* hover before a tooltip shows */
+
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1); /* arriving: fast start, soft landing */
+  --ease-exit: cubic-bezier(0.55, 0, 1, 0.45); /* leaving: gentle start, clean finish */
+  --ease-move: cubic-bezier(0.65, 0, 0.35, 1); /* already on screen, changing place */
+}
+
+/*
+ * Shadows. Figma keeps these as effect styles, not variables (2026-09-28);
+ * each is named here by its style's own name — PrimaryButton/PrimaryButtonRest
+ * → shadow-primary-button-rest — so the Figma panel and the class read the
+ * same. Layers are listed in Figma's CSS order (its effects array, reversed).
+ * Special's edge is an inset hairline in Border/secondary, not a stroke, so
+ * it follows the semantic. `inline` so that var() resolves where it is used.
+ */
+@theme inline {
+  --shadow-special-button-rest:
+    inset 0 0.4px 0 0 var(--border-secondary), 0 2px 8px 0 rgb(0 0 0 / 0.08),
+    inset 0 3px 3px 0 rgb(255 255 255 / 0.8), inset 0 -1px 1px 0 rgb(0 0 0 / 0.32);
+  --shadow-special-button-hover:
+    inset 0 0.4px 0 0 var(--border-secondary), 0 2px 8px 0 rgb(0 0 0 / 0.08),
+    inset 0 16px 11.3px 0 rgb(217 217 217 / 0.72), inset 0 -1px 1px 0 rgb(0 0 0 / 0.32);
+  --shadow-special-button-pressed:
+    0 2px 8px 0 rgb(0 0 0 / 0.08), inset 1.5px 3px 2px 0 rgb(0 0 0 / 0.43),
+    inset 0 -0.6px 0 0 rgb(0 0 0 / 0.08);
+
+  --shadow-primary-button-rest:
+    inset 0 -1px 2px 0 rgb(0 0 0 / 0.4), inset 0 2px 3px 0 rgb(255 255 255 / 0.32),
+    inset 0 -0.6px 0 0 rgb(0 0 0 / 0.4), inset 0.6px 0 0 0 rgb(0 0 0 / 0.4),
+    inset -0.6px 0 0 0 rgb(0 0 0 / 0.4), inset 0 0.6px 0 0 rgb(0 0 0 / 0.4);
+  --shadow-primary-button-hover:
+    inset 0 -1px 2px 0 rgb(0 0 0 / 0.4), inset 0 11px 10.3px 0 rgb(255 255 255 / 0.36),
+    inset 0 -0.6px 0 0 rgb(0 0 0 / 0.32), inset 0.6px 0 0 0 rgb(0 0 0 / 0.32),
+    inset -0.6px 0 0 0 rgb(0 0 0 / 0.32), inset 0 0.6px 0 0 rgb(0 0 0 / 0.32);
+  --shadow-primary-button-pressed:
+    inset -1px -1px 0 0 rgb(11 11 11 / 0.32), inset 1.5px 3px 2px 0 rgb(0 0 0 / 0.5),
+    inset 0 -0.6px 0 0 rgb(0 0 0 / 0.24), inset 0.6px 0 0 0 rgb(0 0 0 / 0.24),
+    inset -0.6px 0 0 0 rgb(0 0 0 / 0.24), inset 0 0.6px 0 0 rgb(0 0 0 / 0.24);
+
+  --shadow-route-card-primary:
+    inset 0 3px 2px 0 rgb(255 255 255 / 0.28), inset 0 -3px 4px 0 rgb(0 0 0 / 0.28);
+  --shadow-route-card-inverse:
+    inset 0 3px 2px 0 rgb(255 255 255 / 0.4), inset 0 -3px 3px 0 rgb(0 0 0 / 0.2);
+}

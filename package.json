@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "node scripts/check-boundaries.mjs && tsc --noEmit && vite build && node scripts/check-build.mjs",
     "check": "npm run build && npm run test:unit",
-    "test:unit": "npm run test:reader && npm run test:mapfile && npm run test:pass && npm run test:index && npm run test:data && npm run test:precision && npm run test:babaan && npm run test:fares && npm run test:timeline",
+    "test:unit": "npm run test:reader && npm run test:mapfile && npm run test:pass && npm run test:index && npm run test:data && npm run test:precision && npm run test:babaan && npm run test:fares && npm run test:timeline && npm run test:liveries",
     "test:timeline": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/timeline-test.mjs",
     "test:fares": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/fares-test.mjs",
     "test:reader": "node --experimental-strip-types scripts/read-all-test.mjs",
@@ -20,7 +20,8 @@
     "build-storybook": "storybook build",
     "test:precision": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/precision-test.mjs",
     "test:babaan": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/babaan-side-test.mjs",
-    "test:index": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/pass-index-test.mjs"
+    "test:index": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/pass-index-test.mjs",
+    "test:liveries": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/liveries-test.mjs"
   },
   "repository": {
     "type": "git",

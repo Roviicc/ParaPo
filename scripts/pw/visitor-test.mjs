@@ -7,8 +7,7 @@
 //   node scripts/pw/visitor-test.mjs
 //
 // Everything asserted here is read from the map itself first — source
-// features, layer order, the summary pill's own text — and only then
-// checked for internal consistency. Nothing is hard-coded about which or
+// features, layer order — and only then checked for internal consistency. Nothing is hard-coded about which or
 // how many routes/hotspots exist, what they are named, or which vertex
 // lands where; a check that needs a shape the data doesn't happen to have
 // today (e.g. a route line passing through a hotspot) SKIPs instead of
@@ -96,15 +95,6 @@ const findVertexOutsideHotspots = (routes, polys) => {
   }
   return null
 }
-const parsePill = (text) => {
-  if (!text) return null
-  const both = text.match(/^(\d+) routes? · (\d+) hotspots?$/)
-  if (both) return { routes: Number(both[1]), hotspots: Number(both[2]) }
-  const routeOnly = text.match(/^(\d+) routes?$/)
-  if (routeOnly) return { routes: Number(routeOnly[1]), hotspots: 0 }
-  return null
-}
-
 const b = await chromium.launch()
 const page = await b.newPage({ viewport: { width: 1280, height: 800 } })
 // PARAPO_NODE_FETCH=1: serve every https request through Node fetch. Needed only
@@ -152,7 +142,8 @@ const cardKind = async () => {
   if ((await el.count()) === 0) return { kind: 'none', text: '' }
   const text = await el.first().innerText()
   if (text.includes('Routes that')) return { kind: 'hotspot', text }
-  if (/drawn, not yet ridden|verified by riding/.test(text)) return { kind: 'route', text }
+  // A route's card is the owner's trip card since 2026-09-29: its rail of stops.
+  if ((await el.first().locator('[data-testid="trip"]').count()) > 0) return { kind: 'route', text }
   return { kind: 'unknown', text }
 }
 
@@ -183,6 +174,13 @@ check('no Done button', (await page.getByRole('button', { name: 'Done' }).count(
 check('no "Sign in" text or button', (await page.getByText('Sign in').count()) === 0)
 check('no "Sign out" text or button', (await page.getByText('Sign out').count()) === 0)
 check('no "Password" text or button', (await page.getByText('Password').count()) === 0)
+// Nor anything the owner found annoying for users (2026-09-29): no count of
+// routes and hotspots in a corner, no +, − or compass.
+check('no count pill ("4 routes · 14 hotspots")', (await page.getByText(/^\d+ routes?\b/).count()) === 0)
+check(
+  'no +, − or compass buttons',
+  (await page.locator('.maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out, .maplibregl-ctrl-compass').count()) === 0,
+)
 
 // 2. Read the map's own data before asserting anything about it.
 const snapshot = await page.evaluate(async () => {
@@ -192,9 +190,6 @@ const snapshot = await page.evaluate(async () => {
   const polyFeatures = (stopsFC?.features ?? []).filter((f) => f.geometry.type === 'Polygon')
   const pointFeatures = (stopsFC?.features ?? []).filter((f) => f.geometry.type === 'Point')
   const order = m.getStyle().layers.map((l) => l.id)
-  const pillEl = [...document.querySelectorAll('div')].find(
-    (d) => d.className.includes('rounded-full') && d.className.includes('bg-white/90'),
-  )
   return {
     polys: polyFeatures.map((f) => ({
       id: f.properties.id,
@@ -208,7 +203,6 @@ const snapshot = await page.evaluate(async () => {
     routes: (routesFC?.features ?? []).map((f) => ({ route_id: f.properties.route_id, coords: f.geometry.coordinates })),
     routeCount: routesFC?.features?.length ?? 0,
     order,
-    pillText: pillEl ? pillEl.innerText.trim() : null,
   }
 })
 
@@ -256,24 +250,6 @@ check('hotspot names only close in: none at zoom 16, some at 17', namesFar === 0
 const drawLayers = snapshot.order.filter((id) => id.startsWith('draw-'))
 check('no editor (draw-*) layers on the public page', drawLayers.length === 0, drawLayers.join(', '))
 
-const pill = parsePill(snapshot.pillText)
-if (snapshot.routeCount === 0) {
-  check('no summary pill when no routes are drawn', snapshot.pillText === null, snapshot.pillText ?? '')
-} else {
-  // Hotspots as a rider counts them (hotspotCount, 2026-09-28): each terminal,
-  // and each place's hintuan once, however many boxes — its mini stops — it has.
-  const file = await (await fetch(`${BASE}/data/map.json`)).json()
-  const place = (s) => (s.informal?.trim() || s.name).trim().toLowerCase()
-  const hotspots =
-    file.stops.filter((s) => s.kind === 'terminal').length +
-    new Set(file.stops.filter((s) => s.kind === 'hintuan').map(place)).size
-  check(
-    'summary pill counts match what is drawn, a hintuan once however many boxes',
-    !!pill && pill.routes === snapshot.routeCount && pill.hotspots === hotspots,
-    `pill "${snapshot.pillText}" vs ${snapshot.routeCount} routes / ${hotspots} hotspots (${snapshot.polys.length} boxes)`,
-  )
-}
-
 // 3. Tap each hotspot: fly to a point inside it, click, read the card.
 for (const [i, p] of snapshot.polys.entries()) {
   const desc = `${p.kind} #${i} "${p.name}"`
@@ -291,7 +267,7 @@ for (const [i, p] of snapshot.polys.entries()) {
     await page.waitForTimeout(350)
     const chooser = page.locator('[data-testid="chooser"]')
     if ((await chooser.count()) > 0) {
-      // The line runs within a finger of this point: the sheet lists the box
+      // The line runs within a finger of this point: the list shows the box
       // first and the route after it. Its row opens the box's card.
       const row = chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: p.name }).first()
       if ((await row.count()) > 0) await row.click()
@@ -317,13 +293,20 @@ for (const [i, p] of snapshot.polys.entries()) {
     (await page.locator('[data-testid="card"]').getByRole('button', { name: /^(Edit\b.*|Delete)$/ }).count()) === 0,
   )
 
-  // The routes through here read as the chooser's list: the place each
-  // leaves from, then → where it goes; ⇄ shows them the way back.
+  // The routes through here are the owner's RouteCards since 2026-09-29: a
+  // card per place they leave from, in its colour, then → where it goes; ⇄
+  // shows them the way back.
   const rows = page.locator('[data-testid="card"]').locator('button[data-testid="card-item"]:enabled')
   const rowCount = await rows.count()
   if (rowCount > 0) {
-    const origins = await page.locator('[data-testid="card"]').locator('[data-testid="card-origin"] > p').allInnerTexts()
-    check(`  its routes are listed by the place they leave from`, origins.length > 0 && origins.every((o) => o.trim().length > 0), origins.join(' | '))
+    const cards = page.locator('[data-testid="card"]').locator('[data-testid="card-origin"]')
+    const places = (await cards.allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim())
+    const colours = await cards.evaluateAll((els) => els.map((e) => e.getAttribute('data-livery')))
+    check(`  its routes are RouteCards, a card per place they leave from`, places.length > 0 && places.every((t) => t.length > 0) && colours.every((c) => !!c), places.map((t, i) => `${colours[i]}: ${t}`).join(' | '))
+    // A card's pesos are the whole ride from where it leaves: a rider at a
+    // hintuan, mid-route, would read them as theirs, so a hintuan's cards
+    // carry none (the owner, 2026-09-29).
+    if (!isTerminal) check(`  and no pesos on a hintuan's cards`, places.every((t) => !t.includes('₱')), places.join(' | '))
     // ⇄ only where both ways pass: a box passed one way only has nothing to flip to.
     const flip = page.locator('[data-testid="card-flip"]')
     check(`  and ⇄ offers the way back, or the box is passed one way only`, (await flip.count()) <= 1)
@@ -332,6 +315,22 @@ for (const [i, p] of snapshot.polys.entries()) {
     await page.waitForTimeout(350)
     const after = await cardKind()
     check(`  its first route row opens a route card`, after.kind === 'route', `row "${label}" -> ${after.kind}`)
+    if (after.kind === 'route') {
+      // In its card's colour, the hotspot's card kept behind it for its ‹
+      // (the owner, 2026-09-29).
+      const tripColour = await page.locator('[data-testid="trip"]').first().getAttribute('data-livery')
+      check(`  in the colour of the card it was picked from`, tripColour === colours[0], `card ${colours[0]}, trip ${tripColour}`)
+      // The map lights only the trip: the hotspot goes dark under it, and ‹
+      // lights it again (the owner, 2026-09-29).
+      const stopsLit = async () => (await page.evaluate(() => window.__lit('saved-stops'))) ?? []
+      const litUnder = await stopsLit()
+      check(`  the hotspot is not lit under the trip`, !litUnder.includes(p.id), JSON.stringify(litUnder))
+      const back = page.locator('[data-testid="card"]').getByRole('button', { name: 'Back' })
+      if ((await back.count()) > 0) await back.first().click()
+      await page.waitForTimeout(350)
+      const again = await cardKind()
+      check(`  ‹ on the trip goes back to the hotspot's card, lit again`, again.kind === 'hotspot' && again.text === opened && (await stopsLit()).includes(p.id), `card ${again.kind}; lit ${JSON.stringify(await stopsLit())}`)
+    }
   } else {
     const noneMsg = isTerminal ? 'None recorded yet.' : 'No saved route passes through here yet.'
     check(`  no linked routes: shows "${noneMsg}"`, opened.includes(noneMsg))
@@ -341,11 +340,13 @@ for (const [i, p] of snapshot.polys.entries()) {
 }
 
 // 4. A tap on a route line inside a hotspot offers both — since 2026-09-22
-// nothing wins outright: the sheet lists the hotspot first, then one row per
-// route, and the route's row opens its card. SKIP if no such vertex exists.
+// nothing wins outright: the route list shows the hotspot first, then the
+// routes as RouteCards (the owner, 2026-09-29: the Chooser that asked here
+// before is the list now), and a route's row opens its card. SKIP if no such
+// vertex exists.
 const hit = findVertexInsideAnyHotspot(snapshot.routeLines, snapshot.polys)
 if (!hit) {
-  skip('a tap on a route line inside a hotspot offers both in the sheet', 'no saved-route vertex lies inside any hotspot polygon today')
+  skip('a tap on a route line inside a hotspot offers both in the list', 'no saved-route vertex lies inside any hotspot polygon today')
 } else {
   await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 18 }), hit.point)
   await page.waitForTimeout(700)
@@ -355,19 +356,48 @@ if (!hit) {
   const chooser = page.locator('[data-testid="chooser"]')
   const has = (await chooser.count()) > 0
   const text = has ? await chooser.first().innerText() : ''
-  check('a tap on a route line inside a hotspot offers both in the sheet', has && /hotspot/.test(text) && /route/.test(text), has ? text.split('\n')[0] : `no sheet; card ${(await cardKind()).kind}`)
+  const cards = chooser.locator('[data-testid="chooser-origin"]')
+  const cardCount = has ? await cards.count() : 0
+  check(
+    'a tap on a route line inside a hotspot offers both in the list',
+    has && text.includes(hit.hotspot.name) && cardCount > 0,
+    has ? `${text.split('\n')[0]}; ${cardCount} card(s)` : `no list; card ${(await cardKind()).kind}`,
+  )
   if (has) {
     const items = chooser.locator('button[data-testid="chooser-item"]')
     const first = await items.first().innerText()
     check('  the hotspot is listed first', first.includes(hit.hotspot.name), first.split('\n')[0])
-    // The level of a direction the sheet does not list (the listed routes'
+    // The owner's pick of 2026-09-29: the count stays the routes', a card each.
+    const title = `${cardCount} ${cardCount === 1 ? 'Route' : 'Routes'}`
+    check(`  headed "${title}": the routes' count, not the hotspot's`, text.split('\n').includes(title), text.split('\n')[0])
+    // The level of a direction the list does not show (the listed routes'
     // other way round stays at rest, the owner's pick of 2026-09-25).
     const fadedWhileAsking = await page.evaluate(() => window.__restLevel())
-    check('  the rest of the map fades while the sheet asks', fadedWhileAsking < 0.3, String(fadedWhileAsking))
-    await items.last().click()
+    check('  the rest of the map fades while the list asks', fadedWhileAsking < 0.3, String(fadedWhileAsking))
+    const row = items.last()
+    const colour = await row.locator('xpath=ancestor::*[@data-livery][1]').getAttribute('data-livery')
+    await row.click()
     await page.waitForTimeout(350)
     const state = await cardKind()
     check("  the route's row opens the route card", state.kind === 'route', state.kind)
+    if (state.kind === 'route') {
+      const tripColour = await page.locator('[data-testid="trip"]').first().getAttribute('data-livery')
+      check('  in the colour of the card it was picked from', !!colour && tripColour === colour, `card ${colour}, trip ${tripColour}`)
+      // The list stays behind the trip, hidden, for its ‹, and its hotspot
+      // goes dark under the trip till then (the owner, 2026-09-29).
+      const stopsLit = async () => (await page.evaluate(() => window.__lit('saved-stops'))) ?? []
+      const litUnder = await stopsLit()
+      check('  its hotspot is not lit under the trip', !litUnder.includes(hit.hotspot.id), JSON.stringify(litUnder))
+      const back = page.locator('[data-testid="card"]').getByRole('button', { name: 'Back' })
+      if ((await back.count()) > 0) await back.first().click()
+      await page.waitForTimeout(350)
+      const again = (await chooser.first().isVisible()) ? await chooser.first().innerText() : ''
+      check(
+        '  ‹ on the trip goes back to the list, as it was, its hotspot lit again',
+        again === text && (await cardKind()).kind === 'none' && (await stopsLit()).includes(hit.hotspot.id),
+        again ? `card ${(await cardKind()).kind}; lit ${JSON.stringify(await stopsLit())}` : 'the list did not come back',
+      )
+    }
     await closeCard()
   }
 }
@@ -392,10 +422,15 @@ if (!hit) {
     await page.waitForTimeout(350)
     const state = await cardKind()
     const chooserCount = await page.locator('[data-testid="chooser"]').count()
-    check('a tap on one route opens its card straight away', state.kind === 'route' && chooserCount === 0, `card ${state.kind}, sheet count ${chooserCount}`)
+    check('a tap on one route opens its card straight away', state.kind === 'route' && chooserCount === 0, `card ${state.kind}, list count ${chooserCount}`)
     if (state.kind === 'route') {
-      const title = await page.locator('[data-testid="card-direction"]').first().innerText().catch(() => '')
-      check('  the card leads with a direction', /→/.test(title), title)
+      // Named for its direction, the trip runs from where that leaves (the
+      // top row, under the fare) to where it goes (the bottom row).
+      const label = (await page.locator('[data-testid="card"]').first().getAttribute('aria-label')) ?? ''
+      const [from = '', to = ''] = label.split(' → ')
+      const row = (id) => page.locator(`[data-testid="${id}"]`).first().innerText().then((t) => t.replace(/\s+/g, ' ').trim(), () => '')
+      const [top, bottom] = [await row('trip-origin'), await row('trip-destination')]
+      check('  the card runs from where its direction leaves to where it goes', !!from && !!to && top.endsWith(from) && bottom === to, `"${label}": top "${top}", bottom "${bottom}"`)
       const faded = await opacity()
       check('  the rest fade while one direction is lit', faded < rest, `${faded} vs rest ${rest}`)
       const litIds = (await page.evaluate(() => window.__lit('saved-routes'))) ?? []

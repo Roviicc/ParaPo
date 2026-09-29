@@ -140,3 +140,30 @@ test('a line drawn from the far end is cut on the leaving side', () => {
 test('a place the line never passes: null', () => {
   assert.equal(rideCut(vr(LINE), [...RIDE_STOPS.slice(0, 2), mini('off', 0.015, 'Elsewhere')], 'near'), null)
 })
+
+// The routes a trip's ‹ lists when it was opened on its own (src/shared/routes.ts, sharingAnEnd).
+import { sharingAnEnd } from '../src/shared/routes.ts'
+
+/** A route's two directions, head to tail and back: sample data, shaped like the published file. */
+const both = (id, head, tail) =>
+  [false, true].map((reversed) => ({ id: id + (reversed ? '-back' : ''), route_id: id, reversed, route: { head_stop_id: head, tail_stop_id: tail } }))
+const idsOf = (vs) => vs.map((v) => v.id).sort()
+const FAN = [
+  ...both('talaNova', 'tala', 'nova'),
+  ...both('talaSm', 'tala', 'sm'), // the same head
+  ...both('bsNova', 'bs', 'nova'), // the same tail
+  ...both('novaBs', 'nova', 'bs'), // starts where Tala – Novaliches ends: a change of jeep
+  ...both('far', 'x', 'y'),
+]
+
+test('the fan: every route sharing its head or its tail, both ways round, its own included', () => {
+  const want = idsOf([...both('talaNova', 'tala', 'nova'), ...both('talaSm', 'tala', 'sm'), ...both('bsNova', 'bs', 'nova')])
+  assert.deepEqual(idsOf(sharingAnEnd(FAN, FAN[0])), want)
+  assert.deepEqual(idsOf(sharingAnEnd(FAN, FAN[1])), want, 'the way back has the same fan')
+})
+
+test('a route sharing no end, or with none in an old file, fans out to itself', () => {
+  assert.deepEqual(idsOf(sharingAnEnd(FAN, FAN.at(-1))), idsOf(both('far', 'x', 'y')))
+  const old = [...both('a', undefined, undefined), ...both('b', undefined, undefined)]
+  assert.deepEqual(idsOf(sharingAnEnd(old, old[0])), idsOf(both('a')))
+})

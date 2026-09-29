@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { MapLibreMap } from 'maplibre-gl'
-import { Chooser } from '../shared/Chooser'
 import { HotspotCard } from '../shared/HotspotCard'
 import { MapView } from '../shared/MapView'
-import { RouteCard } from '../shared/RouteCard'
+import { RouteCardList } from '../shared/RouteCardList'
+import { RouteSheet } from '../shared/RouteSheet'
 import { useRideTo } from '../shared/rideTo'
 import { listVariants, loadStopsFromSupabase, withDrawing } from './live'
 import {
@@ -271,7 +271,7 @@ function Workshop({
     }
   }
 
-  // One click, several saved things: the chooser lists them all.
+  // One click, several saved things: the route list shows them all.
   const choice = [...saved.candidates, ...stops.candidates]
   const choosing = choice.length > 1
 
@@ -300,9 +300,14 @@ function Workshop({
         </div>
       )}
 
-      {/* Several saved things under one click: the same chooser the public map has. */}
+      {/*
+        Several saved things under one click: the same list the public map
+        has — the owner's "Studio too", 2026-09-29, knowing it lists only what
+        is drawn. "Not mapped yet" is left to a hotspot's card here, whose
+        rows still say it.
+      */}
       {!draw.drawing && choosing && (
-        <Chooser
+        <RouteCardList
           key={choice.map((c) => c.id).join()}
           routes={saved.candidates}
           stops={stops.candidates}
@@ -325,7 +330,7 @@ function Workshop({
 
       {/* Top-left: the card for a tapped route, or the account pill. */}
       {!draw.drawing && saved.selected && (
-        <RouteCard
+        <RouteSheet
           variant={saved.selected}
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
           rideTo={ride.rideTo}
@@ -507,8 +512,13 @@ function Workshop({
           keys={!saving && !signingIn && !changingPassword && !resetting}
           ends={extendEnds}
         />
-      ) : (
-        /* Drawing needs no account; saving does, and asks for it at Done. */
+      ) : choosing ? null : (
+        /*
+          Drawing needs no account; saving does, and asks for it at Done. Not
+          while the route list is open, as the account pill is not: under
+          1024 px wide the list docks along the bottom, and these would stand
+          on its corner (the owner, 2026-09-29).
+        */
         <div className="absolute bottom-6 right-6 z-10 flex flex-col items-end gap-2">
           {hotspotMenu && (
             <div

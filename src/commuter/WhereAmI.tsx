@@ -3,7 +3,11 @@ import type { WhereAmI as State } from './useWhereAmI'
 
 type Props = {
   where: State
-  /** Under the map-design button: a finger's row on a phone, the desktop's lower. */
+  /**
+   * Under the map-design button: a finger's row down on a phone, where the
+   * credit line sits above both; for a mouse, right under it in the corner
+   * the +, − and compass left (the owner, 2026-09-29).
+   */
   coarse: boolean
 }
 
@@ -35,7 +39,7 @@ export function WhereAmIButton({ where, coarse }: Props) {
   const label = !on ? 'Where am I' : follow ? 'Stop following me' : 'Follow me again'
   const state = !on ? status : follow ? 'following' : 'on'
   return (
-    <div className={`absolute right-2.5 z-10 flex flex-col items-end gap-1 ${coarse ? 'top-[5.25rem]' : 'top-[9.75rem]'}`}>
+    <div className={`absolute right-2.5 z-10 flex flex-col items-end gap-1 ${coarse ? 'top-[5.25rem]' : 'top-[2.875rem]'}`}>
       <button
         type="button"
         onClick={() => (on && follow ? stop() : ask())}

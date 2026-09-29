@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import { Departures } from './Departures'
-import { departures, type VariantSummary } from './routes'
+import type { Livery } from './liveries'
+import { RouteCardStack } from './RouteCardStack'
+import { departures, drawnDepartures, type VariantSummary } from './routes'
 import { Sheet } from './Sheet'
 import { placeSummary, siblingsOf, stopLabel, type StopSummary } from './stops'
 import { SwitchIcon } from './SwitchIcon'
@@ -10,7 +12,14 @@ type Props = {
   /** Directions linked to this hotspot, in stop_sequence order. */
   linkedVariantIds: string[]
   variants: VariantSummary[]
-  onSelectVariant: (v: VariantSummary) => void
+  /** Called with the direction picked, and, from a RouteCard, the colour its card wore: its trip wears the same. */
+  onSelectVariant: (v: VariantSummary, livery?: Livery) => void
+  /**
+   * The routes through here as the owner's RouteCards, as the route list
+   * shows them — the public map's, 2026-09-29. Without it, the rows the
+   * studio keeps: their "Not mapped yet" is its list of returns still to draw.
+   */
+  routeCards?: boolean
   /** Every hotspot, so the card can name the place this box belongs to and list its siblings. */
   stops?: readonly StopSummary[]
   /** Show a sibling box on the map: select it and go there. */
@@ -18,6 +27,8 @@ type Props = {
   /** Buttons along the bottom. The editor passes Edit and Delete; the public map passes nothing. */
   actions?: ReactNode
   onClose: () => void
+  /** Kept but not shown, while a trip picked from it is on top: ‹ comes back to it as it was. */
+  hidden?: boolean
 }
 
 /**
@@ -32,10 +43,12 @@ export function HotspotCard({
   linkedVariantIds,
   variants,
   onSelectVariant,
+  routeCards = false,
   stops = [],
   onPickSibling,
   actions,
   onClose,
+  hidden,
 }: Props) {
   const isTerminal = stop.kind === 'terminal'
   const label = stopLabel(stop)
@@ -44,22 +57,29 @@ export function HotspotCard({
   const linked = linkedVariantIds
     .map((id) => byId.get(id))
     .filter((v): v is VariantSummary => !!v)
-  // The routes through here, listed as the chooser under a tap lists them:
-  // one way round, by the place each leaves from, ⇄ for the way back. Both
-  // directions of a route are linked to a box on a two-way road, so each
-  // route shows once either way round; a route linked one way only is a
-  // slot the other way, and reads "not mapped yet" there.
+  // The routes through here, one way round, by the place each leaves from,
+  // ⇄ for the way back: the owner's RouteCards on the public map, the rows
+  // in the studio. Both directions of a route are linked to a box on a
+  // two-way road, so each route shows once either way round; a route linked
+  // one way only is a slot the other way, which the studio's rows show as
+  // "not mapped yet" and the RouteCards leave out.
   // A box on a one-way street, or beside one carriageway, is passed one way
   // only: then that way is the one shown, and there is nothing to flip to.
+  // The RouteCards list drawn directions only (the owner dropped "not mapped
+  // yet" from them, 2026-09-28), so for them a way round with nothing drawn
+  // is no way round at all.
+  const listed = routeCards ? drawnDepartures : departures
   const [flipped, setFlipped] = useState(false)
-  const there = departures(linked, false).length > 0
-  const backToo = departures(linked, true).length > 0
+  const there = listed(linked, false).length > 0
+  const backToo = listed(linked, true).length > 0
   const back = there && backToo ? flipped : backToo
   const flipLabel = back ? 'Show the way there' : 'Show the way back'
+  const none = routeCards ? !there && !backToo : linked.length === 0
 
   return (
     <Sheet
       onClose={onClose}
+      hidden={hidden}
       peek={
         <>
           <p className="truncate text-base font-semibold text-neutral-900">{label}</p>
@@ -129,10 +149,20 @@ export function HotspotCard({
           </button>
         )}
       </div>
-      {linked.length === 0 ? (
+      {none ? (
         <p className="mt-1 text-sm text-neutral-500">
           {isTerminal ? 'None recorded yet.' : 'No saved route passes through here yet.'}
         </p>
+      ) : routeCards ? (
+        // Edge to edge, as the route list stacks them (the owner, 2026-09-29);
+        // the rest of this card waits for his hintuan design. No pesos on a
+        // hintuan's: a card's fare is the whole ride from where it leaves, and
+        // a rider standing mid-route would read it as theirs (his call, the
+        // same day). A terminal's routes leave from the terminal, so its keep
+        // theirs.
+        <div className="-mx-4 mt-1">
+          <RouteCardStack routes={linked} back={back} onRoute={onSelectVariant} testId="card" fares={isTerminal} />
+        </div>
       ) : (
         <ul className="-mx-4 mt-1 border-t border-neutral-200">
           <Departures routes={linked} back={back} onRoute={onSelectVariant} testId="card" />

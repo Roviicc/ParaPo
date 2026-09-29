@@ -42,8 +42,10 @@ async function shot(ctxOpts, url, name, { before, after } = {}) {
   }
 }
 
-const tapHandle = async (p) => {
-  await p.locator('[data-testid="sheet-handle"]').first().tap()
+/** Open the trip card's folded hintuans, when it has some to fold. */
+const openFold = async (p) => {
+  const fold = p.locator('[data-testid="trip-fold"]')
+  if (await fold.count()) await fold.first().tap()
   await wait(1500)
 }
 
@@ -60,8 +62,8 @@ const tapStop = async (p) => {
 
 await shot(phone, '/', '01-phone-map')
 if (routeId) {
-  await shot(phone, `/?r=${routeId}`, '02-phone-route-peek')
-  await shot(phone, `/?r=${routeId}`, '03-phone-route-open', { after: tapHandle })
+  await shot(phone, `/?r=${routeId}`, '02-phone-trip')
+  await shot(phone, `/?r=${routeId}`, '03-phone-trip-open', { after: openFold })
 }
 if (stop) {
   await shot(phone, '/', '04-phone-chooser', { after: tapStop })

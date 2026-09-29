@@ -1,11 +1,13 @@
-// The sheet for a tap where routes share a road, on /studio/?e2e=1.
+// The route list for a tap where routes share a road, on /studio/?e2e=1.
 //
 //   npm run dev                          (in another terminal)
 //   node scripts/pw/group-test.mjs
 //
 // The owner's layout of 2026-09-25: the routes under the tap one way round at
 // a time, grouped by the place they leave from ("Tala", then → SM Fairview
-// and → Novaliches), with ⇄ to show them all the way back. The map lights
+// and → Novaliches), with a switch to show them all the way back — his route
+// list here too since 2026-09-29 ("Studio too"): a RouteCard per place, only
+// what is drawn, and SWITCH. The map lights
 // exactly what the list shows, each with flowing chevrons and a circle at
 // either end, and where two lit lines share a road their chevrons flow as
 // one stream. The same routes the other way round stay at rest, light blue,
@@ -107,16 +109,18 @@ if (!spot) {
   await page.waitForTimeout(700)
 
   const chooser = page.locator('[data-testid="chooser"]')
-  check('a tap where routes share a road opens the sheet', (await chooser.count()) === 1)
-  /** Whether the sheet shows the way back (⇄ pressed). */
+  check('a tap where routes share a road opens the list', (await chooser.count()) === 1)
+  /** Whether the list shows the way back (SWITCH pressed). */
   const showsBack = async () =>
     (await chooser.locator('[data-testid="chooser-flip"]').getAttribute('aria-pressed', { timeout: 2000 }).catch(() => null)) === 'true'
 
-  // What the sheet shows, what is lit, and what is drawn over it.
+  // What the list shows, what is lit, and what is drawn over it.
   const read = async () => {
     const origins = []
     for (const o of await chooser.locator('[data-testid="chooser-origin"]').all()) {
-      const from = (await o.locator('p').first().innerText()).trim()
+      // A RouteCard's place is its last line of words: the fare, when it has
+      // one, comes first.
+      const from = (await o.locator('p').last().innerText()).trim()
       const rows = []
       for (const r of await o.locator('button[data-testid="chooser-item"]').all()) {
         const text = await r.innerText()
@@ -130,7 +134,9 @@ if (!spot) {
       const lit = (await window.__lit('saved-routes')) ?? []
       const endFeatures = (await window.__src('direction-ends'))?.features ?? []
       const ends = endFeatures.length
-      const names = endFeatures.filter((f) => f.properties.named).map((f) => f.properties.name)
+      // Every end, named or not: where its name was left off matters too.
+      const endList = endFeatures.map((f) => ({ name: f.properties.name, named: !!f.properties.named, at: f.geometry.coordinates }))
+      const names = endList.filter((e) => e.named).map((e) => e.name)
       const centres = ((await window.__src('direction-arrows'))?.features ?? []).map((f) => {
         const ring = f.geometry.coordinates[0].map((c) => m.project(c))
         return [ring.reduce((s, q) => s + q.x, 0) / ring.length, ring.reduce((s, q) => s + q.y, 0) / ring.length]
@@ -139,7 +145,7 @@ if (!spot) {
       for (let i = 0; i < centres.length; i++)
         for (let j = i + 1; j < centres.length; j++)
           if (Math.hypot(centres[i][0] - centres[j][0], centres[i][1] - centres[j][1]) < 3) doubled++
-      return { lit, ends, names, chevrons: centres.length, doubled }
+      return { lit, ends, endList, names, chevrons: centres.length, doubled }
     })
     return { origins, ...map }
   }
@@ -166,10 +172,37 @@ if (!spot) {
     })
   const restingIn = (byId) => Object.keys(byId).filter((id) => byId[id] === REST)
   const same = (a, b) => a.length === b.length && a.every((id) => b.includes(id))
+  /**
+   * Metres between two points, flat around the first: fine at street scale.
+   * A degree is the map's own — geo.ts's haversine, on a 6,371 km earth.
+   */
+  const apart = (a, b) => Math.hypot((b[0] - a[0]) * Math.cos((a[1] * Math.PI) / 180), b[1] - a[1]) * 111_195
+  // directionArrows.ts's SAME_END_M, and a metre either side of it for the
+  // flat sum above.
+  const SAME_END_M = 150
+  /**
+   * The map's rule for naming ends, both halves: every place named, in the
+   * list's words; a name twice only where those ends lie 150 m or more
+   * apart; and an end left unnamed only where its name is already on the
+   * map within 150 m — so a second label cannot quietly go either.
+   */
+  const namedRight = (endList, places) => {
+    const named = endList.filter((e) => e.named)
+    return (
+      new Set(named.map((n) => n.name)).size === places.size &&
+      named.every((n) => places.has(n.name)) &&
+      named.every((a, i) => named.every((b, j) => j <= i || a.name !== b.name || apart(a.at, b.at) >= SAME_END_M - 1)) &&
+      endList.every((e) => e.named || !e.name || named.some((n) => n.name === e.name && apart(n.at, e.at) < SAME_END_M + 1))
+    )
+  }
 
-  // `out` is the way round the sheet opens on, `back` the other: which is
+  // `out` is the way round the list opens on, `back` the other: which is
   // outbound depends on the lines under the tap.
   const out = await read()
+  // The routes under the tap, and every direction of theirs drawn: all of
+  // them listed, one way round or the other.
+  const tapped = new Set(caught.map((id) => lines.find((l) => l.id === id)?.route))
+  const drawnHere = lines.filter((l) => tapped.has(l.route)).map((l) => l.id)
   const firstBack = await showsBack()
   const outRows = out.origins.flatMap((o) => o.rows)
   const litOut = [...new Set(out.lit)]
@@ -180,37 +213,50 @@ if (!spot) {
   check('  the map lights exactly the drawn directions listed', litOut.length === outRows.filter((r) => r.drawn).length,
     `${litOut.length} lit, ${outRows.filter((r) => r.drawn).length} drawn row(s)`)
   check('  a circle at each end of each lit direction', out.ends === 2 * litOut.length, `${out.ends} circle(s)`)
-  // Every end named with the list's own words, each place once.
+  // Every end named with the list's own words, each place once where its
+  // ends meet: two ends of one name are one place within 150 m (SAME_END_M
+  // in directionArrows.ts), and each has its name further apart — as the
+  // routes into SM Fairview from Tala and from Bagong Silang Phase 5 do, 649
+  // m apart ("two labels are right", the owner, 2026-09-29).
   const placesOut = new Set(out.origins.flatMap((o) => [o.from, ...o.rows.filter((r) => r.drawn).map((r) => r.to)]))
-  check('  each end is named, with the names the list uses, each place once',
-    out.names.length === placesOut.size && out.names.every((n) => placesOut.has(n)),
+  check('  each end is named, with the names the list uses, each place once where its ends meet',
+    namedRight(out.endList, placesOut),
     `named ${out.names.join(', ')}`)
   check('  chevrons flow on them', out.chevrons > 0, `${out.chevrons} chevron(s)`)
   check('  where lit lines share a road, one stream: no chevron drawn twice', out.doubled === 0, `${out.doubled} doubled pair(s)`)
   const levelsOut = await levels()
 
   const flip = chooser.locator('[data-testid="chooser-flip"]')
-  check('the sheet offers ⇄', (await flip.count()) === 1)
-  await flip.click()
+  check('the list offers SWITCH', (await flip.count()) === 1 && (await flip.isEnabled()))
+  await flip.click({ timeout: 3000 }).catch(() => {})
   await page.waitForTimeout(500)
   const back = await read()
   const backRows = back.origins.flatMap((o) => o.rows)
   const litBack = [...new Set(back.lit)]
-  console.log(`      after ⇄: ${back.origins.map((o) => `${o.from} → ${o.rows.map((r) => r.to + (r.drawn ? '' : ' (not mapped)')).join(', ')}`).join(' | ')}`)
-  check('⇄ lists the same routes the other way round', backRows.length === outRows.length, `${backRows.length} row(s)`)
-  check('  each leaves from where it was going',
-    out.origins.every((o) => o.rows.every((r) => back.origins.some((b) => b.from === r.to && b.rows.some((s) => s.to === o.from)))))
+  console.log(`      after SWITCH: ${back.origins.map((o) => `${o.from} → ${o.rows.map((r) => r.to + (r.drawn ? '' : ' (not mapped)')).join(', ')}`).join(' | ')}`)
+  check('SWITCH lists the same routes the other way round', same([...litOut, ...litBack], drawnHere),
+    `${litOut.length} + ${litBack.length} lit, ${drawnHere.length} drawn under the tap`)
+  // By name only where every route under the tap is drawn both ways: a way
+  // still to draw is not listed, so its place has no row to go back to.
+  if (![...tapped].every((r) => lines.filter((l) => l.route === r).length === 2)) {
+    skip('  each leaves from where it was going', 'a route under the tap is drawn one way only')
+  } else {
+    check('  each leaves from where it was going',
+      out.origins.every((o) => o.rows.every((r) => back.origins.some((b) => b.from === r.to && b.rows.some((s) => s.to === o.from)))))
+  }
   check('  the lit lines change over, none kept', litBack.every((id) => !litOut.includes(id)) && litBack.length === backRows.filter((r) => r.drawn).length,
     `${litBack.length} lit`)
   check('  the circles follow', back.ends === 2 * litBack.length, `${back.ends} circle(s)`)
   const placesBack = new Set(back.origins.filter((o) => o.rows.some((r) => r.drawn)).flatMap((o) => [o.from, ...o.rows.filter((r) => r.drawn).map((r) => r.to)]))
-  check('  and so do the names', back.names.length === placesBack.size && back.names.every((n) => placesBack.has(n)), `named ${back.names.join(', ')}`)
-  check('  a direction not drawn yet says so, and cannot be opened',
-    [...outRows, ...backRows].filter((r) => !r.drawn).every((r) => r.text.includes('Not mapped yet')),
-    `${[...outRows, ...backRows].filter((r) => !r.drawn).length} undrawn row(s)`)
+  check('  and so do the names', namedRight(back.endList, placesBack), `named ${back.names.join(', ')}`)
+  // The owner dropped "not mapped yet" from the list (2026-09-28): a row
+  // that opens nothing is no row.
+  check('  only drawn directions are listed, each row one that opens',
+    [...outRows, ...backRows].every((r) => r.drawn) && outRows.length === litOut.length && backRows.length === litBack.length,
+    `${outRows.length} + ${backRows.length} row(s), ${[...outRows, ...backRows].filter((r) => !r.drawn).length} disabled`)
   // Outbound where an outbound line was under the tap, the way back where only ways back were.
   const outbound = firstBack ? litBack : litOut
-  check('the sheet opened the way round under the tap', firstBack === !caught.some((id) => outbound.includes(id)),
+  check('the list opened the way round under the tap', firstBack === !caught.some((id) => outbound.includes(id)),
     `caught ${caught.length} line(s), ${caught.filter((id) => outbound.includes(id)).length} outbound; opened ${firstBack ? 'the way back' : 'outbound'}`)
 
   // The other way round rests; only what the list does not show fades.
@@ -218,7 +264,7 @@ if (!spot) {
   const [restOut, restBack] = [restingIn(levelsOut), restingIn(levelsBack)]
   check('the other way round rests in light blue while one way is listed', same(restOut, litBack),
     `${restOut.length} resting, ${litBack.length} drawn the other way`)
-  check('  after ⇄ the first way rests instead', same(restBack, litOut), `${restBack.length} resting, ${litOut.length} drawn the first way`)
+  check('  after SWITCH the first way rests instead', same(restBack, litOut), `${restBack.length} resting, ${litOut.length} drawn the first way`)
   const unlisted = lines.map((l) => l.id).filter((id) => !litOut.includes(id) && !litBack.includes(id))
   if (unlisted.length === 0) {
     skip('  a route the list does not show fades', 'every saved route is under this tap')
@@ -282,13 +328,13 @@ if (!spot) {
     }
     return null
   }
-  /** Click there; what is lit afterwards, and what the sheet or card says. */
+  /** Click there; what is lit afterwards, and what the list or card says. */
   const clickAt = async (p) => {
     await page.mouse.click(p.x, p.y)
     await page.waitForTimeout(700)
     const now = await read()
     const shown = now.origins.length
-      ? `sheet: ${now.origins.map((o) => `${o.from} → ${o.rows.map((r) => r.to).join(', ')}`).join(' | ')}`
+      ? `list: ${now.origins.map((o) => `${o.from} → ${o.rows.map((r) => r.to).join(', ')}`).join(' | ')}`
       : `card: ${await page.locator('[data-testid="card-direction"]').first().innerText().catch(() => 'none')}`
     return { lit: [...new Set(now.lit)], sheet: now.origins.length > 0, shown }
   }
@@ -298,7 +344,7 @@ if (!spot) {
   // With the list on the outbound, a click on the light-blue way back, away
   // from the lit lines, switches to it: the owner's report of 2026-09-25,
   // "it's not switching". Where two ways back share a road the click catches
-  // both, and the sheet opened on the outbound again, lighting lines nowhere
+  // both, and the list opened on the outbound again, lighting lines nowhere
   // near the click.
   {
     const litNow = await reopen(false)

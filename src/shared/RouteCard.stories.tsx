@@ -1,177 +1,65 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { fn } from 'storybook/test'
 import { RouteCard } from './RouteCard'
-import type { VariantSummary } from './routes'
-
-/** Sample data only, shaped like a saved direction. Not read from Supabase. */
-const variant: VariantSummary = {
-  id: 'sample-variant',
-  route_id: 'sample-route',
-  direction_name: 'Tala → SM Fairview',
-  origin_terminal: null,
-  destination_terminal: null,
-  shape: {
-    type: 'LineString',
-    coordinates: [
-      [121.0467, 14.7478],
-      [121.0512, 14.7391],
-      [121.0578, 14.7302],
-      [121.0601, 14.7221],
-    ],
-  },
-  reversed: false,
-  confidence: 'drawn',
-  route: {
-    id: 'sample-route',
-    signboard: 'FAIRVIEW – TALA',
-    long_name: null,
-    mode: 'jeepney',
-    fare_note: null,
-    head_stop_id: 'sample-tala',
-    tail_stop_id: 'sample-fairview',
-    via: null,
-    name: 'Tala – SM Fairview',
-  },
-}
 
 const meta = {
   title: 'Shared/RouteCard',
   component: RouteCard,
-  // The card is placed against the map, so give it a map-sized box to sit in.
-  // `@container` is what the card's `@wide:` classes measure, and the `phone`
-  // parameter shrinks that box to a handset so the bottom sheet shows instead.
-  decorators: [
-    (Story, ctx) => (
-      <div
-        className={
-          ctx.parameters.phone
-            ? 'relative h-[700px] w-[390px] overflow-hidden bg-neutral-200 @container'
-            : 'relative h-[28rem] bg-neutral-200 @container'
-        }
-      >
-        <Story />
-      </div>
-    ),
-  ],
-  parameters: { layout: 'fullscreen' },
-  args: { variant, onClose: fn() },
+  // As wide as the floating list: the card fills whatever holds it.
+  decorators: [(Story) => <div className="w-92"><Story /></div>],
+  args: {
+    livery: 'red',
+    fare: '₱24–28',
+    routeOrigin: 'Novaliches (Bayan)',
+    endPoints: [{ id: 'a', routeDirection: 'Tala' }],
+    onPick: fn(),
+    testId: 'chooser',
+  },
 } satisfies Meta<typeof RouteCard>
 
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** What a visitor sees for a route drawn but not yet ridden. */
-export const Drawn: Story = {}
+/** Red: Content/inverse under Route/RouteCardPrimary, the Primary Blob. */
+export const Red: Story = {}
 
-/** Every optional row filled in, and ridden. */
-export const Verified: Story = {
+/** Orange — Figma's Pink, the Card/orange tokens. */
+export const Orange: Story = { args: { livery: 'orange', routeOrigin: 'SM Fairview' } }
+
+/** Mist: Content/primary under Route/RouteCardInverse, the Inverse Blob. */
+export const Mist: Story = { args: { livery: 'mist', routeOrigin: 'SM Fairview' } }
+
+/** Yellow: as Mist. */
+export const Yellow: Story = { args: { livery: 'yellow', routeOrigin: 'Lagro' } }
+
+/** One place, several ways out: a row each, and each row its own target. */
+export const SeveralWaysOut: Story = {
   args: {
-    variant: {
-      ...variant,
-      origin_terminal: 'Tala Novaliches Jeep Terminal',
-      destination_terminal: 'SM Fairview',
-      confidence: 'verified',
-      route: {
-        ...variant.route,
-        long_name: 'Tala Novaliches – SM City Fairview via Camarin Road',
-        fare_note: '₱13 minimum, as of Sept 2026',
-      },
-    },
+    routeOrigin: 'Tala',
+    fare: '₱14–28',
+    endPoints: [
+      { id: 'a', routeDirection: 'SM Fairview' },
+      { id: 'b', routeDirection: 'Novaliches (Bayan)' },
+    ],
   },
 }
 
-/** Long names truncate rather than push the close button off the card. */
-export const LongNames: Story = {
+/** The set's longest: six ways out — tall enough to show the glow fades out whole. */
+export const SixWaysOut: Story = {
   args: {
-    variant: {
-      ...variant,
-      route: {
-        ...variant.route,
-        name: 'Tala Jeepney Terminal – SM City Fairview Main Entrance via Quirino Highway',
-        signboard: 'TALA – BAGONG SILANG PH1 – MALARIA – SM FAIRVIEW – NOVALICHES BAYAN',
-      },
-    },
+    livery: 'orange',
+    routeOrigin: 'SM Fairview',
+    endPoints: ['Tala', 'Novaliches (Bayan)', 'Quiapo', 'Cubao', 'Lagro', 'Fatima'].map((p, i) => ({
+      id: String(i),
+      routeDirection: p,
+    })),
   },
 }
 
-/** The editor passes buttons along the bottom; the public map passes none. */
-export const WithActions: Story = {
-  args: {
-    actions: (
-      <>
-        <button type="button" className="rounded-lg bg-neutral-900 px-3 py-1.5 text-sm text-white">
-          Edit
-        </button>
-        <button type="button" className="rounded-lg px-3 py-1.5 text-sm text-red-600 ring-1 ring-red-200">
-          Delete
-        </button>
-      </>
-    ),
-  },
-}
+/** No fare rule for the mode (not a jeepney): no fare line, nothing guessed. */
+export const Unpriced: Story = { args: { livery: 'yellow', fare: undefined, routeOrigin: 'Quiapo' } }
 
-/**
- * A handset-sized box, so the card becomes a bottom sheet. The peek shows the
- * signboard and the direction; the handle pulls the rest up.
- */
-export const Phone: Story = {
-  parameters: { phone: true },
-  args: {
-    variant: {
-      ...variant,
-      origin_terminal: 'Tala Novaliches Jeep Terminal',
-      destination_terminal: 'SM Fairview',
-      route: { ...variant.route, fare_note: '₱13 minimum, as of Sept 2026' },
-    },
-  },
-}
-
-/** The same route, ridden the other way, for the switch beside the title. */
-const back: VariantSummary = {
-  ...variant,
-  id: 'sample-variant-back',
-  direction_name: 'SM Fairview → Tala',
-  reversed: true,
-  shape: { type: 'LineString', coordinates: [...variant.shape!.coordinates].reverse() },
-}
-
-/** The switch beside the title shows the other direction. */
-export const WithTheOtherDirection: Story = {
-  args: { sibling: back, onSwitch: fn() },
-}
-
-/** The other direction exists as a slot but has no line yet: the switch is off, and the card says so. */
-export const OtherDirectionNotMapped: Story = {
-  args: { sibling: { ...back, shape: null }, onSwitch: fn() },
-}
-
-/** The direction as a string of places, collapsed under the title until opened. */
-export const WithTimeline: Story = {
-  args: {
-    sibling: back,
-    onSwitch: fn(),
-    onRideTo: fn(),
-    timeline: {
-      from: { id: 'sample-tala', label: 'Tala', kind: 'terminal' },
-      between: [
-        { id: 'h-barracks', label: 'Barracks', kind: 'hintuan' },
-        { id: 'h-malaria', label: 'Malaria', kind: 'hintuan' },
-        { id: 'h-pangarap', label: 'Pangarap', kind: 'hintuan' },
-        { id: 'h-lagro', label: 'Lagro', kind: 'hintuan' },
-        { id: 'h-babaan', label: 'SM Fairview – Main Babaan', kind: 'hintuan' },
-      ],
-      to: { id: 'sample-fairview', label: 'SM Fairview', kind: 'terminal' },
-    },
-  },
-}
-
-/** Ends only: the line passes no hintuan yet, and the card says so rather than showing an empty list. */
-export const TimelineWithNoHintuans: Story = {
-  args: {
-    timeline: {
-      from: { id: 'sample-tala', label: 'Tala', kind: 'terminal' },
-      between: [],
-      to: { id: 'sample-fairview', label: 'SM Fairview', kind: 'terminal' },
-    },
-  },
+/** A place name too long for one line wraps; it is never cut. */
+export const LongName: Story = {
+  args: { livery: 'orange', routeOrigin: 'Fairview Teraccess Transport Terminal', endPoints: [{ id: 'a', routeDirection: 'Novaliches (Bayan) via Zabarte' }] },
 }

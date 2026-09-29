@@ -79,6 +79,22 @@ await frame([a, join], 250)
 await page.waitForTimeout(800)
 const px = (ll) => page.evaluate((ll) => { const p = window.__map.project(ll); return [p.x, p.y] }, ll)
 const waitRouted = () => page.waitForFunction(() => !document.body.innerText.includes('snapping…'), null, { timeout: 30000 })
+// Whether a drawn point's dot is at a pixel (`there`), or has gone from it,
+// within 5 s; as snap-test and regression-gestures wait. A new point is
+// drawn, and can be hit, only once MapLibre has rebuilt the draw-points
+// tiles on its worker. Until then a right-click there lands on the saved
+// line under it, and the studio rightly follows that line. A fixed 300 ms
+// was enough until 2026-09-29, when the owner's longer Bagong Silang lines
+// made the frame below zoom out from 15 to 13 (nine tiles a source, not
+// four) and GitHub's runner lost the race every time.
+const dotAt = ([x, y], there = true) =>
+  page.waitForFunction(([x, y, there]) =>
+    (window.__map.queryRenderedFeatures([x, y], { layers: ['draw-point-dots'] }).length > 0) === there,
+  [x, y, there], { timeout: 5000 }).then(() => true, () => false)
+// A drawing's line as the studio joins it and saves it (shared/geo.ts
+// joinSegments): each segment after the first starts on the point the one
+// before it ends on, and that point is kept once.
+const joined = (segments) => segments.flatMap((s, i) => (i === 0 ? s.coordinates : s.coordinates.slice(1)))
 
 let d = await readDraft()
 check('the draft comes back with its join', d?.join === 0 && d?.borrow?.part === 'end')
@@ -140,11 +156,12 @@ const [Ax, Ay] = await px(A)
 const [Bx, By] = await px(B)
 
 await page.mouse.click(Ax, Ay)
-await page.waitForTimeout(300)
+// Right-click the point once its dot is drawn, as a person does (see dotAt).
+const dotShown = await dotAt([Ax, Ay])
 await page.mouse.click(Ax, Ay, { button: 'right' })
 await page.waitForTimeout(400)
-check('right-click on a drawn point still deletes it, even on a saved line', (await pointsShown()) === 0,
-  `points ${await pointsShown()}`)
+check('right-click on a drawn point still deletes it, even on a saved line', dotShown && (await pointsShown()) === 0,
+  dotShown ? `points ${await pointsShown()}` : 'its dot was not drawn in 5 s')
 
 await page.mouse.click(Bx, By, { button: 'right' })
 await page.waitForTimeout(400)
@@ -152,6 +169,9 @@ check('with nothing drawn, a right-click on a line says to draw first',
   (await page.evaluate(() => document.body.innerText)).includes('Draw from where the jeep starts first'))
 await page.getByRole('button', { name: 'Dismiss' }).first().click()
 
+// A click on a dot still drawn is a press on that point, not a new one
+// (useDrawing's onMapClick): let the deleted point's dot go first.
+await dotAt([Ax, Ay], false)
 await page.mouse.click(Ax, Ay)
 await page.waitForTimeout(300)
 await page.mouse.click(Bx, By, { button: 'right' })
@@ -169,9 +189,17 @@ check('a right-click on a saved line joins it and follows it to its end',
   d.controlPoints.length > 2 && !!followed && same(lastCoord, followed.coords[followed.coords.length - 1]),
   `points ${d.controlPoints.length}, borrows ${d.borrow?.variantId?.slice(0, 8)} (${d.borrow?.part})`)
 check('the join is routed, one segment per gap', d.segments.length === d.controlPoints.length - 1 && d.segments[0].snap === 'snapped')
-const followedTail = followed ? followed.coords.slice(-20) : []
+// The followed part: every segment after the routed gap (the drawing had one
+// point, so one gap). It starts at the join spot, which is not one of the
+// line's points unless it fell on one, then runs on the line's own points to
+// its end. Compared whole, joined as the studio joins it: its last segment
+// may hold fewer than 20 points, whose first then came twice in a flat list
+// (on 2026-09-29, a6dc5193's last segment has 19, 2eed1668's 12).
+const followedPart = joined(d.segments.slice(1)).slice(1)
 check('the followed part is that line, point for point',
-  JSON.stringify(d.segments.flatMap((s) => s.coordinates).slice(-20)) === JSON.stringify(followedTail))
+  !!followed && followedPart.length > 0 &&
+    JSON.stringify(followedPart) === JSON.stringify(followed.coords.slice(-followedPart.length)),
+  `${followedPart.length} points after the join`)
 
 await page.keyboard.press('Control+z')
 await page.waitForTimeout(400)

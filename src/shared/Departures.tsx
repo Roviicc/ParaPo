@@ -13,11 +13,12 @@ type Props = {
 
 /**
  * Routes one way round, grouped by the place they leave from — Tala, then
- * → SM Fairview and → Novaliches. The chooser under a tap shows its routes
- * so, and the hotspot card shows the routes through its box the same way
- * (the owner's ask, 2026-09-26: one shape for "the routes here", wherever
- * it is asked). A row still a slot says so and opens nothing. Full-bleed
- * rows: a whole row is the target, not the words inside it.
+ * → SM Fairview and → Novaliches: the studio's hotspot card shows the routes
+ * through its box so (the owner's ask, 2026-09-26: one shape for "the routes
+ * here", wherever it is asked). Everywhere else they are his RouteCards
+ * since 2026-09-29. A row still a slot says so and opens nothing, which
+ * keeps the returns still to draw in sight in the studio. Full-bleed rows: a
+ * whole row is the target, not the words inside it.
  */
 export function Departures({ routes, back, onRoute, testId }: Props) {
   return (

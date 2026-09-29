@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* PalimosPoDesignSystem: the tokens, mirrored from the Figma variables. */
+@import "../design-system/foundation/tokens.css";
+@import "../design-system/foundation/fonts.css";
 /* Stories are Storybook-only: their classes stay out of the site's CSS. .storybook/preview.css adds them back. */
 @source not "../**/*.stories.tsx";
 
@@ -7,9 +10,14 @@
  * apps mark their root `@container`, so `@wide:` reads that box and a card
  * looks right inside a Storybook frame too. 40rem is roughly where a floating
  * card stops covering the thing it describes.
+ *
+ * The redesigned route cards (the owner's frames of 2026-09-28) dock at the
+ * bottom until `@float:` and only then float top-left: he drew them floating
+ * at 1024 and 1536 wide, docked at 640 and 393.
  */
 @theme {
   --container-wide: 40rem;
+  --container-float: 64rem;
 }
 
 html,

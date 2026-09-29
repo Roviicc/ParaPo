@@ -233,6 +233,17 @@ export function departures<V extends VariantSummary>(variants: readonly V[], bac
 }
 
 /**
+ * `departures`, the drawn directions only, and no place left with none: what
+ * the owner's route cards list, since he dropped "not mapped yet" from them
+ * (2026-09-28) — a row that opens nothing is no row.
+ */
+export function drawnDepartures<V extends VariantSummary>(variants: readonly V[], back: boolean): Departures<V>[] {
+  return departures(variants, back)
+    .map((p) => ({ ...p, directions: p.directions.filter((d) => d.drawn) }))
+    .filter((p) => p.directions.length > 0)
+}
+
+/**
  * The direction a route opens with when it is picked as a whole: the
  * outbound when it has a line, else the return — predictable, and ⇄ is one
  * tap away. Decided with the owner 2026-09-22. Null only for a route with
@@ -249,6 +260,25 @@ export function directionToOpen<V extends VariantSummary>(directions: readonly V
  */
 export function otherDirection<V extends VariantSummary>(all: readonly V[], of: V): V | null {
   return all.find((v) => v.route_id === of.route_id && v.id !== of.id) ?? null
+}
+
+/**
+ * Every direction of the routes sharing an end with `of`'s — the same head or
+ * the same tail — its own route's included: PLAN.md's fan, an extension being
+ * "grouped by the end it shares" (decided 2026-09-21; no screen groups them
+ * that way yet but this), Tala – SM Fairview beside Tala – Novaliches. A
+ * route that only starts where this one ends is not among them: that is a
+ * change of jeep, not another way. An old file's route may carry no ends; it
+ * then shares none.
+ */
+export function sharingAnEnd<V extends VariantSummary>(all: readonly V[], of: V): V[] {
+  const { head_stop_id: head, tail_stop_id: tail } = of.route
+  return all.filter(
+    (v) =>
+      v.route_id === of.route_id ||
+      (!!head && v.route.head_stop_id === head) ||
+      (!!tail && v.route.tail_stop_id === tail),
+  )
 }
 
 /**
