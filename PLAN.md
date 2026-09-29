@@ -3267,14 +3267,16 @@ again". A hotspot card is keyed by its hotspot, on both pages. The cards
 are named dialogs that take the focus when shown and give it back.
 `where-test` gains the no-fix GPS and the app move (22 → 27 checks).
 
-**Stage 6 — lighter, 2026-09-29.** The six wired fonts are subset to Latin
-(`fonts/subset.sh`, fonttools, run once and committed; every character in
-`src/` and the published map kept): 290 kB → 109 kB, all five SN Pro weights
-kept — the subset alone met the budget, so no weight had to go and no text
-changes face — and now precached, so offline text keeps its face. The public
+**Stage 6 — lighter, 2026-09-29.** SN Pro's five wired weights are subset
+to Latin (`fonts/subset.sh`, fonttools, run once and committed; every
+character in `src/` and the published map kept) and Cubao Free stays whole
+(its kerning is an Apple-format `kern` table the subsetter drops): the six
+faces 290 kB → 113 kB, all five SN Pro weights kept — the subset alone met
+the budget, so no weight had to go and no text changes face — and now
+precached, so offline text keeps its face. The public
 map is held to Greater Manila (`METRO_MANILA`, 0.9° × 0.95°); the studio is
 not. What both pages share is one chunk named `shared` (Rolldown's
 `codeSplitting`, only modules both entries import), no longer
 `useSavedStops-*.js`. `check-build.mjs` guards the weight: fonts under
-120 kB together (106.6 kB), the shared chunk under 400 kB gzipped
+120 kB together (110.8 kB), the shared chunk under 400 kB gzipped
 (332.3 kB), the fonts in the precache.

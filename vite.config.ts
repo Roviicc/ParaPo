@@ -228,9 +228,11 @@ export default defineConfig({
       },
       // What both pages load — MapLibre, React and the shared code — in one
       // chunk named for what it is. Left to itself it took the name of one of
-      // its modules (useSavedStops-*.js). Only modules both entries import go
-      // in, so nothing of the studio's can reach the public page this way.
-      // Its size is a guard in check-build.mjs; MapLibre is most of it and is
+      // its modules (useSavedStops-*.js). A module goes in when two chunks
+      // import it — Rolldown counts lazy chunks as well as the two entries —
+      // so check-build.mjs, not this rule, is what proves the studio's
+      // Supabase stays out of what the public page loads. Its size is a guard
+      // there too; MapLibre is most of it and is
       // what keeps a thousand lines smooth, so the 500 kB warning is answered
       // by that guard rather than by splitting it.
       output: {
