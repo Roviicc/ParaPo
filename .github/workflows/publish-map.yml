@@ -1,9 +1,9 @@
 # Publishes the public map as a file, daily and on demand, and keeps one
 # issue open while anything about it needs the owner.
 #
-# Runs scripts/publish-map.mjs, which reads the public tables with the
+# Runs scripts/publish/publish-map.mjs, which reads the public tables with the
 # publishable key committed in .env.production and writes public/data/map.json.
-# Then scripts/check-map-data.mjs reads the file back: a problem the app
+# Then scripts/checks/check-map-data.mjs reads the file back: a problem the app
 # could not show honestly (a link to a hotspot that is not there, a route
 # whose end hotspot is missing) fails the run before the commit; a warning
 # (a line that ends far from its terminal, a hintuan the line passes without
@@ -87,14 +87,14 @@ jobs:
       # schedule has no inputs, so the expression is empty there and the
       # shrink guard keeps its say on every unattended run.
       - name: Publish the map
-        run: node scripts/publish-map.mjs ${{ inputs.force && '--force' || '' }} 2>&1 | tee "$RUNNER_TEMP/publish.log"
+        run: node scripts/publish/publish-map.mjs ${{ inputs.force && '--force' || '' }} 2>&1 | tee "$RUNNER_TEMP/publish.log"
 
       # The check imports the app's own rules from src/shared, TypeScript,
       # which Node strips; ts-resolve.mjs finds the .ts behind an
       # extensionless import. The report lands on this run's summary page
       # and in $RUNNER_TEMP/data.md for the issue.
       - name: Check the map data
-        run: node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/check-map-data.mjs --markdown "$RUNNER_TEMP/data.md" 2>&1 | tee "$RUNNER_TEMP/check.log"
+        run: node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs scripts/checks/check-map-data.mjs --markdown "$RUNNER_TEMP/data.md" 2>&1 | tee "$RUNNER_TEMP/check.log"
 
       # `git add` first: `git diff` alone cannot see a file git does not track
       # yet, and would report "unchanged" for a brand-new one forever.

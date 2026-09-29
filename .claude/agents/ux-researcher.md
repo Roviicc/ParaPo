@@ -48,7 +48,7 @@ dated in its title rather than overwriting the old one. Images go in with
   desktop map and route, studio sign-in and editor. Put `<outDir>` in your
   scratchpad, not the repo.
 - For a screen the script does not cover, write a small Playwright script in
-  your scratchpad based on it. `scripts/pw/*.mjs` show how to reach states:
+  your scratchpad based on it. `tests/e2e/*.mjs` show how to reach states:
   `?r=<direction id>` opens a route, `/studio/?e2e=1` skips sign-in in dev,
   and `window.__map` is the MapLibre map.
 - Run at most two headless browsers at once, and not right after a file edit.

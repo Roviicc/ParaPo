@@ -56,7 +56,7 @@ nothing. `/studio/?e2e=1` skips the sign-in door in development builds, for
 the headless checks — drawing works, saving still needs an account.
 
     npm run check                   # build with its guards, then the unit checks
-    node scripts/pw/visitor-test.mjs # and the other headless suites, see scripts/pw/README.md
+    node tests/e2e/visitor-test.mjs # and the other headless suites, see tests/e2e/README.md
     npm run check:data              # the committed map against the app's own rules
     npm run storybook               # the cards, the chooser, the panels, on their own
 
@@ -69,11 +69,11 @@ broke something; the failing suite's screenshots are the run's artifact.
 ## Publishing the map
 
 The file is published from `main`, every night at 04:00 Manila and on "Run
-workflow" (`.github/workflows/publish-map.yml`). `scripts/publish-map.mjs`
+workflow" (`.github/workflows/publish-map.yml`). `scripts/publish/publish-map.mjs`
 reads the public tables, keeps each line within half a metre of what was
 drawn, rounds to 6 decimals, refuses a map that suddenly shrank, and writes
 the same bytes for the same data, so a quiet night commits nothing.
-`scripts/check-map-data.mjs` then reads the file back against the app's own
+`scripts/checks/check-map-data.mjs` then reads the file back against the app's own
 rules: a link to a hotspot that is not there stops the publish; a line that
 ends far from its terminal, or a hintuan it passes without being linked to,
 goes out with the map and is written up. One issue, **"The map needs a
@@ -89,8 +89,9 @@ with warnings, and closed by the first run with nothing to report.
 | `src/shared/` | what both draw: the map, the routes and hotspots hooks, the cards, the geometry |
 | `public/data/map.json` | the published map, every version kept in history |
 | `supabase/migrations/` | the schema and its policies, in order |
-| `scripts/` | the publish, the data check, the build guards, the unit checks |
-| `scripts/pw/` | the headless suites, and their README |
+| `scripts/` | tools: the build guards and the data check (`checks/`), the publish (`publish/`), Node's TypeScript hook (`node/`), the research screenshots (`research/`) |
+| `tests/unit/` | the unit checks, Node's own test runner (`npm run test:unit`) |
+| `tests/e2e/` | the headless suites, and their README |
 
 ## Data and licence
 

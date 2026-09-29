@@ -7,7 +7,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 /**
  * Writes .vite/modules.json: every output chunk and the source modules inside
  * it. Vite's manifest lists which chunks a page loads but not what went into
- * them; with this, scripts/check-build.mjs can prove that no file from
+ * them; with this, scripts/checks/check-build.mjs can prove that no file from
  * src/studio/ reaches the public page, whatever that file happens to contain.
  */
 function chunkModules(): Plugin {
@@ -35,7 +35,7 @@ function chunkModules(): Plugin {
  * without looking at which page it is, so left alone /studio/ would install
  * as Para Po too. This runs after it (both are post-order; this one is later
  * in the list) and takes the link back out of the studio page. The manifest
- * belongs to / only; scripts/check-build.mjs checks the built studio page.
+ * belongs to / only; scripts/checks/check-build.mjs checks the built studio page.
  */
 function studioWithoutManifest(): Plugin {
   return {
@@ -73,7 +73,7 @@ export default defineConfig({
       // mid-ride would throw away the selected route.
       registerType: 'prompt',
       // Off under `npm run dev`, so the headless checks never meet a worker.
-      // Test with `npm run build && npm run preview` (scripts/pw/pwa-test.mjs).
+      // Test with `npm run build && npm run preview` (tests/e2e/pwa-test.mjs).
       devOptions: { enabled: false },
       manifest: {
         name: 'Para Po',
@@ -225,7 +225,7 @@ export default defineConfig({
       },
     },
     // .vite/manifest.json records which chunks each page loads, so
-    // scripts/check-build.mjs can prove the public page carries no editor.
+    // scripts/checks/check-build.mjs can prove the public page carries no editor.
     // public/.assetsignore keeps .vite/ off the live site.
     manifest: true,
   },

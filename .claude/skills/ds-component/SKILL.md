@@ -54,7 +54,7 @@ the system stays in its area. No barrels, no types file — types live
 with the component. Comments say why, with dates and the owner's
 decisions, in the voice of the files around them. Boundaries hold —
 foundation ← primitives ← patterns ← the apps
-(`node scripts/check-boundaries.mjs`).
+(`node scripts/checks/check-boundaries.mjs`).
 
 **Class maps are literal**, and checked:
 

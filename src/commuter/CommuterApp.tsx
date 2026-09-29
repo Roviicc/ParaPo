@@ -39,7 +39,7 @@ const SHARE_KEY = 'r'
  * The public map at /. Everything published so far and a card for whatever is
  * tapped — nothing else. No sign-in, no drawing, no database: the map comes
  * from one published file, and this page's bundle carries neither editor code
- * nor a Supabase client (scripts/check-build.mjs proves both).
+ * nor a Supabase client (scripts/checks/check-build.mjs proves both).
  *
  * On a phone the tap is the whole interface: the cards are bottom sheets, a
  * tap near a line counts, and a tap where routes share a road offers a choice.
