@@ -990,28 +990,45 @@ if (!shared) {
   const items = chooser.locator('[data-testid="chooser-origin"] button[data-testid="chooser-item"]')
   const itemTexts = []
   for (let i = 0; i < (await items.count()); i++) itemTexts.push(await items.nth(i).innerText())
-  // Since 2026-09-25 the sheet lists each route outbound under the place it
-  // leaves from — "Tala", then → SM Fairview — so a route's row is its far
-  // end, under a heading that is its head.
+  // Since 2026-09-25 the sheet lists the routes one way round under the
+  // place they leave from — "Tala", then → SM Fairview — so a route's row is
+  // its far end, under a heading that is where it leaves from. Outbound where
+  // an outbound line was under the tap, the way back where only ways back
+  // were (the rule of 2026-09-25): the shared stretch found may be the two
+  // routes' ways back (their way home can take another road), as the
+  // owner's Bagong Silang Kanan 5 routes of 2026-09-29 are, both coming home
+  // from Philcoa and SM Fairview.
   const endsOf = (name) => name.replace(/ via .*$/, '').split(' – ')
+  const wayBack = [shared.a, shared.b].every((r) => fileDirections.find((d) => d.id === r.id)?.reversed === true)
+  /** Where a route leaves from and goes to, the way round the list shows it. */
+  const shownWay = (r) => {
+    const [head, tail] = endsOf(r.signboard)
+    return wayBack ? { from: tail, to: head } : { from: head, to: tail }
+  }
   // The owner's route list (2026-09-28) counts its cards, one per place the
   // routes leave from: two routes out of Tala are "1 Route".
-  const places = new Set([shared.a.signboard, shared.b.signboard].map((s) => endsOf(s)[0].toLowerCase())).size
+  const places = new Set([shared.a, shared.b].map((r) => shownWay(r).from.toLowerCase())).size
   const title = `${places} ${places === 1 ? 'Route' : 'Routes'}`
   check(`  the list is headed "${title}", a card per place`, chooserText.split('\n').includes(title), chooserText.split('\n')[0] ?? '')
   check(
-    '  it lists both routes, one row each, under the place each leaves from',
+    `  it lists both routes ${wayBack ? 'the way back' : 'outbound'}, one row each, under the place each leaves from`,
     itemTexts.length === 2 &&
-      [shared.a.signboard, shared.b.signboard].every((s) => {
-        const [head, tail] = endsOf(s)
-        return chooserText.includes(head) && itemTexts.some((t) => t.includes(tail))
+      [shared.a, shared.b].every((r) => {
+        const { from, to } = shownWay(r)
+        return chooserText.includes(from) && itemTexts.some((t) => t.includes(to))
       }),
     `${itemTexts.length} row(s): ${itemTexts.map((t) => t.replace(/\n/g, ' / ')).join(' | ')}`,
   )
-  const wanted = items.filter({ hasText: endsOf(shared.b.signboard)[1] })
+  // Its row, found in its card: the way back, both rows may read the same
+  // place ("→ Bagong Silang Kanan 5"), each under its own card.
+  const bWay = shownWay(shared.b)
+  const wantedCard = chooser
+    .locator('[data-testid="chooser-origin"]')
+    .filter({ has: page.locator('[data-testid="chooser-select"]', { hasText: bWay.from }) })
+    .first()
+  const wanted = wantedCard.locator('button[data-testid="chooser-item"]').filter({ hasText: bWay.to })
   const listShown = async () => (await chooser.count()) > 0 && (await chooser.first().isVisible())
   // The colour of the card the row sits on: the trip it opens wears it.
-  const wantedCard = wanted.first().locator('xpath=ancestor::*[@data-livery][1]')
   const cardColour = (await wanted.count()) ? await wantedCard.getAttribute('data-livery') : null
   // A list lights every route it lists. A tap on a card off its rows — its
   // name — narrows the lights to its routes, and a second lets it go; a row
