@@ -105,7 +105,7 @@ await page.route(/^https:\/\//, async (route) => { const req = route.request(); 
 await page.addInitScript(() => {
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
   // Since 2026-09-25 a tap is feature state, not a filter or a paint
-  // expression naming ids (useLighting in src/shared/map/useSavedRoutes.ts).
+  // expression naming ids (useLighting in src/shared/map/savedRoutesLayers.ts).
   // The directions a source has lit.
   window.__lit = async (src) => {
     const m = window.__map
