@@ -52,9 +52,20 @@ export function useRideTo(
   const [picked, setPicked] = useState<{ variantId: string; rowId: string; endId: string | null } | null>(null)
   const live = picked && picked.variantId === selected?.id ? picked : null
 
+  // Where the trip goes, picked from its row: the ride to the end, so the
+  // line stays whole, its dot green like a picked hintuan's (the owner's
+  // ask, 2026-09-29, "tapping Novaliches should indicate green circle
+  // too"). One pick at a time with the hintuans; kept by direction, as a
+  // pick is.
+  const [atEnd, setAtEnd] = useState<string | null>(null)
+  const endPicked = !!selected && atEnd === selected.id
+
   // A different direction is a different ride, and so is the same one opened
   // again: start it whole.
-  useEffect(() => setPicked(null), [selected?.id])
+  useEffect(() => {
+    setPicked(null)
+    setAtEnd(null)
+  }, [selected?.id])
 
   // Read as a glide starts, so a fresh function each render moves nothing.
   const offset = useRef(opts.offset)
@@ -69,6 +80,7 @@ export function useRideTo(
   const selectedId = selected?.id
   const pick = useCallback(
     (id: string | null) => {
+      setAtEnd(null)
       setPicked((cur) =>
         id === null || !selectedId || (cur?.variantId === selectedId && cur.rowId === id)
           ? null
@@ -78,16 +90,23 @@ export function useRideTo(
     [selectedId],
   )
 
-  /** An end row: the whole ride again, and the map gliding to where it leaves from or goes to, at the height it is at. */
+  /**
+   * An end row: the whole ride again, and the map gliding to where it leaves
+   * from or goes to, at the height it is at. Where it goes is picked by the
+   * tap, and a second tap lets it go, the map staying put.
+   */
   const toEnd = useCallback(
     (end: 'from' | 'to') => {
       setPicked(null)
+      const on = end === 'to' && !endPicked
+      setAtEnd(on && selectedId ? selectedId : null)
+      if (end === 'to' && !on) return
       if (!map || !selected) return
       const line = travelLine(selected, stops)
       if (line.length < 2) return
       map.easeTo({ center: end === 'from' ? line[0] : line[line.length - 1], offset: offset.current?.() ?? [0, 0], duration: 700 })
     },
-    [map, selected, stops],
+    [map, selected, selectedId, stops, endPicked],
   )
 
   // The way not ridden, as a line at rest. Added on first use — long after
@@ -196,6 +215,8 @@ export function useRideTo(
     /** The row picked, cut or not: a row whose box the line misses is still shown picked, with nothing to price. */
     pickedId: live?.rowId ?? null,
     pick,
+    /** Whether where the trip goes is picked (`toEnd('to')`). */
+    endPicked,
     toEnd,
   }
 }

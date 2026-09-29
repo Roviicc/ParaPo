@@ -635,10 +635,12 @@ const tripChecks = async () => {
       !(await isPicked()) && (await pill.count()) === 0 && letGo.rest === 0 && letGo.lit.length === 1,
       `${letGo.rest} at rest, ${letGo.lit.length} lit`,
     )
-    // The ends are buttons too (the owner's ask, 2026-09-29): with a hintuan
-    // picked, a tap on where the trip goes, then on where it leaves from,
-    // lets it go — the whole ride dark again, the trip still lit — and
-    // glides the map to that end of the line, above the card.
+    // The ends are buttons too (the owner's asks, 2026-09-29): with a
+    // hintuan picked, a tap on where the trip goes, then on where it leaves
+    // from, lets it go — the whole ride dark again, the trip still lit — and
+    // glides the map to that end of the line, above the card. Where it goes
+    // is picked by the tap, its dot green; picking the hintuan again, or the
+    // origin, lets it go.
     const ends = await page.evaluate(async (id) => {
       try {
         const { travelLine } = await import('/src/shared/routes.ts')
@@ -655,10 +657,14 @@ const tripChecks = async () => {
       await pickButton.scrollIntoViewIfNeeded()
       await buttonTap(pickButton, isPicked)
       const wasPicked = await isPicked()
+      // On the second pass the destination was picked: the hintuan picked
+      // again has let it go, before the origin is tapped.
+      const destinationBefore = await card().locator('[data-testid="trip-destination"]').first().getAttribute('data-state')
       await endButton.first().scrollIntoViewIfNeeded()
       await buttonTap(endButton, async () => !(await isPicked()))
       await page.waitForTimeout(200)
       await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+      const destination = await card().locator('[data-testid="trip-destination"]').first().getAttribute('data-state')
       const after = await page.evaluate(async (at) => {
         const m = window.__map
         const c = m.getCanvas().getBoundingClientRect()
@@ -672,9 +678,12 @@ const tripChecks = async () => {
         }
       }, ends?.[end] ?? null)
       check(
-        `  ${end === 'to' ? 'where the trip goes' : 'where it leaves from'}, tapped, lets the pick go and glides there, above the card`,
-        wasPicked && !(await isPicked()) && after.rest === 0 && after.lit.length === 1 && after.lit[0] === tripId && after.above !== false && after.padding,
-        `picked first ${wasPicked}; ${after.rest} at rest, ${after.lit.length} lit; in the map above the card ${after.above ?? 'not measured'}`,
+        end === 'to'
+          ? '  where the trip goes, tapped, is picked in the hintuan\'s place, the whole ride dark, the map gliding there above the card'
+          : '  where it leaves from, tapped, lets the pick go and glides there, above the card',
+        wasPicked && destinationBefore === 'rest' && !(await isPicked()) && destination === (end === 'to' ? 'selected' : 'rest') &&
+          after.rest === 0 && after.lit.length === 1 && after.lit[0] === tripId && after.above !== false && after.padding,
+        `picked first ${wasPicked}; the destination ${destinationBefore} → ${destination}; ${after.rest} at rest, ${after.lit.length} lit; in the map above the card ${after.above ?? 'not measured'}`,
       )
     }
     // Picked again, for SWITCH — or ✕ and ‹ — to let go.

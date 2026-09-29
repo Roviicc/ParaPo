@@ -28,20 +28,28 @@ const openFold: Story['play'] = async ({ canvasElement }) => {
   fold.blur()
 }
 
-/** Keeps the pick as the public map does (useRideTo): a row picks its hintuan, and again lets it go; an end row lets it go. */
+/**
+ * Keeps the pick as the public map does (useRideTo): a row picks its
+ * hintuan, and again lets it go; the destination's row picks it the same
+ * way; the origin's lets either go.
+ */
 function Picking(props: ComponentProps<typeof RouteTripDetail>) {
   const [picked, setPicked] = useState(props.picked)
+  const [atEnd, setAtEnd] = useState(props.destinationPicked)
   return (
     <RouteTripDetail
       {...props}
       picked={picked}
+      destinationPicked={atEnd}
       onPick={(id) => {
         props.onPick(id)
+        setAtEnd(false)
         setPicked((cur) => (cur === id ? null : id))
       }}
       onEnd={(end) => {
         props.onEnd(end)
         setPicked(null)
+        setAtEnd((cur) => end === 'to' && !cur)
       }}
     />
   )
@@ -58,8 +66,8 @@ const frameOf = (p: { frame?: Frame }) => FRAME[p.frame ?? 'phone']
 const meta = {
   title: 'Shared/RouteTripDetail',
   component: RouteTripDetail,
-  // Keyed on the pick, so the controls panel's `picked` starts it afresh.
-  render: (args) => <Picking key={String(args.picked)} {...args} />,
+  // Keyed on the picks, so the controls panel's `picked` starts it afresh.
+  render: (args) => <Picking key={`${args.picked}:${args.destinationPicked}`} {...args} />,
   // A map-sized box, marked @container as the apps' roots are: the trip
   // docks along its bottom where the list did, and sits in the top-left
   // corner from 1024 wide (`@float:`). Never taller than the canvas, so the
@@ -88,6 +96,7 @@ const meta = {
     picked: null,
     onPick: fn(),
     onEnd: fn(),
+    destinationPicked: false,
     // Amparo's, fourth on the way: from Tala to there on today's map.
     pickedFare: '₱18–20',
   },
@@ -219,9 +228,9 @@ export const PickAndLetGo: Story = {
 }
 
 /**
- * The ends are buttons too, never picked (the owner's ask, 2026-09-29): Tala
- * lets Amparo go, the whole ride again, and says which end to show; so does
- * Novaliches.
+ * The ends are buttons too (the owner's asks, 2026-09-29): Tala lets Amparo
+ * go, the whole ride again, and says which end to show; Novaliches picks
+ * itself, its dot green, lets Amparo go, and a second tap lets it go.
  */
 export const EndsShowTheWhole: Story = {
   args: { picked: 'h3' },
@@ -229,19 +238,40 @@ export const EndsShowTheWhole: Story = {
     const { canvasElement, args } = ctx
     const canvas = within(canvasElement)
     const selected = () => canvasElement.querySelectorAll('[data-testid="trip-hintuan"][data-state="selected"]').length
+    const destination = () => canvas.getByTestId('trip-destination').getAttribute('data-state')
     await expect(selected()).toBe(1)
     await userEvent.click(canvas.getByRole('button', { name: 'Tala' }))
     await expect(args.onEnd).toHaveBeenLastCalledWith('from')
     await expect(selected()).toBe(0)
+    await expect(destination()).toBe('rest')
     await openFold(ctx)
     await userEvent.click(await canvas.findByRole('button', { name: /Amparo/, pressed: false }))
     await expect(selected()).toBe(1)
-    await userEvent.click(canvas.getByRole('button', { name: 'Novaliches' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Novaliches', pressed: false }))
     await expect(args.onEnd).toHaveBeenLastCalledWith('to')
     await expect(selected()).toBe(0)
+    await expect(destination()).toBe('selected')
     await expect(canvas.queryByTestId('trip-hintuan-fare')).toBeNull()
+    await userEvent.click(canvas.getByRole('button', { name: 'Novaliches', pressed: true }))
+    await expect(destination()).toBe('rest')
+    // Picked again, then let go by the origin; and again, by a hintuan.
+    await userEvent.click(canvas.getByRole('button', { name: 'Novaliches', pressed: false }))
+    await expect(destination()).toBe('selected')
+    await userEvent.click(canvas.getByRole('button', { name: 'Tala' }))
+    await expect(destination()).toBe('rest')
+    await userEvent.click(canvas.getByRole('button', { name: 'Novaliches', pressed: false }))
+    await expect(destination()).toBe('selected')
+    await userEvent.click(canvas.getByRole('button', { name: /Amparo/, pressed: false }))
+    await expect(destination()).toBe('rest')
+    await expect(selected()).toBe(1)
   },
 }
+
+/** Where the trip goes, picked: its dot green in a white ring, as a picked hintuan's; its name and the tiles as they were. */
+export const DestinationPicked: Story = { args: { livery: 'red', destinationPicked: true } }
+
+/** The same on a light card. */
+export const DestinationPickedYellow: Story = { args: { destinationPicked: true } }
 
 /** Folded away and opened again, the pick is still there, pill and all (the default he kept). */
 export const PickFoldedAway: Story = {

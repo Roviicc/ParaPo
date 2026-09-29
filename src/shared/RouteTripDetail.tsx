@@ -24,6 +24,12 @@ type Props = {
   pickedFare?: string
   /** The origin's row (`from`) or the destination's (`to`) was tapped: the whole ride again, and that end shown. */
   onEnd: (end: 'from' | 'to') => void
+  /**
+   * Where the trip goes, picked from its row: its dot green, as a picked
+   * hintuan's. One pick at a time: the caller keeps this and `picked` apart
+   * (useRideTo does), since both at once would draw two green dots.
+   */
+  destinationPicked: boolean
   /** Figma's Route on TimelineBottomEndRoute: the place the trip goes to. */
   routeDirection: string
   /** SWITCH: the same route the other way. */
@@ -78,9 +84,12 @@ type Props = {
  * while the map draws the ride dark only that far. Tapping it again lets it
  * go; one at a time. The tiles keep the whole ride. Folded away, a picked
  * row stays picked (the default he kept). The origin's and the
- * destination's rows are buttons too, never picked: a tap on either lets a
- * pick go, the ride whole again, and the map glides to that end, so a rider
- * can look along the route from end to end (his ask, 2026-09-29).
+ * destination's rows are buttons too: a tap on either lets a hintuan go,
+ * the ride whole again, and the map glides to that end, so a rider can look
+ * along the route from end to end (his ask, 2026-09-29). The destination is
+ * picked by its tap, its dot green, and let go by a second (his "green
+ * circle too", the same day); its name and the pesos stay as they are, the
+ * whole ride's being the tile's. The origin is only shown.
  */
 export function RouteTripDetail({
   livery,
@@ -92,6 +101,7 @@ export function RouteTripDetail({
   onPick,
   pickedFare,
   onEnd,
+  destinationPicked,
   routeDirection,
   onSwitch,
   switchable,
@@ -152,7 +162,12 @@ export function RouteTripDetail({
             {folds && (
               <TimelineDisclosure rail={rail} open={open} count={hintuans.length} onToggle={() => setOpen((o) => !o)} />
             )}
-            <TimelineBottomEndRoute rail={rail} routeDirection={routeDirection} onTap={() => onEnd('to')} />
+            <TimelineBottomEndRoute
+              rail={rail}
+              routeDirection={routeDirection}
+              selected={destinationPicked}
+              onTap={() => onEnd('to')}
+            />
           </ol>
           <span aria-hidden className={'pointer-events-none absolute inset-0 rounded-[inherit] ' + CARD_SHADOW[livery]} />
         </div>
@@ -339,14 +354,28 @@ function TimelineDisclosure({
   )
 }
 
-/** Figma's TimelineBottomEndRoute: the rail's last dot, and where the trip goes, behind the list's arrow; the whole row is its button. */
-function TimelineBottomEndRoute({ rail, routeDirection, onTap }: { rail: string; routeDirection: string; onTap: () => void }) {
+/**
+ * Figma's TimelineBottomEndRoute: the rail's last dot, and where the trip
+ * goes, behind the list's arrow; the whole row is its button. Picked, its
+ * dot is TimelineDot's Selected one.
+ */
+function TimelineBottomEndRoute({
+  rail,
+  routeDirection,
+  selected,
+  onTap,
+}: {
+  rail: string
+  routeDirection: string
+  selected: boolean
+  onTap: () => void
+}) {
   return (
-    <li data-testid="trip-destination">
-      <button type="button" onClick={onTap} className="flex w-full items-center pl-4 text-left">
+    <li data-testid="trip-destination" data-state={selected ? 'selected' : 'rest'}>
+      <button type="button" aria-pressed={selected} onClick={onTap} className="flex w-full items-center pl-4 text-left">
         <span aria-hidden className={STICK}>
           <span className={'-mb-0.5 h-5 w-2 shrink-0 ' + rail} />
-          <TimelineDot rail={rail} />
+          <TimelineDot rail={rail} selected={selected} />
         </span>
         <span className="flex min-w-0 flex-1 items-start gap-1 pt-4 pl-2">
           <span aria-hidden className="shrink-0 p-1 *:size-5">

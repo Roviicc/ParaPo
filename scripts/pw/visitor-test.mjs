@@ -681,6 +681,7 @@ if (!hit) {
         await page.waitForTimeout(250)
         const wasPicked = (await row.getAttribute('data-state')) === 'selected'
         await cardEl.locator('[data-testid="trip-destination"] button').click()
+        const destination = await cardEl.locator('[data-testid="trip-destination"]').getAttribute('data-state')
         await page.waitForTimeout(250)
         await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
         const atEnd = await page.evaluate(async (at) => {
@@ -694,10 +695,15 @@ if (!hit) {
           }
         }, end)
         check(
-          '  where the trip goes, tapped, lets the pick go and glides there, right of the card',
-          wasPicked && (await row.getAttribute('data-state')) === 'rest' && atEnd.rest === 0 && atEnd.right !== false,
-          `picked first ${wasPicked}; ${atEnd.rest} at rest; right of the card ${atEnd.right ?? 'not measured'}`,
+          "  where the trip goes, tapped, is picked in the hintuan's place, its line whole, gliding there right of the card",
+          wasPicked && (await row.getAttribute('data-state')) === 'rest' && destination === 'selected' && atEnd.rest === 0 && atEnd.right !== false,
+          `picked first ${wasPicked}; the destination ${destination}; ${atEnd.rest} at rest; right of the card ${atEnd.right ?? 'not measured'}`,
         )
+        // Where it leaves from lets the destination go, no hintuan picked.
+        await cardEl.locator('[data-testid="trip-origin"] button').click()
+        await page.waitForTimeout(250)
+        const destinationAfter = await cardEl.locator('[data-testid="trip-destination"]').getAttribute('data-state')
+        check('  where it leaves from, tapped, lets the destination go', destination === 'selected' && destinationAfter === 'rest', `${destination} → ${destinationAfter}`)
         // Picked again, for ✕ to let go.
         await pick.click()
         await page.waitForTimeout(250)
