@@ -98,7 +98,9 @@ export default defineConfig({
         // .vite/, data/ and _headers by construction; the transform below
         // then drops every chunk the public page does not load, so a studio-only
         // chunk (the editor, the Supabase client) is never stored on a phone.
-        globPatterns: ['index.html', 'manifest.webmanifest', 'assets/*.{js,css}', 'icons/icon-*.png', 'figure/*.png'],
+        // The fonts too, since they were subset to Latin (2026-09-29, 109 kB
+        // for all six): offline, the text keeps its face.
+        globPatterns: ['index.html', 'manifest.webmanifest', 'assets/*.{js,css,woff2}', 'icons/icon-*.png', 'figure/*.png'],
         manifestTransforms: [
           (entries) => {
             // Written by Vite with the bundle; the worker is generated after.
@@ -107,7 +109,7 @@ export default defineConfig({
             }
             const manifest = JSON.parse(readFileSync('dist/.vite/manifest.json', 'utf8')) as Record<
               string,
-              { file: string; css?: string[]; imports?: string[]; dynamicImports?: string[] }
+              { file: string; css?: string[]; assets?: string[]; imports?: string[]; dynamicImports?: string[] }
             >
             const keep = new Set<string>()
             const visit = (key: string) => {
@@ -115,6 +117,7 @@ export default defineConfig({
               if (!chunk || keep.has(chunk.file)) return
               keep.add(chunk.file)
               for (const css of chunk.css ?? []) keep.add(css)
+              for (const asset of chunk.assets ?? []) keep.add(asset)
               for (const k of [...(chunk.imports ?? []), ...(chunk.dynamicImports ?? [])]) visit(k)
             }
             visit('index.html')
@@ -223,7 +226,20 @@ export default defineConfig({
         commuter: 'index.html',
         studio: 'studio/index.html',
       },
+      // What both pages load — MapLibre, React and the shared code — in one
+      // chunk named for what it is. Left to itself it took the name of one of
+      // its modules (useSavedStops-*.js). A module goes in when two chunks
+      // import it — Rolldown counts lazy chunks as well as the two entries —
+      // so check-build.mjs, not this rule, is what proves the studio's
+      // Supabase stays out of what the public page loads. Its size is a guard
+      // there too; MapLibre is most of it and is
+      // what keeps a thousand lines smooth, so the 500 kB warning is answered
+      // by that guard rather than by splitting it.
+      output: {
+        codeSplitting: { groups: [{ name: 'shared', minShareCount: 2 }] },
+      },
     },
+    chunkSizeWarningLimit: 1300,
     // .vite/manifest.json records which chunks each page loads, so
     // scripts/checks/check-build.mjs can prove the public page carries no editor.
     // public/.assetsignore keeps .vite/ off the live site.

@@ -3,7 +3,7 @@ import type { MapLibreMap } from 'maplibre-gl'
 import { HotspotCard } from '../shared/cards/HotspotCard'
 import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from './mapFile'
 import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
-import { APP_MOVE, MapView, coarse } from '../shared/map/MapView'
+import { APP_MOVE, METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
 import { rideFare } from '../shared/model/fares'
 import { lineLength } from '../shared/geo/geo'
 import { liveriesFor, type Livery } from '../shared/model/liveries'
@@ -161,7 +161,7 @@ export default function CommuterApp() {
         the owner's notes on his screenshot, "annoying for users"
         (2026-09-29).
       */}
-      <MapView onReady={setMap} zoomButtons={false} />
+      <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} />
       {map && <WhereAmIButton where={where} coarse={coarse} />}
       {map && where.fix && <Walker map={map} fix={where.fix} pose={where.pose} facing={where.facing} />}
 

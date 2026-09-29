@@ -81,9 +81,26 @@ type Props = {
    * and the keys zoom it. Read once, as the map is made.
    */
   zoomButtons?: boolean
+  /**
+   * How far the map may be panned, [[west, south], [east, north]]. The public
+   * map is held to Greater Manila (METRO_MANILA) so a stray pan never fetches
+   * tiles of the world; the studio is not, for a route that runs out of it.
+   * Read once, as the map is made.
+   */
+  maxBounds?: [[number, number], [number, number]]
 }
 
-export function MapView({ onReady, zoomButtons = true }: Props) {
+/**
+ * Metro Manila with its jeepney hinterland — Bulacan's south, Rizal's
+ * slopes, Cavite and Laguna's north — and room to spare: 0.9° by 0.95°, so
+ * the opening view at zoom 11 fits inside it on a screen 2,000 px wide.
+ */
+export const METRO_MANILA: [[number, number], [number, number]] = [
+  [120.6, 14.1],
+  [121.5, 15.05],
+]
+
+export function MapView({ onReady, zoomButtons = true, maxBounds }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const onReadyRef = useRef(onReady)
   onReadyRef.current = onReady
@@ -127,6 +144,7 @@ export function MapView({ onReady, zoomButtons = true }: Props) {
           style,
           center: CENTER,
           zoom: ZOOM,
+          maxBounds,
           attributionControl: false,
         })
       } catch (err) {

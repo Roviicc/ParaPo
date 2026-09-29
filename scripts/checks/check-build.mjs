@@ -33,8 +33,14 @@
 //    chunk, nothing from .vite/ or data/, and not _headers; the studio is on
 //    the worker's navigation denylist; a new version waits to be asked.
 //
+// 5. Weight (stage 6 of the clean-up, 2026-09-29): the fonts are under
+//    120 kB together, and the chunk both pages share — MapLibre, React and
+//    the shared code, named `shared` in vite.config.ts — is under 400 kB
+//    gzipped, so neither creeps back unnoticed. The fonts are precached.
+//
 //   npm run build        (runs this at the end)
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { gzipSync } from 'node:zlib'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -217,6 +223,8 @@ if (existsSync(swPath)) {
     missingPrecache.length ? 'missing: ' + missingPrecache.join(', ') : '',
   )
   check('precache holds the MapLibre worker', precached.some((u) => /^assets\/maplibre-gl-worker-.*\.js$/.test(u)))
+  const fonts = readdirSync(join(dist, 'assets')).filter((f) => f.endsWith('.woff2')).map((f) => `assets/${f}`)
+  check(`precache holds the ${fonts.length} font files`, fonts.length > 0 && fonts.every((f) => precached.includes(f)), fonts.filter((f) => !precached.includes(f)).join(', '))
   check('precache holds the three icons', ['icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-512-maskable.png'].every((u) => precached.includes(u)))
   const studioOnly = studioFiles.filter((f) => !commuterFiles.includes(f))
   const leakedPrecache = precached.filter(
@@ -244,5 +252,19 @@ if (existsSync(swPath)) {
     msgAt >= 0 && skipAt > msgAt && sw.indexOf('skipWaiting()', skipAt + 1) === -1,
   )
 }
+
+// 5. Weight.
+const FONTS_MAX_KB = 120
+const SHARED_MAX_GZ_KB = 400
+const assetFiles = readdirSync(join(dist, 'assets'))
+const fontBytes = assetFiles.filter((f) => f.endsWith('.woff2')).reduce((n, f) => n + statSync(join(dist, 'assets', f)).size, 0)
+check(`the fonts weigh under ${FONTS_MAX_KB} kB together`, fontBytes > 0 && fontBytes < FONTS_MAX_KB * 1024, `${(fontBytes / 1024).toFixed(1)} kB`)
+const shared = assetFiles.filter((f) => /^shared-.*\.js$/.test(f))
+const sharedGz = shared.reduce((n, f) => n + gzipSync(readFileSync(join(dist, 'assets', f))).length, 0)
+check(
+  `the shared chunk is named, and under ${SHARED_MAX_GZ_KB} kB gzipped`,
+  shared.length === 1 && commuterFiles.includes(`assets/${shared[0]}`) && sharedGz < SHARED_MAX_GZ_KB * 1024,
+  `${shared.join(', ') || 'no shared-*.js'}: ${(sharedGz / 1024).toFixed(1)} kB`,
+)
 
 process.exit(failed ? 1 : 0)
