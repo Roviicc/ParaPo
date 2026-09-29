@@ -275,6 +275,13 @@ function Workshop({
   const choice = [...saved.candidates, ...stops.candidates]
   const choosing = choice.length > 1
 
+  // "Draw the return trip" only while the route still has a way undrawn: after
+  // an edit of a route drawn both ways it once started a drawing whose save
+  // replaced the other direction's line (review finding 2).
+  const slotLeft = justSaved
+    ? saved.variants.some((v) => v.route_id === justSaved.route_id && v.shape === null)
+    : false
+
   const onDelete = async (v: VariantRow) => {
     if (!window.confirm(`Delete "${v.route?.name}" — ${v.direction_name}?`)) return
     try {
@@ -464,7 +471,7 @@ function Workshop({
         </div>
       )}
 
-      {/* After a save, the other direction is almost always next. */}
+      {/* After a save, the other direction is almost always next — while there is one to draw. */}
       {justSaved && !draw.drawing && (
         <div
           className="absolute bottom-24 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-full
@@ -473,17 +480,19 @@ function Workshop({
           <span>
             Saved <strong>{justSaved.route?.name}</strong> · {justSaved.direction_name}
           </span>
-          <button
-            type="button"
-            onClick={() => {
-              const routeId = justSaved.route_id
-              setJustSaved(null)
-              draw.start(routeId)
-            }}
-            className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900"
-          >
-            Draw the return trip
-          </button>
+          {slotLeft && (
+            <button
+              type="button"
+              onClick={() => {
+                const routeId = justSaved.route_id
+                setJustSaved(null)
+                draw.start(routeId)
+              }}
+              className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900"
+            >
+              Draw the return trip
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setJustSaved(null)}

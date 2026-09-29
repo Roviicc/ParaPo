@@ -89,11 +89,11 @@ async function claimExistingRoute(
   }
   const mine = directions.find((d) => d.reversed === reversed)
   if (mine && mine.shape === null) return { routeId: data.id as string, fillSlot: true }
-  throw new Error(
-    'A route between these two places already has this direction drawn. To change it, open it and ' +
-      'press Edit route.',
-  )
+  throw new Error(DRAWN_ALREADY)
 }
+
+const DRAWN_ALREADY =
+  'A route between these two places already has this direction drawn. To change it, open it and press Edit route.'
 
 export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> {
   const client = requireSupabase()
@@ -181,22 +181,32 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
 
   // An existing route: either an edit of a drawn direction, or the first
   // drawing of the empty slot its route was born with. Both are updates —
-  // the unique index means there is never a third row to insert.
+  // the unique index means there is never a third row to insert. Without a
+  // direction in hand only an empty slot is a target (`shape is null`): a
+  // return trip started on a route whose both ways are drawn once matched the
+  // drawn row and replaced its line (review finding 2).
   const target = input.variantId
     ? client.from('route_variant').update(drawn).eq('id', input.variantId)
-    : client.from('route_variant').update(drawn).eq('route_id', routeId).eq('reversed', input.reversed)
+    : client
+        .from('route_variant')
+        .update(drawn)
+        .eq('route_id', routeId)
+        .eq('reversed', input.reversed)
+        .is('shape', null)
 
   const { data, error } = await target.select(VARIANT_SELECT).maybeSingle()
   if (error) throw new Error(error.message)
   if (data) return data as unknown as UnnamedVariantRow
 
   // No slot to fill. Only reachable for a route saved before 0006, or one
-  // whose slot was deleted by hand; an insert is the honest repair.
+  // whose slot was deleted by hand; an insert is the honest repair. When the
+  // direction is there and drawn, the one-per-direction index refuses it.
   const { data: made, error: insertError } = await client
     .from('route_variant')
     .insert(drawn)
     .select(VARIANT_SELECT)
     .single()
+  if (insertError?.code === UNIQUE_VIOLATION) throw new Error(DRAWN_ALREADY)
   if (insertError) throw new Error(insertError.message)
   return made as unknown as UnnamedVariantRow
 }
