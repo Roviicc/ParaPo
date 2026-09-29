@@ -1,5 +1,5 @@
 import type { LngLat, Segment } from '../../shared/geo/geo'
-import { joinSegments, roundLngLat } from '../../shared/geo/geo'
+import { joinSegments, overviewOf, roundLngLat } from '../../shared/geo/geo'
 import { VARIANT_SELECT } from './live'
 import type { LineStringGeoJSON, TransportMode, UnnamedVariantRow, VariantRow } from '../../shared/model/routes'
 import { requireSupabase } from './supabase'
@@ -142,6 +142,8 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
     control_points: input.control_points.map(roundLngLat),
     segments,
     shape,
+    // What the list draws (0009): the same line, thinned at 5 m.
+    overview: shape.coordinates.length > 1 ? ({ type: 'LineString', coordinates: overviewOf(shape.coordinates) } as LineStringGeoJSON) : null,
     borrowed_from: input.borrowed_from,
     borrowed_part: input.borrowed_from ? input.borrowed_part : null,
     borrowed_m: input.borrowed_from ? input.borrowed_m : null,
@@ -159,6 +161,7 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
       control_points: [] as LngLat[],
       segments: [] as Segment[],
       shape: null,
+      overview: null,
       borrowed_from: null,
       borrowed_part: null,
       borrowed_m: null,
@@ -176,7 +179,7 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
     }
     const saved = (data as unknown as UnnamedVariantRow[]).find((v) => v.reversed === input.reversed)
     if (!saved) throw new Error('Saved the route but could not read the direction back')
-    return saved
+    return withLine(saved, shape)
   }
 
   // An existing route: either an edit of a drawn direction, or the first
@@ -196,7 +199,7 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
 
   const { data, error } = await target.select(VARIANT_SELECT).maybeSingle()
   if (error) throw new Error(error.message)
-  if (data) return data as unknown as UnnamedVariantRow
+  if (data) return withLine(data as unknown as UnnamedVariantRow, shape)
 
   // No slot to fill. Only reachable for a route saved before 0006, or one
   // whose slot was deleted by hand; an insert is the honest repair. When the
@@ -208,7 +211,16 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
     .single()
   if (insertError?.code === UNIQUE_VIOLATION) throw new Error(DRAWN_ALREADY)
   if (insertError) throw new Error(insertError.message)
-  return made as unknown as UnnamedVariantRow
+  return withLine(made as unknown as UnnamedVariantRow, shape)
+}
+
+/**
+ * The row as the list reads it comes back with its overview (VARIANT_SELECT);
+ * the caller gets it with the line it wrote, which its links are worked out on.
+ */
+function withLine(row: UnnamedVariantRow & { overview?: unknown }, shape: LineStringGeoJSON): UnnamedVariantRow {
+  const { overview: _overview, ...rest } = row
+  return { ...rest, shape }
 }
 
 /**
@@ -233,6 +245,7 @@ export async function deleteVariant(variant: VariantRow): Promise<void> {
       control_points: [] as LngLat[],
       segments: [] as Segment[],
       shape: null,
+      overview: null,
       borrowed_from: null,
       borrowed_part: null,
       borrowed_m: null,

@@ -210,6 +210,47 @@ function pointToSegmentM(p: LngLat, a: LngLat, b: LngLat): number {
   return toRad(Math.hypot(dx, dy)) * EARTH_RADIUS_M
 }
 
+/**
+ * The line thinned so that no point of it strays more than `epsilonM` metres
+ * (Douglas–Peucker); the first and last points always stay.
+ */
+export function simplifyLine(line: readonly LngLat[], epsilonM: number): LngLat[] {
+  if (line.length <= 2) return line.slice()
+  const keep = new Array<boolean>(line.length).fill(false)
+  keep[0] = keep[line.length - 1] = true
+  const stack: [number, number][] = [[0, line.length - 1]]
+  while (stack.length) {
+    const [a, b] = stack.pop()!
+    let worst = -1
+    let worstD = epsilonM
+    for (let i = a + 1; i < b; i++) {
+      const d = pointToSegmentM(line[i], line[a], line[b])
+      if (d > worstD) {
+        worstD = d
+        worst = i
+      }
+    }
+    if (worst >= 0) {
+      keep[worst] = true
+      stack.push([a, worst], [worst, b])
+    }
+  }
+  return line.filter((_, i) => keep[i])
+}
+
+/** How far an overview may stray from its line: the published index's (publish-map.mjs, OVERVIEW_M). */
+export const OVERVIEW_M = 5
+const round5 = (n: number): number => Math.round(n * 1e5) / 1e5
+
+/**
+ * A line's overview: thinned at 5 m, five decimals (about 1 m) — a quarter of
+ * the points, and the line itself to the eye until a pixel is under 5 m.
+ * What the editor's list draws (0009) and the public map's index carries.
+ */
+export function overviewOf(line: readonly LngLat[]): LngLat[] {
+  return simplifyLine(line, OVERVIEW_M).map(([x, y]) => [round5(x), round5(y)])
+}
+
 /** West, south, east, north, in degrees. */
 export type BBox = [number, number, number, number]
 
