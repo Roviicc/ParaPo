@@ -82,8 +82,9 @@ const SIMPLIFY_M = 0.3
 const MAX_DEVIATION_M = 0.5
 /**
  * The overview in the index: 5 m and 5 decimals (about 1 m), the file's diet
- * before 2026-09-25. At zoom 14 a pixel is 7 m, so it is the full line to the
- * eye until a direction is lit, and then the full line is there.
+ * before 2026-09-25. Below zoom 15 a pixel here is more than 2 m, so it is
+ * the full line to the eye; closer in, and for a lit direction, the map reads
+ * the full line.
  */
 const OVERVIEW_M = 5
 const OVERVIEW_MAX_DEVIATION_M = 7
