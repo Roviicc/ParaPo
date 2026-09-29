@@ -276,6 +276,22 @@ function Workshop({
   }
 
   const onDeleteStop = async (s: StopRow) => {
+    // A route's end cannot go while the route names it: the database refuses
+    // (0006's foreign keys), and its refusal was the notice (finding 15).
+    const ending = [
+      ...new Set(
+        saved.variants
+          .filter((v) => v.route.head_stop_id === s.id || v.route.tail_stop_id === s.id)
+          .map((v) => v.route.name),
+      ),
+    ]
+    if (ending.length > 0) {
+      setNotice(
+        `"${stopLabel(s)}" is where ${ending.join(', ')} ${ending.length === 1 ? 'ends' : 'end'}. ` +
+          `Delete ${ending.length === 1 ? 'that route' : 'those routes'} first.`,
+      )
+      return
+    }
     if (!window.confirm(`Delete ${s.kind} "${stopLabel(s)}"?`)) return
     try {
       await deleteStop(s)
