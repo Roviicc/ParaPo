@@ -3,6 +3,7 @@ import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { haversine, type LngLat } from './geo'
 import { MAP_COLOURS } from '../design-system/foundation/mapColours'
 import { endRadius, litWidthAt } from './lineStyle'
+import type { LineLook } from './liveryLine'
 import { ROUTES_HIT_LAYER } from './tap'
 
 /**
@@ -20,12 +21,13 @@ import { ROUTES_HIT_LAYER } from './tap'
  * (since 2026-09-25), or a hotspot's cards do (2026-09-29). Where two of
  * those share a road they flow as one stream, not two.
  *
- * The mark is a white chevron, one to a place and all alike, with no trail:
- * his call the night of 2026-09-23, after white arrows, a train of four
- * fading chevrons ("not good visually") and jeepneys (parked for a Simulate
- * button, PLAN.md). It is a chevron bigger than the line and cut off by it:
- * its arms run out to the line's edges and stop there, so none of it shows
- * outside the line.
+ * The mark is a white chevron (near-black, Arrow/Inverse, on a mist or yellow
+ * line since 2026-09-29: useRideColours), one to a place and all alike, with
+ * no trail: his call the night of 2026-09-23, after white arrows, a train of
+ * four fading chevrons ("not good visually") and jeepneys (parked for a
+ * Simulate button, PLAN.md). It is a chevron bigger than the line and cut off
+ * by it: its arms run out to the line's edges and stop there, so none of it
+ * shows outside the line.
  *
  * MapLibre can neither slide a mark along a line nor clip one to a line's
  * width, so each chevron is a small polygon we draw ourselves: every frame,
@@ -257,6 +259,19 @@ function stillPlease(): boolean {
 }
 
 /**
+ * The chevrons' colour, and the end circles' ring: the selected blue's white
+ * chevrons and blue ring unless the public map says otherwise — a picked
+ * card's or an open trip's (liveryLine.ts), the ring in the line's colour.
+ */
+export function useRideColours(map: MapLibreMap | null, look: LineLook) {
+  useEffect(() => {
+    if (!map || !map.getLayer(CHEVRONS) || !map.getLayer(ENDS)) return
+    map.setPaintProperty(CHEVRONS, 'fill-color', look.arrow)
+    map.setPaintProperty(ENDS, 'circle-stroke-color', look.line)
+  }, [map, look.line, look.arrow])
+}
+
+/**
  * Draw flowing chevrons along each ride's line, and a circle at both ends of
  * each with the place's name beside it; nothing when there are none. Pass the
  * same array while what is lit is unchanged (a memo), or the flow restarts.
@@ -273,7 +288,13 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     if (!map || map.getSource(SRC) || !map.getLayer(ROUTES_HIT_LAYER)) return
     map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
     map.addLayer(
-      { id: CHEVRONS, type: 'fill', source: SRC, paint: { 'fill-color': MAP_COLOURS['Map/RouteLine/Arrow/Rest'] } },
+      {
+        id: CHEVRONS,
+        type: 'fill',
+        source: SRC,
+        // No fade between colours: they change with what is lit, in its frame.
+        paint: { 'fill-color': MAP_COLOURS['Map/RouteLine/Arrow/Rest'], 'fill-color-transition': { duration: 0, delay: 0 } },
+      },
       ROUTES_HIT_LAYER,
     )
     map.addSource(ENDS_SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
@@ -286,6 +307,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
           'circle-radius': endRadius(),
           'circle-color': '#ffffff',
           'circle-stroke-color': MAP_COLOURS['Map/RouteLine/surface-selected'],
+          'circle-stroke-color-transition': { duration: 0, delay: 0 },
           'circle-stroke-width': 2,
         },
       },

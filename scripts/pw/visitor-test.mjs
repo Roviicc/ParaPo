@@ -217,9 +217,36 @@ const litNow = async () => (await page.evaluate(() => window.__lit('saved-routes
 /** The directions a RouteCard's rows open, as the card names them. */
 const cardDirections = (card) => card.locator('button[data-testid$="-item"]').evaluateAll((els) => els.map((e) => e.dataset.direction))
 const sameIds = (a, b) => a.length === b.length && a.every((id) => b.includes(id))
-const twoLooks = (p) =>
+const twoLooks = (p, lit = MAP?.['Map/RouteLine/surface-selected']) =>
   !!p && p.shaded.length === 0 &&
-  (MAP ? p.rest === MAP['Map/RouteLine/surface-default'] && p.lit === MAP['Map/RouteLine/surface-selected'] : !!p.rest && p.rest !== p.lit)
+  (MAP ? p.rest === MAP['Map/RouteLine/surface-default'] && p.lit === lit : !!p.rest && p.rest !== p.lit)
+
+// What is lit wears the colour of the card it answers — a picked RouteCard's,
+// an open trip's — its chevrons in the card's words' colour and its end
+// circles ringed in the line's; with no card picked, the selected blue (the
+// owner's ask, 2026-09-29). The looks are liveryLine.ts's, read from the dev
+// server; a server that cannot serve it skips the colour.
+const LOOKS = await page.evaluate(async () => {
+  try {
+    const m = await import('/src/shared/liveryLine.ts')
+    return { byLivery: m.LIVERY_LINE, lit: m.LIT_LINE }
+  } catch {
+    return null
+  }
+})
+/** The lit line's paint now: its colour, its chevrons', and its end circles' ring. */
+const rideLook = () =>
+  page.evaluate(() => {
+    const m = window.__map
+    const get = (layer, prop) => (m.getLayer(layer) ? m.getPaintProperty(layer, prop) : null)
+    return {
+      line: get('saved-routes-selected', 'line-color'),
+      arrow: get('direction-arrow-chevrons', 'fill-color'),
+      ends: get('direction-end-circles', 'circle-stroke-color'),
+    }
+  })
+/** Whether the lit line wears `want` (a LineLook), chevrons and rings too; true when the looks cannot be read. */
+const wears = (seen, want) => !LOOKS || (!!want && seen.line === want.line && seen.arrow === want.arrow && seen.ends === want.line)
 
 const snapshot = await page.evaluate(async () => {
   const m = window.__map
@@ -442,7 +469,7 @@ if (!hit) {
     const title = `${cardCount} ${cardCount === 1 ? 'Route' : 'Routes'}`
     check(`  headed "${title}": the routes' count, not the hotspot's`, text.split('\n').includes(title), text.split('\n')[0])
     // A list lights every route it shows; a tap on a card off its rows
-    // narrows the lights to its routes, dark blue over the rest, and a
+    // narrows the lights to its routes, in its colour over the rest, and a
     // second lets it go; a row opens its trip straight away, and ‹ comes
     // back to every card at rest (the owner, 2026-09-29).
     const listedNow = async () => (await cardDirections(chooser.first())).filter(Boolean)
@@ -458,7 +485,14 @@ if (!hit) {
     const cardIds = await cardDirections(card)
     const picked = await litNow()
     const looks = await paintNow()
-    check('  a tap on a card selects it, dark blue over the rest', (await card.getAttribute('data-state')) === 'selected' && twoLooks(looks), JSON.stringify(looks))
+    const cardLook = LOOKS?.byLivery[colour]
+    check(
+      "  a tap on a card selects it, its routes drawn over the rest in the card's colour",
+      (await card.getAttribute('data-state')) === 'selected' && twoLooks(looks, cardLook?.line ?? MAP?.['Map/RouteLine/surface-selected']),
+      JSON.stringify(looks),
+    )
+    const seenPicked = await rideLook()
+    check("  its chevrons in the card's words' colour, its end circles ringed in its own", wears(seenPicked, cardLook), `${colour}: ${JSON.stringify(seenPicked)}`)
     // Narrower than the list only where the list has other cards.
     if (cardIds.length < listed.length) check('  and lights just its routes', sameIds(picked, cardIds), `${picked.length} lit for ${cardIds.length} row(s) of ${listed.length}`)
     else skip('  and lights just its routes', 'one card lists every route this way round under this tap')
@@ -471,6 +505,8 @@ if (!hit) {
     if (state.kind === 'route') {
       const tripColour = await page.locator('[data-testid="trip"]').first().getAttribute('data-livery')
       check('  in the colour of the card it was picked from', !!colour && tripColour === colour, `card ${colour}, trip ${tripColour}`)
+      const seenTrip = await rideLook()
+      check("  its line in the trip card's colour too", wears(seenTrip, LOOKS?.byLivery[tripColour]), `${tripColour}: ${JSON.stringify(seenTrip)}`)
       // The list stays behind the trip, hidden, for its ‹, and its hotspot
       // goes dark under the trip till then (the owner, 2026-09-29).
       const stopsLit = async () => (await page.evaluate(() => window.__lit('saved-stops'))) ?? []
@@ -488,6 +524,8 @@ if (!hit) {
       const relit = await litNow()
       const stillSelected = await chooser.locator('[data-state="selected"]').count()
       check('  ‹ brings it back at rest: no card picked, every route lit', stillSelected === 0 && sameIds(relit, listed), `${stillSelected} Selected; ${relit.length} lit, ${listed.length} listed`)
+      const seenRest = await rideLook()
+      check('  in the selected blue again', wears(seenRest, LOOKS?.lit), JSON.stringify(seenRest))
       // Picked, a second tap lets it go.
       await name.click()
       await page.waitForTimeout(250)
@@ -529,7 +567,7 @@ if (!hit) {
 }
 
 // 4b. Rest and lit: every direction rests in one light blue, opaque; one
-// route alone under the tap opens its card directly, drawn dark blue over
+// route alone under the tap opens its card directly, drawn in its trip card's colour over
 // the rest; closing the card lights nothing again. Nothing fades and nothing
 // is see-through (the owner's two looks, 2026-09-29).
 {

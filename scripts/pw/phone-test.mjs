@@ -759,9 +759,36 @@ const MAP = await page.evaluate(async () => {
   }
 })
 const paintNow = () => page.evaluate(() => (window.__map.getLayer('saved-routes-line') ? window.__paint() : null))
-const twoLooks = (p) =>
+const twoLooks = (p, lit = MAP?.['Map/RouteLine/surface-selected']) =>
   !!p && p.shaded.length === 0 &&
-  (MAP ? p.rest === MAP['Map/RouteLine/surface-default'] && p.lit === MAP['Map/RouteLine/surface-selected'] : !!p.rest && p.rest !== p.lit)
+  (MAP ? p.rest === MAP['Map/RouteLine/surface-default'] && p.lit === lit : !!p.rest && p.rest !== p.lit)
+
+// What is lit wears the colour of the card it answers — a picked RouteCard's,
+// an open trip's — its chevrons in the card's words' colour and its end
+// circles ringed in the line's; with no card picked, the selected blue (the
+// owner's ask, 2026-09-29). The looks are liveryLine.ts's, read from the dev
+// server; a server that cannot serve it skips the colour.
+const LOOKS = await page.evaluate(async () => {
+  try {
+    const m = await import('/src/shared/liveryLine.ts')
+    return { byLivery: m.LIVERY_LINE, lit: m.LIT_LINE }
+  } catch {
+    return null
+  }
+})
+/** The lit line's paint now: its colour, its chevrons', and its end circles' ring. */
+const rideLook = () =>
+  page.evaluate(() => {
+    const m = window.__map
+    const get = (layer, prop) => (m.getLayer(layer) ? m.getPaintProperty(layer, prop) : null)
+    return {
+      line: get('saved-routes-selected', 'line-color'),
+      arrow: get('direction-arrow-chevrons', 'fill-color'),
+      ends: get('direction-end-circles', 'circle-stroke-color'),
+    }
+  })
+/** Whether the lit line wears `want` (a LineLook), chevrons and rings too; true when the looks cannot be read. */
+const wears = (seen, want) => !LOOKS || (!!want && seen.line === want.line && seen.arrow === want.arrow && seen.ends === want.line)
 /** The directions lit now, by id. */
 const litIds = (p) => p.evaluate(() => window.__lit('saved-routes'))
 
@@ -885,7 +912,12 @@ if (routeA) {
     `‹ ${backShown ? 'shown' : 'not shown'}`,
   )
   const looks = await paintNow()
-  check('  the rest stay as they rest, opaque light blue: nothing fades (two looks)', twoLooks(looks), JSON.stringify(looks))
+  const openColour = (await trip().count()) ? await trip().first().getAttribute('data-livery') : null
+  check(
+    "  the rest stay as they rest, opaque light blue, the trip's line in its card's colour: nothing fades (two looks)",
+    twoLooks(looks, LOOKS?.byLivery[openColour]?.line ?? MAP?.['Map/RouteLine/surface-selected']),
+    `${openColour}: ${JSON.stringify(looks)}`,
+  )
 
   const trip2 = await tripChecks()
 
@@ -999,6 +1031,8 @@ if (!shared) {
   const pickedIds = (await wanted.count()) ? await directionsIn(wantedCard) : []
   const litPicked = (await litIds(page)) ?? []
   check('  a tap on a card off its rows selects it, opening no trip', (await isPicked()) && (await trip().count()) === 0, `Selected ${await isPicked()}; trip open ${(await trip().count()) > 0}`)
+  const seenPicked = await rideLook()
+  check("  its routes in the card's colour, chevrons and end circles too", wears(seenPicked, LOOKS?.byLivery[cardColour]), `${cardColour}: ${JSON.stringify(seenPicked)}`)
   // Narrower than the list only where the list has other cards.
   if (pickedIds.length > 0 && pickedIds.length < new Set(listedIds).size) {
     check('  and lights just its routes', sameSet(litPicked, pickedIds), `${litPicked.length} lit for ${pickedIds.length} row(s) of ${listedIds.length}`)
@@ -1023,6 +1057,8 @@ if (!shared) {
   )
   const tripColour = (await trip().count()) ? await trip().first().getAttribute('data-livery') : null
   check('  the trip wears the colour of the card it was picked from', !!cardColour && tripColour === cardColour, `card ${cardColour}, trip ${tripColour}`)
+  const seenTrip = await rideLook()
+  check("  and so does its line", wears(seenTrip, LOOKS?.byLivery[tripColour]), `${tripColour}: ${JSON.stringify(seenTrip)}`)
   const trip3 = await tripChecks()
   const back = card().getByRole('button', { name: 'Back' })
   if ((await back.count()) === 0) {
@@ -1037,6 +1073,8 @@ if (!shared) {
       again ? `card count ${await card().count()}; picked before ${pickedForTrip}, now ${await isPicked()}; ${litBack.length} lit` : 'the list did not come back',
     )
     if (trip3.picked) check('  and lets the picked hintuan go', await noPickLeft())
+    const seenRest = await rideLook()
+    check('  and its lines are the selected blue again', wears(seenRest, LOOKS?.lit), JSON.stringify(seenRest))
     // Picked, then a tap on the map where the list opened: a fresh list,
     // nothing Selected, every route it lists lit.
     await buttonTap(wantedName, isPicked)

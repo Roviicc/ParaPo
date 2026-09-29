@@ -21,10 +21,11 @@ import {
   variantLine,
   type VariantSummary,
 } from '../shared/routes'
-import { useDirectionArrows } from '../shared/directionArrows'
+import { useDirectionArrows, useRideColours } from '../shared/directionArrows'
 import { usePassStretches } from '../shared/passStretches'
 import { useBabaanSides } from '../shared/babaanSides'
-import { useSavedRoutes } from '../shared/useSavedRoutes'
+import { useLitLineColour, useSavedRoutes } from '../shared/useSavedRoutes'
+import { LIT_LINE, LIVERY_LINE } from '../shared/liveryLine'
 import { useSavedStops } from '../shared/useSavedStops'
 import type { Timeline } from '../shared/stops'
 import { Walker } from './Walker'
@@ -104,6 +105,27 @@ export default function CommuterApp() {
   // owner, 2026-09-29).
   const [worn, setWorn] = useState<{ id: string; livery: Livery } | null>(null)
   const wornBehind = choosing || !!stops.selected
+
+  // The trip's colour, decided as it opens — its RouteCard's, in the list or
+  // a hotspot's card, else its place's for the visit (liveries.ts: drawn
+  // when first met, kept after) — and kept until it closes, through SWITCH.
+  // Kept here, not in the trip card, since its line wears it too (the
+  // owner's ask, 2026-09-29).
+  const [tripWears, setTripWears] = useState<{ routeId: string; livery: Livery } | null>(null)
+  const open = saved.selected
+  let tripLivery = open && tripWears?.routeId === open.route_id ? tripWears.livery : null
+  if (open && !tripLivery) {
+    tripLivery = (wornBehind && worn?.id === open.id ? worn.livery : undefined) ?? liveriesFor([directionEnds(open).from])[0]
+    setTripWears({ routeId: open.route_id, livery: tripLivery })
+  } else if (!open && tripWears) {
+    setTripWears(null)
+  }
+  // What is lit wears the colour of the card it answers: the open trip's, or
+  // the picked RouteCard's; a list with none picked lights its routes in the
+  // selected blue (the owner's ask, 2026-09-29).
+  const look = tripLivery ? LIVERY_LINE[tripLivery] : saved.highlight ? LIVERY_LINE[saved.highlight.livery] : LIT_LINE
+  useLitLineColour(map, look.line)
+  useRideColours(map, look)
 
   // The trip's ‹: back to what it was picked from, kept behind it as it was
   // left, every card at rest — the route list, a hotspot's card (the
@@ -220,7 +242,7 @@ export default function CommuterApp() {
         </button>
       )}
 
-      {saved.selected && (
+      {saved.selected && tripLivery && (
         // Keyed on the route: SWITCH leaves the hintuans open or folded as
         // they were, in the colour the trip opened in; another route opens
         // folded, in its own.
@@ -229,7 +251,7 @@ export default function CommuterApp() {
           variant={saved.selected}
           variants={saved.variants}
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
-          worn={wornBehind && worn?.id === saved.selected.id ? worn.livery : undefined}
+          livery={tripLivery}
           onBackToList={backToList}
           onSwitch={(v) => saved.select(v.id, { keepList: true })}
           onClose={closeAll}
@@ -422,7 +444,7 @@ function TripCard({
   variant,
   variants,
   timeline,
-  worn,
+  livery,
   onBackToList,
   onSwitch,
   onClose,
@@ -436,7 +458,8 @@ function TripCard({
   variant: VariantSummary
   variants: readonly VariantSummary[]
   timeline: Timeline
-  worn: Livery | undefined
+  /** The colour it opened in, kept through SWITCH; its line wears it too. */
+  livery: Livery
   onBackToList: (() => void) | null
   onSwitch: (sibling: VariantSummary) => void
   onClose: () => void
@@ -451,11 +474,6 @@ function TripCard({
   dockRef: Ref<HTMLDivElement>
 }) {
   const { from, to } = directionEnds(variant)
-  // Decided as the card opens — its RouteCard's, in the list or a hotspot's
-  // card, else its place's for the visit (liveries.ts: drawn when first met,
-  // kept after) — and kept until it closes, through SWITCH. `worn` is read
-  // only here.
-  const [livery] = useState(() => worn ?? liveriesFor([from])[0])
   const sibling = otherDirection(variants, variant)
   const switchable = !!sibling && isDrawn(sibling)
   // The whole ride, measured once: its Kilometer and its Expected fare.

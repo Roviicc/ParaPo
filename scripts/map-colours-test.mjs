@@ -3,13 +3,15 @@
 // reads neither var() nor oklch. Two copies drift, so this holds them
 // together: every Map/… token has its hex, every hex its token, and each hex
 // is the primitive its token aliases — Tailwind's own oklch, converted, or
-// one of ours from tokens.css.
+// one of ours from tokens.css. It holds CARD_COLOURS the same way: the
+// Card/<livery>/surface hexes a picked card's routes and an open trip's line
+// are lit in (2026-09-29).
 //
 //   node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/map-colours-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { MAP_COLOURS } from '../src/design-system/foundation/mapColours.ts'
+import { CARD_COLOURS, MAP_COLOURS } from '../src/design-system/foundation/mapColours.ts'
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const tokens = read('../src/design-system/foundation/tokens.css')
@@ -58,6 +60,17 @@ function primitiveHex(name) {
 
 /** Channel by channel: oklch is written to three places, so a hex may land one off. */
 const near = (x, y) => [1, 3, 5].every((i) => Math.abs(parseInt(x.slice(i, i + 2), 16) - parseInt(y.slice(i, i + 2), 16)) <= 1)
+
+test("each card colour is the primitive its Card/<livery>/surface aliases", () => {
+  assert.ok(Object.keys(CARD_COLOURS).length === 4, 'the four liveries')
+  for (const [figma, hex] of Object.entries(CARD_COLOURS)) {
+    const css = cssName(figma)
+    const primitive = tokens.match(new RegExp(`^\\s*--${css}:\\s*var\\(--color-([a-z0-9-]+)\\);`, 'm'))?.[1]
+    assert.ok(primitive, `no --${css} in tokens.css`)
+    const want = primitiveHex(primitive)
+    assert.ok(near(hex, want), `${figma} is ${hex}, but --${css} is ${primitive}, ${want}`)
+  }
+})
 
 test('the converter lands on hexes the Figma file holds', () => {
   assert.ok(near(oklchHex('88.2% 0.059 254.128'), '#bedbff')) // blue/200
