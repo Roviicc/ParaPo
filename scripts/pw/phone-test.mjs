@@ -1271,6 +1271,25 @@ const dragHandle = async (dy) => {
   return { ok: true, how: 'mouse (the sheet did not answer a synthetic touch drag)' }
 }
 
+/**
+ * The map drawn and still: a card's lit routes flow their chevrons for three
+ * seconds, then rest. Once today's map gave the Philcoa card routes to light
+ * (2026-09-29), a GitHub runner, drawing them flow without a graphics card,
+ * answered no touch on its handle in those seconds, nor the mouse drags sent
+ * after them; the same card's mouse drags passed later, and the runner drops
+ * touches on a busy page elsewhere too (mapTap). The sheet is judged at rest;
+ * a slow click, which a real phone may send, 4d checks.
+ */
+const mapAtRest = () =>
+  page.evaluate(
+    () =>
+      new Promise((r) => {
+        const m = window.__map
+        m.once('idle', r)
+        m.triggerRepaint()
+        setTimeout(r, 10000)
+      }),
+  )
 /** Open that hotspot's card again, with the tap 15 px outside its ring that 4b checks. */
 const openSheet = async () => {
   const { vertex, centre } = hotspot
@@ -1283,6 +1302,7 @@ const openSheet = async () => {
   const box = await canvasBox()
   await mapTap(box.x + anchor[0] + (dx / len) * 15, box.y + anchor[1] + (dy / len) * 15)
   await page.waitForTimeout(600)
+  await mapAtRest()
 }
 /** Each gesture below is judged on its own, so put the sheet back if one broke it. */
 const restore = async (want) => {
@@ -1379,6 +1399,7 @@ if (!withRoutes) {
     await buttonTap(chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: withRoutes.name }), async () => (await chooser.count()) === 0)
   }
   const atPeek = (await cardText()).includes(withRoutes.name) && (await sheetState()) === 'peek'
+  await mapAtRest()
   await tapHandle()
   check(
     `a tap on the handle of "${withRoutes.name}"'s card, with routes, pulls it up, opening none`,
