@@ -126,6 +126,10 @@ function Workshop({
   )
   useDirectionArrows(map, rides)
 
+  // The pill counts routes, not directions: a route is two rows, one of them
+  // perhaps an empty slot, and five routes once read "10 routes" (finding 7).
+  const routeCount = useMemo(() => new Set(saved.variants.map((v) => v.route_id)).size, [saved.variants])
+
   const signedIn = !!session
   const userId = session?.user.id ?? null
 
@@ -412,9 +416,9 @@ function Workshop({
           className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-full bg-white/90
                      px-3 py-1.5 text-xs text-neutral-600 shadow ring-1 ring-black/5 backdrop-blur"
         >
-          {saved.variants.length > 0 && (
+          {routeCount > 0 && (
             <span className="text-neutral-500">
-              {saved.variants.length} {saved.variants.length === 1 ? 'route' : 'routes'}
+              {routeCount} {routeCount === 1 ? 'route' : 'routes'}
               {stops.stops.length > 0 && (
                 <> · {hotspotCount(stops.stops)} {hotspotCount(stops.stops) === 1 ? 'hotspot' : 'hotspots'}</>
               )}{' '}
