@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { WhereAmI as State } from './useWhereAmI'
+import { MapControlButton } from '../shared/map/MapControlButton'
 
 type Props = {
   where: State
@@ -45,8 +46,7 @@ export function WhereAmIButton({ where, coarse }: Props) {
         coarse ? 'top-[calc(5.25rem+env(safe-area-inset-top))]' : 'top-[calc(2.875rem+env(safe-area-inset-top))]'
       }`}
     >
-      <button
-        type="button"
+      <MapControlButton
         onClick={() => (on && follow ? stop() : ask())}
         aria-label={label}
         aria-pressed={on}
@@ -54,19 +54,18 @@ export function WhereAmIButton({ where, coarse }: Props) {
         data-testid="where"
         data-state={state}
         className={
-          'grid h-[29px] w-[29px] place-items-center rounded shadow-[0_0_0_2px_rgba(0,0,0,0.1)] ' +
-          (on && follow
+          on && follow
             ? 'bg-blue-600 text-content-inverse hover:bg-blue-700'
             : on
               ? 'bg-surface text-blue-600 hover:bg-blue-50'
-              : 'bg-surface text-content-secondary hover:bg-surface-secondary')
+              : 'bg-surface text-content-secondary hover:bg-surface-secondary'
         }
       >
         {/* A compass needle: the usual sign for "my location". */}
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
           <path d="M14 2 2 7l6 1 1 6z" fill={on ? 'currentColor' : 'none'} />
         </svg>
-      </button>
+      </MapControlButton>
       {note && (
         <p
           role="status"
