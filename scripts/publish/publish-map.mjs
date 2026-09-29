@@ -1,6 +1,7 @@
 // Publishes the public map as files, so visitors never ask the database.
 //
-//   node scripts/publish/publish-map.mjs            writes public/data/
+//   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs scripts/publish/publish-map.mjs
+//                                                   writes public/data/
 //
 // Three things (shape A of docs/review-2026-09-29.md, section 8, stage 7 of the
 // clean-up; since 2026-09-29):
@@ -45,12 +46,21 @@
 // normal HTTP 200, so without this a policy slip would blank the public map
 // and deploy it. `--force` overrides that one check, for a deliberate removal.
 //
-// No dependencies: Node's own fetch, zlib and fs. Keep it that way, so the
-// workflow needs no `npm ci`.
+// The rules are the app's own, imported from src/ as check-map-data does —
+// the thinning, the rounding, a hotspot's label, the route and direction
+// names, the index's schema — so the file and the app cannot drift (the
+// review's 6.5: they were written here a second time). TypeScript, which
+// Node strips; ts-resolve.mjs finds the .ts behind an extensionless import.
+// Nothing from npm: Node's own fetch, zlib and fs, so the workflow still
+// needs no `npm ci`.
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { gzipSync } from 'node:zlib'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { OVERVIEW_M, lineLength, overviewOf, pointToSegmentM, round6, roundLngLat, simplifyLine } from '../../src/shared/geo/geo.ts'
+import { directionName, routeName } from '../../src/shared/model/routes.ts'
+import { stopLabel } from '../../src/shared/model/stops.ts'
+import { MAP_FILE_SCHEMA } from '../../src/commuter/mapFile.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -81,12 +91,12 @@ const FORCE = process.argv.includes('--force')
 const SIMPLIFY_M = 0.3
 const MAX_DEVIATION_M = 0.5
 /**
- * The overview in the index: 5 m and 5 decimals (about 1 m), the file's diet
- * before 2026-09-25. Below zoom 15 a pixel here is more than 2 m, so it is
- * the full line to the eye; closer in, and for a lit direction, the map reads
+ * The overview in the index: OVERVIEW_M (5 m) and 5 decimals (about 1 m),
+ * the file's diet before 2026-09-25 — geo.ts's overviewOf, which the editor's
+ * list draws too. Below zoom 15 a pixel here is more than 2 m, so it is the
+ * full line to the eye; closer in, and for a lit direction, the map reads
  * the full line.
  */
-const OVERVIEW_M = 5
 const OVERVIEW_MAX_DEVIATION_M = 7
 /** A collection that lost more than this share of its rows since the last file is not published without --force. */
 const MAX_SHRINK = 0.3
@@ -94,11 +104,11 @@ const MAX_SHRINK = 0.3
 const PAGE = 1000
 const TIMEOUT_MS = 30_000
 
-/** The data's licence, written into the file itself. See README.md, "Data and licence". */
-/** map.json's shape, 1: the older apps read it as it is, so it stays 1 (src/commuter/mapFile.ts has the rules). */
+/** map.json's shape, the one before the index: fixed, since installed apps read it as it is (src/commuter/mapFile.ts has the rules). */
 const SCHEMA = 1
-/** The index's shape; must equal MAP_FILE_SCHEMA in src/commuter/mapFile.ts. */
-const INDEX_SCHEMA = 2
+/** The index's shape: the app's own MAP_FILE_SCHEMA. */
+const INDEX_SCHEMA = MAP_FILE_SCHEMA
+/** The data's licence, written into the file itself. See README.md, "Data and licence". */
 const LICENSE = 'ODbL-1.0'
 const ATTRIBUTION =
   'Route data © ParaPo contributors, ODbL (https://opendatacommons.org/licenses/odbl/1-0/). ' +
@@ -154,65 +164,6 @@ async function rest(path) {
 
 // ---------------------------------------------------------------- geometry
 
-const M_PER_DEG_LAT = 110_574
-const mPerDegLng = (lat) => 111_320 * Math.cos((lat * Math.PI) / 180)
-
-/** Metres from p to the segment a–b, in a local flat frame around lat0. */
-function distToSegment(p, a, b, k) {
-  const px = (p[0] - a[0]) * k
-  const py = (p[1] - a[1]) * M_PER_DEG_LAT
-  const bx = (b[0] - a[0]) * k
-  const by = (b[1] - a[1]) * M_PER_DEG_LAT
-  const len2 = bx * bx + by * by
-  let t = len2 ? (px * bx + py * by) / len2 : 0
-  t = t < 0 ? 0 : t > 1 ? 1 : t
-  return Math.hypot(px - bx * t, py - by * t)
-}
-
-/** Douglas–Peucker: keep the points that hold the line within `epsilon` metres. */
-function simplify(coords, epsilon, k) {
-  if (coords.length <= 2) return coords.slice()
-  const keep = new Array(coords.length).fill(false)
-  keep[0] = keep[coords.length - 1] = true
-  const stack = [[0, coords.length - 1]]
-  while (stack.length) {
-    const [a, b] = stack.pop()
-    let worst = -1
-    let worstD = epsilon
-    for (let i = a + 1; i < b; i++) {
-      const d = distToSegment(coords[i], coords[a], coords[b], k)
-      if (d > worstD) {
-        worstD = d
-        worst = i
-      }
-    }
-    if (worst >= 0) {
-      keep[worst] = true
-      stack.push([a, worst], [worst, b])
-    }
-  }
-  return coords.filter((_, i) => keep[i])
-}
-
-/** Great-circle metres, as the app measures them (src/shared/geo/geo.ts, haversine). */
-function haversine([lng1, lat1], [lng2, lat2]) {
-  const toRad = (deg) => (deg * Math.PI) / 180
-  const dLat = toRad(lat2 - lat1)
-  const dLng = toRad(lng2 - lng1)
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
-  return 2 * 6_371_000 * Math.asin(Math.sqrt(a))
-}
-/** A published line's length, as the app's lineLength measures it, to the centimetre. */
-function lineMetres(coords) {
-  let m = 0
-  for (let i = 1; i < coords.length; i++) m += haversine(coords[i - 1], coords[i])
-  return Math.round(m * 100) / 100
-}
-
-/** Six decimals: about 0.1 m, for a line's points and a hotspot's corners alike. */
-const round6 = (n) => Math.round(n * 1e6) / 1e6
-/** Five decimals, about 1 m: the overview's. */
-const round5 = (n) => Math.round(n * 1e5) / 1e5
 /** A Point or Polygon with every coordinate rounded to 6 decimals; anything else as it came. */
 function roundGeometry(g) {
   if (!g || typeof g !== 'object') return g
@@ -230,12 +181,12 @@ function roundGeometry(g) {
  * segment is tried for every point: a route that doubles back on itself has
  * its nearest segment anywhere, and a few hundred by a hundred is nothing.
  */
-function maxDeviation(original, simplified, k) {
+function maxDeviation(original, simplified) {
   let worst = 0
   for (const p of original) {
     let best = Infinity
     for (let i = 0; i + 1 < simplified.length; i++) {
-      const d = distToSegment(p, simplified[i], simplified[i + 1], k)
+      const d = pointToSegmentM(p, simplified[i], simplified[i + 1])
       if (d < best) best = d
     }
     if (best > worst) worst = best
@@ -262,15 +213,9 @@ const [variantRows, stopRows, linkRows] = await Promise.all([
 // Names are generated from the hotspots at each route's ends and never stored
 // (PLAN.md, "Naming and creating a route", 2026-09-21). The file carries the
 // generated strings so visitors need no join; a renamed hotspot shows on the
-// next publish. Mirrors routeName / directionName in src/shared/model/routes.ts.
-const DASH = '–'
-// A hotspot's informal name — what people say — is what a route name reads;
-// the name on the ground is the fallback. Mirrors stopLabel in src/shared/model/stops.ts (0007).
-const stopLabel = (s) => (s.informal && s.informal.trim()) || s.name
+// next publish: routeName and directionName, from a hotspot's stopLabel — its
+// informal name, what people say, or the name on the ground (0007).
 const stopName = new Map(stopRows.map((s) => [s.id, stopLabel(s)]))
-const routeName = (head, tail, via) =>
-  via && via.trim() ? `${head} ${DASH} ${tail} via ${via.trim()}` : `${head} ${DASH} ${tail}`
-const directionName = (head, tail, reversed) => (reversed ? `${tail} → ${head}` : `${head} → ${tail}`)
 
 const stats = []
 /** Each direction's overview, by id: its line at 5 m, 5 decimals. */
@@ -290,16 +235,15 @@ const variants = variantRows.map((v) => {
   const coords = Array.isArray(v.shape?.coordinates) ? v.shape.coordinates : []
   let shape = null
   if (coords.length > 1) {
-    const k = mPerDegLng(coords[0][1])
-    const slim = simplify(coords, SIMPLIFY_M, k).map(([x, y]) => [round6(x), round6(y)])
-    const dev = maxDeviation(coords, slim, k)
+    const slim = simplifyLine(coords, SIMPLIFY_M).map(roundLngLat)
+    const dev = maxDeviation(coords, slim)
     if (dev > MAX_DEVIATION_M) {
       fail(`FAIL  "${name}" ${direction}: simplified line strays ${dev.toFixed(1)} m from the original`)
     }
     // The overview is thinned from the original, not from the full line, and
     // checked the same way against its own, looser bound.
-    const rough = simplify(coords, OVERVIEW_M, k).map(([x, y]) => [round5(x), round5(y)])
-    const roughDev = maxDeviation(coords, rough, k)
+    const rough = overviewOf(coords)
+    const roughDev = maxDeviation(coords, rough)
     if (roughDev > OVERVIEW_MAX_DEVIATION_M) {
       fail(`FAIL  "${name}" ${direction}: its overview strays ${roughDev.toFixed(1)} m from the original`)
     }
@@ -393,7 +337,7 @@ writeFileSync(OUT, file)
 const indexBody = {
   variants: variants.map(({ shape, ...v }) => {
     const { route, ...rest } = v
-    return { ...rest, overview: overviews.get(v.id) ?? null, metres: shape ? lineMetres(shape.coordinates) : null, route }
+    return { ...rest, overview: overviews.get(v.id) ?? null, metres: shape ? Math.round(lineLength(shape.coordinates) * 100) / 100 : null, route }
   }),
   stops,
   links,

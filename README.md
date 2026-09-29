@@ -72,8 +72,9 @@ broke something; the failing suite's screenshots are the run's artifact.
 The file is published from `main`, every night at 04:00 Manila and on "Run
 workflow" (`.github/workflows/publish-map.yml`). `scripts/publish/publish-map.mjs`
 reads the public tables, keeps each line within half a metre of what was
-drawn, rounds to 6 decimals, refuses a map that suddenly shrank, and writes
-the same bytes for the same data, so a quiet night commits nothing.
+drawn and rounds to 6 decimals — the app's own rules, imported from `src/`
+— refuses a map that suddenly shrank, and writes the same bytes for the
+same data, so a quiet night commits nothing.
 `scripts/checks/check-map-data.mjs` then reads the file back against the app's own
 rules: a link to a hotspot that is not there stops the publish; a line that
 ends far from its terminal, or a hintuan it passes without being linked to,
