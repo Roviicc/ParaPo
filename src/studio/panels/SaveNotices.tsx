@@ -1,5 +1,5 @@
 import type { Drawing } from '../drawing/useDrawing'
-import { routeStreets } from '../drawing/snap'
+import { routeStreets } from '../drawing/streets'
 import type { VariantRow } from '../../shared/model/routes'
 
 /**
