@@ -1421,6 +1421,7 @@ if (!hotspot) {
     const hb = await handle().first().boundingBox()
     if (!hb) return false
     const [x, y] = [hb.x + hb.width / 2, hb.y + hb.height / 2]
+    const seen = await pointerdowns()
     await page.mouse.move(x, y)
     await page.mouse.down()
     for (let i = 1; i <= 8; i++) {
@@ -1429,6 +1430,19 @@ if (!hotspot) {
     }
     await page.mouse.up()
     await page.waitForTimeout(450)
+    // The mouse made no pointer event: the runner's, as with tapHandle. The
+    // same drag by hand, then the click a mouse sends after one — on the
+    // handle it was held on, where it let go — which is the click this check
+    // is for.
+    if ((await pointerdowns()) === seen) {
+      handleByHand++
+      await handGesture(x, y, Array.from({ length: 8 }, (_, i) => y + (dy * (i + 1)) / 8))
+      await page.evaluate(([x, y]) => {
+        const h = document.querySelector('[data-testid="card"] button[data-testid="sheet-handle"]')
+        h?.dispatchEvent(new MouseEvent('click', { clientX: x, clientY: y, bubbles: true, cancelable: true, detail: 1 }))
+      }, [x, y + dy])
+      await page.waitForTimeout(450)
+    }
     return true
   }
   const readyMouseUp = await restore('peek')
