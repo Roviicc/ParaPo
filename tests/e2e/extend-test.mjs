@@ -69,7 +69,7 @@ const frame = (pts, padding) =>
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1])
     window.__map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding, duration: 0 })
   }, [pts, padding])
-// The toolbar's count. The draft is not rewritten when the last point goes.
+// The toolbar's count; the draft is removed when the last point goes.
 const pointsShown = async () => Number((await page.evaluate(() => document.body.innerText)).match(/(\d+) points?\b/)?.[1] ?? -1)
 
 // Frame the stretch before the join, where the new route's clicks go.
