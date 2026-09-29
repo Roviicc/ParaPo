@@ -3345,21 +3345,26 @@ column (studio-scale 13, save 48) were green in CI. Only then did the
 drawing suites run again, and the PR merged only after they passed.
 
 **Stage 9 — the design system, 2026-09-29.** Lossless: nothing a visitor
-sees changes. Every colour the map paints comes from `mapColours.ts` — the
-Map/… and Card/… tokens, and `MAP_PAINT` for the ones Figma names nothing
-yet, keyed by what they paint — and `map-colours-test` fails on a colour
-written in any other of the painters' `.ts` files. One `useEscape` for the
-cards; the studio's three toasts are one `Toast` in one slot (newest wins),
-its tones a checked map, a problem announced as an alert. `layers.ts` names
-the layer ids hooks place their own against, and `useLayerReady` waits for
-one instead of looking once, so the order hooks are called in is no longer
-a silent contract. The public map's and the cards' palette classes whose
-value a semantic token holds exactly, and whose meaning fits, moved to it
-(text to content-primary…quaternary and content-inverse, white and
-neutral-100 grounds to surface and surface-secondary, neutral-200 borders
-to border-primary); the rest stay, listed for the owner. Map design and
-"Where am I" share one `MapControlButton` (MapLibre's 29 px square, three
-looks in a checked map) — not `IconButton`, which is larger and would
-change the map. New stories: RouteCardHeader, WhereAmI's states,
-MapControlButton, Toast. The Map design menu's items carry `role="none"`
-and its button `aria-haspopup`.
+sees changes. Every colour the map's painters paint comes from
+`mapColours.ts` — the Map/… and Card/… tokens, and `MAP_PAINT` for the ones
+Figma names nothing yet, keyed by what they paint — and `map-colours-test`
+fails on a colour written in any other of the painters' `.ts` files (the
+map's two stylesheets keep a few raw colours, listed for the owner). One
+`useEscape` for the cards; the studio's three toasts are one `Toast` in one
+slot (newest wins), its tones a checked map, a problem announced as an
+alert. `layers.ts` names the layer ids hooks place their own against, and
+`useLayerReady` waits for one instead of looking once, so the order hooks
+are called in is no longer a silent contract. The public map's and the
+cards' palette classes whose value a semantic token holds exactly, and whose
+meaning fits, moved to it (text to content-primary…quaternary and
+content-inverse, white and neutral-100 grounds to surface and
+surface-secondary, neutral-200 borders to border-primary); the rest stay,
+listed for the owner. Map design and "Where am I" share one
+`MapControlButton` (MapLibre's 29 px square, three looks in a checked map) —
+not `IconButton`, which is larger and would change the map. New stories:
+RouteCardHeader, WhereAmI's states, MapControlButton, Toast. The Map design
+menu's items carry `role="none"` and its button `aria-haspopup`. One toast
+slot, the plan's, means a newer toast replaces an older one: a notice or a
+hotspot saved after a route save takes the route's "Draw the return trip"
+toast with it. The orange stretches' lighting waits for their layer as their
+layer does.

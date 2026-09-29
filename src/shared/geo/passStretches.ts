@@ -89,6 +89,7 @@ export function usePassStretches(
     map.setFilter(SELECTED_PASS, ['!=', ['get', 'id'], hiddenVariantId ?? ''] as never)
   }, [map, hiddenVariantId, hitReady])
 
-  // The stretches follow their direction: the same state, on this source.
-  useLighting(map, SRC, lit)
+  // The stretches follow their direction: the same state, on this source,
+  // once it is there.
+  useLighting(map, SRC, lit, hitReady)
 }

@@ -55,17 +55,19 @@ export function litOpacity() {
 /**
  * Lights exactly `lit` on `source` and nothing else, changing only what
  * changed since the last call. Never `removeFeatureState`: a removal and a
- * set of the same id in one frame leave the removal in charge.
+ * set of the same id in one frame leave the removal in charge. `ready` is
+ * for a source added once another hook's layer is there (useLayerReady):
+ * the lighting is applied when it arrives, not only when `lit` changes.
  */
-export function useLighting(map: MapLibreMap | null, source: string, lit: readonly string[]) {
+export function useLighting(map: MapLibreMap | null, source: string, lit: readonly string[], ready = true) {
   const was = useRef(new Set<string>())
   useEffect(() => {
-    if (!map || !map.getSource(source)) return
+    if (!map || !ready || !map.getSource(source)) return
     const now = new Set(lit)
     for (const id of was.current) if (!now.has(id)) map.setFeatureState({ source, id }, { lit: false })
     for (const id of now) if (!was.current.has(id)) map.setFeatureState({ source, id }, { lit: true })
     was.current = now
-  }, [map, source, lit])
+  }, [map, source, lit, ready])
 }
 
 /**
