@@ -1,30 +1,36 @@
-import type { ReactNode, Ref } from 'react'
-import { kmLabel } from '../geo/geo'
-import { RouteCardHeader } from './RouteCardHeader'
-import { BottomSheet, type SheetHeight } from './BottomSheet'
-import { TripTimeline, type TripTimelineProps } from './TripTimeline'
+import { useState, type ReactNode, type Ref } from "react";
+import { kmLabel } from "../geo/geo";
+import { RouteCardHeader } from "./RouteCardHeader";
+import { BottomSheet, type SheetHeight } from "./BottomSheet";
+import { ReloadIcon } from "./RouteIcons";
+import { TripTimeline, type TripTimelineProps } from "./TripTimeline";
 
-type Props = TripTimelineProps & {
+/** A ride's pesos both ways: `₱13–24` regular, and its student (discounted) price. */
+export type Fares = { regular: string; student: string };
+
+type Props = Omit<TripTimelineProps, "pickedPriced"> & {
   /** Figma's Kilometer tile: the whole ride's length, in metres; written `12.8km`. */
-  metres: number
-  /** Figma's Expected fare tile: the whole ride's pesos, `₱24–28`. Omitted when unpriced, and the tile with it. */
-  fare?: string
+  metres: number;
+  /** The fare tile's pesos for the whole ride. Omitted when unpriced, and the tile with it. */
+  fare?: Fares;
+  /** …and for the ride to the picked hintuan, which the tile shows while it is picked. */
+  pickedFare?: Fares;
   /** SWITCH: the same route the other way. */
-  onSwitch: () => void
+  onSwitch: () => void;
   /** False when the route has no other way drawn; SWITCH then rests disabled. */
-  switchable: boolean
+  switchable: boolean;
   /** Whether this trip is the route's way back: SWITCH is pressed then, as over the list. */
-  back: boolean
+  back: boolean;
   /** ‹: back to what the trip was picked from — the list, a hotspot's card — or to its route with those sharing an end; null when there is none. */
-  onBackToList: (() => void) | null
-  onClose: () => void
+  onBackToList: (() => void) | null;
+  onClose: () => void;
   /** The dock the card sits in, for the map to glide clear of it. */
-  dockRef?: Ref<HTMLDivElement>
+  dockRef?: Ref<HTMLDivElement>;
   /** Its height, shared with the list or card it was opened from (BottomSheet). */
-  height?: SheetHeight
+  height?: SheetHeight;
   /** Under the tiles: what only the studio shows — its facts and its Edit, Extend and Delete. */
-  children?: ReactNode
-}
+  children?: ReactNode;
+};
 
 /**
  * One direction as a trip — the owner's RouteTripDetail (Figma 3778:3183,
@@ -32,7 +38,15 @@ type Props = TripTimelineProps & {
  * the trip leaves from, inset from the sides and rounded, where a rail runs
  * from the origin (TimelineTop) down to the place it goes to
  * (TimelineBottomEndRoute); then two tiles under it, the ride's Kilometer and
- * its Expected fare (moved under the card in his redrawing the same day).
+ * its fare (moved under the card in his redrawing the same day).
+ *
+ * The fare tile (his 3778:3183, redrawn 2026-09-30) is a button: the pesos,
+ * and under them ↻ and which fare they are, Regular or Student; a tap turns
+ * it to the other. With a hintuan picked it prices the ride from where the
+ * trip leaves to there — the pick's pill says "Calculated Fare" — and let go,
+ * the whole ride again (his ask: "change the value of it based on the
+ * hintuan they select"). It opens on Regular, and keeps which it shows
+ * through a pick, SWITCH and back.
  * The pesos moved off the rail into their tile with this set; a route no
  * fare rule prices has no Expected fare tile, and Kilometer takes the row
  * (the owner kept that default, 2026-09-29: nothing is drawn for it).
@@ -60,6 +74,12 @@ export function RouteTripDetail({
   height,
   children,
 }: Props) {
+  const [student, setStudent] = useState(false);
+  // Each tap turns ↻ round once more (the owner's "simple rotation only if
+  // selected", 2026-09-30): counted, so the next tap turns it again rather
+  // than back.
+  const [turns, setTurns] = useState(0);
+  const shown = picked && pickedFare ? pickedFare : fare;
   return (
     <BottomSheet
       ref={dockRef}
@@ -85,34 +105,64 @@ export function RouteTripDetail({
           hintuans={hintuans}
           picked={picked}
           onPick={onPick}
-          pickedFare={pickedFare}
+          pickedPriced={!!pickedFare}
           onEnd={onEnd}
           endPicked={endPicked}
           routeDirection={routeDirection}
         />
       </div>
-      <dl className="flex w-full gap-3 bg-surface px-3 pt-3 pb-4 text-center font-sn-pro">
-        <Tile testId="trip-km" label="Kilometer" value={kmLabel(metres)} />
-        {fare && <Tile testId="trip-fare" label="Expected fare" value={fare} />}
-      </dl>
+      <div
+        data-testid="trip-tiles"
+        className="flex w-full gap-3 bg-surface px-3 pt-3 pb-4 text-center font-sn-pro"
+      >
+        <div className={TILE}>
+          <span data-testid="trip-km" className={FIGURE}>
+            {kmLabel(metres)}
+          </span>
+          <span className={NAME}>Kilometer</span>
+        </div>
+        {shown && (
+          <button
+            type="button"
+            data-testid="trip-fare-turn"
+            aria-label={`${student ? "Student" : "Regular"} fare ${student ? shown.student : shown.regular}. Show the ${student ? "regular" : "student"} fare`}
+            onClick={() => {
+              setStudent((s) => !s);
+              setTurns((t) => t + 1);
+            }}
+            className={
+              TILE +
+              " transition-colors duration-quick ease-move hover:bg-surface-tertiary active:bg-surface-quaternary"
+            }
+          >
+            <span data-testid="trip-fare" className={FIGURE}>
+              {student ? shown.student : shown.regular}
+            </span>
+            <span className={NAME + " flex items-center gap-1.5"}>
+              <span
+                aria-hidden
+                style={{ rotate: `${turns * 360}deg` }}
+                className="size-4 shrink-0 text-content-quaternary transition-[rotate] duration-gentle ease-move motion-reduce:transition-none *:size-full"
+              >
+                <ReloadIcon />
+              </span>
+              {student ? "Student fare" : "Regular fare"}
+            </span>
+          </button>
+        )}
+      </div>
       {children}
     </BottomSheet>
-  )
+  );
 }
 
 /**
- * One of the two tiles under the card, in Figma's row of them (3771:3055): a
- * figure under its name, on Background/surface-secondary, read out as the
- * pair it is. Figma writes the figure in a raw black; Content/primary is the
- * token nearest it.
+ * One of the two tiles under the card, in Figma's row of them (3771:3055):
+ * its figure over its name (the figure on top since 3778:3183's redrawing),
+ * on Background/surface-secondary. Figma writes the figure in a raw black;
+ * Content/primary is the token nearest it.
  */
-function Tile({ testId, label, value }: { testId: 'trip-km' | 'trip-fare'; label: string; value: string }) {
-  return (
-    <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-2 rounded-2xl bg-surface-secondary p-4">
-      <dt className="text-sm/5 font-normal text-content-tertiary">{label}</dt>
-      <dd data-testid={testId} className="text-2xl/8 font-bold text-content-primary">
-        {value}
-      </dd>
-    </div>
-  )
-}
+const TILE =
+  "flex min-w-0 flex-1 basis-0 flex-col items-center justify-center gap-2 rounded-2xl bg-surface-secondary p-4";
+const FIGURE = "block text-2xl/8 font-bold text-content-primary";
+const NAME = "block text-sm/5 font-normal text-content-tertiary";

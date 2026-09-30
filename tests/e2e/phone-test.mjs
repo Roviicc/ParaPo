@@ -537,8 +537,12 @@ const tripChecks = async () => {
     )
     const pill = row.locator('[data-testid="trip-hintuan-fare"]')
     const pillText = (await pill.count()) ? (await pill.first().innerText()).trim() : null
-    if (!pickWant) skip('  its pill: the pesos from where the trip leaves to there', 'the sums cannot be read from this server')
-    else check('  its pill: the pesos from where the trip leaves to there', pillText === pickWant.fare, `"${pillText}", the sums "${pickWant.fare}"`)
+    // The pill says "Calculated Fare"; the fare tile prices the ride to there
+    // (the owner's 3778:3183, redrawn 2026-09-30).
+    const pickedTile = await tile('trip-fare')
+    if (!pickWant) skip('  its pill "Calculated Fare", the fare tile the pesos from where the trip leaves to there', 'the sums cannot be read from this server')
+    else if (pickWant.fare == null) skip('  its pill "Calculated Fare", the fare tile the pesos from where the trip leaves to there', 'an unpriced route shows no pill')
+    else check('  its pill "Calculated Fare", the fare tile the pesos from where the trip leaves to there', pillText === 'Calculated Fare' && pickedTile === pickWant.fare, `pill "${pillText}"; tile "${pickedTile}", the sums "${pickWant.fare}"`)
     const colours = await page.evaluate(() => {
       const pill = document.querySelector('[data-testid="trip-hintuan-fare"]')
       const trip = document.querySelector('[data-testid="trip"]')
@@ -548,7 +552,7 @@ const tripChecks = async () => {
     })
     if (pickWant && pickWant.fare == null) skip("  in the card's own colours, swapped", 'an unpriced route shows no pill')
     else check("  in the card's own colours, swapped", !!colours?.swapped, colours?.detail ?? 'no pill')
-    check('  the tiles keep the whole ride', (await tile('trip-km')) === km && (await tile('trip-fare')) === fare)
+    check('  the Kilometer tile keeps the whole ride', (await tile('trip-km')) === km, `${await tile('trip-km')}, the whole ${km}`)
     // The glide starts after the card has drawn the pick: let it start, then end.
     await page.waitForTimeout(200)
     await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
@@ -612,9 +616,9 @@ const tripChecks = async () => {
       lit: (await window.__lit('saved-routes')) ?? [],
     }))
     check(
-      '  a second tap lets it go: no pill, no circle, the trip still lit',
-      !(await isPicked()) && (await pill.count()) === 0 && letGo.pins === 0 && letGo.lit.length === 1,
-      `${letGo.pins} circle(s), ${letGo.lit.length} lit`,
+      '  a second tap lets it go: no pill, no circle, the trip still lit, the fare tile the whole ride again',
+      !(await isPicked()) && (await pill.count()) === 0 && letGo.pins === 0 && letGo.lit.length === 1 && (await tile('trip-fare')) === fare,
+      `${letGo.pins} circle(s), ${letGo.lit.length} lit; fare tile "${await tile('trip-fare')}", the whole "${fare}"`,
     )
     // At Max the card covers the map, and the glide would go on out of
     // sight: a hintuan picked there brings the card down to Middle as the

@@ -6,7 +6,7 @@
  * tests/unit/map-colours-test.mjs fails when this and tokens.css part.
  */
 export const MAP_COLOURS = {
-  'Map/RouteLine/surface-default': '#bedbff', // blue/200
+  'Map/RouteLine/surface-default': '#8ec5ff', // blue/300
   'Map/RouteLine/surface-selected': '#1447e6', // blue/700
   'Map/RouteLine/Arrow/Rest': '#ffffff', // white
   'Map/RouteLine/Arrow/Inverse': '#171717', // neutral/900
