@@ -65,10 +65,11 @@ export function snapAfterTap(snap: Snap): Snap {
  * A flick faster than this, in pixels a millisecond, goes to the end its way.
  * 0.5 at first; the owner, trying it (2026-09-30), found that "too
  * sensitive" — "even if I scroll up gently it doesn't stay on the middle" —
- * and asked for 7/10, 5/10, then 2/10 of it: 0.5 ÷ 0.2, so only a real flick
- * counts, and a gentle swipe settles on the nearest height.
+ * and asked for 7/10, 5/10 and 2/10 of it, then settled on 4/10: 0.5 ÷ 0.4.
+ * With the speed read over the last moves only, a gentle swipe settles on
+ * the nearest height.
  */
-const FLICK = 2.5
+const FLICK = 1.25
 
 /** How far back the speed at release is read: only the finger's last moves count. */
 const RECENT_MS = 100

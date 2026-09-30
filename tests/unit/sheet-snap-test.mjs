@@ -31,12 +31,12 @@ test('a flick up goes all the way to Max, from Low or Middle alike', () => {
   assert.equal(snapFor(800, 3, heights), 'max')
 })
 
-// 2.5 px/ms since the owner's 2/10 (2026-09-30: "even if I scroll up
-// gently it doesn't stay on the middle"): a quick but unhurried swipe
-// settles on the nearest height instead.
-test('a swipe under 2.5 px/ms is no flick: it settles on the nearest height', () => {
-  assert.equal(snapFor(460, 2, heights), 'middle')
-  assert.equal(snapFor(780, -2, heights), 'max')
+// 1.25 px/ms since the owner's 4/10 (2026-09-30, after "even if I scroll up
+// gently it doesn't stay on the middle"): an unhurried swipe settles on the
+// nearest height instead.
+test('a swipe under 1.25 px/ms is no flick: it settles on the nearest height', () => {
+  assert.equal(snapFor(460, 1, heights), 'middle')
+  assert.equal(snapFor(780, -1, heights), 'max')
 })
 
 test('a flick down goes all the way to Low, from Max or Middle alike, and from Low it closes', () => {
