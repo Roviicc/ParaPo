@@ -1,24 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Drawing } from '../drawing/useDrawing'
-import { haversine, joinSegments, type LngLat } from '../../shared/geo/geo'
-import { sharedMetres } from '../drawing/borrow'
-import {
-  MODES,
-  directionName,
-  isDrawn,
-  nameVariants,
-  routeName,
-  variantLine,
-  type RouteRow,
-  type TransportMode,
-  type VariantRow,
-} from '../../shared/model/routes'
-import { hintuansAlong, placeKey, stopLabel, timelineFor, type StopRow } from '../../shared/model/stops'
+import { haversine, type LngLat } from '../../shared/geo/geo'
+import { MODES, type RouteRow, type TransportMode, type VariantRow } from '../../shared/model/routes'
+import { stopLabel, type StopRow } from '../../shared/model/stops'
 import { StopTimeline, passesThrough } from '../../shared/cards/StopTimeline'
-import { ENDS_TAKEN, saveVariant } from '../data/routesWrite'
-import { routeStreets } from '../drawing/snap'
-import { syncHintuanLinks } from '../data/stopsWrite'
-import { lineOf } from '../data/live'
+import { ENDS_TAKEN } from '../data/routesWrite'
+import { saveRouteAndLinks } from '../data/saveRoute'
+import { SaveNotices } from './SaveNotices'
+import { boxFor, groupPlaces, nearestStop } from './places'
+import { useSaveFacts } from './useSaveFacts'
 
 type Props = {
   draw: Drawing
@@ -48,59 +38,6 @@ type Props = {
 const field =
   'mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none ' +
   'focus:border-neutral-900 disabled:bg-neutral-100 disabled:text-neutral-500'
-
-/** The hotspot nearest a point, by centroid. Only a starting guess for the picker. */
-function nearestStop(stops: StopRow[], to: LngLat | undefined): string {
-  if (!to || stops.length === 0) return ''
-  let best = stops[0]
-  let bestD = haversine(best.point.coordinates, to)
-  for (const s of stops.slice(1)) {
-    const d = haversine(s.point.coordinates, to)
-    if (d < bestD) {
-      best = s
-      bestD = d
-    }
-  }
-  return best.id
-}
-
-/**
- * A place a route can end at. A route ends at SM Fairview, not at one of the
- * five boxes drawn there: boxes that share the name people say are one place
- * (H3), so the pickers list places and the owner never sees a box name.
- * Case-folded, because "SM fairview" typed once must not become a second
- * place in the list. The row a route actually references is `boxFor`.
- */
-type Place = { key: string; label: string; boxes: StopRow[]; terminal: StopRow | null }
-
-/** Every place, the ones with a terminal first, then by name. */
-function groupPlaces(stops: StopRow[]): Place[] {
-  const byKey = new Map<string, Place>()
-  for (const s of stops) {
-    const key = placeKey(s)
-    const place = byKey.get(key) ?? { key, label: stopLabel(s), boxes: [], terminal: null }
-    place.boxes.push(s)
-    // The terminal's spelling names the place; it is the one box per place
-    // the database holds to a single row (H4).
-    if (s.kind === 'terminal' && !place.terminal) {
-      place.terminal = s
-      place.label = stopLabel(s)
-    }
-    byKey.set(key, place)
-  }
-  return [...byKey.values()].sort(
-    (a, b) => Number(!!b.terminal) - Number(!!a.terminal) || a.label.localeCompare(b.label),
-  )
-}
-
-/**
- * The box a chosen place stands on, since `route.head_stop_id` references one
- * row: its terminal when it has one, else the box nearest that end of the
- * line — the one the jeep actually stops at.
- */
-function boxFor(place: Place, to: LngLat | undefined): string {
-  return place.terminal?.id ?? nearestStop(place.boxes, to)
-}
 
 /**
  * The one form in the app. Appears once, at ✓ Done.
@@ -169,7 +106,6 @@ export function SavePanel({
   // route's are fixed once a save has written it: the retry finishes that
   // row and would ignore a changed end.
   const routeLocked = !existing && (!!parent || !!written)
-  const streets = routeStreets(draw.segments)
   const head = stops.find((s) => s.id === headId)
   const tail = stops.find((s) => s.id === tailId)
   const headPlace = head ? placeOf(head.id) : undefined
@@ -180,108 +116,10 @@ export function SavePanel({
     return place ? boxFor(place, to) : ''
   }
 
-  /**
-   * Which way round this line runs, read off the geometry: whichever end it
-   * starts nearest to is the end it starts from. Only a guess, and only used
-   * for a brand-new route — an existing direction, or a route's empty slot,
-   * already knows.
-   */
-  const drawnReversed = useMemo(() => {
-    if (!head || !tail || line.length === 0) return null
-    return haversine(line[0], tail.point.coordinates) < haversine(line[0], head.point.coordinates)
-  }, [head, tail, line])
-  const reversed = existing ? existing.reversed : (slotReversed ?? drawnReversed ?? false)
-  // The slot says "SM Fairview → Tala" but the line starts at Tala: drawn the
-  // wrong way round, or drawn as the outbound again. Say so; do not block —
-  // a line can honestly begin nearer the far end than the near one.
-  const wrongWayRound =
-    !existing && slotReversed !== null && drawnReversed !== null && drawnReversed !== slotReversed
-
-  // A new route whose ends already make a route: the save fills that route's
-  // empty slot, or is refused when the direction is drawn (routesWrite).
-  const sameEnds = useMemo(() => {
-    if (parent || !headId || !tailId) return null
-    const v = variants.find(
-      (x) =>
-        x.route.head_stop_id === headId &&
-        x.route.tail_stop_id === tailId &&
-        (x.route.via ?? '') === via.trim() &&
-        x.reversed === reversed,
-    )
-    return v ? { name: v.route.name, drawn: isDrawn(v) } : null
-  }, [parent, headId, tailId, via, reversed, variants])
-
-  // Edit route, the ends changed: onto another route's (refused, as the
-  // database would), or turned round (a direction's way round is kept
-  // against its route's head, so a swap would mislabel both lines).
-  const endsTaken = useMemo(() => {
-    if (!existing || !headId || !tailId) return false
-    return variants.some(
-      (x) =>
-        x.route_id !== existing.route_id &&
-        x.route.head_stop_id === headId &&
-        x.route.tail_stop_id === tailId &&
-        (x.route.via ?? '') === via.trim(),
-    )
-  }, [existing, headId, tailId, via, variants])
-  // By place, as the pickers choose: another box of the same place is the
-  // same end.
-  const turnedRound =
-    !!existing &&
-    !!headPlace &&
-    !!tailPlace &&
-    headPlace === placeOf(existing.route.tail_stop_id) &&
-    tailPlace === placeOf(existing.route.head_stop_id)
-
-  // What an Extend borrowed: measured on the line as it is now, so a borrowed
-  // point dragged away or undone is counted as it really is.
-  const borrowFromId = draw.borrow?.variantId ?? existing?.borrowed_from ?? null
-  const borrowPart = draw.borrow?.part ?? existing?.borrowed_part ?? null
-  const borrowParent = borrowFromId ? (variants.find((v) => v.id === borrowFromId) ?? null) : null
-  // The parent's full line: the list holds its overview (0009), which is the
-  // same road but not the same points.
-  const [parentFull, setParentFull] = useState<{ id: string; line: LngLat[] } | null>(null)
-  useEffect(() => {
-    if (!borrowFromId) return
-    let live = true
-    lineOf(borrowFromId).then(
-      (l) => {
-        if (live && l) setParentFull({ id: borrowFromId, line: l.coordinates })
-      },
-      () => {},
-    )
-    return () => {
-      live = false
-    }
-  }, [borrowFromId])
-  /** How much of this line runs on the parent's line. */
-  const borrowedOn = (parentLine: LngLat[]) => {
-    if (!borrowPart) return 0
-    const line = joinSegments(draw.segments)
-    // Either way round: a line followed from a right-click is copied in the
-    // jeep's order, which is the other way when its parent was stored from
-    // the far end.
-    return Math.max(
-      sharedMetres(line, parentLine, borrowPart),
-      sharedMetres(line, [...parentLine].reverse(), borrowPart),
-    )
-  }
-  // What the panel shows while the parent's full line is on its way: its
-  // overview's figure. The save itself measures on the full line.
-  const borrowedM = useMemo(() => {
-    if (!borrowParent || !borrowPart) return 0
-    return borrowedOn(parentFull?.id === borrowParent.id ? parentFull.line : variantLine(borrowParent))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [borrowParent, borrowPart, draw.segments, parentFull])
-
-  const name = head && tail ? routeName(stopLabel(head), stopLabel(tail), via) : ''
-  const direction = head && tail ? directionName(stopLabel(head), stopLabel(tail), reversed) : ''
-  // The snapped geometry, not the control points: a box between two clicks
-  // still counts, and this is the line the save will check.
-  const preview = useMemo(() => {
-    const line = joinSegments(draw.segments)
-    return timelineFor(head, tail, reversed, hintuansAlong(line, stops).map((a) => a.stop), line[0])
-  }, [head, tail, reversed, draw.segments, stops])
+  // What this line is, as the panel and the save see it.
+  const facts = useSaveFacts({ draw, existing, parent, slotReversed, stops, variants, head, tail, headId, tailId, via })
+  const { reversed, wrongWayRound, sameEnds, endsTaken, turnedRound, borrowParent, borrowPart, borrowedM, name, direction, preview } =
+    facts
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -304,45 +142,30 @@ export function SavePanel({
     setBusy(true)
     setError(null)
     try {
-      // The borrow is measured on the parent's full line, never its overview
-      // (0009): on an overview a shared stretch reads as none, and the save
-      // would forget where the line came from. Read now if it has not come.
-      let borrowed = borrowedM
-      if (borrowParent && borrowPart && parentFull?.id !== borrowParent.id) {
-        const full = await lineOf(borrowParent.id)
-        borrowed = full ? borrowedOn(full.coordinates) : 0
-      }
-      const saved = await saveVariant({
-        routeId: written?.routeId ?? parent?.id ?? null,
-        variantId: written?.variantId ?? existing?.id ?? null,
-        writeRoute: !!existing,
-        signboard,
-        mode,
-        fare_note: fareNote,
-        head_stop_id: headId,
-        tail_stop_id: tailId,
-        via,
-        reversed,
-        control_points: draw.controlPoints,
-        segments: draw.segments,
-        // A parent deleted since, or a borrowed part redrawn away, borrows nothing.
-        borrowed_from: borrowParent && borrowed > 0 ? borrowParent.id : null,
-        borrowed_part: borrowPart,
-        borrowed_m: borrowed > 0 ? Math.round(borrowed) : null,
-      })
-      // Every hintuan's route list is a fact about geometry, so a changed
-      // line re-checks itself against all of them. Terminal links are the
-      // owner's and are left alone.
-      setWritten({ routeId: saved.route_id, variantId: saved.id })
-      const named = nameVariants([saved], stops)[0]
-      try {
-        await syncHintuanLinks(named)
-      } catch (err) {
-        throw new Error(
-          `The line is saved, but its hintuan links are not: ${err instanceof Error ? err.message : String(err)}. ` +
-            'Press Save again to retry.',
-        )
-      }
+      // The borrow on the parent's full line, read now if it has not come.
+      const borrowed = await facts.borrowedForSave()
+      const named = await saveRouteAndLinks(
+        {
+          routeId: written?.routeId ?? parent?.id ?? null,
+          variantId: written?.variantId ?? existing?.id ?? null,
+          writeRoute: !!existing,
+          signboard,
+          mode,
+          fare_note: fareNote,
+          head_stop_id: headId,
+          tail_stop_id: tailId,
+          via,
+          reversed,
+          control_points: draw.controlPoints,
+          segments: draw.segments,
+          // A parent deleted since, or a borrowed part redrawn away, borrows nothing.
+          borrowed_from: borrowParent && borrowed > 0 ? borrowParent.id : null,
+          borrowed_part: borrowPart,
+          borrowed_m: borrowed > 0 ? Math.round(borrowed) : null,
+        },
+        stops,
+        setWritten,
+      )
       onSaved(named)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -364,84 +187,15 @@ export function SavePanel({
           {routeLocked && ' · the ends belong to the route, so both directions share them'}
           {existing && " · the ends, via, signboard, mode and fare note are the route's: a change here is a change to both directions"}
         </p>
-        {/* For a jeepney the street list says more than the two terminals do. */}
-        {streets.names.length > 0 && (
-          <p data-testid="save-streets" className="mt-2 text-xs text-neutral-700">
-            via {streets.names.join(' → ')}
-            {streets.straight > 0 && (
-              <span className="text-neutral-400">
-                {' '}
-                · and {streets.straight} straight {streets.straight === 1 ? 'stretch' : 'stretches'}
-              </span>
-            )}
-          </p>
-        )}
-        {streets.missing > 0 && (
-          <p className="mt-1 text-[11px] text-neutral-400">
-            No street names yet for {streets.missing === 1 ? 'one stretch' : `${streets.missing} stretches`}{' '}
-            routed before they were recorded. Moving a point re-routes its stretches and fills them in.
-          </p>
-        )}
-        {draw.uTurns.length > 0 && (
-          <p
-            data-testid="save-uturns"
-            className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800"
-          >
-            This route turns back on itself at{' '}
-            {draw.uTurns.length === 1 ? 'one point' : `${draw.uTurns.length} points`}, ringed in amber
-            on the map. Save anyway if the jeep really turns there; otherwise go back and drag the
-            point to the corner.
-          </p>
-        )}
-        {wrongWayRound && head && tail && (
-          <p
-            data-testid="save-wrong-way"
-            className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800"
-          >
-            This is the slot for <strong>{direction}</strong>, but the line starts nearer{' '}
-            {stopLabel(reversed ? head : tail)}. If you drew it from the wrong end, go back and
-            redraw it starting at {stopLabel(reversed ? tail : head)}; if the jeep really leaves
-            from there, save anyway.
-          </p>
-        )}
-
-        {borrowParent && borrowedM > 0 && (
-          <p data-testid="save-borrowed" className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900">
-            Shares {(borrowedM / 1000).toFixed(2)} km with <strong>{borrowParent.direction_name}</strong>{' '}
-            ({borrowParent.route.name}), copied from it. If that line is changed later, this one can
-            follow.
-          </p>
-        )}
-
-        {sameEnds && (
-          <p
-            data-testid="save-same-ends"
-            className={
-              'mt-3 rounded-lg px-3 py-2 text-xs ' +
-              (sameEnds.drawn ? 'bg-red-50 text-red-800' : 'bg-blue-50 text-blue-900')
-            }
-          >
-            {sameEnds.drawn ? (
-              <>
-                <strong>{sameEnds.name}</strong> already has {direction || 'this direction'} drawn. To
-                change it, open it and press Edit route.
-              </>
-            ) : (
-              <>
-                <strong>{sameEnds.name}</strong> already exists, and {direction || 'this direction'} is
-                still undrawn: this line fills it. The route's signboard, mode and fare stay as they
-                are.
-              </>
-            )}
-          </p>
-        )}
-
-        {stops.length === 0 && (
-          <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            No hotspots yet. A route is named after the hotspots at its two ends, so draw a terminal
-            at each end of this line first — then come back and save.
-          </p>
-        )}
+        <SaveNotices
+          segments={draw.segments}
+          uTurns={draw.uTurns}
+          stopsCount={stops.length}
+          wrongWay={wrongWayRound && head && tail ? { direction, startsAt: stopLabel(reversed ? head : tail), from: stopLabel(reversed ? tail : head) } : null}
+          borrowed={borrowParent && borrowedM > 0 ? { metres: borrowedM, parent: borrowParent } : null}
+          sameEnds={sameEnds}
+          direction={direction}
+        />
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           <label className="block text-xs font-medium text-neutral-700">
