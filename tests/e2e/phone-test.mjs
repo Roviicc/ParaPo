@@ -537,8 +537,12 @@ const tripChecks = async () => {
     )
     const pill = row.locator('[data-testid="trip-hintuan-fare"]')
     const pillText = (await pill.count()) ? (await pill.first().innerText()).trim() : null
-    if (!pickWant) skip('  its pill: the pesos from where the trip leaves to there', 'the sums cannot be read from this server')
-    else check('  its pill: the pesos from where the trip leaves to there', pillText === pickWant.fare, `"${pillText}", the sums "${pickWant.fare}"`)
+    // The pill says "Calculated Fare"; the fare tile prices the ride to there
+    // (the owner's 3778:3183, redrawn 2026-09-30).
+    const pickedTile = await tile('trip-fare')
+    if (!pickWant) skip('  its pill "Calculated Fare", the fare tile the pesos from where the trip leaves to there', 'the sums cannot be read from this server')
+    else if (pickWant.fare == null) skip('  its pill "Calculated Fare", the fare tile the pesos from where the trip leaves to there', 'an unpriced route shows no pill')
+    else check('  its pill "Calculated Fare", the fare tile the pesos from where the trip leaves to there', pillText === 'Calculated Fare' && pickedTile === pickWant.fare, `pill "${pillText}"; tile "${pickedTile}", the sums "${pickWant.fare}"`)
     const colours = await page.evaluate(() => {
       const pill = document.querySelector('[data-testid="trip-hintuan-fare"]')
       const trip = document.querySelector('[data-testid="trip"]')
@@ -548,7 +552,7 @@ const tripChecks = async () => {
     })
     if (pickWant && pickWant.fare == null) skip("  in the card's own colours, swapped", 'an unpriced route shows no pill')
     else check("  in the card's own colours, swapped", !!colours?.swapped, colours?.detail ?? 'no pill')
-    check('  the tiles keep the whole ride', (await tile('trip-km')) === km && (await tile('trip-fare')) === fare)
+    check('  the Kilometer tile keeps the whole ride', (await tile('trip-km')) === km, `${await tile('trip-km')}, the whole ${km}`)
     // The glide starts after the card has drawn the pick: let it start, then end.
     await page.waitForTimeout(200)
     await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
@@ -636,9 +640,9 @@ const tripChecks = async () => {
       lit: (await window.__lit('saved-routes')) ?? [],
     }))
     check(
-      '  a second tap lets it go: no pill, no circle, the trip still lit',
-      !(await isPicked()) && (await pill.count()) === 0 && letGo.pins === 0 && letGo.lit.length === 1,
-      `${letGo.pins} circle(s), ${letGo.lit.length} lit`,
+      '  a second tap lets it go: no pill, no circle, the trip still lit, the fare tile the whole ride again',
+      !(await isPicked()) && (await pill.count()) === 0 && letGo.pins === 0 && letGo.lit.length === 1 && (await tile('trip-fare')) === fare,
+      `${letGo.pins} circle(s), ${letGo.lit.length} lit; fare tile "${await tile('trip-fare')}", the whole "${fare}"`,
     )
     // At Max the card covers the map, and the glide would go on out of
     // sight: a hintuan picked there brings the card down to Middle as the
@@ -1171,10 +1175,11 @@ const UNDER_M = 9 * M_HOT + 3 * M_HOT
 const NEAR_M = 20 * M_HOT + 9 * M_HOT
 const badgeOf = (poly) => (poly.kind === 'terminal' ? 'Terminal · routes start here' : 'Hintuan · wait and board here')
 
-// 4a. Inside a hotspot, on a pixel no route covers. The normal case for a
-// terminal is that its own route runs through it, so this is the tap the
-// list's hotspot rows are for: the hotspot on top, its routes' cards under
-// it (the owner, 2026-09-29; the Chooser asked here before).
+// 4a. Inside a hotspot, on a pixel no route covers, with a route or not in
+// the finger's reach: the box's card opens straight away, alone — one tap,
+// one kind of thing (the owner's ask, 2026-09-30: "select hintuan only show
+// the card, then select route show the route"). Until then a route in reach
+// made it a list, the hotspot first.
 let inside = null
 for (const poly of snapshot.polys) {
   const c = centroidOf(poly.ring)
@@ -1193,40 +1198,22 @@ for (const poly of snapshot.polys) {
 }
 
 if (!inside) {
-  skip('a tap inside a hotspot opens it, or a chooser when its route is near', snapshot.polys.length ? `no point inside a hotspot today is ${Math.round(UNDER_M)} m clear of every route line` : 'no hotspots on the map today')
+  skip('a tap inside a hotspot opens its card alone', snapshot.polys.length ? `no point inside a hotspot today is ${Math.round(UNDER_M)} m clear of every route line` : 'no hotspots on the map today')
 } else {
   const { poly, point, routesInBox } = inside
   await jumpTo(page, point, Z_HOT)
   const anchor = await project(page, point)
   const box = await canvasBox()
-  const drawn = await drawnAt('saved-stops-fill', anchor)
   await mapTap(box.x + anchor[0], box.y + anchor[1])
   await page.waitForTimeout(600)
   const chooser = page.locator('[data-testid="chooser"]')
-  if (routesInBox.length > 0) {
-    const cText = (await chooser.count()) ? await chooser.first().innerText() : ''
-    const firstRow = (await chooser.count()) ? await chooser.locator('button[data-testid="chooser-item"]').first().innerText() : ''
-    const cards = (await chooser.count()) ? await chooser.locator('[data-testid="chooser-origin"]').count() : 0
-    check(
-      `a tap inside "${poly.name}" beside its route offers both, the hotspot first`,
-      firstRow.includes(poly.name) && cards > 0 && cText.split('\n').includes(`${cards} ${cards === 1 ? 'Route' : 'Routes'}`),
-      cText
-        ? `${cText.split('\n')[0]}; first row "${firstRow.split('\n')[0]}", ${cards} card(s)`
-        : `no list; card "${(await cardText()).split('\n')[0] ?? ''}"; the box drawn under the tap: ${drawn === 1 ? 'yes' : drawn}`,
-    )
-    const row = chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: poly.name })
-    await buttonTap(row, async () => (await chooser.count()) === 0)
-    const text = await cardText()
-    check(
-      `  choosing "${poly.name}" opens its card, with its badge`,
-      text.includes(poly.name) && text.includes(badgeOf(poly)) && (await chooser.count()) === 0,
-      text.split('\n')[0] || `(no card; chooser count ${await chooser.count()})`,
-    )
-  } else {
-    const text = await cardText()
-    check(`a tap inside "${poly.name}", no route near, opens it directly`, text.includes(poly.name) && text.includes(badgeOf(poly)) && (await chooser.count()) === 0, text.split('\n')[0] ?? '(no card)')
-    check(`  no chooser for one thing`, (await chooser.count()) === 0)
-  }
+  const text = await cardText()
+  check(
+    `a tap inside "${poly.name}" opens its card alone${routesInBox.length ? `, its route in reach not listed` : ''}`,
+    text.includes(poly.name) && text.includes(badgeOf(poly)) && (await chooser.count()) === 0,
+    `${text.split('\n')[0] || '(no card)'}; ${await chooser.count()} list(s); ${routesInBox.length} route(s) in reach`,
+  )
+  check(`  no chooser for one thing`, (await chooser.count()) === 0)
   await closeCard()
 }
 

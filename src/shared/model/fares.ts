@@ -93,10 +93,15 @@ export function pesoRange(low: number, high: number): string {
  * cards (wholeRideFare, their range over a place's ways out, went with
  * them); the studio keeps its own fare details, under the trip card (RouteFacts).
  */
-export function rideFare(mode: TransportMode | undefined, metres: number, date = manilaDate()): string | undefined {
+export function rideFare(
+  mode: TransportMode | undefined,
+  metres: number,
+  date = manilaDate(),
+  kind: 'regular' | 'discounted' = 'regular',
+): string | undefined {
   const today = ruleOn(date)
   if (!today || !hasFareRule(mode)) return undefined
   const { low, high } = fareFor(metres, today.rule)
-  return pesoRange(low.regular, high.regular)
+  return pesoRange(low[kind], high[kind])
 }
 
