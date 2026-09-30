@@ -156,6 +156,12 @@
   --map-overlay-card-terminal-surface: var(--color-sky-500);
   --map-overlay-card-terminal-border: var(--color-sky-800);
   --map-overlay-card-terminal-content: var(--color-sky-800);
+  /* A place's boxes as rows on its HintuanCard (3854:12690, 2026-09-30):
+     solid, white words — the card's own colours, not the map's. */
+  --map-hotspots-card-hintuan-surface: var(--color-green-700);
+  --map-hotspots-card-hintuan-border-primary: var(--color-green-900);
+  --map-hotspots-card-terminal-surface: var(--color-sky-700);
+  --map-hotspots-card-terminal-border-primary: var(--color-sky-900);
 }
 
 /* The semantics as utilities: text-content-primary, bg-surface, border-border-primary… */
@@ -223,6 +229,10 @@
   --color-map-overlay-card-terminal-surface: var(--map-overlay-card-terminal-surface);
   --color-map-overlay-card-terminal-border: var(--map-overlay-card-terminal-border);
   --color-map-overlay-card-terminal-content: var(--map-overlay-card-terminal-content);
+  --color-map-hotspots-card-hintuan-surface: var(--map-hotspots-card-hintuan-surface);
+  --color-map-hotspots-card-hintuan-border-primary: var(--map-hotspots-card-hintuan-border-primary);
+  --color-map-hotspots-card-terminal-surface: var(--map-hotspots-card-terminal-surface);
+  --color-map-hotspots-card-terminal-border-primary: var(--map-hotspots-card-terminal-border-primary);
 }
 
 /*

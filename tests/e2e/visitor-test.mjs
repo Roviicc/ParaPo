@@ -133,7 +133,8 @@ const cardKind = async () => {
   const el = page.locator('[data-testid="card"]')
   if ((await el.count()) === 0) return { kind: 'none', text: '' }
   const text = await el.first().innerText()
-  if (text.includes('Routes that')) return { kind: 'hotspot', text }
+  // A hotspot's card is the owner's HintuanCard since 2026-09-30: its place, a row per box.
+  if ((await el.first().locator('[data-testid="card-place"]').count()) > 0) return { kind: 'hotspot', text }
   // A route's card is the owner's trip card since 2026-09-29: its rail of stops.
   if ((await el.first().locator('[data-testid="trip"]').count()) > 0) return { kind: 'route', text }
   return { kind: 'unknown', text }
@@ -297,10 +298,17 @@ for (const [i, p] of snapshot.polys.entries()) {
   if (!opened) continue
 
   check(`  card shows its own name`, opened.includes(p.name))
-  const isTerminal = p.kind === 'terminal'
+  // Its row among its place's, Selected — pressed in — and in its kind's
+  // colour: sky for a terminal, green for a hintuan (the owner's 3854:12690).
+  const own = await page.evaluate((id) => {
+    const rows = [...document.querySelectorAll('[data-testid="card"] [data-testid="card-box"]')]
+    const row = rows.find((r) => r.dataset.box === id)
+    return { rows: rows.length, pressed: rows.filter((r) => r.getAttribute('aria-current') === 'true').map((r) => r.dataset.box), kind: row?.dataset.kind ?? null }
+  }, p.id)
   check(
-    `  card shows the ${isTerminal ? 'Terminal' : 'Hintuan'} badge`,
-    opened.includes(isTerminal ? 'Terminal · routes start here' : 'Hintuan · wait and board here'),
+    `  its row Selected, the one pressed of its place's ${own.rows}, a ${p.kind}'s`,
+    own.pressed.length === 1 && own.pressed[0] === p.id && own.kind === p.kind,
+    JSON.stringify(own),
   )
   check(
     '  no Edit/Delete for a visitor',
@@ -379,8 +387,8 @@ for (const [i, p] of snapshot.polys.entries()) {
       check(`  ✕ closes it all: nothing lit`, pickedAgain && closed.length === 0, `picked ${pickedAgain}; ${closed.length} lit`)
     }
   } else {
-    const noneMsg = isTerminal ? 'None recorded yet.' : 'No saved route passes through here yet.'
-    check(`  no linked routes: shows "${noneMsg}"`, opened.includes(noneMsg))
+    // No route stops here: no counter, no SWITCH.
+    check(`  no route stops here: no counter`, (await page.locator('[data-testid="card"] [data-testid="card-count"]').count()) === 0)
   }
   // Closed already where ✕ was tried; the helper would wait out its timeout.
   if ((await cardKind()).kind !== 'none') await closeCard()

@@ -24,9 +24,10 @@ type Props = {
   ref?: Ref<HTMLDivElement>
   /**
    * What it is on a wide screen, where it stops being a sheet: the route
-   * list's and a trip's panel in the top-left corner from `@float:`
-   * (`corner`, the default), or the card a hotspot's and the studio's route
-   * card have always floated as, 16 in, from `@wide:` (`card`). What it holds
+   * list's, a trip's and a place's (the public map's HintuanCard) panel in
+   * the top-left corner from `@float:` (`corner`, the default), or the card
+   * the studio's hotspot and route cards have always floated as, 16 in, from
+   * `@wide:` (`card`). What it holds
    * reads which with `sheet-floating:` and `sheet-low:` (index.css).
    */
   floats?: 'corner' | 'card'
