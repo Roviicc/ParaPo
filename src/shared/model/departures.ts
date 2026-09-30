@@ -10,7 +10,7 @@ import { directionEnds, isDrawn, type RouteSummary, type VariantSummary } from '
 export type RouteGroup<V extends VariantSummary> = { routeId: string; route: RouteSummary; directions: V[] }
 
 /** Directions gathered by route, in the order their routes were first met. */
-export function groupByRoute<V extends VariantSummary>(variants: readonly V[]): RouteGroup<V>[] {
+function groupByRoute<V extends VariantSummary>(variants: readonly V[]): RouteGroup<V>[] {
   const groups = new Map<string, RouteGroup<V>>()
   for (const v of variants) {
     const g = groups.get(v.route_id) ?? { routeId: v.route_id, route: v.route, directions: [] }

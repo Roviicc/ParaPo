@@ -18,7 +18,7 @@ const OSRM = 'https://router.project-osrm.org/route/v1/driving'
  * off and looked like success. With the limit the router refuses, and a
  * refused gap is drawn dashed, where it can be seen and fixed.
  */
-export const SNAP_RADIUS_M = 25
+const SNAP_RADIUS_M = 25
 
 /**
  * The public router allows about one request a second. Requests are spaced

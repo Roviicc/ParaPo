@@ -161,7 +161,7 @@ export async function withDrawing(v: VariantRow): Promise<VariantDrawing> {
  * settles, reads afresh.
  */
 let stopsInFlight: Promise<StopRow[]> | null = null
-export function listStops(): Promise<StopRow[]> {
+function listStops(): Promise<StopRow[]> {
   const client = getSupabase()
   if (!client) return Promise.resolve([])
   if (stopsInFlight) return stopsInFlight
@@ -182,7 +182,7 @@ export function listStops(): Promise<StopRow[]> {
 }
 
 /** Every hotspot ↔ direction link. Public read. */
-export async function listStopLinks(): Promise<StopLink[]> {
+async function listStopLinks(): Promise<StopLink[]> {
   const client = getSupabase()
   if (!client) return []
   return readAll<StopLink>((from, to) =>

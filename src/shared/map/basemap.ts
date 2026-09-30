@@ -158,7 +158,7 @@ const DETAIL_LAYERS: readonly LayerSpecification[] = [
 const BUILDING_PAINT = { 'fill-color': MAP_PAINT['Paint/basemap-building'], 'fill-outline-color': MAP_PAINT['Paint/basemap-building-edge'] }
 
 /** Positron plus the detail layers and firmer buildings. Pure: the input is left alone. */
-export function detailStyle(style: StyleSpecification): StyleSpecification {
+function detailStyle(style: StyleSpecification): StyleSpecification {
   return {
     ...style,
     layers: [
@@ -201,7 +201,7 @@ export async function initialStyle(b: Basemap): Promise<StyleSpecification | str
  * the order they had, so casing-under-line and draw-above-saved still hold.
  * The route and hotspot hooks never notice.
  */
-export function styleTransform(b: Basemap) {
+function styleTransform(b: Basemap) {
   return (previous: StyleSpecification | undefined, next: StyleSpecification): StyleSpecification => {
     const styled = b.detailed ? detailStyle(next) : next
     if (!previous) return styled
