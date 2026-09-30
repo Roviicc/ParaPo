@@ -73,8 +73,8 @@ export const Red: Story = { args: { livery: 'red' } }
 /** Orange. */
 export const Orange: Story = { args: { livery: 'orange' } }
 
-/** Mist. */
-export const Mist: Story = { args: { livery: 'mist' } }
+/** Fuchsia. */
+export const Fuchsia: Story = { args: { livery: 'fuchsia' } }
 
 /** A hintuan picked: its dot green, its name Black, its pill with the pesos to there. Opened, since the fold keeps it. */
 export const HintuanPicked: Story = { args: { picked: 'h3' }, play: openFold }
@@ -85,8 +85,8 @@ export const HintuanPickedRed: Story = { args: { livery: 'red', picked: 'h3' }, 
 /** Picked, orange. */
 export const HintuanPickedOrange: Story = { args: { livery: 'orange', picked: 'h3' }, play: openFold }
 
-/** Picked, mist: the pill near-black. */
-export const HintuanPickedMist: Story = { args: { livery: 'mist', picked: 'h3' }, play: openFold }
+/** Picked, fuchsia: the pill white, as red's. */
+export const HintuanPickedFuchsia: Story = { args: { livery: 'fuchsia', picked: 'h3' }, play: openFold }
 
 /** One hintuan on the way, picked: not folded, so no fold to open. */
 export const OneHintuanPicked: Story = {

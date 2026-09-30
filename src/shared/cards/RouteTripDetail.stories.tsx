@@ -151,8 +151,8 @@ export const Red: Story = { args: { livery: 'red' } }
 /** Orange (Figma's Pink). */
 export const Orange: Story = { args: { livery: 'orange' } }
 
-/** Mist, with Content/primary words, like yellow. */
-export const Mist: Story = { args: { livery: 'mist' } }
+/** Fuchsia, with Content/inverse words, like red. */
+export const Fuchsia: Story = { args: { livery: 'fuchsia' } }
 
 /** SWITCHed: the way back. SWITCH is pressed for a screen reader only; it has no drawn "on" look yet. */
 export const TheWayBack: Story = {
@@ -204,10 +204,10 @@ export const PickedRed: Story = { args: { livery: 'red', picked: 'h3' }, play: p
 /** Orange, as red: he drew no orange trip. */
 export const PickedOrange: Story = { args: { livery: 'orange', picked: 'h3' }, play: pickedAsDrawn }
 
-/** Mist (3785:4575): the pill near-black, Content/primary, its pesos in the card's mist. */
-export const PickedMist: Story = { args: { livery: 'mist', picked: 'h3' }, play: pickedAsDrawn }
+/** Fuchsia, as red: the pill white, its pesos in the card's fuchsia. */
+export const PickedFuchsia: Story = { args: { livery: 'fuchsia', picked: 'h3' }, play: pickedAsDrawn }
 
-/** Yellow (3785:4462), as mist. */
+/** Yellow (3785:4462): the pill near-black, Content/primary, its pesos in the card's yellow. */
 export const PickedYellow: Story = { args: { picked: 'h3' }, play: pickedAsDrawn }
 
 /** Tapped through: Amparo's row picks it, pill and all, and a second tap lets it go. */

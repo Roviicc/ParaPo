@@ -108,14 +108,14 @@ function TokensPage() {
         <Swatch box="bg-card-red-timeline-surface" token="Card/red/Timeline" cls="bg-card-red-timeline-surface" />
         <Swatch box="bg-card-orange-surface border-3 border-card-orange-border-primary" token="Card/orange" cls="bg-card-orange-surface" />
         <Swatch box="bg-card-orange-timeline-surface" token="Card/orange/Timeline" cls="bg-card-orange-timeline-surface" />
-        <Swatch box="bg-card-mist-surface border-3 border-card-mist-border-primary" token="Card/mist" cls="bg-card-mist-surface" />
-        <Swatch box="bg-card-mist-timeline-surface" token="Card/mist/Timeline" cls="bg-card-mist-timeline-surface" />
         <Swatch box="bg-card-yellow-surface border-3 border-card-yellow-border-primary" token="Card/yellow" cls="bg-card-yellow-surface" />
         <Swatch box="bg-card-yellow-timeline-surface" token="Card/yellow/Timeline" cls="bg-card-yellow-timeline-surface" />
         <Swatch box="bg-card-violet-surface border-3 border-card-violet-border-primary" token="Card/violet" cls="bg-card-violet-surface" />
         <Swatch box="bg-card-violet-timeline-surface" token="Card/violet/Timeline" cls="bg-card-violet-timeline-surface" />
         <Swatch box="bg-card-rose-surface border-3 border-card-rose-border-primary" token="Card/rose" cls="bg-card-rose-surface" />
         <Swatch box="bg-card-rose-timeline-surface" token="Card/rose/Timeline" cls="bg-card-rose-timeline-surface" />
+        <Swatch box="bg-card-fuchsia-surface border-3 border-card-fuchsia-border-primary" token="Card/fuchsia" cls="bg-card-fuchsia-surface" />
+        <Swatch box="bg-card-fuchsia-timeline-surface" token="Card/fuchsia/Timeline" cls="bg-card-fuchsia-timeline-surface" />
       </Group>
 
       <Group title="Error actions">
@@ -167,7 +167,7 @@ function TokensPage() {
         <Swatch box="bg-card-red-surface shadow-route-card-primary" token="Route/RouteCardPrimary" cls="shadow-route-card-primary" />
         <Swatch box="bg-surface shadow-route-card-inverse" token="Route/RouteCardInverse" cls="shadow-route-card-inverse" />
         <Swatch box="bg-card-red-surface shadow-route-card-primary-selected" token="Route/RouteCardPrimarySelected" cls="shadow-route-card-primary-selected" />
-        <Swatch box="bg-card-mist-surface shadow-route-card-inverse-selected" token="Route/RouteCardInverseSelected" cls="shadow-route-card-inverse-selected" />
+        <Swatch box="bg-card-yellow-surface shadow-route-card-inverse-selected" token="Route/RouteCardInverseSelected" cls="shadow-route-card-inverse-selected" />
       </Group>
 
       <Group title="Type — the two families">
