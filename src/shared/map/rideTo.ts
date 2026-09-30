@@ -23,10 +23,11 @@ export function useRideTo(
   stops: readonly StopSummary[],
   opts: {
     /**
-     * Where the glide puts the hintuan, from the map's centre, in pixels —
-     * clear of a card over the map. Read as the glide starts.
+     * As a glide starts: where it puts the hintuan, or the end, from the
+     * map's centre, in pixels — clear of a card over the map, which may move
+     * out of the way as the camera does (makeRoom).
      */
-    offset?: () => [number, number]
+    onGlide?: () => [number, number]
   } = {},
 ) {
   // Which direction the pick was made on: a pick belongs to its ride, so the
@@ -50,9 +51,9 @@ export function useRideTo(
     setAtEnd(null)
   }, [selected?.id])
 
-  // Read as a glide starts, so a fresh function each render moves nothing.
-  const offset = useRef(opts.offset)
-  offset.current = opts.offset
+  // Called as a glide starts, so a fresh function each render moves nothing.
+  const onGlide = useRef(opts.onGlide)
+  onGlide.current = opts.onGlide
 
   const cut = useMemo(
     () => (selected && live ? rideCut(selected, stops, live.rowId) : null),
@@ -87,7 +88,7 @@ export function useRideTo(
       if (!map || !selected) return
       const line = travelLine(selected, stops)
       if (line.length < 2) return
-      map.easeTo({ center: end === 'from' ? line[0] : line[line.length - 1], offset: offset.current?.() ?? [0, 0], duration: 700 }, APP_MOVE)
+      map.easeTo({ center: end === 'from' ? line[0] : line[line.length - 1], offset: onGlide.current?.() ?? [0, 0], duration: 700 }, APP_MOVE)
     },
     [map, selected, selectedId, stops, endPicked],
   )
@@ -99,7 +100,7 @@ export function useRideTo(
   // centre ever after.
   useEffect(() => {
     if (!map || !cut) return
-    map.easeTo({ center: cut.at, offset: offset.current?.() ?? [0, 0], duration: 700 }, APP_MOVE)
+    map.easeTo({ center: cut.at, offset: onGlide.current?.() ?? [0, 0], duration: 700 }, APP_MOVE)
   }, [map, cut])
 
   return {

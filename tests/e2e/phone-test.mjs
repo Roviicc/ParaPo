@@ -616,6 +616,36 @@ const tripChecks = async () => {
       !(await isPicked()) && (await pill.count()) === 0 && letGo.pins === 0 && letGo.lit.length === 1,
       `${letGo.pins} circle(s), ${letGo.lit.length} lit`,
     )
+    // At Max the card covers the map, and the glide would go on out of
+    // sight: a hintuan picked there brings the card down to Middle as the
+    // camera glides (the owner's ask, 2026-09-30), the hintuan landing above
+    // where the card stops, not where it started. Let go again after, for
+    // the ends below.
+    await buttonTap(handle(), async () => (await sheetState()) === 'max')
+    if ((await sheetState()) !== 'max') {
+      skip('  picked at Max, the card comes down to Middle as the camera glides there', `the card would not rise to Max: data-snap=${await sheetState()}`)
+    } else {
+      await pickButton.scrollIntoViewIfNeeded()
+      await buttonTap(pickButton, isPicked)
+      await page.waitForTimeout(200)
+      await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+      const lowered = await sheetState()
+      const spot = pickWant
+        ? await page.evaluate((at) => {
+            const m = window.__map
+            const c = m.getCanvas().getBoundingClientRect()
+            const q = m.project(at)
+            return { y: c.top + q.y, top: c.top, cardTop: document.querySelector('[data-testid="card"]').getBoundingClientRect().top }
+          }, pickWant.at)
+        : null
+      check(
+        '  picked at Max, the card comes down to Middle as the camera glides there, the hintuan above it',
+        (await isPicked()) && lowered === 'middle' && (!spot || (spot.y > spot.top + 16 && spot.y < spot.cardTop - 16)),
+        `data-snap=${lowered}; ${spot ? `the hintuan at ${Math.round(spot.y)}, the map ${Math.round(spot.top)}–${Math.round(spot.cardTop)} above the card` : 'not measured'}`,
+      )
+      await pickButton.scrollIntoViewIfNeeded()
+      await buttonTap(pickButton, async () => !(await isPicked()))
+    }
     // The ends are buttons too (the owner's asks, 2026-09-29): with a
     // hintuan picked, a tap on where the trip goes, then on where it leaves
     // from, picks that end in its place, its dot green — the hintuan's

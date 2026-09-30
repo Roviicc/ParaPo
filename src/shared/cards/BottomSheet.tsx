@@ -346,14 +346,42 @@ const HANDLE_LABEL = {
  * the dock does not cover it: in the middle of the map left showing — to the
  * dock's right from `@float:`, where it sits in the top-left corner, above it
  * where it is docked along the bottom. For MapLibre's `offset`, measured as
- * the glide starts: on a phone the sheet shows as much as its snap does.
+ * the glide starts: on a phone the sheet shows as much as its snap does — or,
+ * given `snap`, as much as it will once there, for a sheet on its way.
  */
-export function clearOfDock(map: HTMLElement, dock: HTMLElement | null): [number, number] {
+export function clearOfDock(map: HTMLElement, dock: HTMLElement | null, snap?: Snap): [number, number] {
   if (!dock || dock.hidden) return [0, 0]
   const m = map.getBoundingClientRect()
   const d = dock.getBoundingClientRect()
   // In the corner, short of the map's right edge: the room is to its right.
   if (d.right < m.right - 1) return [Math.max(0, d.right - m.left) / 2, 0]
   // Along the bottom: the room is above it.
-  return [0, -Math.max(0, m.bottom - d.top) / 2]
+  return [0, -Math.max(0, snap ? showsAt(dock, snap) : m.bottom - d.top) / 2]
+}
+
+/**
+ * How much of a docked sheet shows at `snap`: below Max, lifted clear of a
+ * phone's home indicator by its bottom padding, as `slide` lifts it.
+ */
+function showsAt(sheet: HTMLElement, snap: Snap): number {
+  const h = sheet.offsetHeight
+  if (snap === 'max') return h
+  return heightsFor(h)[snap] + (parseFloat(getComputedStyle(sheet).paddingBottom) || 0)
+}
+
+/**
+ * The camera is about to glide to a point on the map — a hintuan picked on
+ * a trip, or one of its ends. A sheet docked at Max, covering the map, comes
+ * down to Middle as the camera moves, so the move is seen (the owner's ask,
+ * 2026-09-30: "if the bottomSheet is at max, then they click hintuan, the
+ * bottomSheet must move to middle, while the camera is dragging"); lower, or
+ * floating in a corner, it stays. Returns where the point should sit
+ * (clearOfDock): clear of the sheet where it stops, not where it starts.
+ */
+export function makeRoom(map: HTMLElement, dock: HTMLElement | null, height: SheetHeight): [number, number] {
+  const m = map.getBoundingClientRect()
+  const docked = !!dock && !dock.hidden && dock.getBoundingClientRect().right >= m.right - 1
+  if (!docked || height.snap !== 'max') return clearOfDock(map, dock)
+  height.onSnap('middle')
+  return clearOfDock(map, dock, 'middle')
 }
