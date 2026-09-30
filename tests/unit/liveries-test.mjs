@@ -55,3 +55,33 @@ test('case and spaces do not make two places', () => {
   const [a] = liveriesFor(['SM Fairview'], draws(0.2), visit)
   assert.equal(liveriesFor(['sm fairview '], draws(0.9), visit)[0], a)
 })
+
+// The owner, 2026-09-30: "make the routecard not repeating the color, it must
+// exhaust the existing colors before repeating it".
+test('no colour twice in a list until every colour has come once', () => {
+  const places = Array.from({ length: LIVERIES.length * 2 + 3 }, (_, i) => `Place ${i}`)
+  for (const x of [0, 0.3, 0.6, 0.99]) {
+    const ls = liveriesFor(places, draws(x), new Map())
+    for (let start = 0; start < ls.length; start += LIVERIES.length) {
+      const round = ls.slice(start, start + LIVERIES.length)
+      assert.equal(new Set(round).size, round.length, `draw ${x}: ${round.join(', ')}`)
+    }
+    assert.ok(neighboursDiffer(ls), `draw ${x}`)
+  }
+})
+
+test('two places kept in one colour, in one list: the second wears another', () => {
+  const visit = new Map([['tala', 'red'], ['lagro', 'red']])
+  const shown = liveriesFor(['Tala', 'Fatima', 'Lagro'], draws(0), visit)
+  assert.equal(shown[0], 'red')
+  assert.equal(new Set(shown).size, 3)
+  assert.equal(liveriesFor(['Lagro'], draws(0.99), visit)[0], 'red')
+})
+
+test('a new place leaves the colours kept further down the list', () => {
+  const visit = new Map([['lagro', 'orange']])
+  for (const x of [0, 0.3, 0.6, 0.99]) {
+    const [, lagro] = liveriesFor(['Fatima', 'Lagro'], draws(x), new Map(visit))
+    assert.equal(lagro, 'orange', `draw ${x}`)
+  }
+})

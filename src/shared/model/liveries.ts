@@ -22,24 +22,39 @@ const visit = new Map<string, Livery>()
 const key = (place: string) => place.trim().toLowerCase()
 
 /**
- * The colours for a list of cards, in order. A place drawn before keeps its
- * colour — unless that would put it beside the same colour, when it wears
- * another for this list only. A place new to the visit draws among the
- * colours its neighbours are not wearing, and keeps what it draws.
+ * The colours for a list of cards, in order. No colour comes twice in a list
+ * until every one has come once (the owner's ask, 2026-09-30: "it must
+ * exhaust the existing colors before repeating it"); then the round starts
+ * again, never beside the same colour. A place drawn before keeps its colour
+ * — unless this round has had it, or it would sit beside itself, when it
+ * wears another for this list only. A place new to the visit draws among the
+ * colours this round has not had, leaving those that places further down
+ * keep, and keeps what it draws.
  */
 export function liveriesFor(places: readonly string[], random = Math.random, drawn = visit): Livery[] {
   const out: Livery[] = []
+  let round = new Set<Livery>()
   places.forEach((place, i) => {
+    if (round.size === LIVERIES.length) round = new Set()
     const before = out[i - 1]
     const kept = drawn.get(key(place))
-    if (kept && kept !== before) {
-      out.push(kept)
-      return
+    let pick: Livery
+    if (kept && !round.has(kept) && kept !== before) pick = kept
+    else {
+      // Kept further down this round: left for the places that keep them.
+      const ahead = new Set(
+        places
+          .slice(i + 1, i + 1 + LIVERIES.length - round.size)
+          .map((p) => drawn.get(key(p)))
+          .filter((l): l is Livery => !!l),
+      )
+      const open = LIVERIES.filter((l) => !round.has(l) && l !== before)
+      const free = open.filter((l) => !ahead.has(l))
+      const from = free.length ? free : open.length ? open : LIVERIES.filter((l) => l !== before)
+      pick = from[Math.floor(random() * from.length)] ?? LIVERIES[0]
+      if (!kept) drawn.set(key(place), pick)
     }
-    const next = i + 1 < places.length ? drawn.get(key(places[i + 1])) : undefined
-    const free = LIVERIES.filter((l) => l !== before && l !== next)
-    const pick = free[Math.floor(random() * free.length)] ?? LIVERIES[0]
-    if (!kept) drawn.set(key(place), pick)
+    round.add(pick)
     out.push(pick)
   })
   return out
