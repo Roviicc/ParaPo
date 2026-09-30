@@ -65,3 +65,23 @@ export function snapAfter(snap: Snap, gesture: 'up' | 'down' | 'tap'): Snap | 'c
   if (gesture === 'up') return snap === 'low' ? 'middle' : 'max'
   return snap === 'max' ? 'middle' : snap === 'middle' ? 'low' : 'close'
 }
+
+/** A flick faster than this, in pixels a millisecond, goes one height on in its direction. */
+export const FLICK = 0.5
+
+/**
+ * Where a drag lets go (the owner's ask of 2026-09-30: the sheet follows the
+ * finger, fluid, and a swipe up at Middle takes it to Max). `shown` is how
+ * much of the sheet is on screen as the finger lifts, `heights` what each
+ * snap shows, `velocity` the finger's speed upwards in px/ms (negative:
+ * downwards). A flick goes to the next height past where the sheet is, in
+ * its direction — down past Low, it closes. A slow release settles on the
+ * nearest height, or closes when less than half of Low still shows.
+ */
+export function snapFor(shown: number, velocity: number, heights: Record<Snap, number>): Snap | 'close' {
+  const order: Snap[] = ['low', 'middle', 'max']
+  if (velocity >= FLICK) return order.find((s) => heights[s] > shown + 1) ?? 'max'
+  if (velocity <= -FLICK) return [...order].reverse().find((s) => heights[s] < shown - 1) ?? 'close'
+  if (shown < heights.low / 2) return 'close'
+  return order.reduce((a, b) => (Math.abs(heights[b] - shown) < Math.abs(heights[a] - shown) ? b : a))
+}

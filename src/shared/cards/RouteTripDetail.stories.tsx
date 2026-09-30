@@ -328,7 +328,7 @@ const tapHandle = async (canvasElement: HTMLElement, times: number) => {
 export const SheetMax: Story = {
   args: { hintuans: aLongWay },
   play: async (ctx) => {
-    await openFold?.(ctx)
+    await openFold(ctx)
     await tapHandle(ctx.canvasElement, 1)
     await expect(within(ctx.canvasElement).getByTestId('card')).toHaveAttribute('data-snap', 'max')
   },

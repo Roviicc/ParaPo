@@ -408,9 +408,10 @@ const perpendicular = (p, a, bPt, line = [a, bPt], away = 20) =>
 
 const card = () => page.locator('[data-testid="card"]')
 // Every sheet locator is scoped to the card — never to the page — so the
-// route list, which is `chooser`, never answers for it. A route's trip card
-// has no handle: it is a card with its rail of stops in it (RouteTripDetail,
-// 2026-09-29), named for its direction, "Tala → Novaliches".
+// route list, which is `chooser`, never answers for it. `handle()` is the
+// hotspot Sheet's: a route's trip card has the dock's own, `dock-handle`
+// (the owner's bottom sheet, 2026-09-30) — a card with its rail of stops in
+// it (RouteTripDetail, 2026-09-29), named for its direction, "Tala → Novaliches".
 const handle = () => card().locator('button[data-testid="sheet-handle"]')
 const trip = () => card().locator('[data-testid="trip"]')
 const tripLabel = async () => ((await trip().count()) ? ((await card().first().getAttribute('aria-label')) ?? '') : '')

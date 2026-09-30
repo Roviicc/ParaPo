@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react'
 import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { fn } from 'storybook/test'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import { RouteCardList } from './RouteCardList'
 import type { VariantSummary } from '../model/routes'
 import type { StopSummary } from '../model/stops'
@@ -155,3 +155,30 @@ export const TwoHotspots: Story = { args: { routes: [], stops: twoBoxes } }
 
 /** Both boxes of one hintuan and no line: a row each, and "1 Hotspot", as a rider counts it (hotspotCount; the owner, 2026-09-29). */
 export const OneHintuanTwoBoxes: Story = { args: { routes: [], stops: oneHintuan } }
+
+/**
+ * The owner's BottomSheetConfiguration (3815:5637, 2026-09-30) holds the list
+ * too: it opens at Middle (Phone, above); a tap on the HandleNotch goes round.
+ */
+const tapHandle = async (canvasElement: HTMLElement, times: number) => {
+  const handle = within(canvasElement).getByTestId('dock-handle')
+  for (let i = 0; i < times; i++) await userEvent.click(handle)
+  handle.blur()
+}
+
+/** Max: the whole map, the count at the top, the places scrolling under it. */
+export const SheetMax: Story = {
+  args: { routes: many },
+  play: async ({ canvasElement }) => {
+    await tapHandle(canvasElement, 1)
+    await expect(within(canvasElement).getByTestId('chooser')).toHaveAttribute('data-snap', 'max')
+  },
+}
+
+/** Low: the count and SWITCH alone along the bottom, the map above. */
+export const SheetLow: Story = {
+  play: async ({ canvasElement }) => {
+    await tapHandle(canvasElement, 2)
+    await expect(within(canvasElement).getByTestId('chooser')).toHaveAttribute('data-snap', 'low')
+  },
+}
