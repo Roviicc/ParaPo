@@ -3335,3 +3335,11 @@ database 0009 has not reached is read the old way. `studio-scale-test`
 checks the list carries overviews and no lines (under a sixth of the rows),
 that a lit line is read on its own with its stretches, and its budgets are
 15 s to the first line and 10 s busy (45 and 30 before).
+Applied to the live project 2026-09-30 through the Supabase connector
+(version 20260930012129, `0009_overview`). The order changed from the plan,
+by the owner's decision of 2026-09-30. CI's drawing suites read the live
+tables: before the column existed, the list's first read was refused (400,
+42703), and those suites fail on any logged error. So 0009 was applied once
+the build, the public job and the stand-in suites that write and read the
+column (studio-scale 13, save 48) were green in CI. Only then did the
+drawing suites run again, and the PR merged only after they passed.
