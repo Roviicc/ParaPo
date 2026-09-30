@@ -8,6 +8,7 @@ import { TripCard, useTripLivery } from '../shared/cards/TripCard'
 import { makeRoom } from '../shared/cards/BottomSheet'
 import type { Snap } from '../shared/cards/sheetGesture'
 import { HintuanPin } from '../shared/map/HintuanPin'
+import { EndTitles } from '../shared/map/EndTitles'
 import { useRideTo } from '../shared/map/rideTo'
 import type { Livery } from '../shared/model/liveries'
 import { lineOf, listVariants, loadStopsFromSupabase } from './data/live'
@@ -305,6 +306,8 @@ function Workshop({
         </div>
       )}
 
+      {/* Each lit ride's ends, named over their circles. */}
+      {map && !draw.drawing && <EndTitles map={map} rides={rides} look={look} />}
       {/* Keyed on the pick: another hintuan pops a fresh circle. */}
       {map && !draw.drawing && ride.pinAt && tripLivery && (
         <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} label={ride.pickedLabel} livery={tripLivery} />

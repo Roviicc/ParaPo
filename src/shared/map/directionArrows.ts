@@ -10,7 +10,7 @@ import { LAYERS, useLayerReady } from './layers'
 
 /**
  * Which way the jeep goes, drawn on the lit directions only, with a circle
- * at each end of each and the place's name beside it (the owner's asks of
+ * at each end of each and the place's name over it (EndTitles.tsx; the owner's asks of
  * 2026-09-25).
  *
  * Decided with the owner 2026-09-23: marks *inside* the line, never as a
@@ -47,13 +47,39 @@ const SRC = 'direction-arrows'
 const CHEVRONS = 'direction-arrow-chevrons'
 const ENDS_SRC = 'direction-ends'
 const ENDS = LAYERS.endCircles
-const END_NAMES = 'direction-end-names'
 
 /** Two ends of one name closer than this are one place, and named once: Tala, where two rides start. */
 const SAME_END_M = 150
 
 /** One lit ride: its line in travel order, and the places it runs from and to. */
 export type Ride = { line: LngLat[]; from: string; to: string }
+
+/** An end of a lit ride: where it is, its place, and whether it is the one of its place that carries the name. */
+export type RideEnd = { end: 'from' | 'to'; name: string; named: boolean; at: LngLat }
+
+/**
+ * Where each lit ride starts and finishes, each place named once: two ends
+ * of one name closer than SAME_END_M are one place (Tala, where two rides
+ * start). The circles are drawn at every end; the names (EndTitles.tsx) at
+ * the named ones.
+ */
+export function rideEnds(rides: readonly Ride[]): RideEnd[] {
+  const named: { name: string; at: LngLat }[] = []
+  return rides
+    .filter((r) => r.line.length > 1)
+    .flatMap((r) =>
+      (
+        [
+          ['from', r.from, r.line[0]],
+          ['to', r.to, r.line[r.line.length - 1]],
+        ] as const
+      ).map(([end, name, at]) => {
+        const first = !!name && !named.some((n) => n.name === name && haversine(n.at, at) < SAME_END_M)
+        if (first) named.push({ name, at })
+        return { end, name, named: first, at }
+      }),
+    )
+}
 
 /**
  * How often they move on: fifteen times a second. They flow for as long as
@@ -89,7 +115,7 @@ export function useRideColours(map: MapLibreMap | null, look: LineLook) {
 
 /**
  * Draw chevrons along each ride's line, flowing for as long as it is lit
- * (STEP_MS), and a circle at both ends of each with the place's name beside it;
+ * (STEP_MS), and a circle at both ends of each (named by EndTitles);
  * nothing when there are none. Pass the same array while what is lit is
  * unchanged (a memo), or the flow restarts.
  */
@@ -131,23 +157,6 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       },
       ROUTES_HIT_LAYER,
     )
-    map.addLayer({
-      id: END_NAMES,
-      type: 'symbol',
-      source: ENDS_SRC,
-      filter: ['==', ['get', 'named'], true],
-      layout: {
-        'text-field': ['get', 'name'],
-        'text-size': 13,
-        'text-font': ['Noto Sans Bold'],
-        // Beside the circle, clear of it at every zoom; whichever side is free.
-        'text-variable-anchor': ['left', 'right', 'top', 'bottom'],
-        'text-radial-offset': 1.1,
-        'text-justify': 'auto',
-        'text-allow-overlap': false,
-      },
-      paint: { 'text-color': MAP_PAINT['Paint/end-name'], 'text-halo-color': MAP_PAINT['Paint/casing'], 'text-halo-width': 2 },
-    })
   }, [map, hitReady])
 
   // The ends: where each lit ride starts and finishes, each named once.
@@ -155,25 +164,11 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
   useEffect(() => {
     const src = map?.getSource(ENDS_SRC) as GeoJSONSource | undefined
     if (!src) return
-    const named: { name: string; at: LngLat }[] = []
-    const features = rides
-      .filter((r) => r.line.length > 1)
-      .flatMap((r) =>
-        (
-          [
-            ['from', r.from, r.line[0]],
-            ['to', r.to, r.line[r.line.length - 1]],
-          ] as const
-        ).map(([end, name, at]) => {
-          const first = !!name && !named.some((n) => n.name === name && haversine(n.at, at) < SAME_END_M)
-          if (first) named.push({ name, at })
-          return {
-            type: 'Feature' as const,
-            properties: { end, name, named: first },
-            geometry: { type: 'Point' as const, coordinates: at },
-          }
-        }),
-      )
+    const features = rideEnds(rides).map(({ end, name, named, at }) => ({
+      type: 'Feature' as const,
+      properties: { end, name, named },
+      geometry: { type: 'Point' as const, coordinates: at },
+    }))
     src.setData({ type: 'FeatureCollection', features })
   }, [map, rides, hitReady])
 

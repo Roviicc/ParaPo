@@ -58,7 +58,6 @@ export const CARD_COLOURS = {
 export const MAP_PAINT = {
   'Paint/casing': '#ffffff', // white: the rim under every line, circles' fill, text halos
   'Paint/hit': '#000000', // the tap area, drawn at opacity 0
-  'Paint/end-name': '#171717', // neutral/900: a lit ride's end, named
   'Paint/basemap-transit': '#3d5a73', // Gray, detailed: terminal and station names
   'Paint/basemap-landmark': '#6b6b6b', // Gray, detailed: the other landmarks' names
   'Paint/basemap-building': 'rgb(224, 224, 219)', // Gray, detailed: a building, a shade firmer than Positron's

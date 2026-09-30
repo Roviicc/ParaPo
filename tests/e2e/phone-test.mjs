@@ -960,6 +960,40 @@ if (routeA) {
     twoLooks(looks, LOOKS?.byLivery[openColour]?.line ?? MAP?.['Map/RouteLine/surface-selected']),
     `${openColour}: ${JSON.stringify(looks)}`,
   )
+  // Each end named in a pill over its circle, its pointer at the circle, in
+  // the line's colour (End&TailRoute, Figma 3848:12135).
+  const ends = await page.evaluate(async () => {
+    const m = window.__map
+    const named = ((await window.__src('direction-ends'))?.features ?? []).filter((f) => f.properties.named)
+    const pills = [...document.querySelectorAll('[data-testid="end-title"]')]
+    const ring = m.getPaintProperty('direction-end-circles', 'circle-stroke-color')
+    const probe = document.createElement('i')
+    probe.style.color = ring
+    document.body.append(probe)
+    const ringRgb = getComputedStyle(probe).color
+    probe.remove()
+    const c = m.getCanvas().getBoundingClientRect()
+    const rows = named.map((f) => {
+      const pill = pills.find((p) => p.dataset.name === f.properties.name)
+      if (!pill) return { name: f.properties.name, missing: true }
+      const box = pill.firstElementChild.getBoundingClientRect()
+      const q = m.project(f.geometry.coordinates)
+      return {
+        name: f.properties.name,
+        colour: getComputedStyle(pill.firstElementChild).backgroundColor === ringRgb,
+        across: box.left + box.width / 2 - (c.left + q.x),
+        above: c.top + q.y - box.bottom,
+      }
+    })
+    return { named: named.length, pills: pills.length, rows }
+  })
+  check(
+    "  each end named once, in a pill over its circle in the line's colour",
+    ends.named > 0 &&
+      ends.pills === ends.named &&
+      ends.rows.every((r) => !r.missing && r.colour && Math.abs(r.across) < 1.5 && r.above > 14 && r.above < 40),
+    JSON.stringify(ends),
+  )
 
   const trip2 = await tripChecks()
 
