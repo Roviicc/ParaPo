@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
 import { TIMELINE_SURFACE } from '../shared/cards/liveryCard'
+import { TimelineDot } from '../shared/cards/TripTimeline'
 import type { LngLat } from '../shared/geo/geo'
 import type { Livery } from '../shared/model/liveries'
 import './hintuanPin.css'
@@ -17,55 +19,41 @@ type Props = {
  * The picked hintuan on the map: a circle that pops up where it is, the
  * route left whole — the owner's ask of 2026-09-30: "now I don't want to
  * cut the route, but we still select hintuan it is just the a circle will
- * pop up when that hintuan is selected". It is the timeline's TimelineDot
- * Selected (TripTimeline.tsx), in the trip's livery: Content/inverse ringed
- * in Card/<livery>/Timeline/surface round a Content/success centre, 24
- * across, so the map and the card point at the same place the same way.
+ * pop up when that hintuan is selected". It is the timeline's own
+ * TimelineDot, Selected, in the trip's livery, so the map and the card
+ * point at the same place the same way.
  *
- * A DOM marker, like the walker and the studio's get-off circles: the pop is
- * a CSS animation that costs the map nothing, and the colours are the
- * card's own tokens rather than a layer's hexes. It takes no taps, so a tap
- * on it reaches the line or the box beneath as if it were not there. The
- * caller keys it on the pick, so another hintuan pops a fresh circle.
+ * A DOM marker, like the walker: the pop is a CSS animation that costs the
+ * map nothing, and it takes no taps, so a tap on it reaches the line or the
+ * box beneath. The caller keys it on the pick, so another hintuan pops a
+ * fresh circle.
  */
 export function HintuanPin({ map, at, livery }: Props) {
-  const markerRef = useRef<Marker | null>(null)
-  const ringRef = useRef<HTMLSpanElement | null>(null)
+  const [el] = useState(() => {
+    const div = document.createElement('div')
+    div.className = 'hintuan-pin'
+    div.dataset.testid = 'hintuan-pin'
+    return div
+  })
+  const marker = useRef<Marker | null>(null)
 
   useEffect(() => {
-    const el = document.createElement('div')
-    el.className = 'hintuan-pin size-6'
-    el.dataset.testid = 'hintuan-pin'
-    const ring = document.createElement('span')
-    const white = document.createElement('span')
-    white.className = 'grid size-5 place-items-center rounded-full bg-content-inverse'
-    const centre = document.createElement('span')
-    centre.className = 'size-3.5 rounded-full bg-content-success'
-    white.append(centre)
-    ring.append(white)
-    el.append(ring)
-    ringRef.current = ring
-    const marker = new Marker({ element: el, anchor: 'center' }).setLngLat(at).addTo(map)
-    markerRef.current = marker
+    const m = new Marker({ element: el, anchor: 'center' }).setLngLat(at).addTo(map)
+    marker.current = m
     return () => {
-      marker.remove()
-      markerRef.current = null
-      ringRef.current = null
+      m.remove()
+      marker.current = null
     }
-    // Made once per map; where it is and its colour flow through the effects below.
+    // Made once per map; where it is moves it below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map])
+  }, [map, el])
 
+  // The line's point for a pick can land a moment after the pick itself.
   useEffect(() => {
-    markerRef.current?.setLngLat(at)
+    marker.current?.setLngLat(at)
   }, [at])
 
-  useEffect(() => {
-    const ring = ringRef.current
-    if (!ring) return
-    ring.className = 'hintuan-pin-dot flex rounded-full p-0.5 ' + TIMELINE_SURFACE[livery]
-    markerRef.current?.getElement().setAttribute('data-livery', livery)
-  }, [livery])
-
-  return null
+  el.dataset.livery = livery
+  // Popped, and untucked from a rail it has none of, by hintuanPin.css.
+  return createPortal(<TimelineDot rail={TIMELINE_SURFACE[livery]} selected />, el)
 }

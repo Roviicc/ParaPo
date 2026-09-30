@@ -139,9 +139,10 @@ export function TripTimeline({
  * Figma's TimelineDot: Content/inverse ringed in the rail's colour. It sits
  * 2px into the rail after it, as the TimelineStick's -2px gap lays them.
  * Selected, the white grows and the ring thins to 2px round it, with a
- * Content/success centre: 24 across either way, so nothing moves.
+ * Content/success centre: 24 across either way, so nothing moves. The
+ * public map's picked hintuan wears the Selected one too (HintuanPin).
  */
-function TimelineDot({ rail, selected = false }: { rail: string; selected?: boolean }) {
+export function TimelineDot({ rail, selected = false }: { rail: string; selected?: boolean }) {
   return selected ? (
     <span className={'-mb-0.5 flex shrink-0 rounded-full p-0.5 ' + rail}>
       <span className="grid size-5 place-items-center rounded-full bg-content-inverse">

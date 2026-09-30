@@ -2,14 +2,16 @@
  * The picked hintuan's circle on the public map (HintuanPin.tsx, which
  * imports this sheet, so only the public map loads it). The marker's own
  * element is MapLibre's to move — it sets its transform — so the pop is on
- * the circle inside: from nothing to its size, over the base duration with
- * the arriving ease (tokens.css, Motion). `prefers-reduced-motion` has it
- * simply there.
+ * the circle inside, TimelineDot's own span: from nothing to its size,
+ * over the base duration with the arriving ease (tokens.css, Motion), and
+ * without the 2px it tucks into a rail on the card. `prefers-reduced-motion`
+ * has it simply there.
  */
 .hintuan-pin {
   pointer-events: none;
 }
-.hintuan-pin-dot {
+.hintuan-pin > span {
+  margin-bottom: 0;
   animation: hintuan-pin-pop var(--transition-duration-base) var(--ease-enter) both;
 }
 @keyframes hintuan-pin-pop {
@@ -17,5 +19,5 @@
   to { transform: scale(1); opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hintuan-pin-dot { animation: none; }
+  .hintuan-pin > span { animation: none; }
 }
