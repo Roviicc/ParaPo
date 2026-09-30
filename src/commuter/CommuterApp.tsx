@@ -168,7 +168,7 @@ export default function CommuterApp() {
       {map && <EndTitles map={map} rides={rides} look={look} />}
       {/* Keyed on the pick: another hintuan pops a fresh circle. */}
       {map && ride.pinAt && tripLivery && (
-        <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} livery={tripLivery} />
+        <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} label={ride.pickedLabel} livery={tripLivery} />
       )}
 
       {/*

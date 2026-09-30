@@ -310,7 +310,7 @@ function Workshop({
       {map && !draw.drawing && <EndTitles map={map} rides={rides} look={look} />}
       {/* Keyed on the pick: another hintuan pops a fresh circle. */}
       {map && !draw.drawing && ride.pinAt && tripLivery && (
-        <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} livery={tripLivery} />
+        <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} label={ride.pickedLabel} livery={tripLivery} />
       )}
 
       {/*

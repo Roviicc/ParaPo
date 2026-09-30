@@ -140,7 +140,7 @@
   /* The map: its route lines and hintuans. Figma: Map/… (2026-09-29). Two
      looks, no opacity — every line at rest, the selected one drawn over it
      (the owner's call: see-through lines stacked and confused). */
-  --map-route-line-surface-default: var(--color-blue-200);
+  --map-route-line-surface-default: var(--color-blue-300); /* blue/200 until 2026-09-30 */
   --map-route-line-surface-selected: var(--color-blue-700);
   --map-route-line-arrow-rest: var(--color-white);
   --map-route-line-arrow-inverse: var(--color-neutral-900);
@@ -290,6 +290,9 @@
   /* A bottom sheet, lifted off the map (BottomSheet/TopShadow, 3817:6007, 2026-09-30; its Figma
    * effect style still reads BottomToolbar/TopShadow). */
   --shadow-bottom-sheet-top-shadow: 0 -3px 8px 0 rgb(43 43 43 / 0.08);
+
+  /* The picked hintuan's name on the map, lifted off it (SelectedHintuanRouteTitle, 3847:11760, 2026-09-30). */
+  --shadow-selected-hintuan-route-title: 0 2px 8px 0 rgb(0 0 0 / 0.32);
 
   /* A RouteCard's State=Selected: pressed in, lit from the top left (2026-09-29). */
   --shadow-route-card-primary-selected:

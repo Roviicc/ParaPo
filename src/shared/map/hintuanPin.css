@@ -10,6 +10,13 @@
 .hintuan-pin {
   pointer-events: none;
 }
+/* The name beside it pops from its left edge, a beat after the circle. */
+.hintuan-pin-title {
+  white-space: nowrap;
+  transform-origin: left center;
+  translate: 0 -50%;
+  animation: hintuan-pin-pop var(--transition-duration-base) var(--ease-enter) 60ms both;
+}
 .hintuan-pin > span {
   margin-bottom: 0;
   animation: hintuan-pin-pop var(--transition-duration-base) var(--ease-enter) both;
@@ -19,5 +26,6 @@
   to { transform: scale(1); opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hintuan-pin > span { animation: none; }
+  .hintuan-pin > span,
+  .hintuan-pin-title { animation: none; }
 }
