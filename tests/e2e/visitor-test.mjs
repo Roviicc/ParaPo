@@ -24,6 +24,13 @@ import { lookReaders, paintNow, rideLook } from './lib/looks.mjs'
 
 const { check, skip, tally } = harness()
 
+// VISITOR_PART=k/n runs part k of n, so CI can run the parts side by side:
+// every part opens the map and runs sections 1, 2 and 5; section 3's
+// hotspots are dealt out by their place in the list; 4 and 4b are part 1's.
+// Unset, one part runs it all.
+const [PART, PARTS] = (process.env.VISITOR_PART || '1/1').split('/').map(Number)
+if (!(PARTS >= 1 && PART >= 1 && PART <= PARTS)) throw new Error(`VISITOR_PART is k/n with 1 ≤ k ≤ n, not "${process.env.VISITOR_PART}"`)
+
 // ------------------------------------------------------------------ geometry
 // A handful of "probably inside" guesses for a ring (point-in-polygon itself
 // is lib/geo.mjs's), computed here in Node rather than hard-coded, since we
@@ -240,6 +247,7 @@ check('no editor (draw-*) layers on the public page', drawLayers.length === 0, d
 
 // 3. Tap each hotspot: fly to a point inside it, click, read the card.
 for (const [i, p] of snapshot.polys.entries()) {
+  if (i % PARTS !== PART - 1) continue
   const desc = `${p.kind} #${i} "${p.name}"`
   const candidates = interiorCandidates(p.ring)
   let opened = null
@@ -366,7 +374,9 @@ for (const [i, p] of snapshot.polys.entries()) {
 // before is the list now), and a route's row opens its card. SKIP if no such
 // vertex exists.
 const hit = findVertexInsideAnyHotspot(snapshot.routeLines, snapshot.polys)
-if (!hit) {
+if (PART !== 1) {
+  // Part 1's, with 4b.
+} else if (!hit) {
   skip('a tap on a route line inside a hotspot offers both in the list', 'no saved-route vertex lies inside any hotspot polygon today')
 } else {
   await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 18 }), hit.point)
@@ -493,7 +503,7 @@ if (!hit) {
 // route alone under the tap opens its card directly, drawn in its trip card's colour over
 // the rest; closing the card lights nothing again. Nothing fades and nothing
 // is see-through (the owner's two looks, 2026-09-29).
-{
+if (PART === 1) {
   const looks = await paintNow(page)
   check('the lines rest opaque in Map/RouteLine/surface-default, lit in …/surface-selected, none shaded', twoLooks(looks), JSON.stringify(looks))
   const clean = findVertexOutsideHotspots(snapshot.routes, snapshot.polys)
