@@ -174,6 +174,7 @@ function TokensPage() {
         <Swatch box="bg-surface shadow-route-card-inverse" token="Route/RouteCardInverse" cls="shadow-route-card-inverse" />
         <Swatch box="bg-card-red-surface shadow-route-card-primary-selected" token="Route/RouteCardPrimarySelected" cls="shadow-route-card-primary-selected" />
         <Swatch box="bg-card-yellow-surface shadow-route-card-inverse-selected" token="Route/RouteCardInverseSelected" cls="shadow-route-card-inverse-selected" />
+        <Swatch box="rounded-full bg-card-red-surface shadow-selected-hintuan-route-title" token="Map/SelectedHintuanRouteTitle" cls="shadow-selected-hintuan-route-title" />
       </Group>
 
       <Group title="Type — the two families">

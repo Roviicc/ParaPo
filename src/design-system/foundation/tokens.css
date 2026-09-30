@@ -291,6 +291,9 @@
    * effect style still reads BottomToolbar/TopShadow). */
   --shadow-bottom-sheet-top-shadow: 0 -3px 8px 0 rgb(43 43 43 / 0.08);
 
+  /* The picked hintuan's name on the map, lifted off it (SelectedHintuanRouteTitle, 3847:11760, 2026-09-30). */
+  --shadow-selected-hintuan-route-title: 0 2px 8px 0 rgb(0 0 0 / 0.32);
+
   /* A RouteCard's State=Selected: pressed in, lit from the top left (2026-09-29). */
   --shadow-route-card-primary-selected:
     inset 3px 3px 8px 0 rgb(12 12 12 / 0.64), inset -1px -1px 1px 0 rgb(18 18 18 / 0.24);
