@@ -1,12 +1,12 @@
-import { useState, type Ref } from 'react'
-import { RouteTripDetail } from '../shared/cards/RouteTripDetail'
-import type { SheetHeight } from '../shared/cards/BottomSheet'
-import { lineLength } from '../shared/geo/geo'
-import { rideFare } from '../shared/model/fares'
-import { liveriesFor, type Livery } from '../shared/model/liveries'
-import { directionEnds, isDrawn, variantLine, type VariantSummary } from '../shared/model/routes'
-import { otherDirection } from '../shared/model/departures'
-import type { Timeline } from '../shared/model/timeline'
+import { useState, type ReactNode, type Ref } from 'react'
+import { RouteTripDetail } from './RouteTripDetail'
+import type { SheetHeight } from './BottomSheet'
+import { lineLength } from '../geo/geo'
+import { rideFare } from '../model/fares'
+import { liveriesFor, type Livery } from '../model/liveries'
+import { directionEnds, isDrawn, variantLine, type VariantSummary } from '../model/routes'
+import { otherDirection } from '../model/departures'
+import type { Timeline } from '../model/timeline'
 
 /**
  * The trip's colour, one owner for it (the review's 6.6): decided as the trip
@@ -52,8 +52,10 @@ export function useTripLivery(
  * So did the old card's fare details — the students/seniors/PWDs price, the
  * fare rule line, the route's fare_note, the estimate's source line and the
  * "old ₱13" grace warning (fare.previous): his frames carry only the pesos,
- * and he dropped them all on 2026-09-29. RouteSheet still shows them in the
- * studio.
+ * and he dropped them all on 2026-09-29. The studio shows them under the
+ * tiles (`extras`): the same card, with what an editor needs below it (the
+ * owner's pick, 2026-09-30: "most of the interaction of public map should
+ * be in studio").
  *
  * The address still follows the card (useShareLink), so a link can be copied
  * from the address bar, and still opens its trip.
@@ -73,6 +75,7 @@ export function TripCard({
   endPicked,
   dockRef,
   height,
+  extras,
 }: {
   variant: VariantSummary
   variants: readonly VariantSummary[]
@@ -93,6 +96,8 @@ export function TripCard({
   dockRef: Ref<HTMLDivElement>
   /** Its sheet's height, shared with the list or card behind it (BottomSheet). */
   height: SheetHeight
+  /** Under the tiles, the studio's alone: its facts and its Edit, Extend and Delete. */
+  extras?: ReactNode
 }) {
   const { from, to } = directionEnds(variant)
   const sibling = otherDirection(variants, variant)
@@ -123,6 +128,8 @@ export function TripCard({
       }}
       onBackToList={onBackToList}
       onClose={onClose}
-    />
+    >
+      {extras}
+    </RouteTripDetail>
   )
 }

@@ -91,7 +91,7 @@ export function pesoRange(low: number, high: number): string {
  * fare, over its whole ride (the owner's 3778:3183, 2026-09-29). The only
  * pesos on the public map since his RouteCard State set took them off the
  * cards (wholeRideFare, their range over a place's ways out, went with
- * them); the studio's RouteSheet keeps its own fare details.
+ * them); the studio keeps its own fare details, under the trip card (RouteFacts).
  */
 export function rideFare(mode: TransportMode | undefined, metres: number, date = manilaDate()): string | undefined {
   const today = ruleOn(date)
