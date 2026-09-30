@@ -46,7 +46,7 @@ const meta = {
     routeDirection: 'Novaliches',
     picked: null,
     onPick: fn(),
-    pickedPesos: '₱20',
+    pickedPesos: '₱20–22',
     onEnd: fn(),
     endPicked: null,
   },

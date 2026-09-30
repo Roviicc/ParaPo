@@ -17,6 +17,13 @@ type Props = Omit<TripTimelineProps, "pickedPesos"> & {
   fare?: Fares;
   /** …and for the ride to the picked hintuan, which the tile shows while it is picked. */
   pickedFare?: Fares;
+  /**
+   * Whether the tile shows the Discounted fare, and where a tap says so: the
+   * app keeps one for every trip (useFareKind). Without them, the card keeps
+   * its own, opening on Regular, as a story does.
+   */
+  discounted?: boolean;
+  onDiscounted?: (discounted: boolean) => void;
   /** SWITCH: the same route the other way. */
   onSwitch: () => void;
   /** False when the route has no other way drawn; SWITCH then rests disabled. */
@@ -47,9 +54,10 @@ type Props = Omit<TripTimelineProps, "pickedPesos"> & {
  * it to the other. With a hintuan picked it prices the ride from where the
  * trip leaves to there — the pick's pill the same pesos — and let go,
  * the whole ride again (his ask: "change the value of it based on the
- * hintuan they select"). Its second fare was "Student fare" until he named it
-"Discounted fare" (2026-09-30). It opens on Regular, and keeps which it shows
- * through a pick, SWITCH and back. The Kilometer tile follows the pick the
+ * hintuan they select"). The fare picked is kept for every trip after, and the
+ * next visit (useFareKind; his "I don't want the user to keep tapping",
+ * 2026-09-30). Its second fare was "Student fare" until he named it
+ * "Discounted fare" (2026-09-30). A first visit opens on Regular. The Kilometer tile follows the pick the
  * same way, from where the trip leaves to there (the owner, 2026-09-30: "it
  * should follow the picked hintuan").
  * The pesos moved off the rail into their tile with this set; a route no
@@ -71,6 +79,8 @@ export function RouteTripDetail({
   onEnd,
   endPicked,
   routeDirection,
+  discounted: kept,
+  onDiscounted,
   onSwitch,
   switchable,
   back,
@@ -80,7 +90,9 @@ export function RouteTripDetail({
   height,
   children,
 }: Props) {
-  const [discounted, setDiscounted] = useState(false);
+  const [own, setOwn] = useState(false);
+  const discounted = kept ?? own;
+  const setDiscounted = (d: boolean) => (onDiscounted ? onDiscounted(d) : setOwn(d));
   // Each tap turns ↻ round once more (the owner's "simple rotation only if
   // selected", 2026-09-30): counted, so the next tap turns it again rather
   // than back. It turns over `turn`, gentle at 6/10 as fast (his "it's fast",
@@ -135,7 +147,7 @@ export function RouteTripDetail({
             data-testid="trip-fare-turn"
             aria-label={`${discounted ? "Discounted" : "Regular"} fare ${discounted ? shown.discounted : shown.regular}. Show the ${discounted ? "regular" : "discounted"} fare`}
             onClick={() => {
-              setDiscounted((s) => !s);
+              setDiscounted(!discounted);
               setTurns((t) => t + 1);
             }}
             className={

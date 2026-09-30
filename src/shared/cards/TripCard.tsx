@@ -1,5 +1,6 @@
 import { useState, type ReactNode, type Ref } from 'react'
 import { RouteTripDetail, type Fares } from './RouteTripDetail'
+import { useFareKind } from './useFareKind'
 import type { SheetHeight } from './BottomSheet'
 import { lineLength } from '../geo/geo'
 import { manilaDate, rideFare } from '../model/fares'
@@ -106,11 +107,14 @@ export function TripCard({
   // an overview drawn while the line is read never prices it: its Kilometer
   // and its Expected fare.
   const metres = variant.metres ?? lineLength(variantLine(variant))
+  const [fareKind, setFareKind] = useFareKind()
   return (
     <RouteTripDetail
       livery={livery}
       metres={metres}
       pickedMetres={pickedMetres}
+      discounted={fareKind === 'discounted'}
+      onDiscounted={(d) => setFareKind(d ? 'discounted' : 'regular')}
       fare={faresFor(variant.route?.mode, metres)}
       routeOrigin={from}
       hintuans={timeline.between}
