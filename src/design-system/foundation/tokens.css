@@ -116,6 +116,12 @@
   --card-yellow-surface: var(--color-yellow-300);
   --card-yellow-border-primary: var(--color-yellow-500);
   --card-yellow-timeline-surface: var(--color-yellow-500);
+  --card-violet-surface: var(--color-violet-700);
+  --card-violet-border-primary: var(--color-violet-800);
+  --card-violet-timeline-surface: var(--color-violet-900);
+  --card-rose-surface: var(--color-rose-700);
+  --card-rose-border-primary: var(--color-rose-800);
+  --card-rose-timeline-surface: var(--color-rose-900);
 
   /* Error actions — the destructive button. Figma: Error/… (2026-09-28,
      added for the Button so its fill stopped being the one primitive). */
@@ -178,6 +184,12 @@
   --color-card-yellow-surface: var(--card-yellow-surface);
   --color-card-yellow-border-primary: var(--card-yellow-border-primary);
   --color-card-yellow-timeline-surface: var(--card-yellow-timeline-surface);
+  --color-card-violet-surface: var(--card-violet-surface);
+  --color-card-violet-border-primary: var(--card-violet-border-primary);
+  --color-card-violet-timeline-surface: var(--card-violet-timeline-surface);
+  --color-card-rose-surface: var(--card-rose-surface);
+  --color-card-rose-border-primary: var(--card-rose-border-primary);
+  --color-card-rose-timeline-surface: var(--card-rose-timeline-surface);
 
   --color-error-surface: var(--error-surface);
   --color-error-surface-secondary: var(--error-surface-secondary);

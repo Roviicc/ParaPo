@@ -11,7 +11,9 @@ import type { Livery } from '../model/liveries'
  * and yellow in Content/primary under Route/RouteCardInverse, their Blob
  * brighter and softened 2px more. The owner's yellow trip frames (3762:3546)
  * wear the red card's Primary Blob and shadow; the yellow card's own are used
- * here, so the card and the trip it opens match.
+ * here, so the card and the trip it opens match. Violet and rose (2026-09-30)
+ * are the two between: white words, as on red and orange, under the Inverse
+ * shadow and softened Blob of mist and yellow.
  */
 
 export const CARD_SURFACE = {
@@ -19,6 +21,8 @@ export const CARD_SURFACE = {
   orange: 'bg-card-orange-surface border-card-orange-border-primary',
   mist: 'bg-card-mist-surface border-card-mist-border-primary',
   yellow: 'bg-card-yellow-surface border-card-yellow-border-primary',
+  violet: 'bg-card-violet-surface border-card-violet-border-primary',
+  rose: 'bg-card-rose-surface border-card-rose-border-primary',
 } satisfies Record<Livery, string>
 
 export const CARD_TEXT = {
@@ -26,6 +30,8 @@ export const CARD_TEXT = {
   orange: 'text-content-inverse',
   mist: 'text-content-primary',
   yellow: 'text-content-primary',
+  violet: 'text-content-inverse',
+  rose: 'text-content-inverse',
 } satisfies Record<Livery, string>
 
 // Drawn over the card, as Figma lays it: above the Blob and the words.
@@ -34,6 +40,8 @@ export const CARD_SHADOW = {
   orange: 'shadow-route-card-primary',
   mist: 'shadow-route-card-inverse',
   yellow: 'shadow-route-card-inverse',
+  violet: 'shadow-route-card-inverse',
+  rose: 'shadow-route-card-inverse',
 } satisfies Record<Livery, string>
 
 // A RouteCard's State=Selected (2026-09-29): pressed in, and nothing else
@@ -43,6 +51,8 @@ export const CARD_SHADOW_SELECTED = {
   orange: 'shadow-route-card-primary-selected',
   mist: 'shadow-route-card-inverse-selected',
   yellow: 'shadow-route-card-inverse-selected',
+  violet: 'shadow-route-card-inverse-selected',
+  rose: 'shadow-route-card-inverse-selected',
 } satisfies Record<Livery, string>
 
 // Figma's Blob, Primary and Inverse: a white glow over the card's top,
@@ -63,6 +73,8 @@ export const CARD_BLOB = {
   orange: { src: blobPrimary, className: '' },
   mist: { src: blobInverse, className: 'blur-[2px]' },
   yellow: { src: blobInverse, className: 'blur-[2px]' },
+  violet: { src: blobInverse, className: 'blur-[2px]' },
+  rose: { src: blobInverse, className: 'blur-[2px]' },
 } satisfies Record<Livery, { src: string; className: string }>
 
 // Pixels, all three, like the glow inside the file: the rem scale
@@ -76,6 +88,8 @@ export const TIMELINE_SURFACE = {
   orange: 'bg-card-orange-timeline-surface',
   mist: 'bg-card-mist-timeline-surface',
   yellow: 'bg-card-yellow-timeline-surface',
+  violet: 'bg-card-violet-timeline-surface',
+  rose: 'bg-card-rose-timeline-surface',
 } satisfies Record<Livery, string>
 
 /**
@@ -83,11 +97,13 @@ export const TIMELINE_SURFACE = {
  * State=Selected, 3769:2847; his yellow and mist cards, 3785:4462 and
  * 3785:4575): the card's own colour on Content/inverse where its words are
  * white, on Content/primary where they are dark. Orange follows red: he drew
- * no orange trip.
+ * no orange trip; nor violet and rose, whose words are white too.
  */
 export const TIMELINE_PILL = {
   red: 'bg-content-inverse text-card-red-surface',
   orange: 'bg-content-inverse text-card-orange-surface',
   mist: 'bg-content-primary text-card-mist-surface',
   yellow: 'bg-content-primary text-card-yellow-surface',
+  violet: 'bg-content-inverse text-card-violet-surface',
+  rose: 'bg-content-inverse text-card-rose-surface',
 } satisfies Record<Livery, string>

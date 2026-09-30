@@ -62,7 +62,7 @@ function primitiveHex(name) {
 const near = (x, y) => [1, 3, 5].every((i) => Math.abs(parseInt(x.slice(i, i + 2), 16) - parseInt(y.slice(i, i + 2), 16)) <= 1)
 
 test("each card colour is the primitive its Card/<livery>/surface aliases", () => {
-  assert.ok(Object.keys(CARD_COLOURS).length === 4, 'the four liveries')
+  assert.ok(Object.keys(CARD_COLOURS).length === 6, 'the six liveries')
   for (const [figma, hex] of Object.entries(CARD_COLOURS)) {
     const css = cssName(figma)
     const primitive = tokens.match(new RegExp(`^\\s*--${css}:\\s*var\\(--color-([a-z0-9-]+)\\);`, 'm'))?.[1]

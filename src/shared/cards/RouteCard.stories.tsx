@@ -45,6 +45,18 @@ export const MistSelected: Story = { args: { state: 'selected', livery: 'mist', 
 /** Selected, yellow: as Mist. */
 export const YellowSelected: Story = { args: { state: 'selected', livery: 'yellow', routeOrigin: 'Lagro' } }
 
+/** Violet (2026-09-30): white words, as Red, under Mist's Inverse shadow and Blob. */
+export const Violet: Story = { args: { livery: 'violet', routeOrigin: 'Fairview' } }
+
+/** Selected, violet: as Mist. */
+export const VioletSelected: Story = { args: { state: 'selected', livery: 'violet', routeOrigin: 'Fairview' } }
+
+/** Rose (2026-09-30): as Violet. */
+export const Rose: Story = { args: { livery: 'rose', routeOrigin: 'Novaliches' } }
+
+/** Selected, rose: as Mist. */
+export const RoseSelected: Story = { args: { state: 'selected', livery: 'rose', routeOrigin: 'Novaliches' } }
+
 /**
  * At rest, a row opens its direction straight away; a tap anywhere else on
  * the card — its name, the room around its rows — selects it (the owner,
