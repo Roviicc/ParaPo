@@ -64,8 +64,8 @@ export function snapAfterTap(snap: Snap): Snap {
 /** A flick faster than this, in pixels a millisecond, goes one height on in its direction. */
 const FLICK = 0.5
 
-/** Middle shows this much of the map, as the owner's frames do (448 and 462 of 844). */
-const MIDDLE = 0.55
+/** Middle shows this much of the map: 45% since the owner's ask of 2026-09-30 (55% before, as his frames had it). */
+const MIDDLE = 0.45
 
 /**
  * What Low shows, the same for every card (the owner's 3817:6007,

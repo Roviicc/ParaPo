@@ -725,12 +725,12 @@ const sheetState = async () =>
   (await card().count()) ? await card().first().getAttribute('data-snap') : null
 /**
  * How far to drag the handle for the sheet to come to rest at `to` from
- * where it is, by the heights BottomSheet gives it: Low 137, Middle 55% of
+ * where it is, by the heights BottomSheet gives it: Low 137, Middle 45% of
  * the map, Max all of it. Negative is up.
  */
 const dragTo = async (from, to) => {
   const h = await card().first().evaluate((el) => el.offsetHeight)
-  const shown = { low: 137, middle: Math.round(h * 0.55), max: h }
+  const shown = { low: 137, middle: Math.round(h * 0.45), max: h }
   return shown[from] - shown[to]
 }
 const closeCard = async () => {

@@ -35,8 +35,8 @@ test('a flick down goes to the next height below, and past Low it closes', () =>
   assert.equal(snapFor(70, -0.8, heights), 'close')
 })
 
-test('each height of a map 844 tall: Low 137, Middle 55%, Max all of it', () => {
-  assert.deepEqual(heightsFor(844), { low: LOW_PX, middle: 464, max: 844 })
+test('each height of a map 844 tall: Low 137, Middle 45%, Max all of it', () => {
+  assert.deepEqual(heightsFor(844), { low: LOW_PX, middle: 380, max: 844 })
 })
 
 // A finger taking hold of a sheet at Middle (464 of 844) at y 400.
