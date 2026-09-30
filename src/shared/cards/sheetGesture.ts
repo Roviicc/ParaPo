@@ -64,10 +64,14 @@ export function snapAfterTap(snap: Snap): Snap {
 /**
  * A flick faster than this, in pixels a millisecond, goes to the end its way.
  * 0.5 at first; the owner, trying it (2026-09-30), found that "too
- * sensitive", tried 7/10 of it, then settled on 5/10: 0.5 ÷ 0.5, so a flick
- * has to be twice as fast as at first.
+ * sensitive" — "even if I scroll up gently it doesn't stay on the middle" —
+ * and asked for 7/10, 5/10, then 2/10 of it: 0.5 ÷ 0.2, so only a real flick
+ * counts, and a gentle swipe settles on the nearest height.
  */
-const FLICK = 1
+const FLICK = 2.5
+
+/** How far back the speed at release is read: only the finger's last moves count. */
+const RECENT_MS = 100
 
 /** Middle shows this much of the map, as the owner's frames do (448 and 462 of 844). */
 const MIDDLE = 0.55
@@ -102,27 +106,31 @@ export function slideShowing(shown: number): string {
 /**
  * A finger, or a mouse, holding a sheet `max` tall that showed `from` when
  * it took hold at `startY`: how much shows as it moves, and where it lands
- * let go (snapFor). Its speed is smoothed over the last few moves, so one
- * jittery sample does not decide a flick; held still 80 ms before lifting,
- * it is a placement, not a flick. The touch pull at Max and the pointer
- * drag share it.
+ * let go (snapFor). Its speed at release is the finger's over its last
+ * RECENT_MS only, so a swipe that slowed before lifting is read as slow,
+ * however fast it began (the owner's "even if I scroll up gently it doesn't
+ * stay on the middle", 2026-09-30); held still 80 ms before lifting, it is a
+ * placement, not a flick. The touch pull at Max and the pointer drag share it.
  */
 export function follow(startY: number, t: number, from: number, max: number) {
   let y = startY
   let last = t
-  let v = 0
+  const moves: { at: number; t: number }[] = [{ at: startY, t }]
   const shown = (at: number) => Math.max(0, Math.min(max, from + startY - at))
   return {
     move(at: number, now: number): number {
-      const dt = now - last
-      if (dt > 0) v = 0.7 * ((y - at) / dt) + 0.3 * v
       y = at
       last = now
+      moves.push({ at, t: now })
+      while (moves.length > 2 && now - moves[1].t > RECENT_MS) moves.shift()
       return shown(at)
     },
     /** Where it lands let go at `at` (the last move's, when the release has no position). */
     release(now: number, at = y): Snap | 'close' {
-      return snapFor(shown(at), now - last > 80 ? 0 : v, heightsFor(max))
+      const first = moves.find((m) => last - m.t <= RECENT_MS) ?? moves[moves.length - 1]
+      const dt = last - first.t
+      const v = now - last > 80 || dt <= 0 ? 0 : (first.at - y) / dt
+      return snapFor(shown(at), v, heightsFor(max))
     },
   }
 }
