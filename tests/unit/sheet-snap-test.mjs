@@ -81,11 +81,11 @@ test('lifted while moving fast it is a flick: to the end, down from Low it close
   assert.equal(down.release(64 + 16), 'close')
 })
 
-// A swipe up from Middle (464 of 844) that starts fast and slows to a crawl
-// before the finger lifts: read over its last 100 ms, it is slow, and it
-// settles on the nearest height — Middle — not a flick to Max.
+// A swipe up from Middle (380 of 844, 45%) that starts fast and slows to a
+// crawl before the finger lifts: read over its last 100 ms, it is slow, and
+// it settles on the nearest height — Middle — not a flick to Max.
 test('a swipe that slows before lifting is read as slow: it stays at the nearest height', () => {
-  const f = follow(400, 0, 464, 844)
+  const f = follow(400, 0, heightsFor(844).middle, 844)
   let y = 400
   let t = 0
   for (let i = 0; i < 3; i++) f.move((y -= 50), (t += 16))
