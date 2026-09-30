@@ -140,7 +140,7 @@
   /* The map: its route lines and hintuans. Figma: Map/… (2026-09-29). Two
      looks, no opacity — every line at rest, the selected one drawn over it
      (the owner's call: see-through lines stacked and confused). */
-  --map-route-line-surface-default: var(--color-blue-200);
+  --map-route-line-surface-default: var(--color-blue-300); /* blue/200 until 2026-09-30 */
   --map-route-line-surface-selected: var(--color-blue-700);
   --map-route-line-arrow-rest: var(--color-white);
   --map-route-line-arrow-inverse: var(--color-neutral-900);
