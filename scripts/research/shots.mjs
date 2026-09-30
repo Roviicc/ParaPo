@@ -14,7 +14,13 @@ const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/,
 const OUT = resolve(process.argv[2] ?? 'research-shots')
 mkdirSync(OUT, { recursive: true })
 
-const file = JSON.parse(readFileSync(new URL('../../public/data/map.json', import.meta.url), 'utf8'))
+/** The published map with every line in full: the index, each line from lines/<id>.json beside it. */
+const readPublished = () => {
+  const at = (name) => JSON.parse(readFileSync(new URL(`../../public/data/${name}`, import.meta.url), 'utf8'))
+  const index = at('index.json')
+  return { ...index, variants: index.variants.map(({ overview, ...v }) => ({ ...v, shape: overview ? at(`lines/${v.id}.json`).shape : null })) }
+}
+const file = readPublished()
 const routeId = file.variants[0]?.id
 const stop = file.stops.find((s) => s.kind === 'hintuan') ?? file.stops[0]
 
@@ -76,7 +82,7 @@ if (stop) {
     },
   })
 }
-await shot(phone, '/', '05-phone-load-error', { before: (p) => p.route('**/data/map.json*', (r) => r.abort()) })
+await shot(phone, '/', '05-phone-load-error', { before: (p) => p.route('**/data/index.json*', (r) => r.abort()) })
 await shot(desk, '/', '06-desktop-map')
 if (routeId) await shot(desk, `/?r=${routeId}`, '07-desktop-route')
 await shot(desk, '/studio/', '08-studio-signin')

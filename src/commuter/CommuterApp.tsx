@@ -1,59 +1,57 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Ref } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
-import { HotspotCard } from '../shared/HotspotCard'
-import { MAP_FILE_TOO_NEW, loadMapFile, loadStopsFromFile, loadVariantsFromFile, mapFileIsStale } from '../shared/mapFile'
-import { reloadToUpdate, useNeedRefresh } from './pwa'
-import { MapView, coarse } from '../shared/MapView'
-import { rideFare } from '../shared/fares'
-import { lineLength } from '../shared/geo'
-import { liveriesFor, type Livery } from '../shared/liveries'
-import { RouteCardList } from '../shared/RouteCardList'
-import { RouteTripDetail } from '../shared/RouteTripDetail'
-import { clearOfDock } from '../shared/RouteDock'
-import { useRideTo } from '../shared/rideTo'
-import {
-  directionEnds,
-  isDrawn,
-  otherDirection,
-  routeTimeline,
-  sharingAnEnd,
-  travelLine,
-  variantLine,
-  type VariantSummary,
-} from '../shared/routes'
-import { useDirectionArrows, useRideColours } from '../shared/directionArrows'
-import { usePassStretches } from '../shared/passStretches'
-import { useBabaanSides } from '../shared/babaanSides'
-import { useLitLineColour, useSavedRoutes } from '../shared/useSavedRoutes'
-import { LIT_LINE, LIVERY_LINE } from '../shared/liveryLine'
-import { useSavedStops } from '../shared/useSavedStops'
-import type { Timeline } from '../shared/stops'
+import { HotspotCard } from '../shared/cards/HotspotCard'
+import { MAP_FILE_TOO_NEW, loadLine, loadStopsFromFile, loadVariantsFromFile } from './mapFile'
+import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
+import { METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
+import type { Livery } from '../shared/model/liveries'
+import { RouteCardList } from '../shared/cards/RouteCardList'
+import { clearOfDock } from '../shared/cards/BottomSheet'
+import type { Snap } from '../shared/cards/sheetGesture'
+import { useRideTo } from '../shared/map/rideTo'
+import { directionEnds, isDrawn } from '../shared/model/routes'
+import { routeTimeline, travelLine } from '../shared/model/ride'
+import { sharingAnEnd } from '../shared/model/departures'
+import { useDirectionArrows, useRideColours } from '../shared/map/directionArrows'
+import { usePassStretches } from '../shared/geo/passStretches'
+import { useBabaanSides } from '../shared/geo/babaanSides'
+import { useLitLineColour } from '../shared/map/savedRoutesLayers'
+import { useSavedRoutes } from '../shared/map/useSavedRoutes'
+import { LIT_LINE, LIVERY_LINE } from '../shared/map/liveryLine'
+import { useSavedStops } from '../shared/map/useSavedStops'
+import { HintuanPin } from '../shared/map/HintuanPin'
+import { Notices } from './Notices'
+import { TripCard, useTripLivery } from '../shared/cards/TripCard'
+import { useMapAge, useOffline } from './status'
+import { useShareLink } from './useShareLink'
 import { Walker } from './Walker'
 import { WhereAmIButton } from './WhereAmI'
 import { useWhereAmI } from './useWhereAmI'
-
-/** The query key a shared link carries: `/?r=<direction id>`. A query, not a path, so no SPA fallback is needed. */
-const SHARE_KEY = 'r'
 
 /**
  * The public map at /. Everything published so far and a card for whatever is
  * tapped — nothing else. No sign-in, no drawing, no database: the map comes
  * from one published file, and this page's bundle carries neither editor code
- * nor a Supabase client (scripts/check-build.mjs proves both).
+ * nor a Supabase client (scripts/checks/check-build.mjs proves both).
  *
  * On a phone the tap is the whole interface: the cards are bottom sheets, a
  * tap near a line counts, and a tap where routes share a road offers a choice.
  */
 export default function CommuterApp() {
   const [map, setMap] = useState<MapLibreMap | null>(null)
-  // One file, fetched once, shared by both hooks.
-  const saved = useSavedRoutes(map, loadVariantsFromFile)
+  // One index, fetched once, shared by both hooks; a direction's full line
+  // read as it is lit (mapFile.ts).
+  const saved = useSavedRoutes(map, loadVariantsFromFile, { loadLine })
   // While a trip is open, the map lights only the trip (the owner, 2026-09-29).
   const stops = useSavedStops(map, loadStopsFromFile, { muted: !!saved.selected })
   const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW
 
-  // Where a lit direction passes a hintuan, the line turns orange for that stretch.
-  usePassStretches(map, saved.variants, stops.stops, saved.lit)
+  // Where a lit direction passes a hintuan, the line turns orange for that
+  // stretch: worked out on the full lines read — a lit direction's is asked
+  // for as it lights, and its orange comes with it — rather than on every
+  // overview at load. Offline, a line never read has none.
+  const withLines = useMemo(() => saved.variants.filter((v) => saved.fullIds.has(v.id)), [saved.variants, saved.fullIds])
+  usePassStretches(map, withLines, stops.stops, saved.lit)
 
   // Which way the jeep goes, on what is lit only — the chosen direction, the
   // Selected card's directions, or else a list's or a hotspot card's: chevrons
@@ -66,12 +64,12 @@ export default function CommuterApp() {
   useDirectionArrows(map, rides)
   // The chosen direction's side of each hintuan it cuts across: its right.
   useBabaanSides(map, saved.selected, stops.stops)
-  // A hintuan picked on the trip card: the ride drawn dark only that far,
-  // the camera gliding there clear of the card, and no get-off circles (the
-  // owner's Timeline State=Selected, 2026-09-29).
+  // A hintuan picked on the trip card (the owner's Timeline State=Selected,
+  // 2026-09-29): the camera gliding there clear of the card, and a circle
+  // popping up on it — the route left whole, no get-off circles (the
+  // owner's ask of 2026-09-30: "now I don't want to cut the route").
   const tripDock = useRef<HTMLDivElement>(null)
   const ride = useRideTo(map, saved.selected, stops.stops, {
-    dots: false,
     offset: () => (map ? clearOfDock(map.getContainer(), tripDock.current) : [0, 0]),
   })
 
@@ -79,7 +77,7 @@ export default function CommuterApp() {
   // The visitor's own position, when they ask for it: a walking figure.
   const where = useWhereAmI(map)
   const offline = useOffline()
-  const age = useMapAge()
+  const age = useMapAge(saved.variants)
   const needRefresh = useNeedRefresh()
 
   // One tap, several things: routes, hotspots or both, in the owner's route
@@ -106,20 +104,8 @@ export default function CommuterApp() {
   const [worn, setWorn] = useState<{ id: string; livery: Livery } | null>(null)
   const wornBehind = choosing || !!stops.selected
 
-  // The trip's colour, decided as it opens — its RouteCard's, in the list or
-  // a hotspot's card, else its place's for the visit (liveries.ts: drawn
-  // when first met, kept after) — and kept until it closes, through SWITCH.
-  // Kept here, not in the trip card, since its line wears it too (the
-  // owner's ask, 2026-09-29).
-  const [tripWears, setTripWears] = useState<{ routeId: string; livery: Livery } | null>(null)
-  const open = saved.selected
-  let tripLivery = open && tripWears?.routeId === open.route_id ? tripWears.livery : null
-  if (open && !tripLivery) {
-    tripLivery = (wornBehind && worn?.id === open.id ? worn.livery : undefined) ?? liveriesFor([directionEnds(open).from])[0]
-    setTripWears({ routeId: open.route_id, livery: tripLivery })
-  } else if (!open && tripWears) {
-    setTripWears(null)
-  }
+  // The trip's colour: its line wears it too (TripCard.tsx, useTripLivery).
+  const tripLivery = useTripLivery(saved.selected, worn, wornBehind)
   // What is lit wears the colour of the card it answers: the open trip's, or
   // the picked RouteCard's; a list with none picked lights its routes in the
   // selected blue (the owner's ask, 2026-09-29).
@@ -140,6 +126,17 @@ export default function CommuterApp() {
   // that way round, there is nothing to go back to.
   const trip = saved.selected
   const fan = trip ? sharingAnEnd(saved.variants, trip) : []
+
+  // One height for the sheets that stand in for one another — the route
+  // list, a hotspot's card and the trip opened from either: a pick and ‹
+  // keep Low, Middle or Max as they were (the owner's ask of 2026-09-30:
+  // "if RouteDetail was in medium, if they go back, the RouteCard is in
+  // medium too"). With nothing open it goes back to Middle, where every
+  // sheet opens.
+  const [snap, setSnap] = useState<Snap>('middle')
+  const anyOpen = !!saved.selected || !!stops.selected || choosing
+  if (!anyOpen && snap !== 'middle') setSnap('middle')
+  const height = { snap, onSnap: setSnap }
   const backToList = stops.selected
     ? () => saved.select(null, { keepList: true })
     : choosing
@@ -155,15 +152,19 @@ export default function CommuterApp() {
     // `data-directions`: how many the map file brought, for the suites on a
     // production build, where the map itself is out of their reach — the
     // count pill that told them went on 2026-09-29.
-    <div data-directions={saved.variants.length} className="@container relative h-full w-full overflow-hidden">
+    <div data-directions={saved.variants.length} className="@container relative h-full w-full overflow-clip">
       {/*
         No count of routes and hotspots in a corner, and no +, − or compass:
         the owner's notes on his screenshot, "annoying for users"
         (2026-09-29).
       */}
-      <MapView onReady={setMap} zoomButtons={false} />
+      <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} />
       {map && <WhereAmIButton where={where} coarse={coarse} />}
       {map && where.fix && <Walker map={map} fix={where.fix} pose={where.pose} facing={where.facing} />}
+      {/* Keyed on the pick: another hintuan pops a fresh circle. */}
+      {map && ride.pinAt && tripLivery && (
+        <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} livery={tripLivery} />
+      )}
 
       {/*
         A load problem is a banner, never a blank page. On a phone it sits at
@@ -171,76 +172,19 @@ export default function CommuterApp() {
         lines, and must stay visible. With no map loaded there is no card to
         share the bottom with.
       */}
-      {(saved.error || stops.error) && (
-        <div
-          className="absolute bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-20 flex
-                     w-max max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-3 rounded-lg
-                     bg-amber-50 px-4 py-2 text-xs text-amber-900 shadow ring-1 ring-amber-200
-                     @wide:bottom-auto @wide:top-[calc(1rem+env(safe-area-inset-top))] @wide:max-w-xl"
-        >
-          {tooNew ? (
-            // The file is a shape this installed app does not know. Loading
-            // it again cannot help; loading the page fetches the app that can.
-            <>
-              <span>{MAP_FILE_TOO_NEW} Reload to update.</span>
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="rounded-full bg-amber-900 px-3 py-1 text-xs font-medium text-white"
-              >
-                Reload
-              </button>
-            </>
-          ) : (
-            <>
-              <span>The routes could not be loaded. Check your connection and try again.</span>
-              <button
-                type="button"
-                onClick={() => {
-                  void saved.reload()
-                  void stops.reload()
-                }}
-                className="rounded-full bg-amber-900 px-3 py-1 text-xs font-medium text-white"
-              >
-                Try again
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      {/*
-        Honesty about age. With no signal, or a network too slow to answer in
-        time, the map is whatever the phone kept, and the date comes from inside
-        the file itself, so it is exact. Where the count pill was until the
-        owner took it off (2026-09-29): bottom left above the scale on a phone
-        (the credit line opens across the top there), top left on a wide map.
-      */}
-      {(offline || age.stale) && (
-        <div
-          data-testid="offline"
-          className="absolute bottom-[calc(2.5rem+env(safe-area-inset-bottom))]
-                     left-[calc(1rem+env(safe-area-inset-left))] z-10 rounded-full bg-neutral-800/90
-                     px-3 py-1.5 text-xs text-white shadow backdrop-blur
-                     @wide:bottom-auto @wide:top-[calc(1rem+env(safe-area-inset-top))]"
-        >
-          {offline ? 'Offline' : 'Not refreshed'}
-          {age.publishedAt && <> · map as of {shortDate(age.publishedAt)}</>}
-        </div>
-      )}
-
-      {/* A new version never applies itself: a reload mid-ride would drop the selected route. */}
-      {needRefresh && (
-        <button
-          type="button"
-          data-testid="update"
-          onClick={reloadToUpdate}
-          className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-1/2 z-20 -translate-x-1/2
-                     rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-lg"
-        >
-          New version · Reload
-        </button>
-      )}
+      <Notices
+        loadFailed={!!(saved.error || stops.error)}
+        tooNew={tooNew}
+        onTryAgain={() => {
+          void saved.reload()
+          void stops.reload()
+        }}
+        onReloadNewer={() => void reloadForNewerApp()}
+        offline={offline}
+        age={age}
+        needRefresh={needRefresh}
+        onUpdate={reloadToUpdate}
+      />
 
       {saved.selected && tripLivery && (
         // Keyed on the route: SWITCH leaves the hintuans open or folded as
@@ -256,11 +200,14 @@ export default function CommuterApp() {
           onSwitch={(v) => saved.select(v.id, { keepList: true })}
           onClose={closeAll}
           picked={ride.pickedId}
-          pickedMetres={ride.rideTo?.metres}
+          // The pesos to a picked hintuan are the full line's: none while
+          // only its overview is here.
+          pickedMetres={saved.fullIds.has(saved.selected.id) ? ride.rideTo?.metres : undefined}
           onPick={ride.pick}
           onEnd={ride.toEnd}
           endPicked={ride.endPicked}
           dockRef={tripDock}
+          height={height}
         />
       )}
 
@@ -272,13 +219,17 @@ export default function CommuterApp() {
         `card` is then the trip while this one hides behind it.
       */}
       {stops.selected && (
+        // Keyed by the hotspot: "Part of …" → a sibling once reused this card
+        // as it was, flipped and pulled up.
         <HotspotCard
+          key={stops.selected.id}
           routeCards={{
             selected: saved.highlight?.where === 'hotspot' ? saved.highlight.from : null,
             onSelect: (p) => saved.highlightCard(p && { where: 'hotspot', ...p }),
             onShown: saved.showCard,
           }}
           hidden={!!saved.selected}
+          height={height}
           stop={stops.selected}
           linkedVariantIds={stops.linkedVariantIds(stops.selected.id)}
           variants={saved.variants}
@@ -308,6 +259,7 @@ export default function CommuterApp() {
         <RouteCardList
           key={choice.map((c) => c.id).join()}
           hidden={!!saved.selected}
+          height={height}
           routes={saved.candidates}
           stops={stops.candidates}
           back={saved.back}
@@ -330,175 +282,3 @@ export default function CommuterApp() {
   )
 }
 
-/** Whether the browser believes it has a network; `false` is certain, `true` only hopeful. */
-function useOffline(): boolean {
-  return useSyncExternalStore(
-    (notify) => {
-      window.addEventListener('online', notify)
-      window.addEventListener('offline', notify)
-      return () => {
-        window.removeEventListener('online', notify)
-        window.removeEventListener('offline', notify)
-      }
-    },
-    () => !navigator.onLine,
-    () => false,
-  )
-}
-
-/** When the map on screen was published, and whether it came from a stored copy, from the file both hooks already share. */
-function useMapAge(): { publishedAt: string | null; stale: boolean } {
-  const [age, setAge] = useState<{ publishedAt: string | null; stale: boolean }>({ publishedAt: null, stale: false })
-  useEffect(() => {
-    let live = true
-    loadMapFile().then((f) => live && setAge({ publishedAt: f.published_at, stale: mapFileIsStale() }), () => {})
-    return () => {
-      live = false
-    }
-  }, [])
-  return age
-}
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-/** "14 Sep", in the phone's own time zone; spelled by hand so every browser agrees. */
-function shortDate(iso: string): string {
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? '' : `${d.getDate()} ${MONTHS[d.getMonth()]}`
-}
-
-/**
- * Keeps the address and the selected route in step. Opening `/?r=<id>` selects
- * that direction and brings the view to it; selecting one writes `?r=` so the
- * address bar is already a link to share; closing clears it. Nothing is
- * written until the arriving link has been honoured, so a slow load never
- * wipes it.
- */
-function useShareLink(
-  map: MapLibreMap | null,
-  saved: { variants: VariantSummary[]; selected: VariantSummary | null; select: (id: string | null) => void },
-) {
-  const wantedRef = useRef(new URLSearchParams(window.location.search).get(SHARE_KEY))
-  const syncingRef = useRef(wantedRef.current === null)
-
-  const { variants, select } = saved
-  useEffect(() => {
-    const wanted = wantedRef.current
-    if (wanted === null || !map || variants.length === 0) return
-    wantedRef.current = null
-    syncingRef.current = true
-    const v = variants.find((x) => x.id === wanted)
-    if (!v) {
-      // A direction since deleted: leave nothing stale to re-share.
-      const url = new URL(window.location.href)
-      url.searchParams.delete(SHARE_KEY)
-      window.history.replaceState(null, '', url)
-      return
-    }
-    select(v.id)
-    const line = variantLine(v)
-    if (line.length < 2) return
-    let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity]
-    for (const [x, y] of line) {
-      if (x < w) w = x
-      if (x > e) e = x
-      if (y < s) s = y
-      if (y > n) n = y
-    }
-    map.fitBounds([[w, s], [e, n]], { padding: 60, maxZoom: 15, duration: 0 })
-  }, [map, variants, select])
-
-  const selectedId = saved.selected?.id ?? null
-  useEffect(() => {
-    if (!syncingRef.current) return
-    const url = new URL(window.location.href)
-    if (selectedId) url.searchParams.set(SHARE_KEY, selectedId)
-    else url.searchParams.delete(SHARE_KEY)
-    if (url.href !== window.location.href) window.history.replaceState(null, '', url)
-  }, [selectedId])
-}
-
-/**
- * The chosen direction as the owner's trip card (RouteTripDetail,
- * 2026-09-29), from what the map file knows: its ends as the list names
- * them, the whole ride's length and pesos, the hintuans on the way, and the colour of
- * the place it leaves from — the one its RouteCard wore, when it was picked
- * from one, in the list or in a hotspot's card. SWITCH turns it round, what
- * it was picked from staying behind it, and the card keeps the colour it
- * opened in: turned round, it is still the same card (the owner, 2026-09-29).
- *
- * Share, the length, the mode and the status went with the old card: the
- * owner dropped them for now, to design later (2026-09-28). The ride-to
- * preview went too, and came back as his picked hintuan (2026-09-29): its
- * pill prices the ride from the trip's start to there, as the tile prices
- * the whole.
- * So did the old card's fare details — the students/seniors/PWDs price, the
- * fare rule line, the route's fare_note, the estimate's source line and the
- * "old ₱13" grace warning (fare.previous): his frames carry only the pesos,
- * and he dropped them all on 2026-09-29. RouteSheet still shows them in the
- * studio.
- *
- * The address still follows the card (useShareLink), so a link can be copied
- * from the address bar, and still opens its trip.
- */
-function TripCard({
-  variant,
-  variants,
-  timeline,
-  livery,
-  onBackToList,
-  onSwitch,
-  onClose,
-  picked,
-  pickedMetres,
-  onPick,
-  onEnd,
-  endPicked,
-  dockRef,
-}: {
-  variant: VariantSummary
-  variants: readonly VariantSummary[]
-  timeline: Timeline
-  /** The colour it opened in, kept through SWITCH; its line wears it too. */
-  livery: Livery
-  onBackToList: (() => void) | null
-  onSwitch: (sibling: VariantSummary) => void
-  onClose: () => void
-  /** The hintuan picked on the timeline (useRideTo), and how far the ride to it runs, when its line reaches it. */
-  picked: string | null
-  pickedMetres: number | undefined
-  onPick: (id: string) => void
-  /** The origin's or the destination's row: the whole ride, and that end on the map. */
-  onEnd: (end: 'from' | 'to') => void
-  /** The end picked from its row (useRideTo's `endPicked`), or null. */
-  endPicked: 'from' | 'to' | null
-  dockRef: Ref<HTMLDivElement>
-}) {
-  const { from, to } = directionEnds(variant)
-  const sibling = otherDirection(variants, variant)
-  const switchable = !!sibling && isDrawn(sibling)
-  // The whole ride, measured once: its Kilometer and its Expected fare.
-  const metres = lineLength(variantLine(variant))
-  return (
-    <RouteTripDetail
-      livery={livery}
-      metres={metres}
-      fare={rideFare(variant.route?.mode, metres)}
-      routeOrigin={from}
-      hintuans={timeline.between}
-      picked={picked}
-      pickedFare={pickedMetres === undefined ? undefined : rideFare(variant.route?.mode, pickedMetres)}
-      onPick={onPick}
-      onEnd={onEnd}
-      endPicked={endPicked}
-      dockRef={dockRef}
-      routeDirection={to}
-      switchable={switchable}
-      back={variant.reversed}
-      onSwitch={() => {
-        if (sibling && switchable) onSwitch(sibling)
-      }}
-      onBackToList={onBackToList}
-      onClose={onClose}
-    />
-  )
-}

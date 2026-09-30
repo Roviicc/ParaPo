@@ -1,35 +1,49 @@
 # Checks every push and pull request: the production build with its guards,
-# then the headless suites from scripts/pw/ against the dev server.
+# then the headless suites from tests/e2e/ against the dev server.
 #
-# Two jobs, so a wobble in the drawing suites never hides a broken public map:
+# Fast by design (the owner's ask of 2026-09-30: "it's stopping me from
+# shipping fast"). Three ideas:
 #
-#   public  — the pages anyone opens. `npm run build` (import boundaries, no
-#             editor code on /, the installable app's files), then gate,
-#             visitor, phone, where and scale against `vite` on :5173, then pwa-test against
-#             the build in its own `vite preview`. Needs only the published map
-#             file and OpenFreeMap's tiles.
-#   studio  — the editor. First studio-scale: /studio/?e2e=1 with 1,000
-#             directions served by a stand-in for the database, no router, so
-#             it needs no retry. Then group, regression-gestures, hotspot, snap
-#             and extend against /studio/?e2e=1, which draws through the public
-#             OSRM demo router (about one request a second, shared with the
-#             world) and reads the live tables. One suite at a time, and a
-#             suite that fails is run once more after a minute, as
-#             scripts/pw/README.md tells a person to do; a second failure is
-#             real.
+#   1. Only what a change can reach. `changes` reads the files a pull request
+#      touches: docs and Markdown alone run nothing; src/studio/ and the
+#      studio's suites alone skip the public suites; src/commuter/, public/
+#      and the public suites alone skip the studio's. Anything else — shared
+#      code, the build, the lockfile, this file — runs both. A push to main
+#      or staging, the nightly run and "Run workflow" run everything.
+#   2. Every suite at once. Each suite is its own job, so the run takes as
+#      long as the slowest suite, not the sum of them all. visitor-test, the
+#      slowest by far, runs as three parts (VISITOR_PART, see its top).
+#   3. The drawing suites off the pull request's path. group, regression-
+#      gestures, hotspot, snap and extend draw through the public OSRM demo
+#      router (about one request a second, shared with the world) and read
+#      the live tables: slow, and at the router's mercy. They run on every
+#      push to main or staging (so a merge that breaks them is red on the
+#      branch within minutes), nightly on the default branch, and on demand —
+#      not on pull requests. A suite that fails is run once more after a
+#      minute, as tests/e2e/README.md tells a person to do; a second failure
+#      is real.
+#
+# The two checks a pull request shows keep their names, "Build and the public
+# map" and "The editor": each passes when everything under it passed or was
+# not needed, and fails when anything under it failed.
 #
 # The dev server reads .env.local, which is gitignored; here it is a copy of
 # .env.production, whose two values are public by design (see that file).
 #
 # A commit the publish-map workflow pushes with GITHUB_TOKEN starts no other
 # workflow, by GitHub's rule, so the nightly map file is not checked here —
-# it changes only public/data/map.json, which the suites read as data anyway.
+# it changes only public/data/ (the index, its lines and map.json), which the
+# suites read as data anyway.
 name: CI
 
 on:
   push:
+    branches: [main, staging]
   pull_request:
   workflow_dispatch:
+  schedule:
+    # 05:00 in Manila (UTC+8): after the map's nightly publish at 04:00.
+    - cron: '0 21 * * *'
 
 # A newer push to the same branch cancels the run for the older one.
 concurrency:
@@ -40,37 +54,104 @@ permissions:
   contents: read
 
 jobs:
-  public:
-    name: Build and the public map
+  # What the change can reach. Outputs 'true' or 'false'.
+  changes:
+    name: What changed
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 5
+    outputs:
+      public: ${{ steps.scope.outputs.public }}
+      studio: ${{ steps.scope.outputs.studio }}
+      drawing: ${{ steps.scope.outputs.drawing }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
+      - id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "public=true" >> "$GITHUB_OUTPUT"
+            echo "studio=true" >> "$GITHUB_OUTPUT"
+            echo "drawing=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "drawing=false" >> "$GITHUB_OUTPUT"
+          files=$(git diff --name-only "$BASE...$HEAD")
+          echo "Changed:"; echo "$files" | sed 's/^/  /'
+          public=false; studio=false
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              docs/*|*.md) ;;
+              src/studio/*|tests/e2e/studio-scale-test.mjs|tests/e2e/save-test.mjs|tests/e2e/group-test.mjs|tests/e2e/regression-gestures.mjs|tests/e2e/hotspot-test.mjs|tests/e2e/snap-test.mjs|tests/e2e/extend-test.mjs)
+                studio=true ;;
+              src/commuter/*|public/*|tests/e2e/visitor-test.mjs|tests/e2e/phone-test.mjs|tests/e2e/where-test.mjs|tests/e2e/scale-test.mjs|tests/e2e/pwa-test.mjs|tests/e2e/gate-test.mjs)
+                public=true ;;
+              *) public=true; studio=true ;;
+            esac
+          done <<< "$files"
+          echo "public=$public" >> "$GITHUB_OUTPUT"
+          echo "studio=$studio" >> "$GITHUB_OUTPUT"
+          echo "public=$public studio=$studio"
+
+  build:
+    name: Build and unit checks
+    needs: changes
+    if: needs.changes.outputs.public == 'true' || needs.changes.outputs.studio == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-
       - run: npm ci
-
-      # Playwright's Chromium, at the version package-lock pins.
-      - run: npx playwright install --with-deps chromium
-
+      # Import boundaries, no editor code on /, the installable app's files.
       - name: Build, with the boundary and build checks
         run: npm run build
-
-      # Node's own test runner, no browser: the studio's paged table reader
-      # against a capped fake server, and the map file reader against every
-      # shape of file it can meet.
+      # Node's own test runner, no browser: every tests/unit/*-test.mjs.
       - name: The unit checks
         run: npm run test:unit
 
-      # gate-test opens /studio/, whose door needs the database address.
+  # The pages anyone opens, one job a suite. Each needs only the published map
+  # file and OpenFreeMap's tiles; gate-test opens /studio/'s sign-in door.
+  public-suite:
+    name: ${{ matrix.suite }}${{ matrix.part && format(' ({0} of 3)', matrix.part) || '' }}
+    needs: changes
+    if: needs.changes.outputs.public == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [gate-test, phone-test, where-test, scale-test, pwa-test]
+        include:
+          - { suite: visitor-test, part: 1 }
+          - { suite: visitor-test, part: 2 }
+          - { suite: visitor-test, part: 3 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Playwright's Chromium, at the version package-lock pins.
+      - run: npx playwright install --with-deps chromium
       - name: Give the dev server the public database address and key
         run: cp .env.production .env.local
-
+      # pwa-test starts and stops its own `vite preview` on :4173 from a build.
+      - name: Build, for pwa-test
+        if: matrix.suite == 'pwa-test'
+        run: npm run build
       - name: Start the dev server
+        if: matrix.suite != 'pwa-test'
         run: |
           npx vite --port 5173 --strictPort > vite.log 2>&1 &
           for i in $(seq 1 60); do
@@ -78,58 +159,43 @@ jobs:
             sleep 1
           done
           echo "The dev server did not answer in 60 s"; cat vite.log; exit 1
-
-      - name: gate-test — the studio's sign-in door
-        run: node scripts/pw/gate-test.mjs
-
-      - name: visitor-test — the public map
-        run: node scripts/pw/visitor-test.mjs
-
-      - name: phone-test — the public map at 390×844
-        run: node scripts/pw/phone-test.mjs
-
-      # "Where am I": the walking figure, driven by an emulated GPS.
-      - name: where-test — the visitor's own position on the public map
-        run: node scripts/pw/where-test.mjs
-
-      # 1,000 directions and 500 hotspots made from today's map, no tiles:
-      # the first line must reach the screen within its budget.
-      - name: scale-test — the public map with 1,000 directions
-        run: node scripts/pw/scale-test.mjs
-
-      # Starts and stops its own `vite preview` on :4173 from the build above.
-      - name: pwa-test — the installable app, offline and updates
-        run: node scripts/pw/pwa-test.mjs
-
+      - name: ${{ matrix.suite }}
+        run: node tests/e2e/${{ matrix.suite }}.mjs
+        env:
+          VISITOR_PART: ${{ matrix.part && format('{0}/3', matrix.part) || '' }}
       - name: Keep the screenshots and the dev server log
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: public-screenshots
+          name: ${{ matrix.suite }}${{ matrix.part && format('-{0}', matrix.part) || '' }}-screenshots
           path: |
             *.png
             vite.log
           if-no-files-found: ignore
 
-  studio:
-    name: The editor
+  # The editor against stand-ins for the database, no router: studio-scale
+  # (1,000 directions, what the editor asks for and how soon it opens) and
+  # save-test (the save flows, signed in). No retry needed.
+  studio-suite:
+    name: ${{ matrix.suite }}
+    needs: changes
+    if: needs.changes.outputs.studio == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [studio-scale-test, save-test]
     steps:
       - uses: actions/checkout@v5
-
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-
       - run: npm ci
-
       - run: npx playwright install --with-deps chromium
-
       - name: Give the dev server the public database address and key
         run: cp .env.production .env.local
-
       - name: Start the dev server
         run: |
           npx vite --port 5173 --strictPort > vite.log 2>&1 &
@@ -138,26 +204,58 @@ jobs:
             sleep 1
           done
           echo "The dev server did not answer in 60 s"; cat vite.log; exit 1
+      - name: ${{ matrix.suite }}
+        run: node tests/e2e/${{ matrix.suite }}.mjs
+      - name: Keep the screenshots and the dev server log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.suite }}-screenshots
+          path: |
+            *.png
+            vite.log
+          if-no-files-found: ignore
 
-      # 1,000 directions and 500 hotspots as the database keeps them, served
-      # by a stand-in: what the editor asks for, and how soon it opens.
-      - name: studio-scale-test — the editor with 1,000 directions
-        run: node scripts/pw/studio-scale-test.mjs
-
-      # One at a time, and once more after a minute if the router was busy.
+  # The drawing suites, against /studio/?e2e=1, the public router and the live
+  # tables. Not on pull requests (see the top of this file). One at a time —
+  # the router is shared — and once more after a minute if it was busy.
+  drawing:
+    name: The drawing suites
+    needs: changes
+    if: needs.changes.outputs.drawing == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Give the dev server the public database address and key
+        run: cp .env.production .env.local
+      - name: Start the dev server
+        run: |
+          npx vite --port 5173 --strictPort > vite.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:5173/ && exit 0
+            sleep 1
+          done
+          echo "The dev server did not answer in 60 s"; cat vite.log; exit 1
       - name: The drawing suites
         run: |
           set +e
           status=0
           for suite in group-test regression-gestures hotspot-test snap-test extend-test; do
             echo "::group::$suite"
-            if node "scripts/pw/$suite.mjs"; then
+            if node "tests/e2e/$suite.mjs"; then
               echo "::endgroup::"
               continue
             fi
             echo "$suite failed; waiting a minute for the router, then once more"
             sleep 60
-            if node "scripts/pw/$suite.mjs"; then
+            if node "tests/e2e/$suite.mjs"; then
               echo "::endgroup::"
               continue
             fi
@@ -166,13 +264,44 @@ jobs:
             status=1
           done
           exit $status
-
       - name: Keep the screenshots and the dev server log
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: studio-screenshots
+          name: drawing-screenshots
           path: |
             *.png
             vite.log
           if-no-files-found: ignore
+
+  # The two checks a pull request shows, under the names they always had.
+  # Passed when everything under them passed or was not needed.
+  public:
+    name: Build and the public map
+    needs: [changes, build, public-suite]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          RESULTS: ${{ needs.changes.result }} ${{ needs.build.result }} ${{ needs.public-suite.result }}
+        run: |
+          echo "changes, build, public suites: $RESULTS"
+          case " $RESULTS " in
+            *" failure "*|*" cancelled "*) exit 1 ;;
+          esac
+
+  studio:
+    name: The editor
+    needs: [changes, build, studio-suite, drawing]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          RESULTS: ${{ needs.changes.result }} ${{ needs.build.result }} ${{ needs.studio-suite.result }} ${{ needs.drawing.result }}
+        run: |
+          echo "changes, build, studio suites, drawing suites: $RESULTS"
+          case " $RESULTS " in
+            *" failure "*|*" cancelled "*) exit 1 ;;
+          esac

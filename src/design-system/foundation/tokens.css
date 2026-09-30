@@ -15,7 +15,7 @@
  *
  * The map's paint (MapLibre) reads neither var() nor Tailwind's oklch, so the
  * Map/… semantics are written once more, in hex, in mapColours.ts beside
- * this file; scripts/map-colours-test.mjs fails if the two ever part.
+ * this file; tests/unit/map-colours-test.mjs fails if the two ever part.
  */
 
 @theme {
@@ -116,6 +116,12 @@
   --card-yellow-surface: var(--color-yellow-300);
   --card-yellow-border-primary: var(--color-yellow-500);
   --card-yellow-timeline-surface: var(--color-yellow-500);
+  --card-violet-surface: var(--color-violet-700);
+  --card-violet-border-primary: var(--color-violet-800);
+  --card-violet-timeline-surface: var(--color-violet-900);
+  --card-rose-surface: var(--color-rose-700);
+  --card-rose-border-primary: var(--color-rose-800);
+  --card-rose-timeline-surface: var(--color-rose-900);
 
   /* Error actions — the destructive button. Figma: Error/… (2026-09-28,
      added for the Button so its fill stopped being the one primitive). */
@@ -178,6 +184,12 @@
   --color-card-yellow-surface: var(--card-yellow-surface);
   --color-card-yellow-border-primary: var(--card-yellow-border-primary);
   --color-card-yellow-timeline-surface: var(--card-yellow-timeline-surface);
+  --color-card-violet-surface: var(--card-violet-surface);
+  --color-card-violet-border-primary: var(--card-violet-border-primary);
+  --color-card-violet-timeline-surface: var(--card-violet-timeline-surface);
+  --color-card-rose-surface: var(--card-rose-surface);
+  --color-card-rose-border-primary: var(--card-rose-border-primary);
+  --color-card-rose-timeline-surface: var(--card-rose-timeline-surface);
 
   --color-error-surface: var(--error-surface);
   --color-error-surface-secondary: var(--error-surface-secondary);
@@ -210,6 +222,7 @@
   --transition-duration-quick: 150ms; /* hover, colour, shadow */
   --transition-duration-base: 200ms; /* tooltips, small things appearing */
   --transition-duration-gentle: 300ms; /* cards, panels, sheets */
+  --transition-duration-sheet: 313ms; /* the bottom sheet's glide: 250 ms, then 8/10 as fast (the owner, 2026-09-30: "the motion is too fast") */
   --transition-duration-slow: 450ms; /* big moves, full screen */
 
   --transition-delay-tooltip: 800ms; /* hover before a tooltip shows */
@@ -255,6 +268,10 @@
     inset 0 3px 2px 0 rgb(255 255 255 / 0.28), inset 0 -3px 4px 0 rgb(0 0 0 / 0.28);
   --shadow-route-card-inverse:
     inset 0 3px 2px 0 rgb(255 255 255 / 0.4), inset 0 -3px 3px 0 rgb(0 0 0 / 0.2);
+
+  /* A bottom sheet, lifted off the map (BottomSheet/TopShadow, 3817:6007, 2026-09-30; its Figma
+   * effect style still reads BottomToolbar/TopShadow). */
+  --shadow-bottom-sheet-top-shadow: 0 -3px 8px 0 rgb(43 43 43 / 0.08);
 
   /* A RouteCard's State=Selected: pressed in, lit from the top left (2026-09-29). */
   --shadow-route-card-primary-selected:

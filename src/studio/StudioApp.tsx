@@ -1,43 +1,47 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { MapLibreMap } from 'maplibre-gl'
-import { HotspotCard } from '../shared/HotspotCard'
-import { MapView } from '../shared/MapView'
-import { RouteCardList } from '../shared/RouteCardList'
-import { RouteSheet } from '../shared/RouteSheet'
-import { useRideTo } from '../shared/rideTo'
-import { listVariants, loadStopsFromSupabase, withDrawing } from './live'
-import {
-  directionEnds,
-  isDrawn,
-  otherDirection,
-  routeTimeline,
-  travelLine,
-  variantLine,
-  type VariantDrawing,
-  type VariantRow,
-} from '../shared/routes'
-import { hotspotCount, placeKey, stopLabel, stopRing, type StopRow } from '../shared/stops'
-import type { LngLat } from '../shared/geo'
-import { lineToFollow } from './borrow'
-import { getSupabase, supabaseConfigError } from '../shared/supabase'
-import { useDirectionArrows } from '../shared/directionArrows'
-import { usePassStretches } from '../shared/passStretches'
-import { useSavedRoutes } from '../shared/useSavedRoutes'
-import { useSavedStops } from '../shared/useSavedStops'
-import { CardActions } from './CardActions'
-import { ChangePassword } from './ChangePassword'
-import { DrawToolbar } from './DrawToolbar'
-import { HotspotPanel } from './HotspotPanel'
-import { ResetPassword } from './ResetPassword'
-import { SavePanel } from './SavePanel'
-import { SignIn } from './SignIn'
-import { deleteVariant } from './routesWrite'
-import { deleteStop } from './stopsWrite'
-import { skipSignInForTests } from './testBypass'
-import { useDrawing } from './useDrawing'
-import { usePasswordRecovery } from './usePasswordRecovery'
-import { useSession } from './useSession'
+import { HotspotCard } from '../shared/cards/HotspotCard'
+import { MapView } from '../shared/map/MapView'
+import { RouteCardList } from '../shared/cards/RouteCardList'
+import { TripCard, useTripLivery } from '../shared/cards/TripCard'
+import { clearOfDock } from '../shared/cards/BottomSheet'
+import type { Snap } from '../shared/cards/sheetGesture'
+import { HintuanPin } from '../shared/map/HintuanPin'
+import { useRideTo } from '../shared/map/rideTo'
+import type { Livery } from '../shared/model/liveries'
+import { lineOf, listVariants, loadStopsFromSupabase } from './data/live'
+import { directionEnds, isDrawn, type VariantRow } from '../shared/model/routes'
+import { sharingAnEnd } from '../shared/model/departures'
+import { routeTimeline, travelLine } from '../shared/model/ride'
+import { hotspotCount } from '../shared/model/places'
+import { stopLabel, stopRing, type StopRow } from '../shared/model/stops'
+import { getSupabase, supabaseConfigError } from './data/supabase'
+import { useDirectionArrows, useRideColours } from '../shared/map/directionArrows'
+import { useBabaanSides } from '../shared/geo/babaanSides'
+import { useLitLineColour } from '../shared/map/savedRoutesLayers'
+import { LIT_LINE, LIVERY_LINE } from '../shared/map/liveryLine'
+import { usePassStretches } from '../shared/geo/passStretches'
+import { useSavedRoutes } from '../shared/map/useSavedRoutes'
+import { useSavedStops } from '../shared/map/useSavedStops'
+import { CardActions } from './panels/CardActions'
+import { RouteFacts } from './panels/RouteFacts'
+import { AuthDialogs } from './auth/AuthDialogs'
+import { AccountPill } from './panels/AccountPill'
+import { NewButtons } from './panels/NewButtons'
+import { DrawToolbar } from './drawing/DrawToolbar'
+import { HotspotPanel } from './panels/HotspotPanel'
+import { SavePanel } from './panels/SavePanel'
+import { SignIn } from './auth/SignIn'
+import { Toast } from './panels/Toast'
+import { deleteVariant } from './data/routesWrite'
+import { deleteStop } from './data/stopsWrite'
+import { skipSignInForTests } from './auth/testBypass'
+import { useDrawing } from './drawing/useDrawing'
+import { useFollow } from './drawing/useFollow'
+import { useSaveTarget } from './panels/useSaveTarget'
+import { usePasswordRecovery } from './auth/usePasswordRecovery'
+import { useSession } from './auth/useSession'
 
 /**
  * The editor at /studio/. Signed out, the page is only its front door: the
@@ -95,26 +99,42 @@ function Workshop({
   const [changingPassword, setChangingPassword] = useState(false)
   const [saving, setSaving] = useState(false)
   const [hotspotMenu, setHotspotMenu] = useState(false)
-  const [justSaved, setJustSaved] = useState<VariantRow | null>(null)
-  const [justSavedStop, setJustSavedStop] = useState<StopRow | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  // One toast at a time, the newest: a save's, or a problem.
+  const [toast, setToast] = useState<
+    { kind: 'route'; v: VariantRow } | { kind: 'stop'; s: StopRow } | { kind: 'notice'; text: string } | null
+  >(null)
+  const setNotice = (text: string | null) => setToast(text === null ? null : { kind: 'notice', text })
+  const justSaved = toast?.kind === 'route' ? toast.v : null
 
   // A right-click on a saved line while drawing: decided below, once the
   // saved lines and hotspots are loaded (onFollow).
   const draw = useDrawing(map, { onFollow: (ids, at) => onFollow(ids, at) })
-  // The list rows: a direction's drawing is read when it is opened (opening, below).
+  // The list rows, each with its overview (0009): a direction's full line is
+  // read when it is lit or chosen, its drawing when it is opened (below).
   const saved = useSavedRoutes(map, listVariants, {
     drawing: draw.drawing,
     hiddenVariantId: draw.target.variantId,
+    loadLine: lineOf,
   })
   const stops = useSavedStops(map, loadStopsFromSupabase, {
     drawing: draw.drawing,
     hiddenStopId: draw.area?.stopId ?? null,
+    // While a trip is open, the map lights only the trip, as on the public map.
+    muted: !!saved.selected,
   })
-  const ride = useRideTo(map, saved.selected, stops.stops)
+  // A hintuan picked on the trip card: the camera gliding there clear of the
+  // card and a circle popping up on it, the route left whole — the public
+  // map's (the owner, 2026-09-30: "most of the interaction of public map
+  // should be in studio").
+  const tripDock = useRef<HTMLDivElement>(null)
+  const ride = useRideTo(map, saved.selected, stops.stops, {
+    offset: () => (map ? clearOfDock(map.getContainer(), tripDock.current) : [0, 0]),
+  })
 
-  // Where a lit direction passes a hintuan, the line turns orange for that stretch.
-  usePassStretches(map, saved.variants, stops.stops, saved.lit, draw.target.variantId)
+  // Where a lit direction passes a hintuan, the line turns orange for that
+  // stretch: worked out on the full lines read, which every lit one's is.
+  const withLines = useMemo(() => saved.variants.filter((v) => saved.fullIds.has(v.id)), [saved.variants, saved.fullIds])
+  usePassStretches(map, withLines, stops.stops, saved.lit, draw.target.variantId)
 
   // Which way the jeep goes, on what is lit only — the chosen direction, the
   // Selected card's directions, or else a list's: chevrons
@@ -125,9 +145,22 @@ function Workshop({
     [saved.litVariants, stops.stops],
   )
   useDirectionArrows(map, rides)
+  // The chosen direction's side of each hintuan it cuts across: its right.
+  useBabaanSides(map, saved.selected, stops.stops)
+
+  // The pill counts routes, not directions: a route is two rows, one of them
+  // perhaps an empty slot, and five routes once read "10 routes" (finding 7).
+  const routeCount = useMemo(() => new Set(saved.variants.map((v) => v.route_id)).size, [saved.variants])
 
   const signedIn = !!session
   const userId = session?.user.id ?? null
+
+  // Signed in from the dialog Done opened: the dialog hides itself on the
+  // session, so its flag is cleared here — left set, it kept the drawing keys
+  // (Ctrl+Z, Enter, F) off for the rest of the visit (finding 9).
+  useEffect(() => {
+    if (signedIn) setSigningIn(false)
+  }, [signedIn])
 
   // Back from a valid reset link: the link gave us a session, now set the password.
   const resetting = recovery.recovering && signedIn
@@ -138,101 +171,11 @@ function Workshop({
     if (recovery.error) setNotice(`Reset link problem: ${recovery.error}`)
   }, [recovery.error])
 
-  // What the save panel is saving into.
-  const editing = draw.target.variantId
-    ? (saved.variants.find((v) => v.id === draw.target.variantId) ?? null)
-    : null
-  const parentRoute =
-    !editing && draw.target.routeId
-      ? (saved.variants.find((v) => v.route_id === draw.target.routeId)?.route ?? null)
-      : null
-  // The direction this line is for: the route's slot with no line yet. Fixed
-  // here rather than read off the drawing, so a return trip started from the
-  // wrong end cannot land on top of the direction that already exists.
-  const slotReversed = parentRoute
-    ? (saved.variants.find((v) => v.route_id === parentRoute.id && v.shape === null)?.reversed ??
-      null)
-    : null
-
-  // While extending: the places the chosen direction runs between, in travel
-  // order, and whether its stored line runs the other way round.
-  const extendEnds = useMemo(() => {
-    const v = draw.picking?.variant
-    if (!v) return null
-    const head = stops.stops.find((s) => s.id === v.route.head_stop_id)
-    const tail = stops.stops.find((s) => s.id === v.route.tail_stop_id)
-    if (!head || !tail) return null
-    const [from, to] = v.reversed ? [tail, head] : [head, tail]
-    const travel = travelLine(v, stops.stops)
-    return { from: stopLabel(from), to: stopLabel(to), backwards: travel[0] !== variantLine(v)[0] }
-  }, [draw.picking?.variant, stops.stops])
-
-  // Where the line being drawn is going, when that is known: the far end of
-  // the direction being edited, or of the route's slot a return trip fills.
-  const destinationStopId = editing
-    ? editing.reversed
-      ? editing.route.head_stop_id
-      : editing.route.tail_stop_id
-    : parentRoute && slotReversed !== null
-      ? slotReversed
-        ? parentRoute.head_stop_id
-        : parentRoute.tail_stop_id
-      : null
-  const placeOfStop = (id: string | null) => {
-    const s = id ? stops.stops.find((x) => x.id === id) : undefined
-    return s ? placeKey(s) : null
-  }
-
-  /**
-   * A right-click on saved lines while drawing: join the one going the way
-   * the drawing goes — preferring one that ends where the drawing is headed —
-   * and follow it to its end. The two directions of a route often share a
-   * road, so the click may land on both.
-   */
-  const onFollow = (ids: string[], at: LngLat) => {
-    const gate = draw.joinGate()
-    if (!gate.go) {
-      if (gate.problem) setNotice(gate.problem)
-      return
-    }
-    const home = placeOfStop(destinationStopId)
-    const options = ids
-      .map((id) => saved.variants.find((v) => v.id === id))
-      .filter((v): v is VariantRow => !!v && isDrawn(v))
-      .map((v) => ({
-        v,
-        travel: travelLine(v, stops.stops),
-        endsAtDestination:
-          home !== null && placeOfStop(v.reversed ? v.route.head_stop_id : v.route.tail_stop_id) === home,
-      }))
-    const choice = lineToFollow(options, draw.line, at)
-    if (!choice) return
-    if ('against' in choice) {
-      setNotice(
-        `${choice.against.v.direction_name} runs the other way here. Right-click a line going the way you are drawing.`,
-      )
-      return
-    }
-    const v = choice.follow.v
-    const backwards = choice.follow.travel[0] !== variantLine(v)[0]
-    void opening(v, (d) => {
-      const problem = draw.connect(d, at, backwards)
-      if (problem) setNotice(problem)
-    })
-  }
-
-  /**
-   * A direction's drawing is not in the list (live.ts VARIANT_SELECT): read
-   * it for the one being opened, then hand it to the tool. A read that fails
-   * is a notice, and the tool is never started on an empty drawing.
-   */
-  const opening = async (v: VariantRow, then: (d: VariantDrawing) => void) => {
-    try {
-      then(await withDrawing(v))
-    } catch (e) {
-      setNotice(`Couldn't open ${v.direction_name ?? 'this direction'}: ${e instanceof Error ? e.message : String(e)}`)
-    }
-  }
+  // What the save panel saves into, and where the drawing is headed.
+  const target = useSaveTarget(draw, saved.variants, stops.stops)
+  const { editing, parentRoute, slotReversed, extendEnds } = target
+  // A right-click on saved lines while drawing, and opening a direction's drawing.
+  const { onFollow, opening } = useFollow({ draw, variants: saved.variants, stops: stops.stops, target, setNotice })
 
   const onDone = () => {
     if (!signedIn) setSigningIn(true)
@@ -250,17 +193,37 @@ function Workshop({
     void saved.reload()
     // A moved line may have entered or left a hintuan; its links were re-synced.
     void stops.reload()
-    setJustSaved(v)
+    setToast({ kind: 'route', v })
   }
 
   const onSavedStop = (s: StopRow) => {
     setSaving(false)
     draw.cancel()
     void stops.reload()
-    setJustSavedStop(s)
+    // The directions too: their names are generated from the hotspots at
+    // their ends when they load, so a renamed end left every card, the list
+    // and the pill on the old name until the next route save (finding 8).
+    void saved.reload()
+    setToast({ kind: 'stop', s })
   }
 
   const onDeleteStop = async (s: StopRow) => {
+    // A route's end cannot go while the route names it: the database refuses
+    // (0006's foreign keys), and its refusal was the notice (finding 15).
+    const ending = [
+      ...new Set(
+        saved.variants
+          .filter((v) => v.route.head_stop_id === s.id || v.route.tail_stop_id === s.id)
+          .map((v) => v.route.name),
+      ),
+    ]
+    if (ending.length > 0) {
+      setNotice(
+        `"${stopLabel(s)}" is where ${ending.join(', ')} ${ending.length === 1 ? 'ends' : 'end'}. ` +
+          `Delete ${ending.length === 1 ? 'that route' : 'those routes'} first.`,
+      )
+      return
+    }
     if (!window.confirm(`Delete ${s.kind} "${stopLabel(s)}"?`)) return
     try {
       await deleteStop(s)
@@ -271,9 +234,49 @@ function Workshop({
     }
   }
 
-  // One click, several saved things: the route list shows them all.
+  // One click, several saved things: the route list shows them all. It
+  // stays behind a trip picked from it, hidden, for the trip's ‹ — and so
+  // does a hotspot's card — as on the public map.
   const choice = [...saved.candidates, ...stops.candidates]
   const choosing = choice.length > 1
+  const closeAll = () => {
+    saved.select(null)
+    stops.select(null)
+  }
+  // The trip's colour, and what is lit wearing it: the public map's
+  // (CommuterApp.tsx says how, and why a card never changes colour).
+  const [worn, setWorn] = useState<{ id: string; livery: Livery } | null>(null)
+  const tripLivery = useTripLivery(saved.selected, worn, choosing || !!stops.selected)
+  const look = tripLivery ? LIVERY_LINE[tripLivery] : saved.highlight ? LIVERY_LINE[saved.highlight.livery] : LIT_LINE
+  useLitLineColour(map, look.line)
+  useRideColours(map, look)
+  // The trip's ‹: back to what it was picked from, or to its route with those
+  // sharing an end; the public map's.
+  const trip = saved.selected
+  const fan = trip ? sharingAnEnd(saved.variants, trip) : []
+  const backToList =
+    stops.selected || choosing
+      ? () => saved.select(null, { keepList: true })
+      : trip && fan.filter((v) => v.reversed === trip.reversed && isDrawn(v)).length > 1
+        ? () => {
+            stops.select(null)
+            saved.openList(fan, trip.reversed)
+          }
+        : null
+  // One height for the sheets that stand in for one another, back to Middle
+  // with nothing open; the public map's.
+  const [snap, setSnap] = useState<Snap>('middle')
+  const anyOpen = !!saved.selected || !!stops.selected || choosing
+  if (!anyOpen && snap !== 'middle') setSnap('middle')
+  const height = { snap, onSnap: setSnap }
+
+  // "Draw the return trip" only while the route still has a way undrawn: after
+  // an edit of a route drawn both ways it once started a drawing whose save
+  // replaced the other direction's line (review finding 2). The direction
+  // just saved is drawn whatever the list says until its reload lands.
+  const slotLeft = justSaved
+    ? saved.variants.some((v) => v.route_id === justSaved.route_id && v.id !== justSaved.id && v.shape === null)
+    : false
 
   const onDelete = async (v: VariantRow) => {
     if (!window.confirm(`Delete "${v.route?.name}" — ${v.direction_name}?`)) return
@@ -287,7 +290,7 @@ function Workshop({
   }
 
   return (
-    <div className="@container relative h-full w-full overflow-hidden">
+    <div className="@container relative h-full w-full overflow-clip">
       <MapView onReady={setMap} />
 
       {/* A config or load problem is a banner, never a blank page. */}
@@ -300,86 +303,95 @@ function Workshop({
         </div>
       )}
 
+      {/* Keyed on the pick: another hintuan pops a fresh circle. */}
+      {map && !draw.drawing && ride.pinAt && tripLivery && (
+        <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} livery={tripLivery} />
+      )}
+
       {/*
-        Several saved things under one click: the same list the public map
-        has — the owner's "Studio too", 2026-09-29, knowing it lists only what
-        is drawn. "Not mapped yet" is left to a hotspot's card here, whose
-        rows still say it.
+        The tapped direction as the public map's trip card (the owner's pick,
+        2026-09-30), the editor's facts and its Edit, Extend and Delete under
+        its tiles. Keyed on the route, as there: SWITCH keeps its colour.
       */}
-      {!draw.drawing && choosing && (
-        <RouteCardList
-          key={choice.map((c) => c.id).join()}
-          routes={saved.candidates}
-          stops={stops.candidates}
-          back={saved.back}
-          onFlip={saved.flip}
-          selected={saved.highlight?.where === 'list' ? saved.highlight.from : null}
-          onSelect={(p) => saved.highlightCard(p && { where: 'list', ...p })}
-          onRoute={(v) => {
-            stops.select(null)
-            saved.select(v.id)
-          }}
-          onStop={(s) => {
-            saved.select(null)
-            stops.select(s.id)
-          }}
-          onClose={() => {
-            saved.select(null)
-            stops.select(null)
-          }}
+      {!draw.drawing && saved.selected && tripLivery && (
+        <TripCard
+          key={saved.selected.route_id}
+          variant={saved.selected}
+          variants={saved.variants}
+          timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
+          livery={tripLivery}
+          onBackToList={backToList}
+          onSwitch={(v) => saved.select(v.id, { keepList: true })}
+          onClose={closeAll}
+          picked={ride.pickedId}
+          pickedMetres={saved.fullIds.has(saved.selected.id) ? ride.rideTo?.metres : undefined}
+          onPick={ride.pick}
+          onEnd={ride.toEnd}
+          endPicked={ride.endPicked}
+          dockRef={tripDock}
+          height={height}
+          extras={
+            <RouteFacts
+              variant={saved.selected}
+              actions={
+                userId !== null &&
+                userId === saved.selected.owner_id && (
+                  <CardActions
+                    editLabel="Edit route"
+                    onEdit={() => {
+                      const v = saved.selected
+                      if (!v) return
+                      closeAll()
+                      void opening(v, draw.load)
+                    }}
+                    onDelete={() => {
+                      if (saved.selected) void onDelete(saved.selected)
+                    }}
+                    onExtend={
+                      isDrawn(saved.selected)
+                        ? () => {
+                            const v = saved.selected
+                            if (!v) return
+                            closeAll()
+                            void opening(v, draw.startExtend)
+                          }
+                        : undefined
+                    }
+                  />
+                )
+              }
+            />
+          }
         />
       )}
 
-      {/* Top-left: the card for a tapped route, or the account pill. */}
-      {!draw.drawing && saved.selected && (
-        <RouteSheet
-          variant={saved.selected}
-          timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
-          rideTo={ride.rideTo}
-          onRideTo={ride.pick}
-          sibling={otherDirection(saved.variants, saved.selected)}
-          onSwitch={(v) => saved.select(v.id)}
-          actions={
-            userId !== null &&
-            userId === saved.selected.owner_id && (
-              <CardActions
-                editLabel="Edit route"
-                onEdit={() => {
-                  const v = saved.selected
-                  if (!v) return
-                  saved.select(null)
-                  void opening(v, draw.load)
-                }}
-                onDelete={() => {
-                  if (saved.selected) void onDelete(saved.selected)
-                }}
-                onExtend={
-                  isDrawn(saved.selected)
-                    ? () => {
-                        const v = saved.selected
-                        if (!v) return
-                        saved.select(null)
-                        void opening(v, draw.startExtend)
-                      }
-                    : undefined
-                }
-              />
-            )
-          }
-          onClose={() => saved.select(null)}
-        />
-      )}
-      {!draw.drawing && !saved.selected && stops.selected && (
+      {/*
+        A hotspot's card, its routes as RouteCards; it stays behind the trip
+        picked from them, hidden, for the trip's ‹. After the trip on
+        purpose, as on the public map: the suites' first `card` is the trip.
+      */}
+      {!draw.drawing && stops.selected && (
         <HotspotCard
+          key={stops.selected.id}
+          routeCards={{
+            selected: saved.highlight?.where === 'hotspot' ? saved.highlight.from : null,
+            onSelect: (p) => saved.highlightCard(p && { where: 'hotspot', ...p }),
+            onShown: saved.showCard,
+          }}
+          hidden={!!saved.selected}
+          height={height}
           stop={stops.selected}
           linkedVariantIds={stops.linkedVariantIds(stops.selected.id)}
           variants={saved.variants}
-          onSelectVariant={(v) => {
-            stops.select(null)
-            saved.select(v.id)
+          onSelectVariant={(v, livery) => {
+            setWorn(livery ? { id: v.id, livery } : null)
+            saved.select(v.id, { keepList: true })
           }}
           stops={stops.stops}
-          onPickSibling={stops.show}
+          onPickSibling={(id) => {
+            saved.highlightCard(null)
+            stops.show(id)
+          }}
           actions={
             userId !== null &&
             userId === stops.selected.owner_id && (
@@ -388,7 +400,7 @@ function Workshop({
                 onEdit={() => {
                   const s = stops.selected
                   if (!s) return
-                  stops.select(null)
+                  closeAll()
                   draw.loadArea(s.kind, s.id, stopRing(s))
                 }}
                 onDelete={() => {
@@ -397,114 +409,85 @@ function Workshop({
               />
             )
           }
-          onClose={() => stops.select(null)}
+          onClose={() => {
+            saved.highlightCard(null)
+            stops.select(null)
+          }}
+        />
+      )}
+
+      {/*
+        Several saved things under one click: the same list the public map
+        has — the owner's "Studio too", 2026-09-29, knowing it lists only what
+        is drawn — kept hidden behind the trip picked from it.
+      */}
+      {!draw.drawing && choosing && (
+        <RouteCardList
+          key={choice.map((c) => c.id).join()}
+          hidden={!!saved.selected}
+          height={height}
+          routes={saved.candidates}
+          stops={stops.candidates}
+          back={saved.back}
+          onFlip={saved.flip}
+          selected={saved.highlight?.where === 'list' ? saved.highlight.from : null}
+          onSelect={(p) => saved.highlightCard(p && { where: 'list', ...p })}
+          onRoute={(v, livery) => {
+            setWorn({ id: v.id, livery })
+            saved.select(v.id, { keepList: true })
+          }}
+          onStop={(s) => {
+            saved.select(null)
+            stops.select(s.id)
+          }}
+          onClose={closeAll}
         />
       )}
       {!draw.drawing && !saved.selected && !stops.selected && !choosing && (
-        <div
-          className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-full bg-white/90
-                     px-3 py-1.5 text-xs text-neutral-600 shadow ring-1 ring-black/5 backdrop-blur"
-        >
-          {saved.variants.length > 0 && (
-            <span className="text-neutral-500">
-              {saved.variants.length} {saved.variants.length === 1 ? 'route' : 'routes'}
-              {stops.stops.length > 0 && (
-                <> · {hotspotCount(stops.stops)} {hotspotCount(stops.stops) === 1 ? 'hotspot' : 'hotspots'}</>
-              )}{' '}
-              ·
-            </span>
-          )}
-          {signedIn ? (
-            <>
-              <span className="max-w-[16ch] truncate">{session.user.email}</span>
+        <AccountPill
+          routes={routeCount}
+          hotspots={stops.stops.length > 0 ? hotspotCount(stops.stops) : 0}
+          email={signedIn ? (session.user.email ?? '') : null}
+          onSignIn={() => setSigningIn(true)}
+          onPassword={() => setChangingPassword(true)}
+          onSignOut={() => void getSupabase()?.auth.signOut()}
+        />
+      )}
+
+      {toast?.kind === 'stop' && !draw.drawing && (
+        <Toast onDismiss={() => setToast(null)}>
+          Saved {toast.s.kind === 'terminal' ? 'terminal' : 'hintuan'} <strong>{stopLabel(toast.s)}</strong>
+        </Toast>
+      )}
+
+      {/* After a save, the other direction is almost always next — while there is one to draw. */}
+      {toast?.kind === 'route' && !draw.drawing && (
+        <Toast
+          onDismiss={() => setToast(null)}
+          action={
+            slotLeft && (
               <button
                 type="button"
-                onClick={() => setChangingPassword(true)}
-                className="font-medium text-neutral-900 underline underline-offset-2"
+                onClick={() => {
+                  const routeId = toast.v.route_id
+                  setToast(null)
+                  draw.start(routeId)
+                }}
+                className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900"
               >
-                Password
+                Draw the return trip
               </button>
-              <button
-                type="button"
-                onClick={() => getSupabase()?.auth.signOut()}
-                className="font-medium text-neutral-900 underline underline-offset-2"
-              >
-                Sign out
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setSigningIn(true)}
-              className="font-medium text-neutral-900 underline underline-offset-2"
-            >
-              Sign in
-            </button>
-          )}
-        </div>
+            )
+          }
+        >
+          Saved <strong>{toast.v.route?.name}</strong> · {toast.v.direction_name}
+        </Toast>
       )}
 
-      {justSavedStop && !draw.drawing && (
-        <div
-          className="absolute bottom-24 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-full
-                     bg-neutral-900 px-4 py-2 text-sm text-white shadow-lg"
-        >
-          <span>
-            Saved {justSavedStop.kind === 'terminal' ? 'terminal' : 'hintuan'}{' '}
-            <strong>{stopLabel(justSavedStop)}</strong>
-          </span>
-          <button
-            type="button"
-            onClick={() => setJustSavedStop(null)}
-            aria-label="Dismiss"
-            className="text-neutral-400 hover:text-white"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* After a save, the other direction is almost always next. */}
-      {justSaved && !draw.drawing && (
-        <div
-          className="absolute bottom-24 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-full
-                     bg-neutral-900 px-4 py-2 text-sm text-white shadow-lg"
-        >
-          <span>
-            Saved <strong>{justSaved.route?.name}</strong> · {justSaved.direction_name}
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              const routeId = justSaved.route_id
-              setJustSaved(null)
-              draw.start(routeId)
-            }}
-            className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900"
-          >
-            Draw the return trip
-          </button>
-          <button
-            type="button"
-            onClick={() => setJustSaved(null)}
-            aria-label="Dismiss"
-            className="text-neutral-400 hover:text-white"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {notice && (
-        <div
-          className="absolute bottom-24 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-full
-                     bg-red-600 px-4 py-2 text-sm text-white shadow-lg"
-        >
-          <span>{notice}</span>
-          <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss">
-            ✕
-          </button>
-        </div>
+      {toast?.kind === 'notice' && (
+        <Toast tone="alert" onDismiss={() => setToast(null)}>
+          {toast.text}
+        </Toast>
       )}
 
       {draw.drawing ? (
@@ -521,75 +504,23 @@ function Workshop({
           1024 px wide the list docks along the bottom, and these would stand
           on its corner (the owner, 2026-09-29).
         */
-        <div className="absolute bottom-6 right-6 z-10 flex flex-col items-end gap-2">
-          {hotspotMenu && (
-            <div
-              role="menu"
-              className="mb-1 overflow-hidden rounded-xl bg-white text-sm shadow-lg ring-1 ring-black/10"
-            >
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setHotspotMenu(false)
-                  draw.startArea('terminal')
-                }}
-                className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-neutral-50"
-              >
-                <span className="h-3 w-3 rounded-sm bg-sky-500" />
-                <span>
-                  <span className="font-medium text-neutral-900">Terminal</span>
-                  <span className="block text-xs text-neutral-500">Where routes start and stage</span>
-                </span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setHotspotMenu(false)
-                  draw.startArea('hintuan')
-                }}
-                className="flex w-full items-center gap-2 border-t border-neutral-100 px-4 py-2.5 text-left hover:bg-neutral-50"
-              >
-                <span className="h-3 w-3 rounded-sm bg-orange-500" />
-                <span>
-                  <span className="font-medium text-neutral-900">Hintuan</span>
-                  <span className="block text-xs text-neutral-500">Where people wait and board</span>
-                </span>
-              </button>
-            </div>
-          )}
-          <button
-            type="button"
-            disabled={!map}
-            onClick={() => draw.start()}
-            title="Draw a route"
-            className="rounded-full bg-white px-5 py-3 text-sm font-medium text-neutral-800
-                       shadow-lg ring-1 ring-black/10 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            + New Route
-          </button>
-          <button
-            type="button"
-            disabled={!map}
-            onClick={() => setHotspotMenu((open) => !open)}
-            aria-expanded={hotspotMenu}
-            title="Trace a terminal or hintuan"
-            className="rounded-full bg-white px-5 py-3 text-sm font-medium text-neutral-800
-                       shadow-lg ring-1 ring-black/10 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            + New hotspot
-          </button>
-        </div>
+        <NewButtons
+          ready={!!map}
+          menu={hotspotMenu}
+          setMenu={setHotspotMenu}
+          onNewRoute={() => draw.start()}
+          onNewHotspot={(kind) => draw.startArea(kind)}
+        />
       )}
 
-      {signingIn && !signedIn && <SignIn onDismiss={() => setSigningIn(false)} />}
-
-      {resetting && <ResetPassword onDone={recovery.done} />}
-
-      {changingPassword && session?.user.email && !resetting && (
-        <ChangePassword email={session.user.email} onDone={() => setChangingPassword(false)} />
-      )}
+      <AuthDialogs
+        signingIn={signingIn && !signedIn}
+        onSignInDismiss={() => setSigningIn(false)}
+        resetting={resetting}
+        onResetDone={recovery.done}
+        changingPasswordFor={changingPassword && !resetting ? (session?.user.email ?? null) : null}
+        onPasswordDone={() => setChangingPassword(false)}
+      />
 
       {saving && draw.drawing && draw.area && (
         <HotspotPanel

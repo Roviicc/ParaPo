@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
-import { haversine, type LngLat } from '../shared/geo'
+import { haversine, type LngLat } from '../shared/geo/geo'
 
 /**
  * "Where am I": the visitor's own position on the map, shown as a small
@@ -17,7 +17,7 @@ import { haversine, type LngLat } from '../shared/geo'
  * mean something.
  */
 
-export type WhereStatus = 'off' | 'asking' | 'on' | 'denied' | 'unavailable' | 'error'
+export type WhereStatus = 'off' | 'asking' | 'on' | 'denied' | 'unavailable'
 export type Pose = 'standing' | 'walking' | 'flying'
 export type Facing = 'down' | 'up' | 'left' | 'right'
 
@@ -98,6 +98,14 @@ export type WhereAmI = {
   facing: Facing
   /** Whether the map keeps the figure in the middle. Off the moment the visitor drags the map. */
   follow: boolean
+  /**
+   * Asking, and the browser has said "no fix" (a timeout, or unavailable)
+   * with none yet. A note beside `asking`, not a status of its own: the watch
+   * is still live and the next fix may come, and as a status it read as off
+   * — a tap then asked again, found the watch and did nothing, so the button
+   * could not be turned off (review finding 11).
+   */
+  noFix: boolean
   /** Start, or when already on, follow again. */
   ask: () => void
   stop: () => void
@@ -108,6 +116,7 @@ export function useWhereAmI(map: MapLibreMap | null): WhereAmI {
   const [fix, setFix] = useState<Fix | null>(null)
   const [facing, setFacing] = useState<Facing>('down')
   const [follow, setFollow] = useState(false)
+  const [noFix, setNoFix] = useState(false)
   const watchRef = useRef<number | null>(null)
   const fixesRef = useRef<{ at: LngLat; accuracy: number; time: number }[]>([])
   const headingRef = useRef<number | null>(null)
@@ -120,6 +129,7 @@ export function useWhereAmI(map: MapLibreMap | null): WhereAmI {
     arrivedRef.current = false
     setFix(null)
     setFollow(false)
+    setNoFix(false)
     setStatus('off')
   }, [])
 
@@ -149,6 +159,7 @@ export function useWhereAmI(map: MapLibreMap | null): WhereAmI {
         headingRef.current = heading
         if (heading !== null) setFacing(facingFor(heading))
         setFix({ at, accuracy: p.coords.accuracy, speed, heading, time })
+        setNoFix(false)
         setStatus('on')
       },
       (e) => {
@@ -161,30 +172,38 @@ export function useWhereAmI(map: MapLibreMap | null): WhereAmI {
           watchRef.current = null
           fixesRef.current = []
           setFollow(false)
+          setNoFix(false)
           setStatus('denied')
           return
         }
-        if (fixesRef.current.length === 0) setStatus('error')
+        if (fixesRef.current.length === 0) setNoFix(true)
       },
       { enableHighAccuracy: true, maximumAge: 1000, timeout: 20_000 },
     )
   }, [])
 
-  // The map follows the figure until the visitor moves the map themselves.
+  // The map follows the figure until the visitor moves the map themselves,
+  // or the app moves it for them (APP_MOVE: a hintuan picked, an end
+  // tapped), which the next fix would otherwise undo.
   useEffect(() => {
     if (!map) return
     const letGo = (e: { originalEvent?: unknown }) => {
       if (e.originalEvent) setFollow(false)
     }
+    const appMoved = (e: object) => {
+      if ((e as { appMove?: boolean }).appMove) setFollow(false)
+    }
     map.on('dragstart', letGo)
     map.on('zoomstart', letGo)
     map.on('rotatestart', letGo)
     map.on('pitchstart', letGo)
+    map.on('movestart', appMoved)
     return () => {
       map.off('dragstart', letGo)
       map.off('zoomstart', letGo)
       map.off('rotatestart', letGo)
       map.off('pitchstart', letGo)
+      map.off('movestart', appMoved)
     }
   }, [map])
 
@@ -201,5 +220,5 @@ export function useWhereAmI(map: MapLibreMap | null): WhereAmI {
     if (watchRef.current !== null) navigator.geolocation?.clearWatch(watchRef.current)
   }, [])
 
-  return { status, fix, pose: fix ? poseFor(fix.speed) : 'standing', facing, follow, ask, stop }
+  return { status, fix, pose: fix ? poseFor(fix.speed) : 'standing', facing, follow, noFix, ask, stop }
 }

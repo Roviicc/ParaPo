@@ -18,9 +18,10 @@ Ground-truthed jeepney routes for Metro Manila, on a map anyone can open.
 
 ## Two pages, one file
 
-**`/` is the public map.** It never asks the database: it reads one file,
-`public/data/map.json`, published from the live tables and committed here,
-and draws every direction of every route, the hotspots (terminals and
+**`/` is the public map.** It never asks the database: it reads the published
+map, `public/data/index.json` — every route and hotspot, each line as an
+overview — and a direction's full line from `public/data/lines/` when it is
+lit, all published from the live tables and committed here, and draws every direction of every route, the hotspots (terminals and
 hintuans, where people board), and where a direction passes a hintuan its
 line turns orange for that stretch. A tap on a line or a box opens a card; a
 tap where several things meet opens a chooser. "Where am I" shows the
@@ -56,7 +57,7 @@ nothing. `/studio/?e2e=1` skips the sign-in door in development builds, for
 the headless checks — drawing works, saving still needs an account.
 
     npm run check                   # build with its guards, then the unit checks
-    node scripts/pw/visitor-test.mjs # and the other headless suites, see scripts/pw/README.md
+    node tests/e2e/visitor-test.mjs # and the other headless suites, see tests/e2e/README.md
     npm run check:data              # the committed map against the app's own rules
     npm run storybook               # the cards, the chooser, the panels, on their own
 
@@ -69,11 +70,12 @@ broke something; the failing suite's screenshots are the run's artifact.
 ## Publishing the map
 
 The file is published from `main`, every night at 04:00 Manila and on "Run
-workflow" (`.github/workflows/publish-map.yml`). `scripts/publish-map.mjs`
+workflow" (`.github/workflows/publish-map.yml`). `scripts/publish/publish-map.mjs`
 reads the public tables, keeps each line within half a metre of what was
-drawn, rounds to 6 decimals, refuses a map that suddenly shrank, and writes
-the same bytes for the same data, so a quiet night commits nothing.
-`scripts/check-map-data.mjs` then reads the file back against the app's own
+drawn and rounds to 6 decimals — the app's own rules, imported from `src/`
+— refuses a map that suddenly shrank, and writes the same bytes for the
+same data, so a quiet night commits nothing.
+`scripts/checks/check-map-data.mjs` then reads the file back against the app's own
 rules: a link to a hotspot that is not there stops the publish; a line that
 ends far from its terminal, or a hintuan it passes without being linked to,
 goes out with the map and is written up. One issue, **"The map needs a
@@ -84,20 +86,22 @@ with warnings, and closed by the first run with nothing to report.
 
 | | |
 | --- | --- |
-| `src/commuter/` | the public map's shell and its service worker |
-| `src/studio/` | the editor: sign-in, drawing, snapping, saving, the panels |
-| `src/shared/` | what both draw: the map, the routes and hotspots hooks, the cards, the geometry |
-| `public/data/map.json` | the published map, every version kept in history |
+| `src/commuter/` | the public map: its shell, the published-file reader (`mapFile.ts`), "Where am I" and the service worker |
+| `src/studio/` | the editor: `StudioApp.tsx`, then `auth/` (sign-in, passwords, the session), `data/` (the Supabase client, reads and writes), `drawing/` (drawing, snapping, borrowing), `panels/` (save, hotspot, the card's actions) |
+| `src/shared/` | what both draw: `model/` (routes, stops, fares, liveries — no React, no MapLibre), `geo/` (geometry), `map/` (the map and what is painted on it, the routes and hotspots hooks), `cards/` (the cards, sheets and timelines, with their stories), `styles/` (the one stylesheet) |
+| `src/design-system/` | the tokens, fonts and primitives (foundation ← primitives) |
+| `public/data/` | the published map, every version kept in history: `index.json`, a line per direction in `lines/`, and the older single file `map.json` for apps not yet updated |
 | `supabase/migrations/` | the schema and its policies, in order |
-| `scripts/` | the publish, the data check, the build guards, the unit checks |
-| `scripts/pw/` | the headless suites, and their README |
+| `scripts/` | tools: the build guards and the data check (`checks/`), the publish (`publish/`), Node's TypeScript hook (`node/`), the research screenshots (`research/`) |
+| `tests/unit/` | the unit checks, Node's own test runner (`npm run test:unit`) |
+| `tests/e2e/` | the headless suites, and their README |
 
 ## Data and licence
 
 **The code** is under the [MIT licence](LICENSE): use it for anything, keep
 the copyright notice.
 
-**The route and hotspot data** — `public/data/map.json`, and the database it
+**The route and hotspot data** — `public/data/`, and the database it
 is published from — is under the
 [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/)
 (ODbL). You may copy, use and adapt it, including commercially, as long as

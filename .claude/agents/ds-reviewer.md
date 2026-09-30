@@ -17,7 +17,7 @@ what is actually there.
 - **Read-only.** You never edit, create, move or delete a file. You never
   commit. You report; the builder fixes.
 - **The only commands you may run** are `npx tsc --noEmit` and
-  `node scripts/check-boundaries.mjs`. Nothing that writes, nothing that
+  `node scripts/checks/check-boundaries.mjs`. Nothing that writes, nothing that
   starts a server, nothing that touches the owner's dev server on 5173.
 - **Judge the code, not the intent.** If a state has no story, that is a
   finding, whatever the reason was.
@@ -63,16 +63,19 @@ concatenation inside `className`. Check variant maps carry
 `satisfies Record<Variant, string>` so a new variant breaks the build
 instead of rendering unstyled.
 
-**4. Layer imports.** `src/shared/` imports shared only; `src/commuter/`
-and `src/studio/` import themselves and shared only.
-`node scripts/check-boundaries.mjs` enforces it; check the intent too — a
+**4. Layer imports.** `src/design-system/` imports itself only, and inside
+it a lower layer never a higher one (foundation ← primitives ← patterns);
+`src/shared/` imports shared and the design system; `src/commuter/` and
+`src/studio/` import themselves, shared and the design system — never each
+other. `node scripts/checks/check-boundaries.mjs` enforces exactly this (its
+`ALLOWED` table); check the intent too — a
 shared component reaching for commuter data through a prop typed `any` is
 the same crossing in disguise.
 
 **5. Stories.** One story per variant, plus the states the component
 actually has (disabled, error, empty, picked…), plus at least one specimen
 at phone size — the `@container` decorator pattern in
-`src/shared/RouteSheet.stories.tsx` is the house way. An unstoried state is
+`src/shared/cards/RouteSheet.stories.tsx` is the house way. An unstoried state is
 never looked at by anyone.
 
 **6. Markup honesty.** Interactive things are real interactive elements or
@@ -93,15 +96,15 @@ domain-free; app components in their area; no barrel
 files; comments say *why* and carry dates and the owner's decisions, in
 the voice of the files around it. A test file only if the component has
 real logic — a lookup table over an element does not need one; the
-repo's tests live in `scripts/` and run through `npm run test:unit`.
+repo's unit tests live in `tests/unit/` and run through `npm run test:unit`.
 
 ## How to work
 
 1. Read the component's stories first — they are the contract.
 2. Read the component.
-3. Read a settled peer (`src/shared/RouteSheet.tsx`, `StopTimeline.tsx`)
+3. Read a settled peer (`src/shared/cards/RouteSheet.tsx`, `StopTimeline.tsx`)
    for the house style you are comparing against.
-4. Run `npx tsc --noEmit` and `node scripts/check-boundaries.mjs`.
+4. Run `npx tsc --noEmit` and `node scripts/checks/check-boundaries.mjs`.
 5. Report.
 
 ## Reporting

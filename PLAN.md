@@ -3180,3 +3180,305 @@ Worth doing before M2:
       Open since M0 and already in the schema. Moved 2026-09-14 into
       "Decide before the next route is drawn", with the naming conventions —
       all of them are free today and unfixable at 200 routes.
+
+---
+
+## The clean-up — 2026-09-29
+
+The review of 2026-09-29 (`docs/review-2026-09-29.md`, findings numbered
+there) and the plan that stages its fixes (`docs/plan-cleanup-2026-09-29.md`).
+One branch `cleanup/NN-<name>` and one pull request into `staging` per stage,
+merged when both CI jobs are green; `main` is the owner's. A session picking
+this up reads both documents, then this section, then `git log` for PRs
+titled "Stage N —".
+
+**Stage 1 — guards first, 2026-09-29.** The nightly publish now declares
+`shell: bash`, so every step runs with `pipefail` and a failed publish fails
+its run instead of closing "The map needs a look" as all clear (finding 1);
+it also stops after 15 minutes. `check-map-data.mjs` reads its file argument
+without `--markdown` (17). Storybook's story glob is five extensions, not
+four (`mjs/ts` was one). CI runs on a push to `main` or `staging` and on
+pull requests, so a PR branch runs once, not twice. `package.json` gains
+`npm test`, `engines` (Node 22.12, Vite's floor), `@types/node` 22 to match
+the Node CI runs, and the TypeScript hook on the two unit files that lacked
+it.
+
+**Stage 2 — tests and tooling in their places, 2026-09-29.** `scripts/` is
+tools only: `checks/` (boundaries, the build guard, the data check),
+`publish/`, `node/` (the TypeScript hook), `research/`. The eleven unit
+files are `tests/unit/`, run by one `node --test "tests/unit/*-test.mjs"`
+instead of eleven chained npm scripts (90 tests, as before); the suites and
+their README are `tests/e2e/`. `timeline-test` reads the map beside itself,
+not from the working directory, and imports at the top; `hotspot-test`'s
+two checks that could not fail now look, and its always-true branch is an
+`else`. `scripts/uitest.mjs` and `scripts/realshot.mjs` (Windows Chrome
+only, run by nothing; their gestures live on in `regression-gestures`) are
+gone. Every path in the workflows, README, the `.claude` files and the
+comments that named the old places follows.
+
+**Stage 3 — the source tree, 2026-09-29.** Folders inside `shared/` and
+`studio/`, one level, nothing renamed: `shared/{model,geo,map,cards,styles}`
+and `studio/{auth,data,drawing,panels}`, `StudioApp.tsx` and `main.tsx`
+staying at the studio's root; `commuter/` stays flat. `supabase.ts` moved to
+`studio/data/` (its ten importers were all studio files, and there the
+boundary check refuses it to the public map at the source), `mapFile.ts` to
+`commuter/` (the published-file reader is the public map's, ADR 0001). The
+walker's CSS is `commuter/walker.css`, imported by `Walker.tsx`; the
+get-off circles' is `shared/map/rideTo.css`, imported by `rideTo.ts` — out
+of the one stylesheet, so a page's own look stops being global. Pure moves
+and import paths; the boundary guard needed no change (it reads the area).
+The ds-reviewer's import rule now states what the guard enforces, the
+design system included (finding 11).
+
+**Stage 4 — the studio's correctness, 2026-09-29.** One commit per finding.
+The return trip is offered only while its route has an empty slot, and the
+slot update carries `shape is null`, so a drawn direction is never
+overwritten (2). Delete empties a direction into a slot — links gone, a
+line extended from it forgetting its parent — and the route goes only when
+both ways are empty, so the card still flips and a redraw fills the slot
+(3); every step reads its error (16). The link sync reads the direction's
+own links and drops only the hintuan links it no longer earns, and reads the
+hintuans in pages: its request line had grown to 19 kB at 500 hintuans (4).
+One stop read a load, shared by both hooks (6). The pill counts routes (7).
+A saved hotspot reloads the directions, so a renamed end renames its routes
+(8). Signing in from Done clears the flag that kept the drawing keys off
+(9). Undo to no points removes the draft (12). A save whose link sync fails
+keeps the row it wrote and retries as an update (13). A hotspot that is a
+route's end is refused a delete in a sentence naming the routes (15). A
+timeline row's key carries its index. `tests/e2e/save-test.mjs` — grown from
+the review's stand-in, which it replaces — runs the save flows signed in
+against an in-memory PostgREST (filters, unique indexes, foreign keys,
+cascades, a refusal on demand) with 500 extra hintuans: 43 checks, in CI's
+studio job, no account and no router. Run against stage 3's code it fails
+on findings 2, 3, 4, 6, 7 and 15 before the old panel's dead end stops it.
+
+**Stage 5 — the public map's correctness, 2026-09-29.** The "map published
+for a newer version" banner's Reload goes through the worker
+(`reloadForNewerApp`): a plain reload was answered by the old precache and
+the banner came straight back (5). One `metresPerPixel` in `geo.ts`, with
+MapLibre's 512 px tiles, for the chevrons and the walker's halo, which had
+been drawn at half the fix's accuracy; `where-test` now measures the map's
+own scale instead of repeating a constant (10). A GPS that only times out
+keeps "Where am I" on with a note, so a tap turns it off (11). The app's
+own camera moves (a hintuan picked, an end tapped, a shared link) carry
+`APP_MOVE` and let go of the follow, which used to undo them. The two round
+buttons sit inside the safe area. The map's date is read again after "Try
+again". A hotspot card is keyed by its hotspot, on both pages. The cards
+are named dialogs that take the focus when shown and give it back.
+`where-test` gains the no-fix GPS and the app move (22 → 27 checks).
+
+**Stage 6 — lighter, 2026-09-29.** SN Pro's five wired weights are subset
+to Latin (`fonts/subset.sh`, fonttools, run once and committed; every
+character in `src/` and the published map kept) and Cubao Free stays whole
+(its kerning is an Apple-format `kern` table the subsetter drops): the six
+faces 290 kB → 113 kB, all five SN Pro weights kept — the subset alone met
+the budget, so no weight had to go and no text changes face — and now
+precached, so offline text keeps its face. The public
+map is held to Greater Manila (`METRO_MANILA`, 0.9° × 0.95°); the studio is
+not. What both pages share is one chunk named `shared` (Rolldown's
+`codeSplitting`, only modules both entries import), no longer
+`useSavedStops-*.js`. `check-build.mjs` guards the weight: fonts under
+120 kB together (110.8 kB), the shared chunk under 400 kB gzipped
+(332.3 kB), the fonts in the precache.
+
+**Stage 7 — the public map's data shape, 2026-09-29.** Shape A of the
+review's section 8. The publish writes `data/index.json` (schema 2: routes,
+names, hotspots, links, and each direction's overview — thinned at 5 m, 5
+decimals, a quarter of the points) and `data/lines/<id>.json` (the full
+line, 0.3 m, 6 decimals, no date, so an unchanged line is an unchanged
+file), and still `data/map.json` (schema 1) for one release, so an app
+installed before still loads; a re-run on unchanged data writes nothing.
+The public map reads the index and draws the overviews; a lit or chosen
+direction's full line is read (`loadLine`), patched into the map's source
+alone, and is what the orange stretches, chevrons, ride-cut and babaan
+sides use — the stretches are now worked out only for lines read, not for
+every direction at load. The worker keeps every line seen (`map-lines`), so
+offline keeps what was ridden. `check-map-data` reads the index and its
+lines; the suites and the unit tests read them too; `scale-test` is
+budgeted at 5 s to the first line with 1,000 directions (30 before), and a
+tapped line's stretches within 5 s; `pwa-test` opens a trip and finds its
+line kept, and meets a map published for a newer app and its Reload. Drop
+`map.json`, its commit line in the workflow and this paragraph's promise a
+month at least after the index ships (mapFile.ts has the rule).
+
+The stage's review found three things an overview must not do, and they are
+fixed in it: the index carries each direction's length, measured on its
+full line (`metres`, checked against the line file by `check-map-data`), so
+a trip's Kilometer and fare are never an overview's — five of today's ten
+read 0.1 km or a fare step off before; the pesos to a picked hintuan wait
+for the full line; and at street zoom (15 and in) the directions on screen
+get their full lines as a lit one does, so a resting line is not the
+corner-cutting one the owner turned down on 2026-09-25. A direction keeps
+one object while its row and line are the same, so a line arriving for
+another does not pull the ride-to's camera back. One thing is left for the
+owner, not done: the plan put the orange stretches in the index; they are
+worked out on the full line when it is read, so they come a moment after a
+direction lights, and offline a line never read shows none — putting them
+in the index is some 60% more index at a thousand directions.
+
+**Stage 8 — the studio's data shape, 2026-09-29.** Migration 0009 adds
+`route_variant.overview` (jsonb, nullable, no default): the line thinned at
+5 m, five decimals (`overviewOf` in `geo.ts`, the public index's tolerance
+and decimals; the publish thins with its own measure until stage 10 makes
+it this one). The save writes it beside `shape`; emptying a direction clears
+it. The editor's list selects `overview` instead of `shape`, and a drawn row
+with no overview yet (saved before 0009) has its full line read in its
+place, in one request for those rows alone — so nothing waits on a
+backfill, and `scripts/publish/backfill-overview.mjs` (dry run by default,
+`--write` with a service key) is a tidy-up for the owner to run. A
+direction's full line is read when it is lit or chosen (`lineOf`), when it
+is opened (`withDrawing` now brings `shape` with the drawing), before a
+hotspot's links are worked out on the lines its outline can reach
+(`linesOf`: a `stop_sequence` is an index into the full line and must never
+be counted on an overview), and for the line an Extend borrowed from. A
+database 0009 has not reached is read the old way. `studio-scale-test`
+checks the list carries overviews and no lines (under a sixth of the rows),
+that a lit line is read on its own with its stretches, and its budgets are
+15 s to the first line and 10 s busy (45 and 30 before).
+Applied to the live project 2026-09-30 through the Supabase connector
+(version 20260930012129, `0009_overview`). The order changed from the plan,
+by the owner's decision of 2026-09-30. CI's drawing suites read the live
+tables: before the column existed, the list's first read was refused (400,
+42703), and those suites fail on any logged error. So 0009 was applied once
+the build, the public job and the stand-in suites that write and read the
+column (studio-scale 13, save 48) were green in CI. Only then did the
+drawing suites run again, and the PR merged only after they passed.
+
+**Stage 9 — the design system, 2026-09-29.** Lossless: nothing a visitor
+sees changes. Every colour the map's painters paint comes from
+`mapColours.ts` — the Map/… and Card/… tokens, and `MAP_PAINT` for the ones
+Figma names nothing yet, keyed by what they paint — and `map-colours-test`
+fails on a colour written in any other of the painters' `.ts` files (the
+map's two stylesheets keep a few raw colours, listed for the owner). One
+`useEscape` for the cards; the studio's three toasts are one `Toast` in one
+slot (newest wins), its tones a checked map, a problem announced as an
+alert. `layers.ts` names the layer ids hooks place their own against, and
+`useLayerReady` waits for one instead of looking once, so the order hooks
+are called in is no longer a silent contract. The public map's and the
+cards' palette classes whose value a semantic token holds exactly, and whose
+meaning fits, moved to it (text to content-primary…quaternary and
+content-inverse, white and neutral-100 grounds to surface and
+surface-secondary, neutral-200 borders to border-primary); the rest stay,
+listed for the owner. Map design and "Where am I" share one
+`MapControlButton` (MapLibre's 29 px square, three looks in a checked map) —
+not `IconButton`, which is larger and would change the map. New stories:
+RouteCardHeader, WhereAmI's states, MapControlButton, Toast. The Map design
+menu's items carry `role="none"` and its button `aria-haspopup`. One toast
+slot, the plan's, means a newer toast replaces an older one: a notice or a
+hotspot saved after a route save takes the route's "Draw the return trip"
+toast with it. The orange stretches' lighting waits for their layer as their
+layer does.
+
+**Stage 11 — a saved route's facts can be changed, 2026-09-29.** The
+owner's ask: "Phase 1 – Novaliches" could not become "Bagong Silang Kanan 5
+– Novaliches" without deleting the route. Edit route now unlocks Head,
+Tail, Via, Signboard, Mode and Fare note; Update writes the `route` row
+first — both directions share it, and the panel says a change here is a
+change to both — then the direction; the names follow from the new ends at
+the next load. Ends another route already has are refused in one sentence,
+before anything is written, as the database's `route_ends_unique` would. A
+swap of head and tail is refused too: a direction's way round is kept
+against its route's head, so a swap would mislabel both lines — change one
+end at a time. Terminal links are left as the owner set them. Drawing a
+return trip still leaves the route as it is. `save-test` covers the edit,
+the rename of both directions, the untouched terminal links and both
+refusals; SavePanel's stories show the open panel and the two refusals. A
+picked end's box is looked for at the line's end nearer the route's head,
+whichever way it was drawn, and a swap is refused by place, as the pickers
+choose.
+
+**Stage 10 — the big files, 2026-09-29.** One file a pull request, in the
+plan's order, each moving code and changing none, the suites' counts the
+same on every one. `useDrawing.ts` is five files (the draft, the gap
+resolver, the draw layers, the pointer's events, and the hook's state and
+edits). `StudioApp.tsx` keeps the workshop's composition; `useSaveTarget`,
+`useFollow`, the account pill, the new buttons and the auth dialogs have
+files. `SavePanel.tsx`: the places model is `places.ts` (pure,
+`places-test`), the derived facts `useSaveFacts`, the save
+`saveRouteAndLinks`, the notices `SaveNotices`. `snap.ts` is the router's
+client, `uturns.ts` (pure, `uturns-test`) and the streets.
+`CommuterApp.tsx`: `useShareLink`, `status.ts`, `Notices.tsx`,
+`TripCard.tsx` with `useTripLivery`. `geo.ts` is the primitives, `ring.ts`,
+`pass.ts` (the 5 m rule with its helpers from `stops.ts`) and
+`rightOfLine.ts`; `routes.ts` the types and names, `departures.ts` and
+`ride.ts`; `stops.ts` the types and names, `places.ts` and `timeline.ts`.
+`useSavedRoutes`/`useSavedStops` keep their data; their layers, taps and
+what shows (pure, `shown-test`) have files each. `directionArrows.ts` keeps
+the flow; the chevrons' geometry is `chevrons.ts` (pure, `chevrons-test`).
+`RouteTripDetail`'s card and rail are `TripTimeline.tsx`, with stories. Then
+the duplicates with several answers: one travel-order rule
+(`drawnFromTheEnd`), one metres-per-degree (`M_PER_DEG`, haversine's sphere)
+and one point-to-segment in `geo.ts`, and the publish importing the
+thinning, rounding, names and schema from `src/` instead of writing them
+again — run on the live tables, one point in one line and in four overviews
+moves, which the first publish from `main` after the release writes. Stage
+11 went in after `useDrawing.ts`, before the other splits, so the owner's
+ask was not written twice. The first seven splits went in one file a pull
+request (#18, #20–#24 and `routes.ts`). The last five went in two, by the
+owner's word of 2026-09-30, to finish about two hours sooner: `stops.ts`
+with the saved hooks, then the arrows, `TripTimeline` and the duplicates.
+Each file kept its own commit, and each batch passed all thirteen suites
+with every count unchanged.
+
+**Stage 12 — the suites' shared helpers, 2026-09-29.** What the headless
+suites copied between them is written once in `tests/e2e/lib/`; each suite
+keeps its scenario, and its PASS, FAIL and SKIP lines, their order, the tally
+and the exit code are as they were. `harness.mjs`: the address (12 copies);
+check, skip and the tally (12 suites: the two shapes differed only in what
+the tally counted, so one serves both, with `bracketed` for
+regression-gestures' and snap-test's [details] and no blank line before
+extend-test's and group-test's tally); the `PARAPO_NODE_FETCH` route (6;
+hotspot-test and regression-gestures count the router's requests in it, now
+through a `seen` hook); the bare basemap style (4; save-test's grey, a shade
+darker, is a parameter); `waitForSource` (6, comment and all). `studio.mjs`:
+the drawing suites' `proj`, `idle` and `renderedAt` (2 each). `looks.mjs`:
+`window.__lit` and `window.__paint` (3, now an init script of their own after
+the suite's), `paintNow` and `rideLook` (2). `geo.mjs`: `pointInPolygon` and
+`centroidOf` (2). `big-map.mjs`: the scale suites' copy count and grid (2),
+and `readPublished` (studio-scale and save, 2). `profile.mjs`: the long-task
+counter, the CPU profile and where the opening went (2 each). Left in the
+suites because the copies differ: pwa-test's count and tally (a counter and
+"all passed"; it starts its own server, so it has no address either); the
+scale suites' `mark` (studio-scale's hands the page an argument and sets its
+pace) and their generators past the grid (studio-scale's rows add the digits
+a save kept, denser lines and the database's columns); save-test's `idle`
+(15 s, errors swallowed), and extend-test's `waitRouted` and `px`, the same
+wait and projection under other names; the draft's "routed" reading, in
+different words in hotspot-test and regression-gestures; the metres-to-a-line
+helpers, each worked its own way; the two `closeCard`s. Left though identical:
+`twoLooks` and `wears` (visitor, phone), which judge against the colours each
+suite reads from `src/` in the page, and `window.__src`, spelled four ways
+and mostly inside init scripts that do more. The suites are 392 lines
+shorter; `lib/` is 241.
+
+**CI made faster, 2026-09-30.** The owner's ask: "it's stopping me from
+shipping fast". Most of each clean-up PR's wait had been the full local runs
+before a push (about 45 minutes, the owner's rule 5 of 2026-09-29), which the
+owner lifted the same day: a push now needs `npm run check` locally, and CI is
+the one full check. `ci.yml` changes three ways. A `changes` job reads the
+files a pull request touches: docs alone run nothing, `src/studio/` and the
+studio's suites alone skip the public suites, `src/commuter/`, `public/` and
+the public suites alone skip the studio's, anything else runs both. Every
+suite is its own job and they run at once, so a run lasts as long as
+visitor-test rather than the sum of all suites. The drawing suites leave the
+pull request's path: they need the public OSRM demo router and the live
+tables, which makes them slow and at the router's mercy. They run on every
+push to `main` or `staging`, nightly and on demand, with their one retry. The
+checks keep their names, "Build and the public map" and "The editor", each
+now a summary that passes when everything under it passed or was not needed.
+The trade: a pull request that breaks only drawing is caught on `staging`
+minutes after it merges, not before.
+
+**A picked hintuan pops a circle, the route whole, 2026-09-30.** The owner's
+ask: "now I don't want to cut the route, but we still select hintuan it is
+just the a circle will pop up when that hintuan is selected". On the public
+map a hintuan picked on the trip card is still Selected, its pill still
+prices the ride to it and the tiles still keep the whole, and the camera
+still glides there clear of the card; but the line is no longer drawn at
+rest past it. Instead `HintuanPin` (src/commuter/) pops up a DOM marker
+where the ride would end — the timeline's Selected dot, ringed in the
+trip's Card/<livery>/Timeline/surface, scaling in over the base duration
+with the arriving ease, still under reduced motion — and it goes with the
+pick. `useRideTo`'s `dots` option became `cut`: the studio keeps the cut
+and its get-off circles (group-test still checks them); the public map
+passes `cut: false` and reads `pinAt`.

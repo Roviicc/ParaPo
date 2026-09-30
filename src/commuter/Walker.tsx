@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
+import { metresPerPixel } from '../shared/geo/geo'
 import type { Facing, Fix, Pose } from './useWhereAmI'
+import './walker.css'
 
 type Props = {
   map: MapLibreMap
@@ -9,18 +11,13 @@ type Props = {
   facing: Facing
 }
 
-/** Metres one pixel covers at this zoom and latitude (Web Mercator). */
-function metresPerPixel(lat: number, zoom: number): number {
-  return (156543.03392 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom
-}
-
 /**
  * The visitor on the map: a small figure standing, walking or flying at the
  * last fix, over a soft halo the size of the fix's accuracy. A DOM marker,
  * not a map layer: the walk cycle and the flight's bob are CSS animations
  * on a 60-pixel element, which cost the map nothing — an animated layer
  * keeps MapLibre repainting the whole map (the chevrons did, 2026-09-25).
- * `prefers-reduced-motion` stills both, in index.css.
+ * `prefers-reduced-motion` stills both, in walker.css.
  *
  * The halo matters: GPS in Metro Manila is often 20–50 m out, and the
  * figure alone would claim a certainty the phone does not have.
