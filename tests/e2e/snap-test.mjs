@@ -231,7 +231,7 @@ console.log('== Street names')
 const streets = await page.evaluate(async () => {
   const draft = JSON.parse(localStorage.getItem('parapo.draft.v1') ?? 'null')
   if (!draft) return null
-  const { routeStreets } = await import('/src/studio/drawing/snap.ts')
+  const { routeStreets } = await import('/src/studio/drawing/streets.ts')
   return routeStreets(draft.segments)
 })
 check('street names: every routed segment carries its streets, and "via …" names at least one',

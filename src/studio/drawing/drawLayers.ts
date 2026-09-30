@@ -5,7 +5,7 @@ import { HOTSPOT_COLOUR } from '../../shared/map/colours'
 import { MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { LAYERS } from '../../shared/map/layers'
 import { variantLine } from '../../shared/model/routes'
-import type { UTurn } from './snap'
+import type { UTurn } from './uturns'
 import type { AreaTarget, Picking } from './useDrawing'
 
 /**
