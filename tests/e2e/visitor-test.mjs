@@ -45,7 +45,14 @@ const interiorCandidates = (ring) => {
     const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
     pts.push([c[0] + (mid[0] - c[0]) * 0.75, c[1] + (mid[1] - c[1]) * 0.75])
   }
-  return pts.slice(0, 8)
+  // A thin curved strip hugging a road (Quezon City Hall's) has its centre
+  // off the strip: halfway between two of its corners lands on it instead.
+  // Only points truly inside count since one tap is one thing (2026-09-30):
+  // a point just off a box beside a line is the line's.
+  for (let i = 0; i < uniq.length; i++) {
+    for (let j = i + 2; j < uniq.length; j++) pts.push([(uniq[i][0] + uniq[j][0]) / 2, (uniq[i][1] + uniq[j][1]) / 2])
+  }
+  return pts.filter((p) => pointInPolygon(p, ring)).slice(0, 8)
 }
 const findVertexInsideAnyHotspot = (routeLines, polys) => {
   for (const coords of routeLines) {
@@ -275,8 +282,8 @@ for (const [i, p] of snapshot.polys.entries()) {
     await page.waitForTimeout(350)
     const chooser = page.locator('[data-testid="chooser"]')
     if ((await chooser.count()) > 0) {
-      // The line runs within a finger of this point: the list shows the box
-      // first and the route after it. Its row opens the box's card.
+      // Boxes side by side under this point: the list shows them, and its
+      // row opens this box's card.
       const row = chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: p.name }).first()
       if ((await row.count()) > 0) await row.click()
       await page.waitForTimeout(350)
