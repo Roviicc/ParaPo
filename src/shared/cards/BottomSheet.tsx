@@ -3,7 +3,7 @@ import { IconButton } from '../../design-system/primitives/IconButton'
 import { CloseIcon } from './RouteIcons'
 import { useDialogFocus } from './useDialogFocus'
 import { useEscape } from './useEscape'
-import { DRAG_PX, follow, heightsFor, slide, slideShowing, snapAfterTap, swallowTheTapsClick, type Snap } from './sheetGesture'
+import { DRAG_PX, aboveMiddle, follow, shownAt, slide, slideShowing, snapAfterTap, snapName, swallowTheTapsClick, type Snap, type SnapName } from './sheetGesture'
 
 type Props = {
   /** What a screen reader calls it: the list by its count, a trip by its direction, a card by its place. */
@@ -75,7 +75,8 @@ const FLOATS_AT = {
  * not scroll: a swipe on it moves the sheet ("when I scroll up in middle, it
  * should go into max"); at Max it scrolls, and a pull down from its top
  * takes hold of the sheet — to Middle held slowly, to Low flicked. A tap on
- * the handle goes round, Low → Middle → Max.
+ * the handle goes round, Low → Middle → Max. Between Middle and Max it
+ * stays where it is let go (sheetGesture's snapFor), its body still.
  */
 export function BottomSheet({ label, testId, header, onClose, hidden = false, ref, floats = 'corner', height, children }: Props) {
   const own = useRef<HTMLDivElement>(null)
@@ -169,10 +170,10 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
         return
       }
       pushed += e.deltaY
-      if (at === 'max' && pushed < -DRAG_PX) {
+      if (aboveMiddle(at) && pushed < -DRAG_PX) {
         pushed = 0
         now.current.settle('middle')
-      } else if (at === 'middle' && pushed > DRAG_PX) {
+      } else if (at !== 'max' && at !== 'low' && pushed > DRAG_PX) {
         pushed = 0
         now.current.settle('max')
       }
@@ -205,7 +206,7 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
     // sheet, as one on the handle does.
     const raises = handle.contains(target) || (snap === 'low' && !!bodyRef.current?.contains(target))
     const h = sheet.offsetHeight
-    const track = follow(e.clientY, e.timeStamp, heightsFor(h)[snap], h)
+    const track = follow(e.clientY, e.timeStamp, shownAt(snap, h), h)
     let moving = false
 
     // Followed on the window, not the sheet: a finger or a mouse dragged
@@ -259,7 +260,7 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
       aria-label={label}
       tabIndex={-1}
       data-testid={testId}
-      data-snap={snap}
+      data-snap={snapName(snap)}
       data-floats={floats}
       hidden={hidden}
       onPointerDown={onPointerDown}
@@ -284,8 +285,8 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
         ref={handleRef}
         type="button"
         data-testid="dock-handle"
-        aria-label={HANDLE_LABEL[snap]}
-        title={HANDLE_LABEL[snap]}
+        aria-label={HANDLE_LABEL[snapName(snap)]}
+        title={HANDLE_LABEL[snapName(snap)]}
         onClick={() => setSnap(snapAfterTap(snap))}
         className="flex w-full shrink-0 touch-none justify-center py-2 sheet-floating:hidden"
       >
@@ -339,7 +340,8 @@ const HANDLE_LABEL = {
   low: 'Sheet lowered. Raise to half the screen',
   middle: 'Sheet at half the screen. Raise to full screen',
   max: 'Sheet at full screen. Lower it',
-} satisfies Record<Snap, string>
+  free: 'Sheet raised past half the screen. Raise to full screen',
+} satisfies Record<SnapName, string>
 
 /**
  * Where a point the camera glides to should sit, from the map's centre, so
@@ -366,13 +368,13 @@ export function clearOfDock(map: HTMLElement, dock: HTMLElement | null, snap?: S
 function showsAt(sheet: HTMLElement, snap: Snap): number {
   const h = sheet.offsetHeight
   if (snap === 'max') return h
-  return heightsFor(h)[snap] + (parseFloat(getComputedStyle(sheet).paddingBottom) || 0)
+  return shownAt(snap, h) + (parseFloat(getComputedStyle(sheet).paddingBottom) || 0)
 }
 
 /**
  * The camera is about to glide to a point on the map — a hintuan picked on
- * a trip, or one of its ends. A sheet docked at Max, covering the map, comes
- * down to Middle as the camera moves, so the move is seen (the owner's ask,
+ * a trip, or one of its ends. A sheet docked at Max, or left higher than
+ * Middle, comes down to Middle as the camera moves, so the move is seen (the owner's ask,
  * 2026-09-30: "if the bottomSheet is at max, then they click hintuan, the
  * bottomSheet must move to middle, while the camera is dragging"); lower, or
  * floating in a corner, it stays. Returns where the point should sit
@@ -381,7 +383,7 @@ function showsAt(sheet: HTMLElement, snap: Snap): number {
 export function makeRoom(map: HTMLElement, dock: HTMLElement | null, height: SheetHeight): [number, number] {
   const m = map.getBoundingClientRect()
   const docked = !!dock && !dock.hidden && dock.getBoundingClientRect().right >= m.right - 1
-  if (!docked || height.snap !== 'max') return clearOfDock(map, dock)
+  if (!docked || !aboveMiddle(height.snap)) return clearOfDock(map, dock)
   height.onSnap('middle')
   return clearOfDock(map, dock, 'middle')
 }
