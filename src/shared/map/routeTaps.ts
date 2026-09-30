@@ -38,8 +38,8 @@ export function useRouteTaps<T extends VariantSummary>(
 
     // One handler, one box. A finger is wider than a pixel, so we ask what is
     // near the tap: nothing deselects, one route opens its card, several
-    // things — routes, hotspots or both — go to the list, the routes lit the
-    // way round it shows them. The candidates are whole routes, slots
+    // sharing a road go to the list, lit the way round it shows them. Inside
+    // a hotspot's box the tap is the hotspot's alone (tapTargets). The candidates are whole routes, slots
     // included, so the studio's rows can say "return not mapped yet".
     // The stops hook reads the same tap and keeps its own half.
     const onMapClick = (e: MapMouseEvent) => {

@@ -86,6 +86,18 @@ const findVertexOutsideHotspots = (routes, polys) => {
   }
   return null
 }
+// A route vertex outside every box where another route runs within 3 m: a
+// road two routes share, where one tap lists them both.
+const findSharedVertexOutsideHotspots = (routes, polys) => {
+  for (const r of routes) {
+    const others = routes.filter((o) => o.route_id !== r.route_id)
+    for (const c of r.coords) {
+      if (polys.some((p) => pointInPolygon(c, p.ring))) continue
+      if (others.some((o) => metresToLine(c, o.coords) < 3)) return c
+    }
+  }
+  return null
+}
 const b = await chromium.launch()
 const page = await b.newPage({ viewport: { width: 1280, height: 800 } })
 await nodeFetch(page)
@@ -368,18 +380,44 @@ for (const [i, p] of snapshot.polys.entries()) {
   await page.waitForTimeout(200)
 }
 
-// 4. A tap on a route line inside a hotspot offers both — since 2026-09-22
-// nothing wins outright: the route list shows the hotspot first, then the
-// routes as RouteCards (the owner, 2026-09-29: the Chooser that asked here
-// before is the list now), and a route's row opens its card. SKIP if no such
-// vertex exists.
-const hit = findVertexInsideAnyHotspot(snapshot.routeLines, snapshot.polys)
+// 4. One tap, one kind of thing (the owner's ask, 2026-09-30: "select
+// hintuan only show the card, then select route show the route"): a tap on
+// a route line inside a hotspot opens the hotspot's card alone — no list,
+// the line through it not taken — where until then both were offered, the
+// hotspot first. SKIP if no such vertex exists.
+const inBox = findVertexInsideAnyHotspot(snapshot.routeLines, snapshot.polys)
+if (PART !== 1) {
+  // Part 1's, with 4b.
+} else if (!inBox) {
+  skip('a tap on a route line inside a hotspot opens the hotspot alone', 'no saved-route vertex lies inside any hotspot polygon today')
+} else {
+  await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 18 }), inBox.point)
+  await page.waitForTimeout(700)
+  const box = await page.locator('canvas.maplibregl-canvas').boundingBox()
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+  await page.waitForTimeout(350)
+  const state = await cardKind()
+  const lists = await page.locator('[data-testid="chooser"]').count()
+  const litRoutes = (await page.evaluate(() => window.__lit('saved-routes'))) ?? []
+  check(
+    'a tap on a route line inside a hotspot opens the hotspot alone: its card, no list, no route lit',
+    state.kind === 'hotspot' && state.text.includes(inBox.hotspot.name) && lists === 0 && litRoutes.length === 0,
+    `card ${state.kind} "${state.text.split('\n')[0] ?? ''}"; ${lists} list(s); ${litRoutes.length} route(s) lit`,
+  )
+  await closeCard()
+}
+
+// 4a. A tap where two routes share a road, clear of every box: the route
+// list, the routes as RouteCards and nothing else (the owner, 2026-09-29:
+// the Chooser that asked here before is the list now), and a route's row
+// opens its card. SKIP if no such vertex exists.
+const hit = findSharedVertexOutsideHotspots(snapshot.routes, snapshot.polys)
 if (PART !== 1) {
   // Part 1's, with 4b.
 } else if (!hit) {
-  skip('a tap on a route line inside a hotspot offers both in the list', 'no saved-route vertex lies inside any hotspot polygon today')
+  skip('a tap where two routes share a road lists them, and nothing else', 'no route vertex outside the boxes has another route within 3 m today')
 } else {
-  await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 18 }), hit.point)
+  await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 18 }), hit)
   await page.waitForTimeout(700)
   const box = await page.locator('canvas.maplibregl-canvas').boundingBox()
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
@@ -389,15 +427,15 @@ if (PART !== 1) {
   const text = has ? await chooser.first().innerText() : ''
   const cards = chooser.locator('[data-testid="chooser-origin"]')
   const cardCount = has ? await cards.count() : 0
+  // A hotspot's row is a list row outside every RouteCard.
+  const hotspotRows = has ? await chooser.locator('xpath=.//button[@data-testid="chooser-item"][not(ancestor::*[@data-testid="chooser-origin"])]').count() : 0
   check(
-    'a tap on a route line inside a hotspot offers both in the list',
-    has && text.includes(hit.hotspot.name) && cardCount > 0,
-    has ? `${text.split('\n')[0]}; ${cardCount} card(s)` : `no list; card ${(await cardKind()).kind}`,
+    'a tap where two routes share a road lists them, and nothing else',
+    has && cardCount > 0 && hotspotRows === 0,
+    has ? `${text.split('\n')[0]}; ${cardCount} card(s), ${hotspotRows} hotspot row(s)` : `no list; card ${(await cardKind()).kind}`,
   )
   if (has) {
     const items = chooser.locator('button[data-testid="chooser-item"]')
-    const first = await items.first().innerText()
-    check('  the hotspot is listed first', first.includes(hit.hotspot.name), first.split('\n')[0])
     // The owner's pick of 2026-09-29: the count stays the routes', a card each.
     const title = `${cardCount} ${cardCount === 1 ? 'Route' : 'Routes'}`
     check(`  headed "${title}": the routes' count, not the hotspot's`, text.split('\n').includes(title), text.split('\n')[0])
@@ -440,19 +478,15 @@ if (PART !== 1) {
       check('  in the colour of the card it was picked from', !!colour && tripColour === colour, `card ${colour}, trip ${tripColour}`)
       const seenTrip = await rideLook(page)
       check("  its line in the trip card's colour too", wears(seenTrip, LOOKS?.byLivery[tripColour]), `${tripColour}: ${JSON.stringify(seenTrip)}`)
-      // The list stays behind the trip, hidden, for its ‹, and its hotspot
-      // goes dark under the trip till then (the owner, 2026-09-29).
-      const stopsLit = async () => (await page.evaluate(() => window.__lit('saved-stops'))) ?? []
-      const litUnder = await stopsLit()
-      check('  its hotspot is not lit under the trip', !litUnder.includes(hit.hotspot.id), JSON.stringify(litUnder))
+      // The list stays behind the trip, hidden, for its ‹.
       const back = page.locator('[data-testid="card"]').getByRole('button', { name: 'Back' })
       if ((await back.count()) > 0) await back.first().click()
       await page.waitForTimeout(350)
       const again = (await chooser.first().isVisible()) ? await chooser.first().innerText() : ''
       check(
-        '  ‹ on the trip goes back to the list, as it was, its hotspot lit again',
-        again === text && (await cardKind()).kind === 'none' && (await stopsLit()).includes(hit.hotspot.id),
-        again ? `card ${(await cardKind()).kind}; lit ${JSON.stringify(await stopsLit())}` : 'the list did not come back',
+        '  ‹ on the trip goes back to the list, as it was',
+        again === text && (await cardKind()).kind === 'none',
+        again ? `card ${(await cardKind()).kind}` : 'the list did not come back',
       )
       const relit = await litNow()
       const stillSelected = await chooser.locator('[data-state="selected"]').count()
