@@ -3450,3 +3450,21 @@ helpers, each worked its own way; the two `closeCard`s. Left though identical:
 suite reads from `src/` in the page, and `window.__src`, spelled four ways
 and mostly inside init scripts that do more. The suites are 392 lines
 shorter; `lib/` is 241.
+
+**CI made faster, 2026-09-30.** The owner's ask: "it's stopping me from
+shipping fast". Most of each clean-up PR's wait had been the full local runs
+before a push (about 45 minutes, the owner's rule 5 of 2026-09-29), which the
+owner lifted the same day: a push now needs `npm run check` locally, and CI is
+the one full check. `ci.yml` changes three ways. A `changes` job reads the
+files a pull request touches: docs alone run nothing, `src/studio/` and the
+studio's suites alone skip the public suites, `src/commuter/`, `public/` and
+the public suites alone skip the studio's, anything else runs both. Every
+suite is its own job and they run at once, so a run lasts as long as
+visitor-test rather than the sum of all suites. The drawing suites leave the
+pull request's path: they need the public OSRM demo router and the live
+tables, which makes them slow and at the router's mercy. They run on every
+push to `main` or `staging`, nightly and on demand, with their one retry. The
+checks keep their names, "Build and the public map" and "The editor", each
+now a summary that passes when everything under it passed or was not needed.
+The trade: a pull request that breaks only drawing is caught on `staging`
+minutes after it merges, not before.
