@@ -313,3 +313,31 @@ export const FloatingPicked: Story = { args: { picked: 'h3' }, parameters: { fra
 
 /** A name too long for one line, picked: it wraps beside the pill, which keeps its line. Sample pesos. */
 export const LongNamesPicked: Story = { args: { ...LongNames.args, picked: 'h1', pickedFare: '₱16–18' }, play: openFold }
+
+/**
+ * The owner's BottomSheetConfiguration (3815:5637, 2026-09-30), on a phone:
+ * the stories above open at Middle; a tap on the HandleNotch goes round.
+ */
+const tapHandle = async (canvasElement: HTMLElement, times: number) => {
+  const handle = within(canvasElement).getByTestId('dock-handle')
+  for (let i = 0; i < times; i++) await userEvent.click(handle)
+  handle.blur()
+}
+
+/** Max: the whole map, the header at the top, the rest scrolling under it (3815:4306). */
+export const SheetMax: Story = {
+  args: { hintuans: aLongWay },
+  play: async (ctx) => {
+    await openFold?.(ctx)
+    await tapHandle(ctx.canvasElement, 1)
+    await expect(within(ctx.canvasElement).getByTestId('card')).toHaveAttribute('data-snap', 'max')
+  },
+}
+
+/** Low: the header alone along the bottom, the map above it (3814:3976). */
+export const SheetLow: Story = {
+  play: async (ctx) => {
+    await tapHandle(ctx.canvasElement, 2)
+    await expect(within(ctx.canvasElement).getByTestId('card')).toHaveAttribute('data-snap', 'low')
+  },
+}
