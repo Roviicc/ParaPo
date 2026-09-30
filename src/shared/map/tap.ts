@@ -20,7 +20,7 @@ export const STOPS_FILL_LAYER = LAYERS.stopsFill
  * `pointerType`), which is what tells a touched laptop screen from its
  * trackpad. Without an event, fall back to the device's primary pointer.
  */
-export function coarsePointer(event?: Event): boolean {
+function coarsePointer(event?: Event): boolean {
   const type = (event as { pointerType?: string } | undefined)?.pointerType
   if (type === 'touch' || type === 'pen') return true
   if (type === 'mouse') return false
@@ -29,7 +29,7 @@ export function coarsePointer(event?: Event): boolean {
 }
 
 /** The box around a screen point to query hit layers with, sized for the pointer. */
-export function tapBox(
+function tapBox(
   p: { x: number; y: number },
   event?: Event,
 ): [[number, number], [number, number]] {
@@ -47,7 +47,7 @@ type IdFeature = { properties?: { id?: unknown; route_id?: unknown } }
  * own tiles and a polygon is split across them, so the same feature comes
  * back several times.
  */
-export function idsInOrder(features: IdFeature[], key: 'id' | 'route_id' = 'id'): string[] {
+function idsInOrder(features: IdFeature[], key: 'id' | 'route_id' = 'id'): string[] {
   const seen = new Set<string>()
   for (const f of features) {
     const id = f.properties?.[key]

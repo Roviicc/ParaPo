@@ -3482,3 +3482,21 @@ with the arriving ease, still under reduced motion — and it goes with the
 pick. `useRideTo`'s `dots` option became `cut`: the studio keeps the cut
 and its get-off circles (group-test still checks them); the public map
 passes `cut: false` and reads `pinAt`.
+
+**Dead code, 2026-10-01.** Section 6.4 of the review, a part of it no
+stage took, found again on today's tree with TypeScript's find-references
+over `src/`, `tests/` and `scripts/`, and the suites' in-page imports read
+by hand. Two functions nothing called are gone from `ring.ts`:
+`firstVertexInside`, which `firstTouchIndex` replaced, and
+`lineIntersectsRing`. Thirteen values only their own file uses are no longer
+exported: `LINES_URL`, `detailStyle`, `styleTransform`, `roadWidthAt`,
+`LIT_EXTRA`, `tap.ts`'s `coarsePointer`, `tapBox` and `idsInOrder`,
+`groupByRoute`, `listStops`, `listStopLinks`, `DRAFT_KEY` and
+`SNAP_RADIUS_M` (the draft key's string is still the contract the suites
+read). "Where am I"'s `poseFor`, `facingFor`, `bearing` and `motionFrom`
+keep their exports and have the unit test they were exported for
+(`where-am-i-test`, 9 tests). Left as they are: 22 types only their own file
+uses, which name what an exported function takes or returns; and
+HotspotPanel's alias and note state with no setter, which keeps a box's Also
+called and Note while those are off the form. Nothing a visitor or the owner
+sees changes.

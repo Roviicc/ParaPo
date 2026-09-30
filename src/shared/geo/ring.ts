@@ -76,17 +76,6 @@ export function segmentsIntersect(a: LngLat, b: LngLat, c: LngLat, d: LngLat): b
 }
 
 /**
- * Index of the first line vertex that falls inside the ring, or -1.
- *
- * This is what `route_stop.stop_sequence` stores: cheap now, and enough to
- * order hotspots along a route later without another migration.
- */
-export function firstVertexInside(line: LngLat[], ring: Ring): number {
-  for (let i = 0; i < line.length; i++) if (pointInRing(line[i], ring)) return i
-  return -1
-}
-
-/**
  * Where along the line the polygon is first touched: the index of the first
  * vertex inside it, or, when the line crosses between two vertices, the index
  * of the vertex just before that crossing. -1 when they never meet.
@@ -111,11 +100,6 @@ export function firstTouchIndex(line: LngLat[], ring: Ring): number {
     }
   }
   return -1
-}
-
-/** Does the line pass through the polygon at all? */
-export function lineIntersectsRing(line: LngLat[], ring: Ring): boolean {
-  return firstTouchIndex(line, ring) !== -1
 }
 
 /** Metres from p to the polygon's edge (0 inside it). */

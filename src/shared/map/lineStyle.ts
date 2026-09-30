@@ -59,12 +59,12 @@ export function roadWidth(extra: number) {
 }
 
 /** The same curve as a number. */
-export function roadWidthAt(zoom: number, extra: number): number {
+function roadWidthAt(zoom: number, extra: number): number {
   return curveAt(road(extra), zoom)
 }
 
 /** How much wider than the rest the lit direction is drawn: 9 px to the line's 6 at zoom 18, the owner's numbers. */
-export const LIT_EXTRA = 3
+const LIT_EXTRA = 3
 
 /**
  * Zoomed out, the lit direction is drawn 12/10 as wide: the owner's ask of

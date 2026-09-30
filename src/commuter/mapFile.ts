@@ -33,7 +33,7 @@ type IndexVariant = Omit<VariantSummary, 'shape'> & { overview?: LineStringGeoJS
 /** No hash in the name, so it keeps revalidating headers; never make it immutable. */
 export const MAP_FILE_URL = '/data/index.json'
 /** A direction's full line: `${LINES_URL}${id}.json`. The worker keeps every one seen. */
-export const LINES_URL = '/data/lines/'
+const LINES_URL = '/data/lines/'
 
 /**
  * The shape of the map file this app reads: the numbers a reader must know
