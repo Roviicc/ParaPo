@@ -1,54 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Marker, type GeoJSONSource, type MapLibreMap } from 'maplibre-gl'
-import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
-import { haversine } from '../geo/geo'
-import { CASING_EXTRA, litWidth } from './lineStyle'
+import type { MapLibreMap } from 'maplibre-gl'
 import { APP_MOVE } from './MapView'
-import { LAYERS } from './layers'
 import { rideCut, travelLine } from '../model/ride'
 import type { VariantSummary } from '../model/routes'
 import type { StopSummary } from '../model/stops'
-import './rideTo.css'
-
-const SRC = 'ride-rest'
-const REST_CASING = 'ride-rest-casing'
-const REST_LINE = 'ride-rest-line'
 
 /**
- * The ride-to preview: tap a hintuan on the trip's timeline and the lit line
- * ends there, the card staying open. The owner's ask of 2026-09-28: the row
- * answers "what if I get off here?", not "what is this hotspot?". The way
- * not ridden goes back to how a line rests — Map/RouteLine/surface-default,
- * opaque, in its white casing, drawn at the lit line's width over it — since
- * nothing on the map is see-through any more (his two looks, 2026-09-29);
- * the white wash it had until then went with them. It lies over the lit
- * line's chevrons and orange stretches past the hintuan, and under the far
- * end's circle, so the dark stretch alone is the ride.
- *
- * The public map picks a hintuan on its trip card since 2026-09-29 (his
- * Timeline State=Selected), and since 2026-09-30 draws no cut there at all
- * (`cut: false`, the owner's ask of that day): the route stays whole and
- * the public map pops a circle up where `pinAt` says (HintuanPin.tsx); the
- * metres that price the pick and the glide are the same. The studio keeps
- * the cut and its get-off circles, one per mini stop of the hintuan (drawn
- * like a route's end circle): the ride ends at the last one, and tapping
- * another moves the get-off side without moving the hintuan. They are DOM
- * markers, like the walker, whose taps never fall through to the route or
- * the box below. Tapping the row again, an end row, another route or the
- * card away lets the pick go. On the public map an end row also glides
- * there (`toEnd`), so a rider can look along the
- * route from end to end (the owner's ask, 2026-09-29).
+ * A hintuan picked on the trip card — the owner's Timeline State=Selected,
+ * 2026-09-29: its pill prices the ride from the start to there, and the map
+ * glides there clear of the card. The route stays whole since 2026-09-30
+ * (the owner: "now I don't want to cut the route"), a circle popping up where
+ * `pinAt` says (HintuanPin.tsx); the studio went the same way that day ("most
+ * of the interaction of public map should be in studio"), so the way not
+ * ridden drawn at rest and its get-off circles went with it. Tapping the row
+ * again, an end row, another route or the card away lets the pick go. An end
+ * row glides there (`toEnd`), so a rider can look along the route from end
+ * to end (the owner's ask, 2026-09-29).
  */
 export function useRideTo(
   map: MapLibreMap | null,
   selected: VariantSummary | null,
   stops: readonly StopSummary[],
   opts: {
-    /**
-     * The way not ridden drawn at rest, and the get-off circles: the
-     * studio's. The public map has neither since 2026-09-30. Default true.
-     */
-    cut?: boolean
     /**
      * Where the glide puts the hintuan, from the map's centre, in pixels —
      * clear of a card over the map. Read as the glide starts.
@@ -59,7 +32,7 @@ export function useRideTo(
   // Which direction the pick was made on: a pick belongs to its ride, so the
   // first render of another one — SWITCH, a new trip — never cuts its line
   // at the old row.
-  const [picked, setPicked] = useState<{ variantId: string; rowId: string; endId: string | null } | null>(null)
+  const [picked, setPicked] = useState<{ variantId: string; rowId: string } | null>(null)
   const live = picked && picked.variantId === selected?.id ? picked : null
 
   // An end of the trip, picked from its row: the line stays whole, its dot
@@ -82,7 +55,7 @@ export function useRideTo(
   offset.current = opts.offset
 
   const cut = useMemo(
-    () => (selected && live ? rideCut(selected, stops, live.rowId, live.endId) : null),
+    () => (selected && live ? rideCut(selected, stops, live.rowId) : null),
     [selected, stops, live],
   )
 
@@ -94,7 +67,7 @@ export function useRideTo(
       setPicked((cur) =>
         id === null || !selectedId || (cur?.variantId === selectedId && cur.rowId === id)
           ? null
-          : { variantId: selectedId, rowId: id, endId: null },
+          : { variantId: selectedId, rowId: id },
       )
     },
     [selectedId],
@@ -118,97 +91,6 @@ export function useRideTo(
     },
     [map, selected, selectedId, stops, endPicked],
   )
-
-  // The way not ridden, as a line at rest. Added on first use — long after
-  // the style loaded, the lit line's chevrons and orange included — just
-  // under the end circles, so the far end keeps its circle and its name.
-  // Butt caps: a round one would lay a light half-disc back over the dark
-  // line where the ride ends.
-  const drawn = (opts.cut ?? true) ? cut : null
-  useEffect(() => {
-    if (!map) return
-    if (!map.getSource(SRC)) {
-      if (!drawn) return
-      map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-      const before = [LAYERS.endCircles, LAYERS.stopsHintuanLabel].find((id) => map.getLayer(id))
-      map.addLayer(
-        {
-          id: REST_CASING,
-          type: 'line',
-          source: SRC,
-          layout: { 'line-cap': 'butt', 'line-join': 'round' },
-          paint: { 'line-color': MAP_PAINT['Paint/casing'], 'line-width': litWidth(CASING_EXTRA) },
-        },
-        before,
-      )
-      map.addLayer(
-        {
-          id: REST_LINE,
-          type: 'line',
-          source: SRC,
-          layout: { 'line-cap': 'butt', 'line-join': 'round' },
-          paint: { 'line-color': MAP_COLOURS['Map/RouteLine/surface-default'], 'line-width': litWidth() },
-        },
-        before,
-      )
-    }
-    const src = map.getSource(SRC) as GeoJSONSource
-    src.setData({
-      type: 'FeatureCollection',
-      features: drawn
-        ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: drawn.rest } }]
-        : [],
-    })
-  }, [map, drawn])
-
-  // The get-off circles, one a mini stop, remade whenever the cut changes.
-  const markers = useRef<Marker[]>([])
-  useEffect(() => {
-    if (!map) return
-    for (const m of markers.current) m.remove()
-    markers.current = []
-    if (!drawn) return
-    for (const d of drawn.dots) {
-      const here = d.stopId === drawn.endStopId
-      // Two mini stops can share a stretch of line (Bestlink's boxes overlap
-      // along it), stacking their circles: each crowded circle is nudged a
-      // few pixels toward its own box, so both sides can be seen and tapped.
-      let offset: [number, number] = [0, 0]
-      const crowding = drawn.dots.find((o) => o !== d && haversine(o.at, d.at) < 30)
-      if (crowding) {
-        // Two mini stops can share the very same stretch of line (Bestlink's
-        // boxes do), stacking their circles. Each is slid toward its own box
-        // and away from the other's, so both sides can be seen and tapped —
-        // the boxes' own axis, since the dots may sit on one point.
-        const box = stops.find((s) => s.id === d.stopId)
-        const other = stops.find((s) => s.id === crowding.stopId)
-        if (box && other) {
-          const b = map.project(box.point.coordinates)
-          const o = map.project(other.point.coordinates)
-          const len = Math.hypot(b.x - o.x, b.y - o.y)
-          if (len > 1) offset = [((b.x - o.x) / len) * 8, ((b.y - o.y) / len) * 8]
-        }
-      }
-      const el = document.createElement('button')
-      el.type = 'button'
-      el.dataset.testid = 'ride-dot'
-      el.className = 'ride-dot' + (here ? ' ride-dot-end' : '')
-      el.title = here ? 'Getting off here' : 'Get off on this side instead'
-      el.setAttribute('aria-label', el.title)
-      el.setAttribute('aria-pressed', String(here))
-      el.addEventListener('click', (e) => {
-        // The tap is the dot's own: it must not fall through to the route line
-        // or the hintuan box underneath and open their cards.
-        e.stopPropagation()
-        setPicked((cur) => cur && { ...cur, endId: d.stopId })
-      })
-      markers.current.push(new Marker({ element: el, anchor: 'center', offset }).setLngLat(d.at).addTo(map))
-    }
-    return () => {
-      for (const m of markers.current) m.remove()
-      markers.current = []
-    }
-  }, [map, drawn, stops])
 
   // Glide to where the rider would get off, at the height the map is at:
   // the owner tried the stretch fitted whole and it zoomed far out

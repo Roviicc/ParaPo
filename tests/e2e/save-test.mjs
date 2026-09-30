@@ -522,11 +522,14 @@ check(
 await dismissToasts()
 // The other direction, not saved here, shares the route: its card reads the
 // new end once the list is read again.
+// The card is the public map's trip card since 2026-09-30: its ends sit on
+// rows of their own, and "origin → destination" is its sheet's name.
+const cardName = async () => (await page.locator('[data-testid="card"]').first().getAttribute('aria-label').catch(() => null)) ?? ''
 await waitFor(async () => {
   await openCard(BACK[1])
-  return /Stand-in Tail → Stand-in Phase/.test(await body())
+  return (await cardName()) === 'Stand-in Tail → Stand-in Phase'
 }, 8000)
-check('  and the other direction, which shares the route, is renamed with it', variantsOf(outRoute?.id).some((v) => v.id === backId) && /Stand-in Tail → Stand-in Phase/.test(await body()), (await body()).slice(-200))
+check('  and the other direction, which shares the route, is renamed with it', variantsOf(outRoute?.id).some((v) => v.id === backId) && (await cardName()) === 'Stand-in Tail → Stand-in Phase', await cardName())
 await page.keyboard.press('Escape')
 await page.waitForTimeout(300)
 await openCard(OUT[1])
