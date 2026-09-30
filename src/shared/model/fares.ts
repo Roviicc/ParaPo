@@ -86,8 +86,10 @@ export function pesoRange(low: number, high: number): string {
 }
 
 /**
- * One ride of `metres` by `mode`, as the cards write pesos — `₱14`, `₱24–26`
- * — or nothing when no fare rule prices the mode: the trip card's Expected
+ * One ride of `metres` by `mode`, as the cards write pesos — `₱14`, `₱26` —
+ * or nothing when no fare rule prices the mode. One figure, the part km
+ * counted to the nearest whole km (the owner, 2026-09-30: "can you round the
+ * fare", the Calculated Fare too), where it was a range, down and up: the trip card's Expected
  * fare, over its whole ride (the owner's 3778:3183, 2026-09-29). The only
  * pesos on the public map since his RouteCard State set took them off the
  * cards (wholeRideFare, their range over a place's ways out, went with
@@ -101,7 +103,6 @@ export function rideFare(
 ): string | undefined {
   const today = ruleOn(date)
   if (!today || !hasFareRule(mode)) return undefined
-  const { low, high } = fareFor(metres, today.rule)
-  return pesoRange(low[kind], high[kind])
+  return peso(fareForKm(Math.round(metres / 1000), today.rule)[kind])
 }
 

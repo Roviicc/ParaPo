@@ -5,7 +5,7 @@ import { BottomSheet, type SheetHeight } from "./BottomSheet";
 import { ReloadIcon } from "./RouteIcons";
 import { TripTimeline, type TripTimelineProps } from "./TripTimeline";
 
-/** A ride's pesos both ways: `₱13–24` regular, and its student (discounted) price. */
+/** A ride's pesos both ways: `₱26` regular, and its student (discounted) price. */
 export type Fares = { regular: string; student: string };
 
 type Props = Omit<TripTimelineProps, "pickedPriced"> & {
