@@ -2,7 +2,8 @@ import type { Livery } from '../model/liveries'
 import { RouteCardHeader } from './RouteCardHeader'
 import { RouteCardStack, type PickedPlace } from './RouteCardStack'
 import { RouteDock } from './RouteDock'
-import { drawnDepartures, type VariantSummary } from '../model/routes'
+import { drawnDepartures } from '../model/departures'
+import type { VariantSummary } from '../model/routes'
 import { hotspotCount, stopLabel, type StopSummary } from '../model/stops'
 
 type Props = {

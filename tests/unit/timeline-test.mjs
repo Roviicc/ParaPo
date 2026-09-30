@@ -7,7 +7,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { SAME_HINTUAN_M, timelineFor, hintuansAlong, labelGroups, placeSummary } from '../../src/shared/model/stops.ts'
-import { variantLine, rideCut, routeTimeline, sharingAnEnd } from '../../src/shared/model/routes.ts'
+import { variantLine } from '../../src/shared/model/routes.ts'
+import { rideCut, routeTimeline } from '../../src/shared/model/ride.ts'
+import { sharingAnEnd } from '../../src/shared/model/departures.ts'
 import { haversine, lineLength } from '../../src/shared/geo/geo.ts'
 import { fileURLToPath } from 'node:url'
 import { readPublished } from '../../scripts/checks/check-map-data.mjs'
@@ -92,7 +94,7 @@ test('the committed map: every box named by exactly one label, same-name boxes a
     }
 })
 
-// The ride-to preview's cut (src/shared/model/routes.ts, rideCut).
+// The ride-to preview's cut (src/shared/model/ride.ts, rideCut).
 const pt = (lng, lat = 0) => ({ type: 'Point', coordinates: [lng, lat] })
 const ringAt = (lng, r = 0.0002) => ({ type: 'Polygon', coordinates: [[[lng - r, -r], [lng + r, -r], [lng + r, r], [lng - r, r], [lng - r, -r]]] })
 const mini = (id, lng, name = 'Amparo') => ({ id, kind: 'hintuan', name, informal: null, aliases: [], point: pt(lng), area: ringAt(lng) })
@@ -171,7 +173,7 @@ test('the committed map: every trip-card row cuts, forward, short of the whole',
   assert.ok(rows > 0, 'no rows on the committed map')
 })
 
-// The routes a trip's ‹ lists when it was opened on its own (src/shared/model/routes.ts, sharingAnEnd).
+// The routes a trip's ‹ lists when it was opened on its own (src/shared/model/departures.ts, sharingAnEnd).
 /** A route's two directions, head to tail and back: sample data, shaped like the published file. */
 const both = (id, head, tail) =>
   [false, true].map((reversed) => ({ id: id + (reversed ? '-back' : ''), route_id: id, reversed, route: { head_stop_id: head, tail_stop_id: tail } }))

@@ -5,10 +5,10 @@ import { readAll, type Page } from './readAll'
 
 /**
  * Readers of the live tables, for the editor. They live in studio/, apart
- * from the types in shared/routes.ts and shared/stops.ts, on purpose: the
- * public map imports those types but reads the published file instead
- * (shared/mapFile.ts), and check-boundaries.mjs forbids commuter/ importing
- * studio/. So Supabase's address can never land in a chunk both pages share;
+ * from the types in shared/model/routes.ts and shared/model/stops.ts, on
+ * purpose: the public map imports those types but reads the published file
+ * instead (commuter/mapFile.ts), and check-boundaries.mjs forbids commuter/
+ * importing studio/. So Supabase's address can never land in a chunk both pages share;
  * check-build.mjs proves it stays out of the public page's build too.
  *
  * Each returns nothing when the build has no Supabase, so the studio shows

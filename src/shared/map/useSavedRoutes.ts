@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
-import { directionToOpen, isDrawn, variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes'
+import { directionToOpen } from '../model/departures'
+import { isDrawn, variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes'
 import { ROUTES_HIT_LAYER, resolveTap, tapTargets } from './tap'
 import { LAYERS } from './layers'
 import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'

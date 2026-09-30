@@ -1,4 +1,5 @@
-import { departures, type VariantSummary } from '../model/routes'
+import { departures } from '../model/departures'
+import type { VariantSummary } from '../model/routes'
 
 type Props = {
   /** Every direction of every route to list, slots included. */

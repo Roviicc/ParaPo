@@ -1,5 +1,6 @@
 import type { LngLat } from '../../shared/geo/geo'
-import { isDrawn, travelLine, variantLine, type VariantDrawing, type VariantRow } from '../../shared/model/routes'
+import { isDrawn, variantLine, type VariantDrawing, type VariantRow } from '../../shared/model/routes'
+import { travelLine } from '../../shared/model/ride'
 import type { StopRow } from '../../shared/model/stops'
 import { withDrawing } from '../data/live'
 import type { SaveTarget } from '../panels/useSaveTarget'
