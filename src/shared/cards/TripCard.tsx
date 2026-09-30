@@ -1,8 +1,9 @@
 import { useState, type ReactNode, type Ref } from 'react'
-import { RouteTripDetail } from './RouteTripDetail'
+import { RouteTripDetail, type Fares } from './RouteTripDetail'
+import { useFareKind } from './useFareKind'
 import type { SheetHeight } from './BottomSheet'
 import { lineLength } from '../geo/geo'
-import { rideFare } from '../model/fares'
+import { manilaDate, rideFare } from '../model/fares'
 import { liveriesFor, type Livery } from '../model/liveries'
 import { directionEnds, isDrawn, variantLine, type VariantSummary } from '../model/routes'
 import { otherDirection } from '../model/departures'
@@ -106,15 +107,19 @@ export function TripCard({
   // an overview drawn while the line is read never prices it: its Kilometer
   // and its Expected fare.
   const metres = variant.metres ?? lineLength(variantLine(variant))
+  const [fareKind, setFareKind] = useFareKind()
   return (
     <RouteTripDetail
       livery={livery}
       metres={metres}
-      fare={rideFare(variant.route?.mode, metres)}
+      pickedMetres={pickedMetres}
+      discounted={fareKind === 'discounted'}
+      onDiscounted={(d) => setFareKind(d ? 'discounted' : 'regular')}
+      fare={faresFor(variant.route?.mode, metres)}
       routeOrigin={from}
       hintuans={timeline.between}
       picked={picked}
-      pickedFare={pickedMetres === undefined ? undefined : rideFare(variant.route?.mode, pickedMetres)}
+      pickedFare={pickedMetres === undefined ? undefined : faresFor(variant.route?.mode, pickedMetres)}
       onPick={onPick}
       onEnd={onEnd}
       endPicked={endPicked}
@@ -132,4 +137,12 @@ export function TripCard({
       {extras}
     </RouteTripDetail>
   )
+}
+
+/** A ride's pesos, regular and discounted, for the fare tile; undefined when no fare rule prices it. */
+function faresFor(mode: Parameters<typeof rideFare>[0], metres: number): Fares | undefined {
+  const date = manilaDate()
+  const regular = rideFare(mode, metres, date)
+  const discounted = rideFare(mode, metres, date, 'discounted')
+  return regular && discounted ? { regular, discounted } : undefined
 }

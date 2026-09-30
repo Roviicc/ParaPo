@@ -46,7 +46,7 @@ const meta = {
     routeDirection: 'Novaliches',
     picked: null,
     onPick: fn(),
-    pickedFare: '₱18–20',
+    pickedPesos: '₱20–22',
     onEnd: fn(),
     endPicked: null,
   },
@@ -73,10 +73,10 @@ export const Red: Story = { args: { livery: 'red' } }
 /** Orange. */
 export const Orange: Story = { args: { livery: 'orange' } }
 
-/** Mist. */
-export const Mist: Story = { args: { livery: 'mist' } }
+/** Fuchsia. */
+export const Fuchsia: Story = { args: { livery: 'fuchsia' } }
 
-/** A hintuan picked: its dot green, its name Black, its pill with the pesos to there. Opened, since the fold keeps it. */
+/** A hintuan picked: its dot a white ring round the rail's colour, its name Black, its pill with the pesos to there. Opened, since the fold keeps it. */
 export const HintuanPicked: Story = { args: { picked: 'h3' }, play: openFold }
 
 /** Picked, red: the pill in the card's own colours, swapped. */
@@ -85,19 +85,19 @@ export const HintuanPickedRed: Story = { args: { livery: 'red', picked: 'h3' }, 
 /** Picked, orange. */
 export const HintuanPickedOrange: Story = { args: { livery: 'orange', picked: 'h3' }, play: openFold }
 
-/** Picked, mist: the pill near-black. */
-export const HintuanPickedMist: Story = { args: { livery: 'mist', picked: 'h3' }, play: openFold }
+/** Picked, fuchsia: the pill white, as red's. */
+export const HintuanPickedFuchsia: Story = { args: { livery: 'fuchsia', picked: 'h3' }, play: openFold }
 
 /** One hintuan on the way, picked: not folded, so no fold to open. */
 export const OneHintuanPicked: Story = {
-  args: { routeOrigin: 'Fatima', hintuans: hintuans('Lagro'), routeDirection: 'SM Fairview', picked: 'h0', pickedFare: '₱14' },
+  args: { routeOrigin: 'Fatima', hintuans: hintuans('Lagro'), routeDirection: 'SM Fairview', picked: 'h0', pickedPesos: '₱14' },
 }
 
 /** A hintuan picked but unpriced: no pill. */
-export const HintuanPickedUnpriced: Story = { args: { picked: 'h3', pickedFare: undefined }, play: openFold }
+export const HintuanPickedUnpriced: Story = { args: { picked: 'h3', pickedPesos: undefined }, play: openFold }
 
-/** The origin picked from its row: its dot green. */
+/** The origin picked from its row: its dot the Selected one. */
 export const OriginPicked: Story = { args: { endPicked: 'from' } }
 
-/** The destination picked from its row: its dot green. */
+/** The destination picked from its row: its dot the Selected one. */
 export const DestinationPicked: Story = { args: { endPicked: 'to' } }

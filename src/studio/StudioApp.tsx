@@ -5,9 +5,10 @@ import { HotspotCard } from '../shared/cards/HotspotCard'
 import { MapView } from '../shared/map/MapView'
 import { RouteCardList } from '../shared/cards/RouteCardList'
 import { TripCard, useTripLivery } from '../shared/cards/TripCard'
-import { clearOfDock } from '../shared/cards/BottomSheet'
+import { makeRoom } from '../shared/cards/BottomSheet'
 import type { Snap } from '../shared/cards/sheetGesture'
 import { HintuanPin } from '../shared/map/HintuanPin'
+import { EndTitles } from '../shared/map/EndTitles'
 import { useRideTo } from '../shared/map/rideTo'
 import type { Livery } from '../shared/model/liveries'
 import { lineOf, listVariants, loadStopsFromSupabase } from './data/live'
@@ -122,13 +123,16 @@ function Workshop({
     // While a trip is open, the map lights only the trip, as on the public map.
     muted: !!saved.selected,
   })
+  // One height for the sheets that stand in for one another (below).
+  const [snap, setSnap] = useState<Snap>('middle')
   // A hintuan picked on the trip card: the camera gliding there clear of the
   // card and a circle popping up on it, the route left whole — the public
   // map's (the owner, 2026-09-30: "most of the interaction of public map
-  // should be in studio").
+  // should be in studio"), the card coming down from Max to Middle as the
+  // camera glides with it (makeRoom).
   const tripDock = useRef<HTMLDivElement>(null)
   const ride = useRideTo(map, saved.selected, stops.stops, {
-    offset: () => (map ? clearOfDock(map.getContainer(), tripDock.current) : [0, 0]),
+    onGlide: () => (map ? makeRoom(map.getContainer(), tripDock.current, { snap, onSnap: setSnap }) : [0, 0]),
   })
 
   // Where a lit direction passes a hintuan, the line turns orange for that
@@ -265,7 +269,6 @@ function Workshop({
         : null
   // One height for the sheets that stand in for one another, back to Middle
   // with nothing open; the public map's.
-  const [snap, setSnap] = useState<Snap>('middle')
   const anyOpen = !!saved.selected || !!stops.selected || choosing
   if (!anyOpen && snap !== 'middle') setSnap('middle')
   const height = { snap, onSnap: setSnap }
@@ -303,9 +306,11 @@ function Workshop({
         </div>
       )}
 
+      {/* Each lit ride's ends, named over their circles. */}
+      {map && !draw.drawing && <EndTitles map={map} rides={rides} look={look} />}
       {/* Keyed on the pick: another hintuan pops a fresh circle. */}
       {map && !draw.drawing && ride.pinAt && tripLivery && (
-        <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} livery={tripLivery} />
+        <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} label={ride.pickedLabel} livery={tripLivery} />
       )}
 
       {/*

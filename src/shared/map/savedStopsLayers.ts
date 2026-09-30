@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
-import { HOTSPOT_COLOUR } from './colours'
-import { MAP_PAINT } from '../../design-system/foundation/mapColours'
+import { HOTSPOT_COLOUR, HOTSPOT_CONTENT, HOTSPOT_OPACITY } from './colours'
+import { MAP_OPACITY, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { ringToPolygon, type Ring } from '../geo/ring'
+import type { LngLat } from '../geo/geo'
 import { labelGroups } from '../model/places'
 import { stopRing, type StopKind, type StopSummary } from '../model/stops'
 import { STOPS_FILL_LAYER } from './tap'
@@ -21,8 +22,8 @@ const OUTLINE = 'saved-stops-outline'
 const LABEL = 'saved-stops-label'
 const HINTUAN_LABEL = LAYERS.stopsHintuanLabel
 /**
- * Hotspot names show only close in. Further out a name, centred on the road
- * it stands on, sat over the orange stretch it marks. The owner's asks of
+ * Hotspot names show only close in. Further out a name sat over the line's
+ * stretch through the hotspot. The owner's asks of
  * 2026-09-25: hintuan names from zoom 16.5 (between a view at 16, names in
  * the way, and one at 16.7, names kept); then the terminals' the same; then
  * the names lasting 12/10 as far out — gone once the map shows 1.2 times the
@@ -44,8 +45,45 @@ const labelsOf = (kind: StopKind, hidden = '') =>
     ['==', ['get', 'kind'], kind],
     ...(hidden ? [['!', ['in', hidden, ['get', 'ids']]]] : []),
   ] as never
-/** The boxes under a tap, or the chosen one, drawn again stronger while they are asked about. */
-const LIT = 'saved-stops-lit'
+/** The boxes under a tap, or the chosen one, striped while they are asked about: the HotspotOverlayCard's State=Selected. */
+const HATCH = 'saved-stops-hatch'
+const hatchOf = (kind: StopKind) => `hotspot-hatch-${kind}`
+
+/**
+ * The Selected box's stripes (3837:11308): 0.6 px lines of the box's content
+ * colour, 16 px apart since the owner's "make the lines much lesser"
+ * (2026-09-30; 8 at first), rising to the right — a pattern MapLibre repeats in
+ * screen pixels, so they keep their spacing at every zoom. Drawn at twice the
+ * size for a sharp screen.
+ */
+function hatch(hex: string): { width: number; height: number; data: Uint8Array } {
+  const size = 32
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+  const data = new Uint8Array(size * size * 4)
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      // Distance, across the line, from the nearest diagonal x + y ≡ 0.
+      const along = (x + y + 1) % size
+      const d = Math.min(along, size - along) / Math.SQRT2
+      const a = Math.max(0, Math.min(1, 0.6 + 0.5 - d))
+      data.set([r, g, b, Math.round(a * 255)], (y * size + x) * 4)
+    }
+  }
+  return { width: size, height: size, data }
+}
+
+/**
+ * How much stronger a sibling box's fill is drawn over its own, a hintuan's
+ * to Map/OverlayCard/Hintuan/surface-selected (60% over 30%).
+ */
+const HINTUAN_STRONGER = 1 - (1 - MAP_OPACITY['Map/OverlayCard/Hintuan/surface-selected']) / (1 - HOTSPOT_OPACITY.hintuan)
+
+/** A hotspot's name sits in the middle of its box (the owner's frame, 3837:11308): the middle of its corners. */
+function boxMiddle(ring: Ring): LngLat {
+  const lngs = ring.map((p) => p[0])
+  const lats = ring.map((p) => p[1])
+  return [(Math.min(...lngs) + Math.max(...lngs)) / 2, (Math.min(...lats) + Math.max(...lats)) / 2]
+}
 /**
  * The place highlight, decided with the owner 2026-09-23: tap one box and
  * its siblings — the boxes sharing its informal name — draw stronger, and a
@@ -117,20 +155,22 @@ export function useSavedStopsLayers(
       },
       before,
     )
-    const colour = [
-      'match',
-      ['get', 'kind'],
-      'terminal',
-      HOTSPOT_COLOUR.terminal,
-      HOTSPOT_COLOUR.hintuan,
-    ] as const
+    // The owner's HotspotOverlayCard (3837:11308, 2026-09-30): the box's
+    // surface see-through, its edge and name in its content colour.
+    const byKind = (terminal: string | number, hintuan: string | number) =>
+      ['match', ['get', 'kind'], 'terminal', terminal, hintuan] as never
+    const colour = byKind(HOTSPOT_COLOUR.terminal, HOTSPOT_COLOUR.hintuan)
+    const content = byKind(HOTSPOT_CONTENT.terminal, HOTSPOT_CONTENT.hintuan)
+    for (const kind of ['terminal', 'hintuan'] as const) {
+      if (!map.hasImage(hatchOf(kind))) map.addImage(hatchOf(kind), hatch(HOTSPOT_CONTENT[kind]), { pixelRatio: 2 })
+    }
     map.addLayer(
       {
         id: FILL,
         type: 'fill',
         source: SRC,
         filter: ['==', ['geometry-type'], 'Polygon'],
-        paint: { 'fill-color': colour as never, 'fill-opacity': 0.22 },
+        paint: { 'fill-color': colour, 'fill-opacity': byKind(HOTSPOT_OPACITY.terminal, HOTSPOT_OPACITY.hintuan) },
       },
       before,
     )
@@ -141,8 +181,8 @@ export function useSavedStopsLayers(
         source: SRC,
         filter: ['==', ['geometry-type'], 'Polygon'],
         layout: { 'line-join': 'round' },
-        // The chosen box is outlined twice as thick.
-        paint: { 'line-color': colour as never, 'line-width': ['case', state('chosen'), 4, 2] as never },
+        // 0.6 as drawn, chosen or not: the stripes say which is chosen.
+        paint: { 'line-color': content, 'line-width': 0.6 },
       },
       before,
     )
@@ -156,19 +196,24 @@ export function useSavedStopsLayers(
         type: 'fill',
         source: SRC,
         filter: ['==', ['geometry-type'], 'Polygon'],
-        paint: { 'fill-color': colour as never, 'fill-opacity': ['case', state('sibling'), 0.4, 0] as never },
+        paint: { 'fill-color': colour, 'fill-opacity': ['case', state('sibling'), byKind(0.3, HINTUAN_STRONGER), 0] as never },
       },
       before,
     )
-    // The lit boxes: the one chosen, or everything under a tap while the sheet
-    // asks which. Same idea as the routes' lit pair, decided 2026-09-22.
+    // The lit boxes — the one chosen, or everything under a tap while the
+    // sheet asks which (the routes' lit pair's idea, 2026-09-22) — striped,
+    // their fill as it was: the owner's redrawn Selected variants
+    // (2026-09-30) keep the Rest surface under the stripes.
     map.addLayer(
       {
-        id: LIT,
+        id: HATCH,
         type: 'fill',
         source: SRC,
         filter: ['==', ['geometry-type'], 'Polygon'],
-        paint: { 'fill-color': colour as never, 'fill-opacity': ['case', state('lit'), 0.5, 0] as never },
+        paint: {
+          'fill-pattern': ['match', ['get', 'kind'], 'terminal', hatchOf('terminal'), hatchOf('hintuan')] as never,
+          'fill-opacity': ['case', state('lit'), 1, 0] as never,
+        },
       },
       before,
     )
@@ -185,17 +230,22 @@ export function useSavedStopsLayers(
         source: SRC,
         minzoom: NAMES_FROM,
         filter: labelsOf(kind),
+        // The same size at every zoom, as it was; 12, SemiBold as near as
+        // the map's fonts come, two lines over some 92 px as drawn, a white
+        // halo (Border/plain) round it.
         layout: {
           'text-field': ['get', 'name'],
-          'text-size': 11,
+          'text-size': 12,
           'text-font': ['Noto Sans Bold'],
           'text-anchor': 'center',
+          'text-justify': 'center',
+          'text-max-width': 8,
           'text-allow-overlap': false,
         },
         paint: {
-          'text-color': colour as never,
+          'text-color': content,
           'text-halo-color': MAP_PAINT['Paint/casing'],
-          'text-halo-width': 1.5,
+          'text-halo-width': 1,
         },
       })
     }
@@ -219,8 +269,12 @@ export function useSavedStopsLayers(
           properties: { id: s.id, kind: s.kind, name: s.name },
           geometry: s.area!,
         })),
-        // One label per hintuan: a box on each side of the road shares one (labelGroups).
-        ...labelGroups(withArea).map((g) => ({
+        // One label per hintuan: a box on each side of the road shares one
+        // (labelGroups), halfway between them; a box alone has its name in
+        // its middle (the owner's frame, 3837:11308, 2026-09-30).
+        ...labelGroups(
+          withArea.map((s) => ({ ...s, point: { type: 'Point' as const, coordinates: boxMiddle(stopRing(s)) } })),
+        ).map((g) => ({
           type: 'Feature' as const,
           properties: { id: g.ids[0], ids: g.ids.join(','), kind: g.kind, name: g.name },
           geometry: { type: 'Point' as const, coordinates: g.point },
@@ -264,6 +318,7 @@ export function useSavedStopsLayers(
     const hidden = hiddenStopId ?? ''
     map.setFilter(FILL, ['all', ['==', ['geometry-type'], 'Polygon'], ['!=', ['get', 'id'], hidden]])
     map.setFilter(OUTLINE, ['all', ['==', ['geometry-type'], 'Polygon'], ['!=', ['get', 'id'], hidden]])
+    map.setFilter(HATCH, ['all', ['==', ['geometry-type'], 'Polygon'], ['!=', ['get', 'id'], hidden]])
     map.setFilter(LABEL, labelsOf('terminal', hidden))
     map.setFilter(HINTUAN_LABEL, labelsOf('hintuan', hidden))
   }, [map, hiddenStopId])

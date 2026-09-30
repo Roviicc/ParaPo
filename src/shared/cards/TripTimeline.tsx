@@ -13,15 +13,21 @@ export type TripTimelineProps = {
   picked: string | null
   /** A hintuan's row was tapped: pick it, or, picked, let it go. */
   onPick: (id: string) => void
-  /** The picked hintuan's pill: the pesos from where the trip leaves to it, `₱18–20`. Omitted when unpriced, and the pill with it. */
-  pickedFare?: string
+  /**
+   * The pesos of the ride to the picked hintuan, for its pill: the fare the
+   * tile under the card shows, Regular or Discounted (the owner, 2026-09-30:
+   * "why it shows calculated fare instead of its real value?" — the pill
+   * said "Calculated Fare" for the day before). Omitted when unpriced, and
+   * no pill.
+   */
+  pickedPesos?: string
   /** The origin's row (`from`) or the destination's (`to`) was tapped: the whole ride again, and that end shown. */
   onEnd: (end: 'from' | 'to') => void
   /**
    * The origin (`from`) or the destination (`to`), picked from its row: its
-   * dot green, as a picked hintuan's; or null. One pick at a time: the
-   * caller keeps this and `picked` apart (useRideTo does), since both at
-   * once would draw two green dots.
+   * dot the Selected one, as a picked hintuan's; or null. One pick at a
+   * time: the caller keeps this and `picked` apart (useRideTo does), since
+   * both at once would draw two picked dots.
    */
   endPicked: 'from' | 'to' | null
   /** Figma's Route on TimelineBottomEndRoute: the place the trip goes to. */
@@ -56,19 +62,22 @@ export type TripTimelineProps = {
  * its own Card/<livery>/Timeline/surface.
  *
  * A hintuan's row picks it (his Timeline State=Selected, 3769:2847,
- * 2026-09-29): its dot turns green in a white ring, its name black-weight,
- * and a pill beside it gives the pesos from where the trip leaves to there,
+ * 2026-09-29): its dot turns to a white ring round a centre in the card's
+ * rail colour (green until 2026-09-30; TimelineDot), its name black-weight,
+ * and a pill beside it holds the pesos from where the trip leaves to there,
+ * the same the fare tile under the card shows, Regular or Discounted as it is
+ * turned (it said "Calculated Fare" for part of 2026-09-30),
  * while a circle like its dot pops up on the map where it is, the route
  * left whole (his ask of 2026-09-30, "now I don't want to cut the route";
  * until then the map drew the ride dark only that far). Tapping it again
- * lets it go; one at a time. The tiles keep the whole ride. Folded away, a picked
+ * lets it go, the fare tile the whole ride's again; one at a time. Folded away, a picked
  * row stays picked (the default he kept). The origin's and the
  * destination's rows are buttons too: a tap on either lets a hintuan go,
  * the ride whole again, and the map glides to that end, so a rider can look
  * along the route from end to end (his ask, 2026-09-29). Either end is
- * picked by its tap, its dot green, and let go by a second (his "green
- * circle too" for the destination and "it should have!" for the origin, the
- * same day); its name and the pesos stay as they are, the whole ride's being
+ * picked by its tap, its dot the Selected one, and let go by a second (his
+ * "green circle too" for the destination and "it should have!" for the
+ * origin, the same day); its name and the pesos stay as they are, the whole ride's being
  * the tile's.
  */
 export function TripTimeline({
@@ -77,7 +86,7 @@ export function TripTimeline({
   hintuans,
   picked,
   onPick,
-  pickedFare,
+  pickedPesos,
   onEnd,
   endPicked,
   routeDirection,
@@ -115,7 +124,7 @@ export function TripTimeline({
             label={h.label}
             shown={!folds || open}
             selected={h.id === picked}
-            fare={h.id === picked ? pickedFare : undefined}
+            pesos={h.id === picked ? pickedPesos : undefined}
             pill={TIMELINE_PILL[livery]}
             onPick={onPick}
           />
@@ -138,15 +147,18 @@ export function TripTimeline({
 /**
  * Figma's TimelineDot: Content/inverse ringed in the rail's colour. It sits
  * 2px into the rail after it, as the TimelineStick's -2px gap lays them.
- * Selected, the white grows and the ring thins to 2px round it, with a
- * Content/success centre: 24 across either way, so nothing moves. The
- * public map's picked hintuan wears the Selected one too (HintuanPin).
+ * Selected, the white grows and the ring thins to 2px round it, with a 12px
+ * centre in the rail's colour again — the card's own, where it was
+ * Content/success green until the owner's redrawing of 2026-09-30
+ * (3778:3183: "the selected part is no longer green", the pick "based on
+ * the surface"): 24 across either way, so nothing moves. The public map's
+ * picked hintuan wears the Selected one too (HintuanPin).
  */
 export function TimelineDot({ rail, selected = false }: { rail: string; selected?: boolean }) {
   return selected ? (
     <span className={'-mb-0.5 flex shrink-0 rounded-full p-0.5 ' + rail}>
       <span className="grid size-5 place-items-center rounded-full bg-content-inverse">
-        <span className="size-3.5 rounded-full bg-content-success" />
+        <span className={'size-3 rounded-full ' + rail} />
       </span>
     </span>
   ) : (
@@ -205,7 +217,7 @@ const ROW_FOLDED = 'invisible grid-rows-[0fr] duration-base ease-exit'
 /**
  * Figma's TimelineHintuan: a hintuan on the way, its dot on the rail; the
  * whole row is its button. Selected (State=Selected), its name is Black and
- * the pill with its pesos sits 8 after it, 16 in from the card's edge.
+ * the pill of its pesos sits 8 after it, 16 in from the card's edge.
  */
 function TimelineHintuan({
   id,
@@ -213,7 +225,7 @@ function TimelineHintuan({
   label,
   shown,
   selected,
-  fare,
+  pesos,
   pill,
   onPick,
 }: {
@@ -222,7 +234,8 @@ function TimelineHintuan({
   label: string
   shown: boolean
   selected: boolean
-  fare: string | undefined
+  /** The ride's pesos to here, for the pill; picked and priced only. */
+  pesos?: string
   /** TIMELINE_PILL's classes for the card's livery. */
   pill: string
   onPick: (id: string) => void
@@ -253,12 +266,12 @@ function TimelineHintuan({
           </span>
           <span className="flex min-w-0 flex-1 items-center gap-2 py-2.5 pl-3">
             <span className={'min-w-0 flex-1 text-base/6 ' + (selected ? 'font-black' : 'font-medium')}>{label}</span>
-            {fare && (
+            {pesos && (
               <span
                 data-testid="trip-hintuan-fare"
                 className={'shrink-0 rounded-full px-1.5 py-0.5 text-sm/5 font-medium whitespace-nowrap ' + pill}
               >
-                {fare}
+                {pesos}
               </span>
             )}
           </span>
@@ -337,7 +350,8 @@ function TimelineBottomEndRoute({
           <span aria-hidden className="shrink-0 p-1 *:size-5">
             <CircleArrowRightIcon />
           </span>
-          <span className="min-w-0 flex-1 text-xl/7 font-medium">{routeDirection}</span>
+          {/* Bold, Figma's text-xl/bold (the owner, 2026-09-30: "bold"). */}
+          <span className="min-w-0 flex-1 text-xl/7 font-bold">{routeDirection}</span>
         </span>
       </button>
     </li>

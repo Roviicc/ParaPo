@@ -25,15 +25,15 @@ export function useStopTaps<S extends StopSummary>(
     if (!map || !map.getLayer(FILL)) return
     const canvas = map.getCanvas()
 
-    // A route line crossing a hotspot is drawn above it and takes the click.
+    // Over a route line, the pointer is the line's (the routes hook sets it).
     const routeUnder = (e: MapMouseEvent) =>
       map.getLayer(ROUTES_HIT) &&
       map.queryRenderedFeatures(e.point, { layers: [ROUTES_HIT] }).length > 0
 
     // One handler, one box, sized for the finger: nothing deselects, one
-    // hotspot alone opens its card, several things — hotspots, routes or
-    // both — light up and go to the sheet. The routes hook reads the same
-    // tap and keeps its own half.
+    // hotspot opens its card, several side by side go to the sheet. A tap
+    // inside a box is the hotspot's alone, a route through it or not
+    // (tapTargets); the routes hook reads the same tap and keeps its half.
     const onMapClick = (e: MapMouseEvent) => {
       if (read.drawing.current) return
       const out = resolveTap(tapTargets(map, e.point, e.originalEvent))

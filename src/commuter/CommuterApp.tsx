@@ -1,12 +1,13 @@
 import { useMemo, useRef, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
-import { HotspotCard } from '../shared/cards/HotspotCard'
+import { HintuanCard } from '../shared/cards/HintuanCard'
+import { placeKey } from '../shared/model/places'
 import { MAP_FILE_TOO_NEW, loadLine, loadStopsFromFile, loadVariantsFromFile } from './mapFile'
 import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
 import { METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
 import type { Livery } from '../shared/model/liveries'
 import { RouteCardList } from '../shared/cards/RouteCardList'
-import { clearOfDock } from '../shared/cards/BottomSheet'
+import { clearOfDock, makeRoom } from '../shared/cards/BottomSheet'
 import type { Snap } from '../shared/cards/sheetGesture'
 import { useRideTo } from '../shared/map/rideTo'
 import { directionEnds, isDrawn } from '../shared/model/routes'
@@ -20,6 +21,7 @@ import { useSavedRoutes } from '../shared/map/useSavedRoutes'
 import { LIT_LINE, LIVERY_LINE } from '../shared/map/liveryLine'
 import { useSavedStops } from '../shared/map/useSavedStops'
 import { HintuanPin } from '../shared/map/HintuanPin'
+import { EndTitles } from '../shared/map/EndTitles'
 import { Notices } from './Notices'
 import { TripCard, useTripLivery } from '../shared/cards/TripCard'
 import { useMapAge, useOffline } from './status'
@@ -64,13 +66,18 @@ export default function CommuterApp() {
   useDirectionArrows(map, rides)
   // The chosen direction's side of each hintuan it cuts across: its right.
   useBabaanSides(map, saved.selected, stops.stops)
+  // One height for the sheets that stand in for one another (below).
+  const [snap, setSnap] = useState<Snap>('middle')
   // A hintuan picked on the trip card (the owner's Timeline State=Selected,
   // 2026-09-29): the camera gliding there clear of the card, and a circle
   // popping up on it — the route left whole, no get-off circles (the
-  // owner's ask of 2026-09-30: "now I don't want to cut the route").
+  // owner's ask of 2026-09-30: "now I don't want to cut the route"). At
+  // Max, the card comes down to Middle as the camera glides (makeRoom).
   const tripDock = useRef<HTMLDivElement>(null)
+  // The HintuanCard's, for a picked box to land clear of it.
+  const hotspotDock = useRef<HTMLDivElement>(null)
   const ride = useRideTo(map, saved.selected, stops.stops, {
-    offset: () => (map ? clearOfDock(map.getContainer(), tripDock.current) : [0, 0]),
+    onGlide: () => (map ? makeRoom(map.getContainer(), tripDock.current, { snap, onSnap: setSnap }) : [0, 0]),
   })
 
   useShareLink(map, saved)
@@ -133,7 +140,6 @@ export default function CommuterApp() {
   // "if RouteDetail was in medium, if they go back, the RouteCard is in
   // medium too"). With nothing open it goes back to Middle, where every
   // sheet opens.
-  const [snap, setSnap] = useState<Snap>('middle')
   const anyOpen = !!saved.selected || !!stops.selected || choosing
   if (!anyOpen && snap !== 'middle') setSnap('middle')
   const height = { snap, onSnap: setSnap }
@@ -161,9 +167,11 @@ export default function CommuterApp() {
       <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} />
       {map && <WhereAmIButton where={where} coarse={coarse} />}
       {map && where.fix && <Walker map={map} fix={where.fix} pose={where.pose} facing={where.facing} />}
+      {/* Each lit ride's ends, named over their circles. */}
+      {map && <EndTitles map={map} rides={rides} look={look} />}
       {/* Keyed on the pick: another hintuan pops a fresh circle. */}
       {map && ride.pinAt && tripLivery && (
-        <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} livery={tripLivery} />
+        <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} label={ride.pickedLabel} livery={tripLivery} />
       )}
 
       {/*
@@ -212,17 +220,18 @@ export default function CommuterApp() {
       )}
 
       {/*
-        A hotspot's card: its routes are the owner's RouteCards (2026-09-29),
-        and it stays behind the trip picked from them, hidden, for the trip's
-        ‹. The rest of it waits for his hintuan design. It is `card` to the
-        suites too, and comes after the trip here on purpose: their first
-        `card` is then the trip while this one hides behind it.
+        A hotspot's card: the owner's HintuanCard (3854:12690, 2026-09-30),
+        its place and every box of it, the routes stopping at the Selected
+        one as his RouteCards; it stays behind the trip picked from them,
+        hidden, for the trip's ‹. It is `card` to the suites too, and comes
+        after the trip here on purpose: their first `card` is then the trip
+        while this one hides behind it.
       */}
       {stops.selected && (
-        // Keyed by the hotspot: "Part of …" → a sibling once reused this card
-        // as it was, flipped and pulled up.
-        <HotspotCard
-          key={stops.selected.id}
+        // Keyed by the place: another of its boxes — a row, or SWITCH moving
+        // to it — keeps the card as it is, its way round with it.
+        <HintuanCard
+          key={placeKey(stops.selected)}
           routeCards={{
             selected: saved.highlight?.where === 'hotspot' ? saved.highlight.from : null,
             onSelect: (p) => saved.highlightCard(p && { where: 'hotspot', ...p }),
@@ -230,17 +239,21 @@ export default function CommuterApp() {
           }}
           hidden={!!saved.selected}
           height={height}
+          dockRef={hotspotDock}
           stop={stops.selected}
-          linkedVariantIds={stops.linkedVariantIds(stops.selected.id)}
+          stops={stops.stops}
+          linkedVariantIds={stops.linkedVariantIds}
           variants={saved.variants}
           onSelectVariant={(v, livery) => {
             setWorn(livery ? { id: v.id, livery } : null)
             saved.select(v.id, { keepList: true })
           }}
-          stops={stops.stops}
-          onPickSibling={(id) => {
+          // Another box: the card comes down to Middle as the map goes
+          // there, the box clear of it (the owner, 2026-09-30).
+          onPickBox={(id) => {
             saved.highlightCard(null)
-            stops.show(id)
+            setSnap('middle')
+            stops.show(id, () => (map ? clearOfDock(map.getContainer(), hotspotDock.current, 'middle') : [0, 0]))
           }}
           onClose={() => {
             saved.highlightCard(null)

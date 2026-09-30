@@ -513,13 +513,13 @@ const tripChecks = async () => {
     const rowId = await row.getAttribute('data-hintuan')
     const pickWant = await page.evaluate(async ([id, rowId]) => {
       try {
-        const [{ rideFare }, { rideCut }] = await Promise.all([import('/src/shared/model/fares.ts'), import('/src/shared/model/ride.ts')])
+        const [{ rideFare }, { rideCut }, { kmLabel }] = await Promise.all([import('/src/shared/model/fares.ts'), import('/src/shared/model/ride.ts'), import('/src/shared/geo/geo.ts')])
         const { loadMapFile, loadLine } = await import('/src/commuter/mapFile.ts')
         const m = await loadMapFile()
         const found = m.variants.find((x) => x.id === id)
         const v = found && { ...found, shape: (await loadLine(id)) ?? found.shape }
         const cut = v && rideCut(v, m.stops, rowId)
-        return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, at: cut.at } : null
+        return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, km: kmLabel(cut.metres), at: cut.at } : null
       } catch {
         return null
       }
@@ -537,8 +537,12 @@ const tripChecks = async () => {
     )
     const pill = row.locator('[data-testid="trip-hintuan-fare"]')
     const pillText = (await pill.count()) ? (await pill.first().innerText()).trim() : null
-    if (!pickWant) skip('  its pill: the pesos from where the trip leaves to there', 'the sums cannot be read from this server')
-    else check('  its pill: the pesos from where the trip leaves to there', pillText === pickWant.fare, `"${pillText}", the sums "${pickWant.fare}"`)
+    // The pill and the fare tile both hold the pesos to there (the owner,
+    // 2026-09-30: the pill's "Calculated Fare" gave way to its value).
+    const pickedTile = await tile('trip-fare')
+    if (!pickWant) skip('  its pill and the fare tile the pesos from where the trip leaves to there', 'the sums cannot be read from this server')
+    else if (pickWant.fare == null) skip('  its pill and the fare tile the pesos from where the trip leaves to there', 'an unpriced route shows no pill')
+    else check('  its pill and the fare tile the pesos from where the trip leaves to there', pillText === pickWant.fare && pickedTile === pickWant.fare, `pill "${pillText}"; tile "${pickedTile}", the sums "${pickWant.fare}"`)
     const colours = await page.evaluate(() => {
       const pill = document.querySelector('[data-testid="trip-hintuan-fare"]')
       const trip = document.querySelector('[data-testid="trip"]')
@@ -548,7 +552,10 @@ const tripChecks = async () => {
     })
     if (pickWant && pickWant.fare == null) skip("  in the card's own colours, swapped", 'an unpriced route shows no pill')
     else check("  in the card's own colours, swapped", !!colours?.swapped, colours?.detail ?? 'no pill')
-    check('  the tiles keep the whole ride', (await tile('trip-km')) === km && (await tile('trip-fare')) === fare)
+    // The Kilometer tile follows the pick too (the owner, 2026-09-30).
+    const pickedKm = await tile('trip-km')
+    if (!pickWant) skip('  the Kilometer tile the ride from where the trip leaves to there', 'the sums cannot be read from this server')
+    else check('  the Kilometer tile the ride from where the trip leaves to there', pickedKm === pickWant.km, `"${pickedKm}", the sums "${pickWant.km}"`)
     // The glide starts after the card has drawn the pick: let it start, then end.
     await page.waitForTimeout(200)
     await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
@@ -591,6 +598,30 @@ const tripChecks = async () => {
       `${drawn.pins} circle(s), ${drawn.off === null ? 'not measured' : Math.round(drawn.off) + ' px'} off the hintuan; ${drawn.livery} ring ${drawn.ring}, the rail ${drawn.rail}; pointer-events ${drawn.taps}`,
     )
     check('  no get-off circles on the public map', drawn.dots === 0, `${drawn.dots}`)
+    // Beside the circle, the hintuan's name in the trip card's colours
+    // (SelectedHintuanRouteTitle, Figma 3847:11777): 10px right of it and
+    // centred on it.
+    const rowName = (await pickButton.evaluate((b) => b.lastElementChild.firstElementChild.textContent)).trim()
+    const title = await page.evaluate(() => {
+      const t = document.querySelector('[data-testid="hintuan-pin-title"]')
+      const pin = document.querySelector('[data-testid="hintuan-pin"]')
+      const trip = document.querySelector('[data-testid="trip"]')
+      if (!t || !pin || !trip) return null
+      const [a, b] = [t.getBoundingClientRect(), pin.getBoundingClientRect()]
+      const [ts, cs] = [getComputedStyle(t), getComputedStyle(trip)]
+      return {
+        text: t.textContent.trim(),
+        colours: ts.backgroundColor === cs.backgroundColor && ts.color === cs.color,
+        detail: `${ts.color} on ${ts.backgroundColor}; the card ${cs.color} on ${cs.backgroundColor}`,
+        gap: a.left - b.right,
+        drop: a.top + a.height / 2 - (b.top + b.height / 2),
+      }
+    })
+    check(
+      "  its name beside the circle, in the trip card's colours",
+      !!title && title.text === rowName && title.colours && Math.abs(title.gap - 10) < 1.5 && Math.abs(title.drop) < 1.5,
+      title ? `"${title.text}" for "${rowName}"; ${title.detail}; ${title.gap.toFixed(1)} px right, ${title.drop.toFixed(1)} px low` : 'no title',
+    )
     if (pickWant) {
       const where = await page.evaluate((at) => {
         const m = window.__map
@@ -612,13 +643,43 @@ const tripChecks = async () => {
       lit: (await window.__lit('saved-routes')) ?? [],
     }))
     check(
-      '  a second tap lets it go: no pill, no circle, the trip still lit',
-      !(await isPicked()) && (await pill.count()) === 0 && letGo.pins === 0 && letGo.lit.length === 1,
-      `${letGo.pins} circle(s), ${letGo.lit.length} lit`,
+      '  a second tap lets it go: no pill, no circle, the trip still lit, both tiles the whole ride again',
+      !(await isPicked()) && (await pill.count()) === 0 && letGo.pins === 0 && letGo.lit.length === 1 && (await tile('trip-fare')) === fare && (await tile('trip-km')) === km,
+      `${letGo.pins} circle(s), ${letGo.lit.length} lit; tiles "${await tile('trip-km')}", "${await tile('trip-fare')}", the whole "${km}", "${fare}"`,
     )
+    // At Max the card covers the map, and the glide would go on out of
+    // sight: a hintuan picked there brings the card down to Middle as the
+    // camera glides (the owner's ask, 2026-09-30), the hintuan landing above
+    // where the card stops, not where it started. Let go again after, for
+    // the ends below.
+    await buttonTap(handle(), async () => (await sheetState()) === 'max')
+    if ((await sheetState()) !== 'max') {
+      skip('  picked at Max, the card comes down to Middle as the camera glides there', `the card would not rise to Max: data-snap=${await sheetState()}`)
+    } else {
+      await pickButton.scrollIntoViewIfNeeded()
+      await buttonTap(pickButton, isPicked)
+      await page.waitForTimeout(200)
+      await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+      const lowered = await sheetState()
+      const spot = pickWant
+        ? await page.evaluate((at) => {
+            const m = window.__map
+            const c = m.getCanvas().getBoundingClientRect()
+            const q = m.project(at)
+            return { y: c.top + q.y, top: c.top, cardTop: document.querySelector('[data-testid="card"]').getBoundingClientRect().top }
+          }, pickWant.at)
+        : null
+      check(
+        '  picked at Max, the card comes down to Middle as the camera glides there, the hintuan above it',
+        (await isPicked()) && lowered === 'middle' && (!spot || (spot.y > spot.top + 16 && spot.y < spot.cardTop - 16)),
+        `data-snap=${lowered}; ${spot ? `the hintuan at ${Math.round(spot.y)}, the map ${Math.round(spot.top)}–${Math.round(spot.cardTop)} above the card` : 'not measured'}`,
+      )
+      await pickButton.scrollIntoViewIfNeeded()
+      await buttonTap(pickButton, async () => !(await isPicked()))
+    }
     // The ends are buttons too (the owner's asks, 2026-09-29): with a
     // hintuan picked, a tap on where the trip goes, then on where it leaves
-    // from, picks that end in its place, its dot green — the hintuan's
+    // from, picks that end in its place, its dot the Selected one — the hintuan's
     // circle gone, the trip still lit — and glides the map to that end of the
     // line, above the card. Picking the hintuan again lets the end go.
     const ends = await page.evaluate(async (id) => {
@@ -902,6 +963,40 @@ if (routeA) {
     twoLooks(looks, LOOKS?.byLivery[openColour]?.line ?? MAP?.['Map/RouteLine/surface-selected']),
     `${openColour}: ${JSON.stringify(looks)}`,
   )
+  // Each end named in a pill over its circle, its pointer at the circle, in
+  // the line's colour (End&TailRoute, Figma 3848:12135).
+  const ends = await page.evaluate(async () => {
+    const m = window.__map
+    const named = ((await window.__src('direction-ends'))?.features ?? []).filter((f) => f.properties.named)
+    const pills = [...document.querySelectorAll('[data-testid="end-title"]')]
+    const ring = m.getPaintProperty('direction-end-circles', 'circle-stroke-color')
+    const probe = document.createElement('i')
+    probe.style.color = ring
+    document.body.append(probe)
+    const ringRgb = getComputedStyle(probe).color
+    probe.remove()
+    const c = m.getCanvas().getBoundingClientRect()
+    const rows = named.map((f) => {
+      const pill = pills.find((p) => p.dataset.name === f.properties.name)
+      if (!pill) return { name: f.properties.name, missing: true }
+      const box = pill.firstElementChild.getBoundingClientRect()
+      const q = m.project(f.geometry.coordinates)
+      return {
+        name: f.properties.name,
+        colour: getComputedStyle(pill.firstElementChild).backgroundColor === ringRgb,
+        across: box.left + box.width / 2 - (c.left + q.x),
+        above: c.top + q.y - box.bottom,
+      }
+    })
+    return { named: named.length, pills: pills.length, rows }
+  })
+  check(
+    "  each end named once, in a pill over its circle in the line's colour",
+    ends.named > 0 &&
+      ends.pills === ends.named &&
+      ends.rows.every((r) => !r.missing && r.colour && Math.abs(r.across) < 1.5 && r.above > 14 && r.above < 40),
+    JSON.stringify(ends),
+  )
 
   const trip2 = await tripChecks()
 
@@ -1115,12 +1210,19 @@ const Z_HOT = 18
 const M_HOT = M_PER_PX / 2 ** (Z_HOT - ZOOM)
 const UNDER_M = 9 * M_HOT + 3 * M_HOT
 const NEAR_M = 20 * M_HOT + 9 * M_HOT
-const badgeOf = (poly) => (poly.kind === 'terminal' ? 'Terminal · routes start here' : 'Hintuan · wait and board here')
+/**
+ * The box whose row the HintuanCard has Selected, pressed in (the owner's
+ * 3854:12690, 2026-09-30): the one tapped. Its kind shows as the row's
+ * colour and letter, where a badge said it before.
+ */
+const pressedBox = () =>
+  page.evaluate(() => document.querySelector('[data-testid="card"] [data-testid="card-box"][aria-current="true"]')?.dataset.box ?? null)
 
-// 4a. Inside a hotspot, on a pixel no route covers. The normal case for a
-// terminal is that its own route runs through it, so this is the tap the
-// list's hotspot rows are for: the hotspot on top, its routes' cards under
-// it (the owner, 2026-09-29; the Chooser asked here before).
+// 4a. Inside a hotspot, on a pixel no route covers, with a route or not in
+// the finger's reach: the box's card opens straight away, alone — one tap,
+// one kind of thing (the owner's ask, 2026-09-30: "select hintuan only show
+// the card, then select route show the route"). Until then a route in reach
+// made it a list, the hotspot first.
 let inside = null
 for (const poly of snapshot.polys) {
   const c = centroidOf(poly.ring)
@@ -1139,39 +1241,48 @@ for (const poly of snapshot.polys) {
 }
 
 if (!inside) {
-  skip('a tap inside a hotspot opens it, or a chooser when its route is near', snapshot.polys.length ? `no point inside a hotspot today is ${Math.round(UNDER_M)} m clear of every route line` : 'no hotspots on the map today')
+  skip('a tap inside a hotspot opens its card alone', snapshot.polys.length ? `no point inside a hotspot today is ${Math.round(UNDER_M)} m clear of every route line` : 'no hotspots on the map today')
 } else {
   const { poly, point, routesInBox } = inside
   await jumpTo(page, point, Z_HOT)
   const anchor = await project(page, point)
   const box = await canvasBox()
-  const drawn = await drawnAt('saved-stops-fill', anchor)
   await mapTap(box.x + anchor[0], box.y + anchor[1])
   await page.waitForTimeout(600)
   const chooser = page.locator('[data-testid="chooser"]')
-  if (routesInBox.length > 0) {
-    const cText = (await chooser.count()) ? await chooser.first().innerText() : ''
-    const firstRow = (await chooser.count()) ? await chooser.locator('button[data-testid="chooser-item"]').first().innerText() : ''
-    const cards = (await chooser.count()) ? await chooser.locator('[data-testid="chooser-origin"]').count() : 0
-    check(
-      `a tap inside "${poly.name}" beside its route offers both, the hotspot first`,
-      firstRow.includes(poly.name) && cards > 0 && cText.split('\n').includes(`${cards} ${cards === 1 ? 'Route' : 'Routes'}`),
-      cText
-        ? `${cText.split('\n')[0]}; first row "${firstRow.split('\n')[0]}", ${cards} card(s)`
-        : `no list; card "${(await cardText()).split('\n')[0] ?? ''}"; the box drawn under the tap: ${drawn === 1 ? 'yes' : drawn}`,
-    )
-    const row = chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: poly.name })
-    await buttonTap(row, async () => (await chooser.count()) === 0)
-    const text = await cardText()
-    check(
-      `  choosing "${poly.name}" opens its card, with its badge`,
-      text.includes(poly.name) && text.includes(badgeOf(poly)) && (await chooser.count()) === 0,
-      text.split('\n')[0] || `(no card; chooser count ${await chooser.count()})`,
-    )
+  const text = await cardText()
+  check(
+    `a tap inside "${poly.name}" opens its card alone${routesInBox.length ? `, its route in reach not listed` : ''}`,
+    text.includes(poly.name) && (await pressedBox()) === poly.id && (await chooser.count()) === 0,
+    `${text.split('\n')[0] || '(no card)'}; ${await chooser.count()} list(s); ${routesInBox.length} route(s) in reach`,
+  )
+  check(`  no chooser for one thing`, (await chooser.count()) === 0)
+  // Another box of its place, from its row: that row Selected, the card
+  // down to Middle from Max, and the map gone there, the box clear of the
+  // card (the owner's HintuanCard, 2026-09-30).
+  const otherRow = card().first().locator(`[data-testid="card-box"]:not([data-box="${poly.id}"])`)
+  const otherId = (await otherRow.count()) ? await otherRow.first().getAttribute('data-box') : null
+  const otherPoly = otherId && snapshot.polys.find((o) => o.id === otherId)
+  if (!otherPoly) {
+    skip('  another box from its row: Selected, the card at Middle, the map there', `"${poly.name}" is its place's only box`)
   } else {
-    const text = await cardText()
-    check(`a tap inside "${poly.name}", no route near, opens it directly`, text.includes(poly.name) && text.includes(badgeOf(poly)) && (await chooser.count()) === 0, text.split('\n')[0] ?? '(no card)')
-    check(`  no chooser for one thing`, (await chooser.count()) === 0)
+    await buttonTap(handle(), async () => (await sheetState()) === 'max')
+    const from = await sheetState()
+    await buttonTap(otherRow.first(), async () => (await pressedBox()) === otherId)
+    await page.waitForTimeout(200)
+    await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 4000 }).catch(() => {})
+    const at = await project(page, centroidOf(otherPoly.ring))
+    const edges = await page.evaluate(() => {
+      const c = window.__map.getCanvas().getBoundingClientRect()
+      const d = document.querySelector('[data-testid="card"]').getBoundingClientRect()
+      return { top: c.top, cardTop: d.top }
+    })
+    const y = edges.top + at[1]
+    check(
+      '  another box from its row: Selected, the card down to Middle, the map there above it',
+      (await pressedBox()) === otherId && (await sheetState()) === 'middle' && y > edges.top && y < edges.cardTop,
+      `from ${from}: ${await pressedBox()} pressed (want ${otherId}), data-snap=${await sheetState()}; the box at ${Math.round(y)}, the card from ${Math.round(edges.cardTop)}`,
+    )
   }
   await closeCard()
 }
@@ -1217,7 +1328,7 @@ if (snapshot.polys.length === 0) {
     text.includes(poly.name),
     `${text.split('\n')[0] || '(no card)'}; the box drawn at its centre: ${drawn === 1 ? 'yes' : drawn}`,
   )
-  check(`  the card shows its "${badgeOf(poly).split(' ·')[0]}" badge`, text.includes(badgeOf(poly)))
+  check(`  the card has its row Selected`, (await pressedBox()) === poly.id, `${await pressedBox()}`)
   await closeCard()
 }
 

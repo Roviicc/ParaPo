@@ -91,6 +91,7 @@ function TokensPage() {
         <Swatch box="border-3 border-border-secondary bg-surface" token="Border/secondary" cls="border-border-secondary" />
         <Swatch box="border-3 border-border-tertiary bg-surface" token="Border/tertiary" cls="border-border-tertiary" />
         <Swatch box="border-3 border-border-error bg-surface" token="Border/error" cls="border-border-error" />
+        <Swatch box="border-3 border-border-plain bg-surface-quaternary" token="Border/plain" cls="border-border-plain" />
       </Group>
 
       <Group title="Background">
@@ -108,14 +109,14 @@ function TokensPage() {
         <Swatch box="bg-card-red-timeline-surface" token="Card/red/Timeline" cls="bg-card-red-timeline-surface" />
         <Swatch box="bg-card-orange-surface border-3 border-card-orange-border-primary" token="Card/orange" cls="bg-card-orange-surface" />
         <Swatch box="bg-card-orange-timeline-surface" token="Card/orange/Timeline" cls="bg-card-orange-timeline-surface" />
-        <Swatch box="bg-card-mist-surface border-3 border-card-mist-border-primary" token="Card/mist" cls="bg-card-mist-surface" />
-        <Swatch box="bg-card-mist-timeline-surface" token="Card/mist/Timeline" cls="bg-card-mist-timeline-surface" />
         <Swatch box="bg-card-yellow-surface border-3 border-card-yellow-border-primary" token="Card/yellow" cls="bg-card-yellow-surface" />
         <Swatch box="bg-card-yellow-timeline-surface" token="Card/yellow/Timeline" cls="bg-card-yellow-timeline-surface" />
         <Swatch box="bg-card-violet-surface border-3 border-card-violet-border-primary" token="Card/violet" cls="bg-card-violet-surface" />
         <Swatch box="bg-card-violet-timeline-surface" token="Card/violet/Timeline" cls="bg-card-violet-timeline-surface" />
         <Swatch box="bg-card-rose-surface border-3 border-card-rose-border-primary" token="Card/rose" cls="bg-card-rose-surface" />
         <Swatch box="bg-card-rose-timeline-surface" token="Card/rose/Timeline" cls="bg-card-rose-timeline-surface" />
+        <Swatch box="bg-card-fuchsia-surface border-3 border-card-fuchsia-border-primary" token="Card/fuchsia" cls="bg-card-fuchsia-surface" />
+        <Swatch box="bg-card-fuchsia-timeline-surface" token="Card/fuchsia/Timeline" cls="bg-card-fuchsia-timeline-surface" />
       </Group>
 
       <Group title="Error actions">
@@ -138,7 +139,14 @@ function TokensPage() {
         <Swatch box="bg-map-route-line-surface-selected" token="Map/RouteLine/surface-selected" cls="bg-map-route-line-surface-selected" />
         <Swatch box="bg-map-route-line-arrow-rest" token="Map/RouteLine/Arrow/Rest" cls="bg-map-route-line-arrow-rest" />
         <Swatch box="bg-map-route-line-arrow-inverse" token="Map/RouteLine/Arrow/Inverse" cls="bg-map-route-line-arrow-inverse" />
-        <Swatch box="bg-map-hintuan-surface" token="Map/Hintuan/surface" cls="bg-map-hintuan-surface" />
+        <Swatch box="bg-map-route-line-hintuan-surface-default" token="Map/RouteLine/Hintuan/surface-default" cls="bg-map-route-line-hintuan-surface-default" />
+        <Swatch box="bg-map-overlay-card-hintuan-surface/30 border-3 border-map-overlay-card-hintuan-content" token="Map/OverlayCard/Hintuan (30%)" cls="bg-map-overlay-card-hintuan-surface" />
+        <Swatch box="bg-map-overlay-card-hintuan-surface-selected/60" token="…/Hintuan/surface-selected (60%)" cls="bg-map-overlay-card-hintuan-surface-selected" />
+        <Swatch box="bg-map-overlay-card-hintuan-content" token="…/Hintuan/content" cls="bg-map-overlay-card-hintuan-content" />
+        <Swatch box="bg-map-overlay-card-terminal-surface/25 border-3 border-map-overlay-card-terminal-border" token="Map/OverlayCard/Terminal (25%)" cls="bg-map-overlay-card-terminal-surface" />
+        <Swatch box="bg-map-overlay-card-terminal-content" token="…/Terminal/content" cls="bg-map-overlay-card-terminal-content" />
+        <Swatch box="bg-map-hotspots-card-hintuan-surface border-3 border-map-hotspots-card-hintuan-border-primary" token="Map/HotspotsCard/Hintuan" cls="bg-map-hotspots-card-hintuan-surface" />
+        <Swatch box="bg-map-hotspots-card-terminal-surface border-3 border-map-hotspots-card-terminal-border-primary" token="Map/HotspotsCard/Terminal" cls="bg-map-hotspots-card-terminal-surface" />
       </Group>
 
       <Group title="Motion — hover a row to play it">
@@ -151,6 +159,7 @@ function TokensPage() {
           <MotionRow token="duration/quick · 150ms" cls="duration-quick" dot="duration-quick ease-enter" />
           <MotionRow token="duration/base · 200ms" cls="duration-base" dot="duration-base ease-enter" />
           <MotionRow token="duration/gentle · 300ms" cls="duration-gentle" dot="duration-gentle ease-enter" />
+          <MotionRow token="duration/turn · 500ms" cls="duration-turn" dot="duration-turn ease-enter" />
           <MotionRow token="duration/slow · 450ms" cls="duration-slow" dot="duration-slow ease-enter" />
           <MotionRow token="delay/tooltip · 800ms" cls="delay-tooltip" dot="delay-tooltip duration-base ease-enter" />
         </div>
@@ -167,7 +176,8 @@ function TokensPage() {
         <Swatch box="bg-card-red-surface shadow-route-card-primary" token="Route/RouteCardPrimary" cls="shadow-route-card-primary" />
         <Swatch box="bg-surface shadow-route-card-inverse" token="Route/RouteCardInverse" cls="shadow-route-card-inverse" />
         <Swatch box="bg-card-red-surface shadow-route-card-primary-selected" token="Route/RouteCardPrimarySelected" cls="shadow-route-card-primary-selected" />
-        <Swatch box="bg-card-mist-surface shadow-route-card-inverse-selected" token="Route/RouteCardInverseSelected" cls="shadow-route-card-inverse-selected" />
+        <Swatch box="bg-card-yellow-surface shadow-route-card-inverse-selected" token="Route/RouteCardInverseSelected" cls="shadow-route-card-inverse-selected" />
+        <Swatch box="rounded-full bg-card-red-surface shadow-selected-hintuan-route-title" token="Map/SelectedHintuanRouteTitle" cls="shadow-selected-hintuan-route-title" />
       </Group>
 
       <Group title="Type — the two families">

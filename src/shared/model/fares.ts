@@ -80,23 +80,38 @@ export function peso(centavos: number): string {
   return centavos % 100 === 0 ? `₱${centavos / 100}` : `₱${(centavos / 100).toFixed(2)}`
 }
 
-/** `₱26` or `₱26–28`. */
+/**
+ * `₱26` or `₱26–28`, in whole pesos: the low end rounded down, the high end
+ * up, so the range still holds the fare — a discounted ₱19.25–20.75 is
+ * `₱19–21` (the owner, 2026-09-30: "please don't ever use decimals").
+ */
 export function pesoRange(low: number, high: number): string {
-  return low === high ? peso(low) : `${peso(low)}–${peso(high).slice(1)}`
+  const lo = Math.floor(low / 100)
+  const hi = Math.ceil(high / 100)
+  return lo === hi ? `₱${lo}` : `₱${lo}–${hi}`
 }
 
 /**
- * One ride of `metres` by `mode`, as the cards write pesos — `₱14`, `₱24–26`
- * — or nothing when no fare rule prices the mode: the trip card's Expected
+ * One ride of `metres` by `mode`, as the cards write pesos — `₱14`,
+ * `₱24–26` — or nothing when no fare rule prices the mode. A range, the part
+ * km counted down and up (fareFor), in whole pesos (pesoRange): the owner
+ * had it rounded to one figure on 2026-09-30, then asked for the range back
+ * the same day ("don't remove the range of fare, it helps the user"), on
+ * the discounted fare too. The trip card's Expected
  * fare, over its whole ride (the owner's 3778:3183, 2026-09-29). The only
  * pesos on the public map since his RouteCard State set took them off the
  * cards (wholeRideFare, their range over a place's ways out, went with
  * them); the studio keeps its own fare details, under the trip card (RouteFacts).
  */
-export function rideFare(mode: TransportMode | undefined, metres: number, date = manilaDate()): string | undefined {
+export function rideFare(
+  mode: TransportMode | undefined,
+  metres: number,
+  date = manilaDate(),
+  kind: 'regular' | 'discounted' = 'regular',
+): string | undefined {
   const today = ruleOn(date)
   if (!today || !hasFareRule(mode)) return undefined
   const { low, high } = fareFor(metres, today.rule)
-  return pesoRange(low.regular, high.regular)
+  return pesoRange(low[kind], high[kind])
 }
 

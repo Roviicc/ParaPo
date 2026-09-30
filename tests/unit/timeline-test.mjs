@@ -6,7 +6,7 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/timeline-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { SAME_HINTUAN_M, labelGroups, placeSummary } from '../../src/shared/model/places.ts'
+import { SAME_HINTUAN_M, labelGroups, placeBoxes, placeSummary } from '../../src/shared/model/places.ts'
 import { drawnFromTheEnd, timelineFor, hintuansAlong } from '../../src/shared/model/timeline.ts'
 import { variantLine } from '../../src/shared/model/routes.ts'
 import { rideCut, routeTimeline } from '../../src/shared/model/ride.ts'
@@ -206,4 +206,19 @@ test('a line is drawn from the far end when it starts nearer where the ride goes
   assert.equal(drawnFromTheEnd([0.001, 0], from, to), false)
   assert.equal(drawnFromTheEnd([0.029, 0], from, to), true)
   assert.equal(drawnFromTheEnd([0.015, 0], from, to), false)
+})
+
+test("a place's boxes on its HintuanCard: terminals first, then hintuans, in drawing order; shared names numbered", () => {
+  const at = (name, informal, kind, created_at) => ({ ...box(name, informal, kind), id: `${name}@${created_at}`, created_at })
+  const t = at('SM City Fairview Jeepney Terminal', 'SM Fairview', 'terminal', '2026-09-03')
+  const a = at('Fairview Teraccess', 'SM Fairview', 'hintuan', '2026-09-01')
+  const b = at('SM Fairview Main', 'SM Fairview', 'hintuan', '2026-09-02')
+  const c = at('Fairview Teraccess', 'SM Fairview', 'hintuan', '2026-09-04')
+  const other = at('Bestlink', 'Bestlink', 'hintuan', '2026-09-01')
+  assert.deepEqual(
+    placeBoxes(b, [c, other, b, t, a]).map((r) => r.label),
+    ['SM City Fairview Jeepney Terminal', 'Fairview Teraccess 1', 'SM Fairview Main', 'Fairview Teraccess 2'],
+  )
+  // A place of one box: its name alone.
+  assert.deepEqual(placeBoxes(other, [other, a]).map((r) => r.label), ['Bestlink'])
 })

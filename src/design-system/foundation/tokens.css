@@ -93,6 +93,7 @@
   --border-secondary: var(--color-neutral-300);
   --border-tertiary: var(--color-neutral-400);
   --border-error: var(--color-red-700);
+  --border-plain: var(--color-white); /* the hotspot names' halo on the map (2026-09-30) */
 
   /* Background. Figma: Background/… */
   --surface: var(--color-white);
@@ -110,9 +111,6 @@
   --card-orange-surface: var(--color-orange-700);
   --card-orange-border-primary: var(--color-orange-800);
   --card-orange-timeline-surface: var(--color-orange-900);
-  --card-mist-surface: var(--color-mist-300);
-  --card-mist-border-primary: var(--color-mist-400);
-  --card-mist-timeline-surface: var(--color-mist-400);
   --card-yellow-surface: var(--color-yellow-300);
   --card-yellow-border-primary: var(--color-yellow-500);
   --card-yellow-timeline-surface: var(--color-yellow-500);
@@ -122,6 +120,9 @@
   --card-rose-surface: var(--color-rose-700);
   --card-rose-border-primary: var(--color-rose-800);
   --card-rose-timeline-surface: var(--color-rose-900);
+  --card-fuchsia-surface: var(--color-fuchsia-700);
+  --card-fuchsia-border-primary: var(--color-fuchsia-800);
+  --card-fuchsia-timeline-surface: var(--color-fuchsia-800);
 
   /* Error actions — the destructive button. Figma: Error/… (2026-09-28,
      added for the Button so its fill stopped being the one primitive). */
@@ -138,13 +139,29 @@
 
   /* The map: its route lines and hintuans. Figma: Map/… (2026-09-29). Two
      looks, no opacity — every line at rest, the selected one drawn over it
-     (the owner's call: see-through lines stacked and confused). Figma holds
-     Map/Hintuan/surface as a raw #ffffff: the same white. */
-  --map-hintuan-surface: var(--color-white);
-  --map-route-line-surface-default: var(--color-blue-200);
+     (the owner's call: see-through lines stacked and confused). */
+  --map-route-line-surface-default: var(--color-blue-300); /* blue/200 until 2026-09-30 */
   --map-route-line-surface-selected: var(--color-blue-700);
   --map-route-line-arrow-rest: var(--color-white);
   --map-route-line-arrow-inverse: var(--color-neutral-900);
+  /* A lit line where it passes a hintuan (2026-09-30; orange #FF9831 before). */
+  --map-route-line-hintuan-surface-default: var(--color-green-400);
+  /* The hotspot boxes on the map: the owner's HotspotOverlayCard (3837:11308,
+     2026-09-30). Figma gives the surfaces an opacity too — Hintuan 30%, its
+     selected 60%, Terminal 25% — which only the map paints, from
+     mapColours.ts (MAP_OPACITY); here the colour alone. */
+  --map-overlay-card-hintuan-surface: var(--color-green-500);
+  --map-overlay-card-hintuan-surface-selected: var(--color-green-500);
+  --map-overlay-card-hintuan-content: var(--color-green-800);
+  --map-overlay-card-terminal-surface: var(--color-sky-500);
+  --map-overlay-card-terminal-border: var(--color-sky-800);
+  --map-overlay-card-terminal-content: var(--color-sky-800);
+  /* A place's boxes as rows on its HintuanCard (3854:12690, 2026-09-30):
+     solid, white words — the card's own colours, not the map's. */
+  --map-hotspots-card-hintuan-surface: var(--color-green-700);
+  --map-hotspots-card-hintuan-border-primary: var(--color-green-900);
+  --map-hotspots-card-terminal-surface: var(--color-sky-700);
+  --map-hotspots-card-terminal-border-primary: var(--color-sky-900);
 }
 
 /* The semantics as utilities: text-content-primary, bg-surface, border-border-primary… */
@@ -163,6 +180,7 @@
   --color-border-secondary: var(--border-secondary);
   --color-border-tertiary: var(--border-tertiary);
   --color-border-error: var(--border-error);
+  --color-border-plain: var(--border-plain);
 
   --color-surface: var(--surface);
   --color-surface-secondary: var(--surface-secondary);
@@ -178,9 +196,6 @@
   --color-card-orange-surface: var(--card-orange-surface);
   --color-card-orange-border-primary: var(--card-orange-border-primary);
   --color-card-orange-timeline-surface: var(--card-orange-timeline-surface);
-  --color-card-mist-surface: var(--card-mist-surface);
-  --color-card-mist-border-primary: var(--card-mist-border-primary);
-  --color-card-mist-timeline-surface: var(--card-mist-timeline-surface);
   --color-card-yellow-surface: var(--card-yellow-surface);
   --color-card-yellow-border-primary: var(--card-yellow-border-primary);
   --color-card-yellow-timeline-surface: var(--card-yellow-timeline-surface);
@@ -190,6 +205,9 @@
   --color-card-rose-surface: var(--card-rose-surface);
   --color-card-rose-border-primary: var(--card-rose-border-primary);
   --color-card-rose-timeline-surface: var(--card-rose-timeline-surface);
+  --color-card-fuchsia-surface: var(--card-fuchsia-surface);
+  --color-card-fuchsia-border-primary: var(--card-fuchsia-border-primary);
+  --color-card-fuchsia-timeline-surface: var(--card-fuchsia-timeline-surface);
 
   --color-error-surface: var(--error-surface);
   --color-error-surface-secondary: var(--error-surface-secondary);
@@ -200,11 +218,21 @@
 
   --color-components-tooltip-surface: var(--components-tooltip-surface);
 
-  --color-map-hintuan-surface: var(--map-hintuan-surface);
   --color-map-route-line-surface-default: var(--map-route-line-surface-default);
   --color-map-route-line-surface-selected: var(--map-route-line-surface-selected);
   --color-map-route-line-arrow-rest: var(--map-route-line-arrow-rest);
   --color-map-route-line-arrow-inverse: var(--map-route-line-arrow-inverse);
+  --color-map-route-line-hintuan-surface-default: var(--map-route-line-hintuan-surface-default);
+  --color-map-overlay-card-hintuan-surface: var(--map-overlay-card-hintuan-surface);
+  --color-map-overlay-card-hintuan-surface-selected: var(--map-overlay-card-hintuan-surface-selected);
+  --color-map-overlay-card-hintuan-content: var(--map-overlay-card-hintuan-content);
+  --color-map-overlay-card-terminal-surface: var(--map-overlay-card-terminal-surface);
+  --color-map-overlay-card-terminal-border: var(--map-overlay-card-terminal-border);
+  --color-map-overlay-card-terminal-content: var(--map-overlay-card-terminal-content);
+  --color-map-hotspots-card-hintuan-surface: var(--map-hotspots-card-hintuan-surface);
+  --color-map-hotspots-card-hintuan-border-primary: var(--map-hotspots-card-hintuan-border-primary);
+  --color-map-hotspots-card-terminal-surface: var(--map-hotspots-card-terminal-surface);
+  --color-map-hotspots-card-terminal-border-primary: var(--map-hotspots-card-terminal-border-primary);
 }
 
 /*
@@ -223,6 +251,7 @@
   --transition-duration-base: 200ms; /* tooltips, small things appearing */
   --transition-duration-gentle: 300ms; /* cards, panels, sheets */
   --transition-duration-sheet: 313ms; /* the bottom sheet's glide: 250 ms, then 8/10 as fast (the owner, 2026-09-30: "the motion is too fast") */
+  --transition-duration-turn: 500ms; /* the fare tile's ↻: gentle, then 6/10 as fast (the owner, 2026-09-30: "it's fast") */
   --transition-duration-slow: 450ms; /* big moves, full screen */
 
   --transition-delay-tooltip: 800ms; /* hover before a tooltip shows */
@@ -272,6 +301,9 @@
   /* A bottom sheet, lifted off the map (BottomSheet/TopShadow, 3817:6007, 2026-09-30; its Figma
    * effect style still reads BottomToolbar/TopShadow). */
   --shadow-bottom-sheet-top-shadow: 0 -3px 8px 0 rgb(43 43 43 / 0.08);
+
+  /* The picked hintuan's name on the map, lifted off it (SelectedHintuanRouteTitle, 3847:11760, 2026-09-30). */
+  --shadow-selected-hintuan-route-title: 0 2px 8px 0 rgb(0 0 0 / 0.32);
 
   /* A RouteCard's State=Selected: pressed in, lit from the top left (2026-09-29). */
   --shadow-route-card-primary-selected:
