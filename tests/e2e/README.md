@@ -25,7 +25,10 @@ Chromium does.
     node tests/e2e/pwa-test.mjs               # 44: the installable app, against the build in its own `vite preview` on :4173 — manifest, worker, offline, slow network, update, an opened trip's line kept for offline, a map published for a newer app and its Reload
 
 **On GitHub** (`.github/workflows/ci.yml`), every suite is its own job and they
-run at once, so a run takes as long as visitor-test. A pull request runs only what
+run at once, so a run takes as long as the slowest. visitor-test, the slowest by
+far, runs as three jobs, `VISITOR_PART=1/3`, `2/3` and `3/3`: each opens the map
+and runs the checks that cost little, and takes a third of the hotspots. Unset,
+it runs whole, as on your machine. A pull request runs only what
 its files can reach: docs alone run nothing, `src/studio/` alone skips the public
 suites, `src/commuter/` and `public/` alone skip the studio's, anything shared runs
 both. The drawing suites (group, regression-gestures, hotspot, snap, extend) are

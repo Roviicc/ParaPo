@@ -19,9 +19,9 @@ import { useLitLineColour } from '../shared/map/savedRoutesLayers'
 import { useSavedRoutes } from '../shared/map/useSavedRoutes'
 import { LIT_LINE, LIVERY_LINE } from '../shared/map/liveryLine'
 import { useSavedStops } from '../shared/map/useSavedStops'
-import { HintuanPin } from './HintuanPin'
+import { HintuanPin } from '../shared/map/HintuanPin'
 import { Notices } from './Notices'
-import { TripCard, useTripLivery } from './TripCard'
+import { TripCard, useTripLivery } from '../shared/cards/TripCard'
 import { useMapAge, useOffline } from './status'
 import { useShareLink } from './useShareLink'
 import { Walker } from './Walker'
@@ -70,7 +70,6 @@ export default function CommuterApp() {
   // owner's ask of 2026-09-30: "now I don't want to cut the route").
   const tripDock = useRef<HTMLDivElement>(null)
   const ride = useRideTo(map, saved.selected, stops.stops, {
-    cut: false,
     offset: () => (map ? clearOfDock(map.getContainer(), tripDock.current) : [0, 0]),
   })
 

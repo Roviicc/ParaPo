@@ -1,4 +1,4 @@
-import type { Ref } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { kmLabel } from '../geo/geo'
 import { RouteCardHeader } from './RouteCardHeader'
 import { BottomSheet, type SheetHeight } from './BottomSheet'
@@ -22,6 +22,8 @@ type Props = TripTimelineProps & {
   dockRef?: Ref<HTMLDivElement>
   /** Its height, shared with the list or card it was opened from (BottomSheet). */
   height?: SheetHeight
+  /** Under the tiles: what only the studio shows — its facts and its Edit, Extend and Delete. */
+  children?: ReactNode
 }
 
 /**
@@ -56,6 +58,7 @@ export function RouteTripDetail({
   onClose,
   dockRef,
   height,
+  children,
 }: Props) {
   return (
     <BottomSheet
@@ -92,6 +95,7 @@ export function RouteTripDetail({
         <Tile testId="trip-km" label="Kilometer" value={kmLabel(metres)} />
         {fare && <Tile testId="trip-fare" label="Expected fare" value={fare} />}
       </dl>
+      {children}
     </BottomSheet>
   )
 }
