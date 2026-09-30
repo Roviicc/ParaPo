@@ -543,17 +543,14 @@ if (!hit) {
       })
       const fit = chevrons.all.every((c) => Math.abs(c.across - c.meant) < 0.5 && (chevrons.line == null || Math.abs(c.meant - chevrons.line) < 0.01))
       check('  chevrons ride the lit line, each as wide as it', chevrons.all.length > 0 && fit, `${chevrons.all.length} chevrons, ${chevrons.all[0]?.across.toFixed(2)} px across; the lit line ${chevrons.line?.toFixed(2) ?? 'unread'} px`)
-      // They flow as the route lights, then rest where they are: a flow
-      // redraws the whole map every frame, which kept a phone's main thread
-      // nine-tenths busy (the owner's pick of 2026-09-29, "flow, then rest").
-      // Three seconds and more after the card opened, two looks half a
-      // second apart find them in the same place.
+      // They flow for as long as the route is lit (the owner's ask of
+      // 2026-09-30: "yes continuous arrows"), fifteen steps a second rather
+      // than every frame, so a phone's main thread is not kept busy: a look
+      // a second apart finds them moved, in about fifteen redraws.
       const where = () =>
         page.evaluate(async () => ((await window.__src('direction-arrows'))?.features ?? []).map((f) => f.geometry.coordinates[0][0].map((v) => v.toFixed(7)).join()).join('|'))
       await page.waitForTimeout(3200)
-      const restA = await where()
-      // Nor redrawn in place: no new data for the map to draw over half a
-      // second, which is what leaves the map idle.
+      const flowA = await where()
       const sets = await page.evaluate(
         () =>
           new Promise((resolve) => {
@@ -567,14 +564,14 @@ if (!hit) {
             setTimeout(() => {
               src.setData = set
               resolve(n)
-            }, 500)
+            }, 1000)
           }),
       )
-      const restB = await where()
+      const flowB = await where()
       check(
-        '  and after their flow they rest, the map left idle',
-        restA !== '' && restA === restB && sets === 0,
-        `${restA === restB ? 'still' : 'still moving'}; ${sets} redraw(s) in 500 ms`,
+        '  and they keep flowing, about fifteen steps a second',
+        flowA !== '' && flowA !== flowB && sets >= 8 && sets <= 18,
+        `${flowA === flowB ? 'still' : 'moved'}; ${sets} redraw(s) in a second`,
       )
       // The orange stretches: where this direction passes a hintuan, on the same "passes" rule as the card's count.
       const litId = litIds[0] ?? ''

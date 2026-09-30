@@ -1,4 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type Ref } from 'react'
+import { IconButton } from '../../design-system/primitives/IconButton'
+import { CloseIcon } from './RouteIcons'
 import { useDialogFocus } from './useDialogFocus'
 import { useEscape } from './useEscape'
 import { DRAG_PX, follow, heightsFor, slide, slideShowing, snapAfterTap, swallowTheTapsClick, type Snap } from './sheetGesture'
@@ -311,21 +313,16 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
 
 /**
  * The header a hotspot's card and the studio's route card have always had:
- * what was tapped, and ✕. The route list and a trip's card bring their own
- * (RouteCardHeader). Their bodies sit 16 in, as this does (px-4).
+ * what was tapped, and ✕ — the route cards' own IconButton since the
+ * owner's yes of 2026-09-30, so every card closes the same way. The route
+ * list and a trip's card bring their own header (RouteCardHeader). Their
+ * bodies sit 16 in, as this does (px-4).
  */
 export function SheetHeader({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3 px-4">
       <div className="min-w-0 flex-1">{children}</div>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close"
-        className="rounded-full px-2 text-neutral-400 hover:bg-surface-secondary hover:text-content-tertiary"
-      >
-        ✕
-      </button>
+      <IconButton icon={<CloseIcon />} label="Close" tooltip="top" onClick={onClose} />
     </div>
   )
 }
