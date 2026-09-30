@@ -624,7 +624,7 @@ if (PART === 1) {
             return null
           }
         }, [litId, rowId])
-        const tilesBefore = await cardEl.locator('dl').innerText()
+        const kmBefore = await cardEl.locator('[data-testid="trip-km"]').innerText()
         const pick = row.locator('button[data-testid="trip-hintuan-pick"]')
         await pick.scrollIntoViewIfNeeded()
         await pick.click()
@@ -648,12 +648,15 @@ if (PART === 1) {
             padding: Object.values(m.getPadding()).every((v) => v === 0),
           }
         }, want?.at ?? null)
+        // The pill says "Calculated Fare"; the fare tile prices the ride to
+        // there (the owner's 3778:3183, redrawn 2026-09-30).
+        const fareTile = (await cardEl.locator('[data-testid="trip-fare"]').count()) ? (await cardEl.locator('[data-testid="trip-fare"]').innerText()).trim() : null
         check(
-          '  a hintuan row picks it: Selected, its pill the pesos from the start to there',
-          (await row.getAttribute('data-state')) === 'selected' && (!want || pill === want.fare),
-          `"${pill}"${want ? `, the sums "${want.fare}"` : ''}`,
+          '  a hintuan row picks it: Selected, its pill "Calculated Fare", the fare tile the pesos from the start to there',
+          (await row.getAttribute('data-state')) === 'selected' && (!want || want.fare == null || (pill === 'Calculated Fare' && fareTile === want.fare)),
+          `pill "${pill}"; tile "${fareTile}"${want ? `, the sums "${want.fare}"` : ''}`,
         )
-        check('  the tiles keep the whole ride', (await cardEl.locator('dl').innerText()) === tilesBefore)
+        check('  the Kilometer tile keeps the whole ride', (await cardEl.locator('[data-testid="trip-km"]').innerText()) === kmBefore)
         check(
           '  the route left whole, a circle popping up at the hintuan: the trip still lit, nothing at rest over it, no get-off circles',
           seen.lit.length === 1 && seen.lit[0] === litId && seen.rest === 0 && seen.pins === 1 &&

@@ -46,7 +46,7 @@ const meta = {
     routeDirection: 'Novaliches',
     picked: null,
     onPick: fn(),
-    pickedFare: '₱18–20',
+    pickedPriced: true,
     onEnd: fn(),
     endPicked: null,
   },
@@ -90,11 +90,11 @@ export const HintuanPickedFuchsia: Story = { args: { livery: 'fuchsia', picked: 
 
 /** One hintuan on the way, picked: not folded, so no fold to open. */
 export const OneHintuanPicked: Story = {
-  args: { routeOrigin: 'Fatima', hintuans: hintuans('Lagro'), routeDirection: 'SM Fairview', picked: 'h0', pickedFare: '₱14' },
+  args: { routeOrigin: 'Fatima', hintuans: hintuans('Lagro'), routeDirection: 'SM Fairview', picked: 'h0', pickedPriced: true },
 }
 
 /** A hintuan picked but unpriced: no pill. */
-export const HintuanPickedUnpriced: Story = { args: { picked: 'h3', pickedFare: undefined }, play: openFold }
+export const HintuanPickedUnpriced: Story = { args: { picked: 'h3', pickedPriced: false }, play: openFold }
 
 /** The origin picked from its row: its dot the Selected one. */
 export const OriginPicked: Story = { args: { endPicked: 'from' } }

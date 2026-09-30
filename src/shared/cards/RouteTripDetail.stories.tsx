@@ -83,7 +83,7 @@ const meta = {
     livery: 'yellow',
     // 12.8 km, as the owner's frame has it; its pesos on today's rule.
     metres: 12_800,
-    fare: '₱30–32',
+    fare: { regular: '₱30–32', student: '₱24–26' },
     routeOrigin: 'Tala',
     hintuans: talaToNovaliches,
     routeDirection: 'Novaliches',
@@ -97,7 +97,7 @@ const meta = {
     onEnd: fn(),
     endPicked: null,
     // Amparo's, fourth on the way: from Tala to there on today's map.
-    pickedFare: '₱18–20',
+    pickedFare: { regular: '₱18–20', student: '₱14–16' },
   },
 } satisfies Meta<typeof RouteTripDetail>
 
@@ -106,7 +106,8 @@ type Story = StoryObj<typeof meta>
 
 /**
  * Opened to the picked row, which checks it as Figma's State=Selected draws
- * it: the one row, its pesos, and the card's own colours swapped on its pill.
+ * it: the one row, its Calculated Fare pill in the card's own colours swapped,
+ * and the fare tile pricing the ride to there.
  */
 const pickedAsDrawn: Story['play'] = async (ctx) => {
   await openFold(ctx)
@@ -114,7 +115,8 @@ const pickedAsDrawn: Story['play'] = async (ctx) => {
   const rows = canvasElement.querySelectorAll<HTMLElement>('[data-testid="trip-hintuan"][data-state="selected"]')
   await expect(rows.length).toBe(1)
   const pill = rows[0].querySelector<HTMLElement>('[data-testid="trip-hintuan-fare"]')
-  await expect(pill?.textContent).toBe(args.pickedFare)
+  await expect(pill?.textContent).toBe('Calculated Fare')
+  await expect(within(canvasElement).getByTestId('trip-fare').textContent).toBe(args.pickedFare?.regular)
   const card = within(canvasElement).getByTestId('trip')
   if (pill) {
     // Its words' colour behind the pesos, its fill for them.
@@ -137,12 +139,12 @@ export const ToSMFairview: Story = {
 
 /** One hintuan on the way: shown as it is, not folded behind a row of its own size. */
 export const OneHintuan: Story = {
-  args: { routeOrigin: 'Fatima', hintuans: hintuans('Lagro'), routeDirection: 'SM Fairview', metres: 3_100, fare: '₱14' },
+  args: { routeOrigin: 'Fatima', hintuans: hintuans('Lagro'), routeDirection: 'SM Fairview', metres: 3_100, fare: { regular: '₱14', student: '₱11' } },
 }
 
 /** None on the way yet: the rail runs straight from the origin to the end. */
 export const NoHintuan: Story = {
-  args: { routeOrigin: 'Lagro', hintuans: [], routeDirection: 'SM Fairview', metres: 2_400, fare: '₱14' },
+  args: { routeOrigin: 'Lagro', hintuans: [], routeDirection: 'SM Fairview', metres: 2_400, fare: { regular: '₱14', student: '₱11' } },
 }
 
 /** In red, the Timeline set's own colour, with Content/inverse words. */
@@ -168,6 +170,23 @@ export const NothingTheOtherWay: Story = { args: { switchable: false } }
 /** A mode with no fare rule: no Expected fare tile, and Kilometer takes the row (nothing drawn for it; the owner kept this, 2026-09-29). */
 export const Unpriced: Story = { args: { fare: undefined } }
 
+/**
+ * The fare tile turns (3778:3183, redrawn 2026-09-30): a tap shows the
+ * student fare, ↻ turning once; another, the regular again.
+ */
+export const FareTurns: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByTestId('trip-fare').textContent).toBe('₱30–32')
+    await expect(canvas.getByTestId('trip-fare-turn').textContent).toContain('Regular fare')
+    await userEvent.click(canvas.getByTestId('trip-fare-turn'))
+    await expect(canvas.getByTestId('trip-fare').textContent).toBe('₱24–26')
+    await expect(canvas.getByTestId('trip-fare-turn').textContent).toContain('Student fare')
+    await userEvent.click(canvas.getByTestId('trip-fare-turn'))
+    await expect(canvas.getByTestId('trip-fare').textContent).toBe('₱30–32')
+  },
+}
+
 /** Thirty hintuans, opened: taller than the room, the rail scrolls under the header. */
 export const ALongWay: Story = { args: { hintuans: aLongWay }, play: openFold }
 
@@ -176,7 +195,7 @@ export const LongNames: Story = {
   args: {
     livery: 'orange',
     metres: 8_600,
-    fare: '₱22–24',
+    fare: { regular: '₱22–24', student: '₱18–19' },
     routeOrigin: 'Novaliches (Bayan) via Zabarte',
     hintuans: hintuans('Lagro', 'Quirino Highway corner Zabarte Road, Robinsons Novaliches', 'Bistek'),
     routeDirection: 'Fairview Teraccess Transport Terminal',
@@ -220,7 +239,8 @@ export const PickAndLetGo: Story = {
     // The opened rows come into sight a frame or two after the tap.
     await userEvent.click(await canvas.findByRole('button', { name: /Amparo/, pressed: false }))
     await expect(args.onPick).toHaveBeenCalledWith('h3')
-    await expect(canvas.getByTestId('trip-hintuan-fare').textContent).toBe('₱18–20')
+    await expect(canvas.getByTestId('trip-hintuan-fare').textContent).toBe('Calculated Fare')
+    await expect(canvas.getByTestId('trip-fare').textContent).toBe('₱18–20')
     await userEvent.click(canvas.getByRole('button', { name: /Amparo/, pressed: true }))
     await expect(canvas.queryByTestId('trip-hintuan-fare')).toBeNull()
     await expect(canvasElement.querySelectorAll('[data-state="selected"]').length).toBe(0)
@@ -292,13 +312,14 @@ export const PickFoldedAway: Story = {
     await expect(canvasElement.querySelectorAll('[data-testid="trip-hintuan"][data-state="selected"]').length).toBe(1)
     await openFold(ctx)
     await expect(await canvas.findByRole('button', { name: /Amparo/, pressed: true })).toBeTruthy()
-    await expect(canvas.getByTestId('trip-hintuan-fare').textContent).toBe('₱18–20')
+    await expect(canvas.getByTestId('trip-hintuan-fare').textContent).toBe('Calculated Fare')
+    await expect(canvas.getByTestId('trip-fare').textContent).toBe('₱18–20')
   },
 }
 
 /** The lone hintuan picked: no fold to open. */
 export const OneHintuanPicked: Story = {
-  args: { ...OneHintuan.args, picked: 'h0', pickedFare: '₱14' },
+  args: { ...OneHintuan.args, picked: 'h0', pickedFare: { regular: '₱14', student: '₱11' } },
 }
 
 /**
@@ -313,7 +334,7 @@ export const PickedUnpriced: Story = { args: { fare: undefined, picked: 'h3', pi
 export const FloatingPicked: Story = { args: { picked: 'h3' }, parameters: { frame: 'wide' }, play: openFold }
 
 /** A name too long for one line, picked: it wraps beside the pill, which keeps its line. Sample pesos. */
-export const LongNamesPicked: Story = { args: { ...LongNames.args, picked: 'h1', pickedFare: '₱16–18' }, play: openFold }
+export const LongNamesPicked: Story = { args: { ...LongNames.args, picked: 'h1', pickedFare: { regular: '₱16–18', student: '₱13–14' } }, play: openFold }
 
 /**
  * The owner's BottomSheetConfiguration (3815:5637, 2026-09-30), on a phone:
