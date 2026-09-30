@@ -595,6 +595,30 @@ const tripChecks = async () => {
       `${drawn.pins} circle(s), ${drawn.off === null ? 'not measured' : Math.round(drawn.off) + ' px'} off the hintuan; ${drawn.livery} ring ${drawn.ring}, the rail ${drawn.rail}; pointer-events ${drawn.taps}`,
     )
     check('  no get-off circles on the public map', drawn.dots === 0, `${drawn.dots}`)
+    // Beside the circle, the hintuan's name in the trip card's colours
+    // (SelectedHintuanRouteTitle, Figma 3847:11777): 10px right of it and
+    // centred on it.
+    const rowName = (await pickButton.evaluate((b) => b.lastElementChild.firstElementChild.textContent)).trim()
+    const title = await page.evaluate(() => {
+      const t = document.querySelector('[data-testid="hintuan-pin-title"]')
+      const pin = document.querySelector('[data-testid="hintuan-pin"]')
+      const trip = document.querySelector('[data-testid="trip"]')
+      if (!t || !pin || !trip) return null
+      const [a, b] = [t.getBoundingClientRect(), pin.getBoundingClientRect()]
+      const [ts, cs] = [getComputedStyle(t), getComputedStyle(trip)]
+      return {
+        text: t.textContent.trim(),
+        colours: ts.backgroundColor === cs.backgroundColor && ts.color === cs.color,
+        detail: `${ts.color} on ${ts.backgroundColor}; the card ${cs.color} on ${cs.backgroundColor}`,
+        gap: a.left - b.right,
+        drop: a.top + a.height / 2 - (b.top + b.height / 2),
+      }
+    })
+    check(
+      "  its name beside the circle, in the trip card's colours",
+      !!title && title.text === rowName && title.colours && Math.abs(title.gap - 10) < 1.5 && Math.abs(title.drop) < 1.5,
+      title ? `"${title.text}" for "${rowName}"; ${title.detail}; ${title.gap.toFixed(1)} px right, ${title.drop.toFixed(1)} px low` : 'no title',
+    )
     if (pickWant) {
       const where = await page.evaluate((at) => {
         const m = window.__map

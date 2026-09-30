@@ -3,7 +3,7 @@ import type { MapLibreMap } from 'maplibre-gl'
 import { APP_MOVE } from './MapView'
 import { rideCut, travelLine } from '../model/ride'
 import type { VariantSummary } from '../model/routes'
-import type { StopSummary } from '../model/stops'
+import { stopLabel, type StopSummary } from '../model/stops'
 
 /**
  * A hintuan picked on the trip card — the owner's Timeline State=Selected,
@@ -103,6 +103,8 @@ export function useRideTo(
     map.easeTo({ center: cut.at, offset: onGlide.current?.() ?? [0, 0], duration: 700 }, APP_MOVE)
   }, [map, cut])
 
+  const pickedStop = live ? stops.find((s) => s.id === live.rowId) : undefined
+
   return {
     rideTo: cut && live ? { stopId: live.rowId, metres: cut.metres } : null,
     /** The row picked, cut or not: a row whose box the line misses is still shown picked, with nothing to price. */
@@ -112,7 +114,9 @@ export function useRideTo(
      * the glide goes; for a row whose box the line misses, the hintuan's own
      * point. Null with nothing picked.
      */
-    pinAt: live ? (cut?.at ?? stops.find((s) => s.id === live.rowId)?.point.coordinates ?? null) : null,
+    pinAt: live ? (cut?.at ?? pickedStop?.point.coordinates ?? null) : null,
+    /** The picked hintuan's name, as its row reads it: the circle's title on the map (HintuanPin). */
+    pickedLabel: pickedStop ? stopLabel(pickedStop) : null,
     pick,
     /** The end picked from its row (`toEnd`), or null. */
     endPicked,
