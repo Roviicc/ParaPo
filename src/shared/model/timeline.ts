@@ -56,11 +56,19 @@ export function timelineFor(
   const [from, to] = reversed ? [tail, head] : [head, tail]
   const endPlaces = new Set([head, tail].filter((s) => !!s).map((s) => placeKey(s!)))
   let between = along.filter((s) => s.kind === 'hintuan' && !endPlaces.has(placeKey(s)))
-  if (lineStart && from && to) {
-    const toFrom = haversine(lineStart, from.point.coordinates)
-    const toTo = haversine(lineStart, to.point.coordinates)
-    if (toTo < toFrom) between = between.reverse()
-  }
+  if (lineStart && from && to && drawnFromTheEnd(lineStart, from, to)) between = between.reverse()
   const rows = between.filter((s, i) => i === 0 || placeKey(s) !== placeKey(between[i - 1])).map(row)
   return { from: from ? row(from) : null, to: to ? row(to) : null, between: rows }
+}
+
+/**
+ * Whether a line that starts at `lineStart` was drawn from the far end of its
+ * ride: its first point nearer where the ride goes than where it leaves. The
+ * stored points run whichever way the owner drew them, and the save panel
+ * lets a return be drawn from the far end with only a warning, so the ends
+ * decide, not the drawing. The one travel-order rule (the review's 6.5): the
+ * timeline's middle, the ride-to cut and the arrows' line all turn on it.
+ */
+export function drawnFromTheEnd(lineStart: LngLat, from: StopSummary, to: StopSummary): boolean {
+  return haversine(lineStart, to.point.coordinates) < haversine(lineStart, from.point.coordinates)
 }

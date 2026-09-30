@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
-import type { LngLat, Segment } from '../../shared/geo/geo'
+import { M_PER_DEG, type LngLat, type Segment } from '../../shared/geo/geo'
 import type { RouteRow, VariantRow } from '../../shared/model/routes'
 import type { StopRow } from '../../shared/model/stops'
 import { SavePanel } from './SavePanel'
@@ -206,7 +206,7 @@ export const PassesThroughHintuans: Story = {
 /** A small box, centred `metres` north of the sample line, with its near edge `metres` away. */
 const roadside = (id: string, name: string, lng: number, metres: number, informal: string | null = null): StopRow => {
   const half = 0.00005 // ≈ 5.5 m
-  const edge = 14.742005 + metres / 111_000
+  const edge = 14.742005 + metres / M_PER_DEG
   const s = hintuan(id, name, [lng, edge + half * Math.sign(metres)], informal)
   s.area = {
     type: 'Polygon',

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { haversine, metresPerPixel, type LngLat } from '../geo/geo'
+import { INSET_PX, SPEED_PX_PER_S, chevronsAt, markCovered, measure, spacingPx, type Chevron, type Measured } from './chevrons'
 import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { endRadius, litWidthAt } from './lineStyle'
 import type { LineLook } from './liveryLine'
@@ -53,30 +54,6 @@ const SAME_END_M = 150
 export type Ride = { line: LngLat[]; from: string; to: string }
 
 /**
- * Two lit lines closer than this, running within `SAME_WAY_DEG` of the same
- * way, are on the same road: the later one leaves its chevrons out there, so
- * Tala → SM Fairview and Tala → Novaliches flow as one stream where they
- * share Quirino and as two once they part.
- */
-const SAME_ROAD_M = 8
-const SAME_WAY_DEG = 45
-
-/**
- * On screen: how far apart the chevrons sit, and how fast they flow. The
- * spacing is what the owner approved for the arrows on 2026-09-22 — written
- * as 56 then, but doubled by a tile-size slip in `metresPerPixel`, since
- * fixed — and, his call on the chevrons, 12/10 as many zoomed out (below
- * zoom 14, the whole ride on screen) and 8/10 as many zoomed in (from 16,
- * street level).
- */
-const SPACING_PX = 112
-const MORE_ZOOMED_OUT = 1.2
-const FEWER_ZOOMED_IN = 0.8
-const ZOOMED_OUT_BELOW = 14
-const ZOOMED_IN_FROM = 16
-const SPEED_PX_PER_S = 28
-
-/**
  * How long they flow once a route lights, before they rest where they are:
  * a flow makes MapLibre draw the whole map again every frame, and on a phone
  * that alone kept the main thread nine-tenths busy at under 20 frames a
@@ -85,178 +62,6 @@ const SPEED_PX_PER_S = 28
  * flow again whenever what is lit changes.
  */
 const FLOW_MS = 3000
-
-/**
- * The spacing at `zoom`, in steps rather than smoothly: where each chevron
- * sits depends on the spacing, so one that changed with every bit of zoom
- * would send them racing along the line under a pinch. A step moves them
- * once.
- */
-function spacingPx(zoom: number): number {
-  if (zoom < ZOOMED_OUT_BELOW) return SPACING_PX / MORE_ZOOMED_OUT
-  if (zoom >= ZOOMED_IN_FROM) return SPACING_PX / FEWER_ZOOMED_IN
-  return SPACING_PX
-}
-
-/**
- * The chevron's shape: how thick its stroke is, as a share of the line's
- * width, and the angle each arm makes with the line. It is as wide as the
- * lit line, less `INSET_PX` a side.
- */
-const STROKE_SHARE = 0.7
-const ARM_DEG = 40
-const INSET_PX = 0
-
-/**
- * The line measured once: where each vertex is along it, in metres, each
- * segment's bearing, and which segments an earlier lit line already covers.
- */
-type Measured = {
-  line: LngLat[]
-  at: number[]
-  bearing: number[]
-  length: number
-  lat: number
-  covered: boolean[]
-}
-
-function measure(line: LngLat[]): Measured {
-  const at = [0]
-  const bearing: number[] = []
-  for (let i = 1; i < line.length; i++) {
-    const [ax, ay] = line[i - 1]
-    const [bx, by] = line[i]
-    at.push(at[i - 1] + haversine(line[i - 1], line[i]))
-    // Flat is fine at street scale: bearing clockwise from north.
-    const dx = (bx - ax) * Math.cos((ay * Math.PI) / 180)
-    const dy = by - ay
-    bearing.push((Math.atan2(dx, dy) * 180) / Math.PI)
-  }
-  return {
-    line,
-    at,
-    bearing,
-    length: at[at.length - 1],
-    lat: line[Math.floor(line.length / 2)][1],
-    covered: bearing.map(() => false),
-  }
-}
-
-/** Metres from p to segment a–b, on a flat patch around a. */
-function offSegmentM(p: LngLat, a: LngLat, b: LngLat): number {
-  const k = Math.cos((a[1] * Math.PI) / 180)
-  const [px, py] = [(p[0] - a[0]) * k, p[1] - a[1]]
-  const [bx, by] = [(b[0] - a[0]) * k, b[1] - a[1]]
-  const l2 = bx * bx + by * by
-  const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, (px * bx + py * by) / l2))
-  return Math.hypot(px - t * bx, py - t * by) * 111_320
-}
-
-/** How far apart two bearings are, 0–180°. */
-const turn = (a: number, b: number) => Math.abs(((((a - b) % 360) + 540) % 360) - 180)
-
-/**
- * Mark the segments of `m` that run on an earlier line's road the same way:
- * their middle within SAME_ROAD_M of one of its segments, bearings within
- * SAME_WAY_DEG. Once per change of what is lit, not per frame.
- */
-function markCovered(m: Measured, earlier: Measured[]): void {
-  const reach = SAME_ROAD_M / 111_320 / Math.cos((m.lat * Math.PI) / 180)
-  for (let i = 0; i < m.bearing.length; i++) {
-    const a = m.line[i]
-    const b = m.line[i + 1]
-    const mid: LngLat = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
-    m.covered[i] = earlier.some((e) => {
-      for (let j = 0; j < e.bearing.length; j++) {
-        const [c, d] = [e.line[j], e.line[j + 1]]
-        // Cheap reject first: a segment wholly to one side is far.
-        if (Math.max(c[0], d[0]) < mid[0] - reach || Math.min(c[0], d[0]) > mid[0] + reach) continue
-        if (Math.max(c[1], d[1]) < mid[1] - reach || Math.min(c[1], d[1]) > mid[1] + reach) continue
-        if (offSegmentM(mid, c, d) <= SAME_ROAD_M && turn(m.bearing[i], e.bearing[j]) <= SAME_WAY_DEG) return true
-      }
-      return false
-    })
-  }
-}
-
-type Chevron = {
-  type: 'Feature'
-  properties: { across: number }
-  geometry: { type: 'Polygon'; coordinates: LngLat[][] }
-}
-
-/**
- * One chevron centred on `at` and pointing along `bearing`, `across` pixels
- * wide at `zoom`: a thick V whose arms are cut off where they reach the
- * edges of a band `across` wide. Laid out in pixels along the line and
- * across it, then turned and placed on the map; a pixel is the same number
- * of degrees of longitude everywhere, and that times the cosine of the
- * latitude in degrees of latitude.
- */
-function chevronAt(at: LngLat, bearing: number, across: number, zoom: number): Chevron {
-  const arm = (ARM_DEG * Math.PI) / 180
-  const half = across / 2
-  // How far behind its tip an edge of the V reaches the band's edge, and how
-  // far the inner tip sits behind the outer one.
-  const reach = half / Math.tan(arm)
-  const inner = (across * STROKE_SHARE) / Math.sin(arm)
-  const front = (reach + inner) / 2
-  const corners: [number, number][] = [
-    [front, 0],
-    [front - reach, half],
-    [front - inner - reach, half],
-    [front - inner, 0],
-    [front - inner - reach, -half],
-    [front - reach, -half],
-    [front, 0],
-  ]
-  const b = (bearing * Math.PI) / 180
-  const degrees = 360 / (512 * 2 ** zoom)
-  const cosLat = Math.cos((at[1] * Math.PI) / 180)
-  const ring = corners.map(([along, side]): LngLat => {
-    const east = along * Math.sin(b) - side * Math.cos(b)
-    const north = along * Math.cos(b) + side * Math.sin(b)
-    return [at[0] + east * degrees, at[1] + north * degrees * cosLat]
-  })
-  return { type: 'Feature', properties: { across }, geometry: { type: 'Polygon', coordinates: [ring] } }
-}
-
-/**
- * The chevrons of one line for one moment, added to `features`: one every
- * `spacing` metres, starting `offset` metres in, each at its point on the
- * line and turned to its bearing — except where an earlier lit line already
- * flows. Only the part of the line on screen is walked; the rest would be
- * drawn for nobody.
- */
-function chevronsAt(
-  m: Measured,
-  offset: number,
-  spacing: number,
-  across: number,
-  map: MapLibreMap,
-  features: Chevron[],
-): void {
-  const bounds = map.getBounds()
-  const zoom = map.getZoom()
-  const pad = 0.002
-  const w = bounds.getWest() - pad
-  const e = bounds.getEast() + pad
-  const s = bounds.getSouth() - pad
-  const n = bounds.getNorth() + pad
-  let i = 1
-  for (let d = offset; d < m.length; d += spacing) {
-    while (i < m.at.length - 1 && m.at[i] < d) i++
-    if (m.covered[i - 1]) continue
-    const a = m.line[i - 1]
-    const b = m.line[i]
-    const span = m.at[i] - m.at[i - 1]
-    const t = span > 0 ? (d - m.at[i - 1]) / span : 0
-    const x = a[0] + (b[0] - a[0]) * t
-    const y = a[1] + (b[1] - a[1]) * t
-    if (x < w || x > e || y < s || y > n) continue
-    features.push(chevronAt([x, y], m.bearing[i - 1], across, zoom))
-  }
-}
 
 /** Whether this browser has been asked to keep still. */
 function stillPlease(): boolean {
@@ -389,6 +194,8 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     let last = 0
     const draw = (now: number) => {
       const zoom = map.getZoom()
+      const bounds = map.getBounds()
+      const view = { west: bounds.getWest(), east: bounds.getEast(), south: bounds.getSouth(), north: bounds.getNorth(), zoom }
       const across = Math.max(0, litWidthAt(zoom) - 2 * INSET_PX)
       const features: Chevron[] = []
       for (const m of measured) {
@@ -397,7 +204,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
         // At rest they stay where the flow left them, at any zoom.
         const flowed = Math.min(now - start, FLOW_MS)
         const offset = still ? spacing / 2 : ((flowed / 1000) * SPEED_PX_PER_S * mpp) % spacing
-        chevronsAt(m, offset, spacing, across, map, features)
+        chevronsAt(m, offset, spacing, across, view, features)
       }
       src.setData({ type: 'FeatureCollection', features })
     }
