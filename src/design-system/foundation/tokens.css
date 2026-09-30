@@ -93,6 +93,7 @@
   --border-secondary: var(--color-neutral-300);
   --border-tertiary: var(--color-neutral-400);
   --border-error: var(--color-red-700);
+  --border-plain: var(--color-white); /* the hotspot names' halo on the map (2026-09-30) */
 
   /* Background. Figma: Background/… */
   --surface: var(--color-white);
@@ -138,13 +139,23 @@
 
   /* The map: its route lines and hintuans. Figma: Map/… (2026-09-29). Two
      looks, no opacity — every line at rest, the selected one drawn over it
-     (the owner's call: see-through lines stacked and confused). Figma holds
-     Map/Hintuan/surface as a raw #ffffff: the same white. */
-  --map-hintuan-surface: var(--color-white);
+     (the owner's call: see-through lines stacked and confused). */
   --map-route-line-surface-default: var(--color-blue-200);
   --map-route-line-surface-selected: var(--color-blue-700);
   --map-route-line-arrow-rest: var(--color-white);
   --map-route-line-arrow-inverse: var(--color-neutral-900);
+  /* A lit line where it passes a hintuan (2026-09-30; orange #FF9831 before). */
+  --map-route-line-hintuan-surface-default: var(--color-green-400);
+  /* The hotspot boxes on the map: the owner's HotspotOverlayCard (3837:11308,
+     2026-09-30). Figma gives the surfaces an opacity too — Hintuan 30%, its
+     selected 60%, Terminal 25% — which only the map paints, from
+     mapColours.ts (MAP_OPACITY); here the colour alone. */
+  --map-overlay-card-hintuan-surface: var(--color-green-500);
+  --map-overlay-card-hintuan-surface-selected: var(--color-green-500);
+  --map-overlay-card-hintuan-content: var(--color-green-800);
+  --map-overlay-card-terminal-surface: var(--color-sky-500);
+  --map-overlay-card-terminal-border: var(--color-sky-800);
+  --map-overlay-card-terminal-content: var(--color-sky-800);
 }
 
 /* The semantics as utilities: text-content-primary, bg-surface, border-border-primary… */
@@ -163,6 +174,7 @@
   --color-border-secondary: var(--border-secondary);
   --color-border-tertiary: var(--border-tertiary);
   --color-border-error: var(--border-error);
+  --color-border-plain: var(--border-plain);
 
   --color-surface: var(--surface);
   --color-surface-secondary: var(--surface-secondary);
@@ -200,11 +212,17 @@
 
   --color-components-tooltip-surface: var(--components-tooltip-surface);
 
-  --color-map-hintuan-surface: var(--map-hintuan-surface);
   --color-map-route-line-surface-default: var(--map-route-line-surface-default);
   --color-map-route-line-surface-selected: var(--map-route-line-surface-selected);
   --color-map-route-line-arrow-rest: var(--map-route-line-arrow-rest);
   --color-map-route-line-arrow-inverse: var(--map-route-line-arrow-inverse);
+  --color-map-route-line-hintuan-surface-default: var(--map-route-line-hintuan-surface-default);
+  --color-map-overlay-card-hintuan-surface: var(--map-overlay-card-hintuan-surface);
+  --color-map-overlay-card-hintuan-surface-selected: var(--map-overlay-card-hintuan-surface-selected);
+  --color-map-overlay-card-hintuan-content: var(--map-overlay-card-hintuan-content);
+  --color-map-overlay-card-terminal-surface: var(--map-overlay-card-terminal-surface);
+  --color-map-overlay-card-terminal-border: var(--map-overlay-card-terminal-border);
+  --color-map-overlay-card-terminal-content: var(--map-overlay-card-terminal-content);
 }
 
 /*

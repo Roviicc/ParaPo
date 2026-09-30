@@ -91,6 +91,7 @@ function TokensPage() {
         <Swatch box="border-3 border-border-secondary bg-surface" token="Border/secondary" cls="border-border-secondary" />
         <Swatch box="border-3 border-border-tertiary bg-surface" token="Border/tertiary" cls="border-border-tertiary" />
         <Swatch box="border-3 border-border-error bg-surface" token="Border/error" cls="border-border-error" />
+        <Swatch box="border-3 border-border-plain bg-surface-quaternary" token="Border/plain" cls="border-border-plain" />
       </Group>
 
       <Group title="Background">
@@ -138,7 +139,12 @@ function TokensPage() {
         <Swatch box="bg-map-route-line-surface-selected" token="Map/RouteLine/surface-selected" cls="bg-map-route-line-surface-selected" />
         <Swatch box="bg-map-route-line-arrow-rest" token="Map/RouteLine/Arrow/Rest" cls="bg-map-route-line-arrow-rest" />
         <Swatch box="bg-map-route-line-arrow-inverse" token="Map/RouteLine/Arrow/Inverse" cls="bg-map-route-line-arrow-inverse" />
-        <Swatch box="bg-map-hintuan-surface" token="Map/Hintuan/surface" cls="bg-map-hintuan-surface" />
+        <Swatch box="bg-map-route-line-hintuan-surface-default" token="Map/RouteLine/Hintuan/surface-default" cls="bg-map-route-line-hintuan-surface-default" />
+        <Swatch box="bg-map-overlay-card-hintuan-surface/30 border-3 border-map-overlay-card-hintuan-content" token="Map/OverlayCard/Hintuan (30%)" cls="bg-map-overlay-card-hintuan-surface" />
+        <Swatch box="bg-map-overlay-card-hintuan-surface-selected/60" token="…/Hintuan/surface-selected (60%)" cls="bg-map-overlay-card-hintuan-surface-selected" />
+        <Swatch box="bg-map-overlay-card-hintuan-content" token="…/Hintuan/content" cls="bg-map-overlay-card-hintuan-content" />
+        <Swatch box="bg-map-overlay-card-terminal-surface/25 border-3 border-map-overlay-card-terminal-border" token="Map/OverlayCard/Terminal (25%)" cls="bg-map-overlay-card-terminal-surface" />
+        <Swatch box="bg-map-overlay-card-terminal-content" token="…/Terminal/content" cls="bg-map-overlay-card-terminal-content" />
       </Group>
 
       <Group title="Motion — hover a row to play it">
