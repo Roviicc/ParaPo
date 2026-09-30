@@ -17,6 +17,10 @@ export const MAP_COLOURS = {
   'Map/OverlayCard/Terminal/surface': '#00a6f4', // sky/500, at 25%
   'Map/OverlayCard/Terminal/border': '#00598a', // sky/800
   'Map/OverlayCard/Terminal/content': '#00598a', // sky/800
+  'Map/HotspotsCard/Hintuan/surface': '#008236', // green/700
+  'Map/HotspotsCard/Hintuan/border-primary': '#0d542b', // green/900
+  'Map/HotspotsCard/Terminal/surface': '#0069a8', // sky/700
+  'Map/HotspotsCard/Terminal/border-primary': '#024a70', // sky/900
 } as const satisfies Record<`Map/${string}`, `#${string}`>
 
 /**

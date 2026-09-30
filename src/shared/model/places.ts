@@ -31,6 +31,36 @@ export function siblingsOf<S extends StopSummary>(stop: StopSummary, all: readon
 }
 
 /**
+ * Every box of this box's place, as its HintuanCard lists them (the owner's
+ * 3854:12690, 2026-09-30): terminals first, then the hintuans, each in the
+ * order they were drawn. Each is named as it is written on the ground; where
+ * two share that name, they are numbered in the order they were drawn —
+ * "Fairview Teraccess 1", "Fairview Teraccess 2" — and a name only one box
+ * has stays as it is.
+ */
+export function placeBoxes<S extends StopSummary>(stop: StopSummary, all: readonly S[]): { box: S; label: string }[] {
+  const key = placeKey(stop)
+  const drawn = (a: S, b: S) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)
+  const boxes = all
+    .filter((s) => placeKey(s) === key)
+    .sort((a, b) => (a.kind === b.kind ? drawn(a, b) : a.kind === 'terminal' ? -1 : 1))
+  const nameOf = (s: S) => s.name.trim().toLowerCase()
+  const counts = new Map<string, number>()
+  for (const s of boxes) counts.set(nameOf(s), (counts.get(nameOf(s)) ?? 0) + 1)
+  // Numbered in drawing order, whatever the kind: a terminal and a hintuan of
+  // one name are two boxes of it all the same.
+  const nth = new Map<string, number>()
+  const seen = new Map<string, number>()
+  for (const s of [...boxes].sort(drawn)) {
+    if ((counts.get(nameOf(s)) ?? 0) < 2) continue
+    const n = (seen.get(nameOf(s)) ?? 0) + 1
+    seen.set(nameOf(s), n)
+    nth.set(s.id, n)
+  }
+  return boxes.map((s) => ({ box: s, label: nth.has(s.id) ? `${s.name.trim()} ${nth.get(s.id)}` : s.name.trim() }))
+}
+
+/**
  * "terminal + hintuan · 2 mini stops", "hintuan · 2 mini stops": what a place
  * is made of. A place's hintuan boxes are one hintuan to a rider; each box is
  * a mini stop, there for information. The owner's model, 2026-09-28.

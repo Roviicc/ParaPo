@@ -1210,7 +1210,13 @@ const Z_HOT = 18
 const M_HOT = M_PER_PX / 2 ** (Z_HOT - ZOOM)
 const UNDER_M = 9 * M_HOT + 3 * M_HOT
 const NEAR_M = 20 * M_HOT + 9 * M_HOT
-const badgeOf = (poly) => (poly.kind === 'terminal' ? 'Terminal · routes start here' : 'Hintuan · wait and board here')
+/**
+ * The box whose row the HintuanCard has Selected, pressed in (the owner's
+ * 3854:12690, 2026-09-30): the one tapped. Its kind shows as the row's
+ * colour and letter, where a badge said it before.
+ */
+const pressedBox = () =>
+  page.evaluate(() => document.querySelector('[data-testid="card"] [data-testid="card-box"][aria-current="true"]')?.dataset.box ?? null)
 
 // 4a. Inside a hotspot, on a pixel no route covers, with a route or not in
 // the finger's reach: the box's card opens straight away, alone — one tap,
@@ -1247,10 +1253,37 @@ if (!inside) {
   const text = await cardText()
   check(
     `a tap inside "${poly.name}" opens its card alone${routesInBox.length ? `, its route in reach not listed` : ''}`,
-    text.includes(poly.name) && text.includes(badgeOf(poly)) && (await chooser.count()) === 0,
+    text.includes(poly.name) && (await pressedBox()) === poly.id && (await chooser.count()) === 0,
     `${text.split('\n')[0] || '(no card)'}; ${await chooser.count()} list(s); ${routesInBox.length} route(s) in reach`,
   )
   check(`  no chooser for one thing`, (await chooser.count()) === 0)
+  // Another box of its place, from its row: that row Selected, the card
+  // down to Middle from Max, and the map gone there, the box clear of the
+  // card (the owner's HintuanCard, 2026-09-30).
+  const otherRow = card().first().locator(`[data-testid="card-box"]:not([data-box="${poly.id}"])`)
+  const otherId = (await otherRow.count()) ? await otherRow.first().getAttribute('data-box') : null
+  const otherPoly = otherId && snapshot.polys.find((o) => o.id === otherId)
+  if (!otherPoly) {
+    skip('  another box from its row: Selected, the card at Middle, the map there', `"${poly.name}" is its place's only box`)
+  } else {
+    await buttonTap(handle(), async () => (await sheetState()) === 'max')
+    const from = await sheetState()
+    await buttonTap(otherRow.first(), async () => (await pressedBox()) === otherId)
+    await page.waitForTimeout(200)
+    await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 4000 }).catch(() => {})
+    const at = await project(page, centroidOf(otherPoly.ring))
+    const edges = await page.evaluate(() => {
+      const c = window.__map.getCanvas().getBoundingClientRect()
+      const d = document.querySelector('[data-testid="card"]').getBoundingClientRect()
+      return { top: c.top, cardTop: d.top }
+    })
+    const y = edges.top + at[1]
+    check(
+      '  another box from its row: Selected, the card down to Middle, the map there above it',
+      (await pressedBox()) === otherId && (await sheetState()) === 'middle' && y > edges.top && y < edges.cardTop,
+      `from ${from}: ${await pressedBox()} pressed (want ${otherId}), data-snap=${await sheetState()}; the box at ${Math.round(y)}, the card from ${Math.round(edges.cardTop)}`,
+    )
+  }
   await closeCard()
 }
 
@@ -1295,7 +1328,7 @@ if (snapshot.polys.length === 0) {
     text.includes(poly.name),
     `${text.split('\n')[0] || '(no card)'}; the box drawn at its centre: ${drawn === 1 ? 'yes' : drawn}`,
   )
-  check(`  the card shows its "${badgeOf(poly).split(' ·')[0]}" badge`, text.includes(badgeOf(poly)))
+  check(`  the card has its row Selected`, (await pressedBox()) === poly.id, `${await pressedBox()}`)
   await closeCard()
 }
 

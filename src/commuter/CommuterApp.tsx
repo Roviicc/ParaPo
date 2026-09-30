@@ -1,12 +1,13 @@
 import { useMemo, useRef, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
-import { HotspotCard } from '../shared/cards/HotspotCard'
+import { HintuanCard } from '../shared/cards/HintuanCard'
+import { placeKey } from '../shared/model/places'
 import { MAP_FILE_TOO_NEW, loadLine, loadStopsFromFile, loadVariantsFromFile } from './mapFile'
 import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
 import { METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
 import type { Livery } from '../shared/model/liveries'
 import { RouteCardList } from '../shared/cards/RouteCardList'
-import { makeRoom } from '../shared/cards/BottomSheet'
+import { clearOfDock, makeRoom } from '../shared/cards/BottomSheet'
 import type { Snap } from '../shared/cards/sheetGesture'
 import { useRideTo } from '../shared/map/rideTo'
 import { directionEnds, isDrawn } from '../shared/model/routes'
@@ -73,6 +74,8 @@ export default function CommuterApp() {
   // owner's ask of 2026-09-30: "now I don't want to cut the route"). At
   // Max, the card comes down to Middle as the camera glides (makeRoom).
   const tripDock = useRef<HTMLDivElement>(null)
+  // The HintuanCard's, for a picked box to land clear of it.
+  const hotspotDock = useRef<HTMLDivElement>(null)
   const ride = useRideTo(map, saved.selected, stops.stops, {
     onGlide: () => (map ? makeRoom(map.getContainer(), tripDock.current, { snap, onSnap: setSnap }) : [0, 0]),
   })
@@ -217,17 +220,18 @@ export default function CommuterApp() {
       )}
 
       {/*
-        A hotspot's card: its routes are the owner's RouteCards (2026-09-29),
-        and it stays behind the trip picked from them, hidden, for the trip's
-        ‹. The rest of it waits for his hintuan design. It is `card` to the
-        suites too, and comes after the trip here on purpose: their first
-        `card` is then the trip while this one hides behind it.
+        A hotspot's card: the owner's HintuanCard (3854:12690, 2026-09-30),
+        its place and every box of it, the routes stopping at the Selected
+        one as his RouteCards; it stays behind the trip picked from them,
+        hidden, for the trip's ‹. It is `card` to the suites too, and comes
+        after the trip here on purpose: their first `card` is then the trip
+        while this one hides behind it.
       */}
       {stops.selected && (
-        // Keyed by the hotspot: "Part of …" → a sibling once reused this card
-        // as it was, flipped and pulled up.
-        <HotspotCard
-          key={stops.selected.id}
+        // Keyed by the place: another of its boxes — a row, or SWITCH moving
+        // to it — keeps the card as it is, its way round with it.
+        <HintuanCard
+          key={placeKey(stops.selected)}
           routeCards={{
             selected: saved.highlight?.where === 'hotspot' ? saved.highlight.from : null,
             onSelect: (p) => saved.highlightCard(p && { where: 'hotspot', ...p }),
@@ -235,17 +239,21 @@ export default function CommuterApp() {
           }}
           hidden={!!saved.selected}
           height={height}
+          dockRef={hotspotDock}
           stop={stops.selected}
-          linkedVariantIds={stops.linkedVariantIds(stops.selected.id)}
+          stops={stops.stops}
+          linkedVariantIds={stops.linkedVariantIds}
           variants={saved.variants}
           onSelectVariant={(v, livery) => {
             setWorn(livery ? { id: v.id, livery } : null)
             saved.select(v.id, { keepList: true })
           }}
-          stops={stops.stops}
-          onPickSibling={(id) => {
+          // Another box: the card comes down to Middle as the map goes
+          // there, the box clear of it (the owner, 2026-09-30).
+          onPickBox={(id) => {
             saved.highlightCard(null)
-            stops.show(id)
+            setSnap('middle')
+            stops.show(id, () => (map ? clearOfDock(map.getContainer(), hotspotDock.current, 'middle') : [0, 0]))
           }}
           onClose={() => {
             saved.highlightCard(null)

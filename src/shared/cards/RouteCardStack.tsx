@@ -31,8 +31,9 @@ type Props = {
  * picked or not, and picks none — selecting it too was confusing — and the
  * trip's ‹ comes back to every card at rest (the owner's calls, 2026-09-29).
  * The route list stacks them under its header; the public map's
- * hotspot card under "Routes that pass through", or a terminal's "Routes
- * that stage here", edge to edge in both.
+ * HintuanCard under its place's boxes, the routes stopping at the Selected
+ * one; the studio's hotspot card under "Routes that pass through", or a
+ * terminal's "Routes that stage here" — edge to edge in all three.
  */
 export function RouteCardStack({ routes, back, selected, onSelect, onRoute, testId }: Props) {
   const places = drawnDepartures(routes, back)

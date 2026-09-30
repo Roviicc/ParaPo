@@ -108,10 +108,13 @@ export function useSavedStops<S extends StopSummary>(
 
   /** Select a box and bring the map to it — what tapping a timeline row does, in both apps. */
   const show = useCallback(
-    (id: string) => {
+    // `offset`, asked as the flight starts: where the box should land from
+    // the map's centre, clear of a card over the map (the HintuanCard's rows).
+    (id: string, offset?: () => [number, number]) => {
       const s = stops.find((x) => x.id === id)
       select(id)
-      if (s && map) map.flyTo({ center: s.point.coordinates, zoom: Math.max(map.getZoom(), 16) }, APP_MOVE)
+      if (s && map)
+        map.flyTo({ center: s.point.coordinates, zoom: Math.max(map.getZoom(), 16), offset: offset?.() ?? [0, 0] }, APP_MOVE)
     },
     [stops, select, map],
   )
