@@ -157,6 +157,7 @@ function TokensPage() {
           <MotionRow token="duration/quick · 150ms" cls="duration-quick" dot="duration-quick ease-enter" />
           <MotionRow token="duration/base · 200ms" cls="duration-base" dot="duration-base ease-enter" />
           <MotionRow token="duration/gentle · 300ms" cls="duration-gentle" dot="duration-gentle ease-enter" />
+          <MotionRow token="duration/turn · 500ms" cls="duration-turn" dot="duration-turn ease-enter" />
           <MotionRow token="duration/slow · 450ms" cls="duration-slow" dot="duration-slow ease-enter" />
           <MotionRow token="delay/tooltip · 800ms" cls="delay-tooltip" dot="delay-tooltip duration-base ease-enter" />
         </div>

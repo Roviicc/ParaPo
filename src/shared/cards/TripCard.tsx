@@ -135,10 +135,10 @@ export function TripCard({
   )
 }
 
-/** A ride's pesos, regular and student, for the fare tile; undefined when no fare rule prices it. */
+/** A ride's pesos, regular and discounted, for the fare tile; undefined when no fare rule prices it. */
 function faresFor(mode: Parameters<typeof rideFare>[0], metres: number): Fares | undefined {
   const date = manilaDate()
   const regular = rideFare(mode, metres, date)
-  const student = rideFare(mode, metres, date, 'discounted')
-  return regular && student ? { regular, student } : undefined
+  const discounted = rideFare(mode, metres, date, 'discounted')
+  return regular && discounted ? { regular, discounted } : undefined
 }

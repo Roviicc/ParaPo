@@ -14,12 +14,13 @@ export type TripTimelineProps = {
   /** A hintuan's row was tapped: pick it, or, picked, let it go. */
   onPick: (id: string) => void
   /**
-   * Whether the ride to the picked hintuan is priced: its pill, "Calculated
-   * Fare", says the fare tile now prices the ride to there (the owner's
-   * 3778:3183, 2026-09-30; the pill held the pesos itself before). False when
-   * unpriced, and no pill.
+   * The pesos of the ride to the picked hintuan, for its pill: the fare the
+   * tile under the card shows, Regular or Discounted (the owner, 2026-09-30:
+   * "why it shows calculated fare instead of its real value?" — the pill
+   * said "Calculated Fare" for the day before). Omitted when unpriced, and
+   * no pill.
    */
-  pickedPriced?: boolean
+  pickedPesos?: string
   /** The origin's row (`from`) or the destination's (`to`) was tapped: the whole ride again, and that end shown. */
   onEnd: (end: 'from' | 'to') => void
   /**
@@ -63,9 +64,9 @@ export type TripTimelineProps = {
  * A hintuan's row picks it (his Timeline State=Selected, 3769:2847,
  * 2026-09-29): its dot turns to a white ring round a centre in the card's
  * rail colour (green until 2026-09-30; TimelineDot), its name black-weight,
- * and a pill beside it, "Calculated Fare", says the fare tile under the card
- * now prices the ride from where the trip leaves to there (the pesos were on
- * the pill until 2026-09-30),
+ * and a pill beside it holds the pesos from where the trip leaves to there,
+ * the same the fare tile under the card shows, Regular or Discounted as it is
+ * turned (it said "Calculated Fare" for part of 2026-09-30),
  * while a circle like its dot pops up on the map where it is, the route
  * left whole (his ask of 2026-09-30, "now I don't want to cut the route";
  * until then the map drew the ride dark only that far). Tapping it again
@@ -85,7 +86,7 @@ export function TripTimeline({
   hintuans,
   picked,
   onPick,
-  pickedPriced = false,
+  pickedPesos,
   onEnd,
   endPicked,
   routeDirection,
@@ -123,7 +124,7 @@ export function TripTimeline({
             label={h.label}
             shown={!folds || open}
             selected={h.id === picked}
-            priced={h.id === picked && pickedPriced}
+            pesos={h.id === picked ? pickedPesos : undefined}
             pill={TIMELINE_PILL[livery]}
             onPick={onPick}
           />
@@ -216,7 +217,7 @@ const ROW_FOLDED = 'invisible grid-rows-[0fr] duration-base ease-exit'
 /**
  * Figma's TimelineHintuan: a hintuan on the way, its dot on the rail; the
  * whole row is its button. Selected (State=Selected), its name is Black and
- * the "Calculated Fare" pill sits 8 after it, 16 in from the card's edge.
+ * the pill of its pesos sits 8 after it, 16 in from the card's edge.
  */
 function TimelineHintuan({
   id,
@@ -224,7 +225,7 @@ function TimelineHintuan({
   label,
   shown,
   selected,
-  priced,
+  pesos,
   pill,
   onPick,
 }: {
@@ -233,7 +234,8 @@ function TimelineHintuan({
   label: string
   shown: boolean
   selected: boolean
-  priced: boolean
+  /** The ride's pesos to here, for the pill; picked and priced only. */
+  pesos?: string
   /** TIMELINE_PILL's classes for the card's livery. */
   pill: string
   onPick: (id: string) => void
@@ -264,12 +266,12 @@ function TimelineHintuan({
           </span>
           <span className="flex min-w-0 flex-1 items-center gap-2 py-2.5 pl-3">
             <span className={'min-w-0 flex-1 text-base/6 ' + (selected ? 'font-black' : 'font-medium')}>{label}</span>
-            {priced && (
+            {pesos && (
               <span
                 data-testid="trip-hintuan-fare"
                 className={'shrink-0 rounded-full px-1.5 py-0.5 text-sm/5 font-medium whitespace-nowrap ' + pill}
               >
-                Calculated Fare
+                {pesos}
               </span>
             )}
           </span>

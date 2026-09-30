@@ -689,12 +689,12 @@ if (PART === 1) {
             padding: Object.values(m.getPadding()).every((v) => v === 0),
           }
         }, want?.at ?? null)
-        // The pill says "Calculated Fare"; the fare tile prices the ride to
-        // there (the owner's 3778:3183, redrawn 2026-09-30).
+        // The pill and the fare tile both hold the pesos to there (the
+        // owner, 2026-09-30: the pill's "Calculated Fare" gave way to its value).
         const fareTile = (await cardEl.locator('[data-testid="trip-fare"]').count()) ? (await cardEl.locator('[data-testid="trip-fare"]').innerText()).trim() : null
         check(
-          '  a hintuan row picks it: Selected, its pill "Calculated Fare", the fare tile the pesos from the start to there',
-          (await row.getAttribute('data-state')) === 'selected' && (!want || want.fare == null || (pill === 'Calculated Fare' && fareTile === want.fare)),
+          '  a hintuan row picks it: Selected, its pill and the fare tile the pesos from the start to there',
+          (await row.getAttribute('data-state')) === 'selected' && (!want || want.fare == null || (pill === want.fare && fareTile === want.fare)),
           `pill "${pill}"; tile "${fareTile}"${want ? `, the sums "${want.fare}"` : ''}`,
         )
         // The Kilometer tile follows the pick too (the owner, 2026-09-30).

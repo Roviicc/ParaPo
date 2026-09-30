@@ -241,6 +241,7 @@
   --transition-duration-base: 200ms; /* tooltips, small things appearing */
   --transition-duration-gentle: 300ms; /* cards, panels, sheets */
   --transition-duration-sheet: 313ms; /* the bottom sheet's glide: 250 ms, then 8/10 as fast (the owner, 2026-09-30: "the motion is too fast") */
+  --transition-duration-turn: 500ms; /* the fare tile's ↻: gentle, then 6/10 as fast (the owner, 2026-09-30: "it's fast") */
   --transition-duration-slow: 450ms; /* big moves, full screen */
 
   --transition-delay-tooltip: 800ms; /* hover before a tooltip shows */

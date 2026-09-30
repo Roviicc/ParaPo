@@ -5,10 +5,10 @@ import { BottomSheet, type SheetHeight } from "./BottomSheet";
 import { ReloadIcon } from "./RouteIcons";
 import { TripTimeline, type TripTimelineProps } from "./TripTimeline";
 
-/** A ride's pesos both ways: `₱26` regular, and its student (discounted) price. */
-export type Fares = { regular: string; student: string };
+/** A ride's pesos both ways: `₱26` regular, and its discounted price — students, seniors, PWDs. */
+export type Fares = { regular: string; discounted: string };
 
-type Props = Omit<TripTimelineProps, "pickedPriced"> & {
+type Props = Omit<TripTimelineProps, "pickedPesos"> & {
   /** Figma's Kilometer tile: the whole ride's length, in metres; written `12.8km`. */
   metres: number;
   /** …and the ride to the picked hintuan, which the tile shows while it is picked, as the fare tile does. */
@@ -43,11 +43,12 @@ type Props = Omit<TripTimelineProps, "pickedPriced"> & {
  * its fare (moved under the card in his redrawing the same day).
  *
  * The fare tile (his 3778:3183, redrawn 2026-09-30) is a button: the pesos,
- * and under them ↻ and which fare they are, Regular or Student; a tap turns
+ * and under them ↻ and which fare they are, Regular or Discounted; a tap turns
  * it to the other. With a hintuan picked it prices the ride from where the
- * trip leaves to there — the pick's pill says "Calculated Fare" — and let go,
+ * trip leaves to there — the pick's pill the same pesos — and let go,
  * the whole ride again (his ask: "change the value of it based on the
- * hintuan they select"). It opens on Regular, and keeps which it shows
+ * hintuan they select"). Its second fare was "Student fare" until he named it
+"Discounted fare" (2026-09-30). It opens on Regular, and keeps which it shows
  * through a pick, SWITCH and back. The Kilometer tile follows the pick the
  * same way, from where the trip leaves to there (the owner, 2026-09-30: "it
  * should follow the picked hintuan").
@@ -79,10 +80,11 @@ export function RouteTripDetail({
   height,
   children,
 }: Props) {
-  const [student, setStudent] = useState(false);
+  const [discounted, setDiscounted] = useState(false);
   // Each tap turns ↻ round once more (the owner's "simple rotation only if
   // selected", 2026-09-30): counted, so the next tap turns it again rather
-  // than back.
+  // than back. It turns over `turn`, gentle at 6/10 as fast (his "it's fast",
+  // the same day).
   const [turns, setTurns] = useState(0);
   const shown = picked && pickedFare ? pickedFare : fare;
   const shownMetres = picked && pickedMetres !== undefined ? pickedMetres : metres;
@@ -111,7 +113,7 @@ export function RouteTripDetail({
           hintuans={hintuans}
           picked={picked}
           onPick={onPick}
-          pickedPriced={!!pickedFare}
+          pickedPesos={pickedFare && (discounted ? pickedFare.discounted : pickedFare.regular)}
           onEnd={onEnd}
           endPicked={endPicked}
           routeDirection={routeDirection}
@@ -131,9 +133,9 @@ export function RouteTripDetail({
           <button
             type="button"
             data-testid="trip-fare-turn"
-            aria-label={`${student ? "Student" : "Regular"} fare ${student ? shown.student : shown.regular}. Show the ${student ? "regular" : "student"} fare`}
+            aria-label={`${discounted ? "Discounted" : "Regular"} fare ${discounted ? shown.discounted : shown.regular}. Show the ${discounted ? "regular" : "discounted"} fare`}
             onClick={() => {
-              setStudent((s) => !s);
+              setDiscounted((s) => !s);
               setTurns((t) => t + 1);
             }}
             className={
@@ -142,17 +144,17 @@ export function RouteTripDetail({
             }
           >
             <span data-testid="trip-fare" className={FIGURE}>
-              {student ? shown.student : shown.regular}
+              {discounted ? shown.discounted : shown.regular}
             </span>
             <span className={NAME + " flex items-center gap-1.5"}>
               <span
                 aria-hidden
                 style={{ rotate: `${turns * 360}deg` }}
-                className="size-4 shrink-0 text-content-quaternary transition-[rotate] duration-gentle ease-move motion-reduce:transition-none *:size-full"
+                className="size-4 shrink-0 text-content-quaternary transition-[rotate] duration-turn ease-move motion-reduce:transition-none *:size-full"
               >
                 <ReloadIcon />
               </span>
-              {student ? "Student fare" : "Regular fare"}
+              {discounted ? "Discounted fare" : "Regular fare"}
             </span>
           </button>
         )}

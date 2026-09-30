@@ -59,7 +59,7 @@ export function CircleArrowRightIcon() {
   )
 }
 
-/** Figma's Reload (3807:5509), 16 across: the fare tile's turn between Regular and Student fare. */
+/** Figma's Reload (3807:5509), 16 across: the fare tile's turn between Regular and Discounted fare. */
 export function ReloadIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden>

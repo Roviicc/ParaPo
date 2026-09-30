@@ -537,12 +537,12 @@ const tripChecks = async () => {
     )
     const pill = row.locator('[data-testid="trip-hintuan-fare"]')
     const pillText = (await pill.count()) ? (await pill.first().innerText()).trim() : null
-    // The pill says "Calculated Fare"; the fare tile prices the ride to there
-    // (the owner's 3778:3183, redrawn 2026-09-30).
+    // The pill and the fare tile both hold the pesos to there (the owner,
+    // 2026-09-30: the pill's "Calculated Fare" gave way to its value).
     const pickedTile = await tile('trip-fare')
-    if (!pickWant) skip('  its pill "Calculated Fare", the fare tile the pesos from where the trip leaves to there', 'the sums cannot be read from this server')
-    else if (pickWant.fare == null) skip('  its pill "Calculated Fare", the fare tile the pesos from where the trip leaves to there', 'an unpriced route shows no pill')
-    else check('  its pill "Calculated Fare", the fare tile the pesos from where the trip leaves to there', pillText === 'Calculated Fare' && pickedTile === pickWant.fare, `pill "${pillText}"; tile "${pickedTile}", the sums "${pickWant.fare}"`)
+    if (!pickWant) skip('  its pill and the fare tile the pesos from where the trip leaves to there', 'the sums cannot be read from this server')
+    else if (pickWant.fare == null) skip('  its pill and the fare tile the pesos from where the trip leaves to there', 'an unpriced route shows no pill')
+    else check('  its pill and the fare tile the pesos from where the trip leaves to there', pillText === pickWant.fare && pickedTile === pickWant.fare, `pill "${pillText}"; tile "${pickedTile}", the sums "${pickWant.fare}"`)
     const colours = await page.evaluate(() => {
       const pill = document.querySelector('[data-testid="trip-hintuan-fare"]')
       const trip = document.querySelector('[data-testid="trip"]')
