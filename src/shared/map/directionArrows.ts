@@ -16,7 +16,8 @@ import { LAYERS, useLayerReady } from './layers'
  * Decided with the owner 2026-09-23: marks *inside* the line, never as a
  * second offset line, only on what is lit — on every resting line they would
  * be clutter once a road carries three routes — and **flowing smoothly**
- * along it from the start of the ride to its end. No glow: he asked for it
+ * along it from the start of the ride to its end, for as long as it is lit
+ * (STEP_MS). No glow: he asked for it
  * and then asked for it gone. What is lit is the chosen direction; or, since
  * 2026-09-29, the Selected RouteCard's directions (a route list's card or a
  * hotspot's); or else every route a list shows, the way round it shows them
@@ -54,14 +55,15 @@ const SAME_END_M = 150
 export type Ride = { line: LngLat[]; from: string; to: string }
 
 /**
- * How long they flow once a route lights, before they rest where they are:
- * a flow makes MapLibre draw the whole map again every frame, and on a phone
- * that alone kept the main thread nine-tenths busy at under 20 frames a
- * second, whatever the route (measured 2026-09-29, a CPU slowed 4×: 17 fps
- * flowing, 60 at rest). The owner's pick that day: "flow, then rest". They
- * flow again whenever what is lit changes.
+ * How often they move on: fifteen times a second. They flow for as long as
+ * a route is lit (the owner's ask of 2026-09-30: "yes continuous arrows"),
+ * after flowing for three seconds and resting since 2026-09-29, when a flow
+ * at thirty frames kept a phone's main thread nine-tenths busy (a CPU slowed
+ * 4×: 17 fps flowing, 60 at rest). At 28 px a second a step of about 2 px
+ * still reads as a flow, for half that work; and it holds while the map is
+ * dragged or zoomed, so moving the map keeps the whole frame to itself.
  */
-const FLOW_MS = 3000
+const STEP_MS = 1000 / 15
 
 /** Whether this browser has been asked to keep still. */
 function stillPlease(): boolean {
@@ -85,8 +87,8 @@ export function useRideColours(map: MapLibreMap | null, look: LineLook) {
 }
 
 /**
- * Draw chevrons along each ride's line, flowing for FLOW_MS and then at
- * rest, and a circle at both ends of each with the place's name beside it;
+ * Draw chevrons along each ride's line, flowing for as long as it is lit
+ * (STEP_MS), and a circle at both ends of each with the place's name beside it;
  * nothing when there are none. Pass the same array while what is lit is
  * unchanged (a memo), or the flow restarts.
  */
@@ -190,9 +192,11 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       measured.push(m)
     }
     const still = stillPlease()
-    const start = performance.now()
-    let last = 0
-    const draw = (now: number) => {
+    // How far they have flowed, in ms of flowing: not while the map moves.
+    let flowed = 0
+    let last = performance.now()
+    let moving = false
+    const draw = () => {
       const zoom = map.getZoom()
       const bounds = map.getBounds()
       const view = { west: bounds.getWest(), east: bounds.getEast(), south: bounds.getSouth(), north: bounds.getNorth(), zoom }
@@ -201,37 +205,39 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       for (const m of measured) {
         const mpp = metresPerPixel(m.lat, zoom)
         const spacing = spacingPx(zoom) * mpp
-        // At rest they stay where the flow left them, at any zoom.
-        const flowed = Math.min(now - start, FLOW_MS)
         const offset = still ? spacing / 2 : ((flowed / 1000) * SPEED_PX_PER_S * mpp) % spacing
         chevronsAt(m, offset, spacing, across, view, features)
       }
       src.setData({ type: 'FeatureCollection', features })
     }
-    // Kept still, they are drawn once, and again whenever the map moves: a
-    // zoom changes their size and spacing, a pan brings new line on screen.
-    const redraw = () => draw(performance.now())
-    const rest = () => {
-      redraw()
-      map.on('move', redraw)
+    // Moved, the map draws them again where they are: a zoom changes their
+    // size and spacing, a pan brings new line on screen.
+    const onMove = () => draw()
+    const onStart = () => (moving = true)
+    const onEnd = () => {
+      moving = false
+      last = performance.now()
     }
     const tick = (now: number) => {
-      if (now - start >= FLOW_MS) {
-        rest()
-        return
-      }
-      // Thirty frames a second is smooth for a flow and half the work of sixty.
-      if (now - last >= 1000 / 30) {
-        last = now
-        draw(now)
-      }
       frame.current = requestAnimationFrame(tick)
+      if (moving || now - last < STEP_MS) return
+      // Back from a hidden page, or a long frame: one step on, not a leap.
+      flowed += Math.min(now - last, 2 * STEP_MS)
+      last = now
+      draw()
     }
-    if (still) rest()
-    else frame.current = requestAnimationFrame(tick)
+    draw()
+    map.on('move', onMove)
+    map.on('movestart', onStart)
+    map.on('moveend', onEnd)
+    // Still, when the browser is asked to keep still; and a hidden page
+    // runs no frames at all.
+    if (!still) frame.current = requestAnimationFrame(tick)
     return () => {
       cancelAnimationFrame(frame.current)
-      map.off('move', redraw)
+      map.off('move', onMove)
+      map.off('movestart', onStart)
+      map.off('moveend', onEnd)
     }
   }, [map, lines, hitReady])
 }
