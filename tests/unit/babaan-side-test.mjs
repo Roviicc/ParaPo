@@ -5,7 +5,7 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/babaan-side-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { rightOfLine } from '../../src/shared/geo/geo.ts'
+import { rightOfLine } from '../../src/shared/geo/rightOfLine.ts'
 import { hintuansAlong, stopRing } from '../../src/shared/model/stops.ts'
 import { fileURLToPath } from 'node:url'
 import { readPublished } from '../../scripts/checks/check-map-data.mjs'

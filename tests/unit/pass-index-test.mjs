@@ -15,8 +15,10 @@
 // one that stays away.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { PASS_WITHIN_M, passIndex, stopRing } from '../../src/shared/model/stops.ts'
-import { entryDistance, firstTouchIndex, lineBounds, pointInRing, segmentsIntersect } from '../../src/shared/geo/geo.ts'
+import { PASS_WITHIN_M, passIndex } from '../../src/shared/geo/pass.ts'
+import { stopRing } from '../../src/shared/model/stops.ts'
+import { entryDistance, firstTouchIndex, pointInRing, segmentsIntersect } from '../../src/shared/geo/ring.ts'
+import { lineBounds } from '../../src/shared/geo/geo.ts'
 import { fileURLToPath } from 'node:url'
 import { readPublished } from '../../scripts/checks/check-map-data.mjs'
 

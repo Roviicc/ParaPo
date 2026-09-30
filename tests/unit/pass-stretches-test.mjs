@@ -12,8 +12,10 @@
 // pair the caller skips has no stretch.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { PASS_WITHIN_M, passBounds, passStretches, stopRing } from '../../src/shared/model/stops.ts'
-import { bboxOf, bboxesOverlap, distanceToRingM, haversine } from '../../src/shared/geo/geo.ts'
+import { PASS_WITHIN_M, passBounds, passStretches } from '../../src/shared/geo/pass.ts'
+import { stopRing } from '../../src/shared/model/stops.ts'
+import { bboxOf, bboxesOverlap, haversine } from '../../src/shared/geo/geo.ts'
+import { distanceToRingM } from '../../src/shared/geo/ring.ts'
 import { fileURLToPath } from 'node:url'
 import { readPublished } from '../../scripts/checks/check-map-data.mjs'
 
