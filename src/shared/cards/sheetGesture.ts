@@ -123,18 +123,20 @@ export function follow(startY: number, t: number, from: number, max: number) {
 }
 
 /**
- * Where a drag lets go (the owner's ask of 2026-09-30: the sheet follows the
- * finger, fluid, and a swipe up at Middle takes it to Max). `shown` is how
+ * Where a drag lets go (the owner's asks of 2026-09-30: the sheet follows the
+ * finger, fluid; then "like google maps and apple maps"). `shown` is how
  * much of the sheet is on screen as the finger lifts, `heights` what each
  * snap shows, `velocity` the finger's speed upwards in px/ms (negative:
- * downwards). A flick goes to the next height past where the sheet is, in
- * its direction — down past Low, it closes. A slow release settles on the
- * nearest height, or closes when less than half of Low still shows.
+ * downwards). A flick goes to the end in its direction: up, to Max, from Low
+ * or Middle alike; down, to Low, from Max or Middle alike — and down from
+ * Low, it closes. A slow release settles on the nearest height, so a hand
+ * can still leave it at Middle, or closes when less than half of Low still
+ * shows.
  */
 export function snapFor(shown: number, velocity: number, heights: Record<Snap, number>): Snap | 'close' {
-  const order: Snap[] = ['low', 'middle', 'max']
-  if (velocity >= FLICK) return order.find((s) => heights[s] > shown + 1) ?? 'max'
-  if (velocity <= -FLICK) return [...order].reverse().find((s) => heights[s] < shown - 1) ?? 'close'
+  if (velocity >= FLICK) return 'max'
+  if (velocity <= -FLICK) return shown > heights.low + 1 ? 'low' : 'close'
   if (shown < heights.low / 2) return 'close'
+  const order: Snap[] = ['low', 'middle', 'max']
   return order.reduce((a, b) => (Math.abs(heights[b] - shown) < Math.abs(heights[a] - shown) ? b : a))
 }

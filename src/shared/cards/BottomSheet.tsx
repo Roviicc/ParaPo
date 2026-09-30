@@ -69,12 +69,13 @@ const FLOATS_AT = {
  * a phone's notch. It is always the whole map tall and slides (`--sheet-y`),
  * so moving between heights is one smooth `translate` ("motion ... so it
  * becomes fluid"): a drag on the handle or the header follows the finger
- * and, let go, glides to the nearest height, a flick to the next one its
- * way; pulled down past Low it closes. Below Max the body does not scroll: a
- * swipe on it moves the sheet ("when I scroll up in middle, it should go
- * into max"); at Max it scrolls, and a pull down from its top brings the
- * sheet to Middle ("at max, when scroll down it should go to middle
- * smoothly"). A tap on the handle goes round, Low → Middle → Max.
+ * and, let go slowly, glides to the nearest height; flicked, it goes to the
+ * end its way, Max or Low, as Google's and Apple's maps do (the owner's ask,
+ * 2026-09-30); flicked down from Low, it closes. Below Max the body does
+ * not scroll: a swipe on it moves the sheet ("when I scroll up in middle, it
+ * should go into max"); at Max it scrolls, and a pull down from its top
+ * takes hold of the sheet — to Middle held slowly, to Low flicked. A tap on
+ * the handle goes round, Low → Middle → Max.
  */
 export function BottomSheet({ label, testId, header, onClose, hidden = false, ref, floats = 'corner', height, children }: Props) {
   const own = useRef<HTMLDivElement>(null)
