@@ -19,9 +19,9 @@ export type TripTimelineProps = {
   onEnd: (end: 'from' | 'to') => void
   /**
    * The origin (`from`) or the destination (`to`), picked from its row: its
-   * dot green, as a picked hintuan's; or null. One pick at a time: the
-   * caller keeps this and `picked` apart (useRideTo does), since both at
-   * once would draw two green dots.
+   * dot the Selected one, as a picked hintuan's; or null. One pick at a
+   * time: the caller keeps this and `picked` apart (useRideTo does), since
+   * both at once would draw two picked dots.
    */
   endPicked: 'from' | 'to' | null
   /** Figma's Route on TimelineBottomEndRoute: the place the trip goes to. */
@@ -56,7 +56,8 @@ export type TripTimelineProps = {
  * its own Card/<livery>/Timeline/surface.
  *
  * A hintuan's row picks it (his Timeline State=Selected, 3769:2847,
- * 2026-09-29): its dot turns green in a white ring, its name black-weight,
+ * 2026-09-29): its dot turns to a white ring round a centre in the card's
+ * rail colour (green until 2026-09-30; TimelineDot), its name black-weight,
  * and a pill beside it gives the pesos from where the trip leaves to there,
  * while a circle like its dot pops up on the map where it is, the route
  * left whole (his ask of 2026-09-30, "now I don't want to cut the route";
@@ -66,9 +67,9 @@ export type TripTimelineProps = {
  * destination's rows are buttons too: a tap on either lets a hintuan go,
  * the ride whole again, and the map glides to that end, so a rider can look
  * along the route from end to end (his ask, 2026-09-29). Either end is
- * picked by its tap, its dot green, and let go by a second (his "green
- * circle too" for the destination and "it should have!" for the origin, the
- * same day); its name and the pesos stay as they are, the whole ride's being
+ * picked by its tap, its dot the Selected one, and let go by a second (his
+ * "green circle too" for the destination and "it should have!" for the
+ * origin, the same day); its name and the pesos stay as they are, the whole ride's being
  * the tile's.
  */
 export function TripTimeline({
@@ -138,15 +139,18 @@ export function TripTimeline({
 /**
  * Figma's TimelineDot: Content/inverse ringed in the rail's colour. It sits
  * 2px into the rail after it, as the TimelineStick's -2px gap lays them.
- * Selected, the white grows and the ring thins to 2px round it, with a
- * Content/success centre: 24 across either way, so nothing moves. The
- * public map's picked hintuan wears the Selected one too (HintuanPin).
+ * Selected, the white grows and the ring thins to 2px round it, with a 12px
+ * centre in the rail's colour again — the card's own, where it was
+ * Content/success green until the owner's redrawing of 2026-09-30
+ * (3778:3183: "the selected part is no longer green", the pick "based on
+ * the surface"): 24 across either way, so nothing moves. The public map's
+ * picked hintuan wears the Selected one too (HintuanPin).
  */
 export function TimelineDot({ rail, selected = false }: { rail: string; selected?: boolean }) {
   return selected ? (
     <span className={'-mb-0.5 flex shrink-0 rounded-full p-0.5 ' + rail}>
       <span className="grid size-5 place-items-center rounded-full bg-content-inverse">
-        <span className="size-3.5 rounded-full bg-content-success" />
+        <span className={'size-3 rounded-full ' + rail} />
       </span>
     </span>
   ) : (

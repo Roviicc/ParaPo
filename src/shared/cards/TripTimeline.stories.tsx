@@ -76,7 +76,7 @@ export const Orange: Story = { args: { livery: 'orange' } }
 /** Mist. */
 export const Mist: Story = { args: { livery: 'mist' } }
 
-/** A hintuan picked: its dot green, its name Black, its pill with the pesos to there. Opened, since the fold keeps it. */
+/** A hintuan picked: its dot a white ring round the rail's colour, its name Black, its pill with the pesos to there. Opened, since the fold keeps it. */
 export const HintuanPicked: Story = { args: { picked: 'h3' }, play: openFold }
 
 /** Picked, red: the pill in the card's own colours, swapped. */
@@ -96,8 +96,8 @@ export const OneHintuanPicked: Story = {
 /** A hintuan picked but unpriced: no pill. */
 export const HintuanPickedUnpriced: Story = { args: { picked: 'h3', pickedFare: undefined }, play: openFold }
 
-/** The origin picked from its row: its dot green. */
+/** The origin picked from its row: its dot the Selected one. */
 export const OriginPicked: Story = { args: { endPicked: 'from' } }
 
-/** The destination picked from its row: its dot green. */
+/** The destination picked from its row: its dot the Selected one. */
 export const DestinationPicked: Story = { args: { endPicked: 'to' } }

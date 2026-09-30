@@ -618,7 +618,7 @@ const tripChecks = async () => {
     )
     // The ends are buttons too (the owner's asks, 2026-09-29): with a
     // hintuan picked, a tap on where the trip goes, then on where it leaves
-    // from, picks that end in its place, its dot green — the hintuan's
+    // from, picks that end in its place, its dot the Selected one — the hintuan's
     // circle gone, the trip still lit — and glides the map to that end of the
     // line, above the card. Picking the hintuan again lets the end go.
     const ends = await page.evaluate(async (id) => {
