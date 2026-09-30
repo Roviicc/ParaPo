@@ -11,6 +11,8 @@ export type Fares = { regular: string; student: string };
 type Props = Omit<TripTimelineProps, "pickedPriced"> & {
   /** Figma's Kilometer tile: the whole ride's length, in metres; written `12.8km`. */
   metres: number;
+  /** …and the ride to the picked hintuan, which the tile shows while it is picked, as the fare tile does. */
+  pickedMetres?: number;
   /** The fare tile's pesos for the whole ride. Omitted when unpriced, and the tile with it. */
   fare?: Fares;
   /** …and for the ride to the picked hintuan, which the tile shows while it is picked. */
@@ -46,7 +48,9 @@ type Props = Omit<TripTimelineProps, "pickedPriced"> & {
  * trip leaves to there — the pick's pill says "Calculated Fare" — and let go,
  * the whole ride again (his ask: "change the value of it based on the
  * hintuan they select"). It opens on Regular, and keeps which it shows
- * through a pick, SWITCH and back.
+ * through a pick, SWITCH and back. The Kilometer tile follows the pick the
+ * same way, from where the trip leaves to there (the owner, 2026-09-30: "it
+ * should follow the picked hintuan").
  * The pesos moved off the rail into their tile with this set; a route no
  * fare rule prices has no Expected fare tile, and Kilometer takes the row
  * (the owner kept that default, 2026-09-29: nothing is drawn for it).
@@ -56,6 +60,7 @@ type Props = Omit<TripTimelineProps, "pickedPriced"> & {
 export function RouteTripDetail({
   livery,
   metres,
+  pickedMetres,
   fare,
   routeOrigin,
   hintuans,
@@ -80,6 +85,7 @@ export function RouteTripDetail({
   // than back.
   const [turns, setTurns] = useState(0);
   const shown = picked && pickedFare ? pickedFare : fare;
+  const shownMetres = picked && pickedMetres !== undefined ? pickedMetres : metres;
   return (
     <BottomSheet
       ref={dockRef}
@@ -117,7 +123,7 @@ export function RouteTripDetail({
       >
         <div className={TILE}>
           <span data-testid="trip-km" className={FIGURE}>
-            {kmLabel(metres)}
+            {kmLabel(shownMetres)}
           </span>
           <span className={NAME}>Kilometer</span>
         </div>

@@ -110,6 +110,7 @@ export function TripCard({
     <RouteTripDetail
       livery={livery}
       metres={metres}
+      pickedMetres={pickedMetres}
       fare={faresFor(variant.route?.mode, metres)}
       routeOrigin={from}
       hintuans={timeline.between}
