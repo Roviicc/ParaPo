@@ -5,7 +5,7 @@ import { passBounds, passStretches } from './pass'
 import { stopRing, type StopSummary } from '../model/stops'
 import { bboxOf, bboxesOverlap } from './geo'
 import { PASS_ORANGE, litWidth } from '../map/lineStyle'
-import { litOpacity, useLighting } from '../map/useSavedRoutes'
+import { litOpacity, useLighting } from '../map/savedRoutesLayers'
 import { ROUTES_HIT_LAYER } from '../map/tap'
 import { useLayerReady } from '../map/layers'
 

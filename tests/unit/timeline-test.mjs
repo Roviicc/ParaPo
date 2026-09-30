@@ -1,4 +1,4 @@
-// A direction's timeline (src/shared/model/stops.ts, timelineFor): a row is a
+// A direction's timeline (src/shared/model/timeline.ts, timelineFor): a row is a
 // hintuan, named by its stop name. The boxes of one place passed one after
 // another are its mini stops and make one row — the owner's model of
 // 2026-09-28.
@@ -6,7 +6,8 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/timeline-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { SAME_HINTUAN_M, timelineFor, hintuansAlong, labelGroups, placeSummary } from '../../src/shared/model/stops.ts'
+import { SAME_HINTUAN_M, labelGroups, placeSummary } from '../../src/shared/model/places.ts'
+import { timelineFor, hintuansAlong } from '../../src/shared/model/timeline.ts'
 import { variantLine } from '../../src/shared/model/routes.ts'
 import { rideCut, routeTimeline } from '../../src/shared/model/ride.ts'
 import { sharingAnEnd } from '../../src/shared/model/departures.ts'

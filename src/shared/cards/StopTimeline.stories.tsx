@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { fn } from 'storybook/test'
 import { StopTimeline } from './StopTimeline'
-import type { Timeline } from '../model/stops'
+import type { Timeline } from '../model/timeline'
 
 /** Sample rows only, shaped like a direction's timeline. Not read from anywhere. */
 const timeline: Timeline = {

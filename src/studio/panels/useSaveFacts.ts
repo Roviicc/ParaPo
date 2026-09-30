@@ -3,7 +3,9 @@ import type { Drawing } from '../drawing/useDrawing'
 import { haversine, joinSegments, type LngLat } from '../../shared/geo/geo'
 import { sharedMetres } from '../drawing/borrow'
 import { directionName, isDrawn, routeName, variantLine, type RouteRow, type VariantRow } from '../../shared/model/routes'
-import { hintuansAlong, placeKey, stopLabel, timelineFor, type StopRow } from '../../shared/model/stops'
+import { hintuansAlong, timelineFor } from '../../shared/model/timeline'
+import { stopLabel, type StopRow } from '../../shared/model/stops'
+import { placeKey } from '../../shared/model/places'
 import { lineOf } from '../data/live'
 
 /**

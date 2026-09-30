@@ -1,4 +1,4 @@
-// The orange stretches (src/shared/model/stops.ts, passStretches) with the bounds
+// The orange stretches (src/shared/geo/pass.ts, passStretches) with the bounds
 // checks of 2026-09-25, against the same walk without them.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/pass-stretches-test.mjs

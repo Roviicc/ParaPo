@@ -1,5 +1,5 @@
-// The one rule for "this direction passes this hotspot" (src/shared/model/stops.ts
-// passIndex, on geo.ts firstNearIndex and firstTouchIndex) with the bounds
+// The one rule for "this direction passes this hotspot" (src/shared/geo/pass.ts
+// passIndex, on firstNearIndex and ring.ts's firstTouchIndex) with the bounds
 // checks of 2026-09-25 (future-proofing stage 2), against the same walks
 // without them.
 //

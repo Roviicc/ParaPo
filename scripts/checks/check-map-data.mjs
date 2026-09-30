@@ -17,7 +17,7 @@
 // and the map is published as it is, with the warnings on the run's summary
 // page and in the issue the workflow keeps (.github/workflows/publish-map.yml).
 //
-// The rules are the app's own (src/shared/model/stops.ts and geo.ts): a direction
+// The rules are the app's own (src/shared/geo/pass.ts): a direction
 // passes a hotspot when its line comes within PASS_WITHIN_M of the box,
 // which is what the studio links on save and what the public map paints
 // orange. Judged here on the published line, which lies within half a metre

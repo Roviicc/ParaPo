@@ -1,4 +1,4 @@
-// The babaan side (src/shared/geo/geo.ts, rightOfLine): a hintuan box drawn
+// The babaan side (src/shared/geo/rightOfLine.ts): a hintuan box drawn
 // across the road, cut along a direction's line, keeps the half on the
 // line's right — the owner's rule of 2026-09-26, papunta and balikan alike.
 //
@@ -6,7 +6,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { rightOfLine } from '../../src/shared/geo/rightOfLine.ts'
-import { hintuansAlong, stopRing } from '../../src/shared/model/stops.ts'
+import { hintuansAlong } from '../../src/shared/model/timeline.ts'
+import { stopRing } from '../../src/shared/model/stops.ts'
 import { fileURLToPath } from 'node:url'
 import { readPublished } from '../../scripts/checks/check-map-data.mjs'
 
