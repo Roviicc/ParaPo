@@ -257,8 +257,9 @@
   --shadow-route-card-inverse:
     inset 0 3px 2px 0 rgb(255 255 255 / 0.4), inset 0 -3px 3px 0 rgb(0 0 0 / 0.2);
 
-  /* A sheet docked along the bottom, lifted off the map (BottomToolbar/TopShadow, 2026-09-30). */
-  --shadow-bottom-toolbar-top-shadow: 0 -3px 8px 0 rgb(43 43 43 / 0.08);
+  /* A bottom sheet, lifted off the map (BottomSheet/TopShadow, 3817:6007, 2026-09-30; its Figma
+   * effect style still reads BottomToolbar/TopShadow). */
+  --shadow-bottom-sheet-top-shadow: 0 -3px 8px 0 rgb(43 43 43 / 0.08);
 
   /* A RouteCard's State=Selected: pressed in, lit from the top left (2026-09-29). */
   --shadow-route-card-primary-selected:
