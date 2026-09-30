@@ -107,7 +107,7 @@ const meta = {
   // the canvas, so the story itself does not scroll.
   decorators: [
     (Story, ctx) => (
-      <div className={'relative h-dvh overflow-hidden bg-neutral-200 @container ' + frameOf(ctx.parameters)}>
+      <div className={'relative h-dvh overflow-clip bg-neutral-200 @container ' + frameOf(ctx.parameters)}>
         <Story />
       </div>
     ),

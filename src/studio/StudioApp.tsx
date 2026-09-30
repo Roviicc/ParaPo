@@ -239,7 +239,7 @@ function Workshop({
   }
 
   return (
-    <div className="@container relative h-full w-full overflow-hidden">
+    <div className="@container relative h-full w-full overflow-clip">
       <MapView onReady={setMap} />
 
       {/* A config or load problem is a banner, never a blank page. */}

@@ -139,7 +139,7 @@ export default function CommuterApp() {
     // `data-directions`: how many the map file brought, for the suites on a
     // production build, where the map itself is out of their reach — the
     // count pill that told them went on 2026-09-29.
-    <div data-directions={saved.variants.length} className="@container relative h-full w-full overflow-hidden">
+    <div data-directions={saved.variants.length} className="@container relative h-full w-full overflow-clip">
       {/*
         No count of routes and hotspots in a corner, and no +, − or compass:
         the owner's notes on his screenshot, "annoying for users"

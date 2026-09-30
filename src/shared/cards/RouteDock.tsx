@@ -43,8 +43,10 @@ const MIDDLE = 0.55
  */
 function slide(snap: Snap, lowPx: number): string {
   if (snap === 'max') return '0px'
-  if (snap === 'middle') return `${(1 - MIDDLE) * 100}%`
-  return `calc(100% - ${lowPx}px)`
+  // Below Max the sheet's own bottom padding is off the screen: what shows
+  // stands clear of a phone's home indicator by lifting it that much.
+  if (snap === 'middle') return `calc(${(1 - MIDDLE) * 100}% - env(safe-area-inset-bottom))`
+  return `calc(100% - ${lowPx}px - env(safe-area-inset-bottom))`
 }
 
 /**
@@ -78,6 +80,8 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
   const [dragged, setDragged] = useState<number | null>(null)
   // What Low shows: the notch and the header, measured.
   const [lowPx, setLowPx] = useState(80)
+  const lowRef = useRef(80)
+  lowRef.current = lowPx
   useDialogFocus(own, hidden)
   useEscape(onClose, !hidden)
 
@@ -102,11 +106,84 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
   const stopDrag = useRef<(() => void) | null>(null)
   useLayoutEffect(() => () => stopDrag.current?.(), [])
 
+  // At Max the body scrolls; pulled down from its top, the sheet comes down
+  // with the finger instead and glides to Middle (the owner's ask of
+  // 2026-09-30: "at max, when scroll down it should go to middle
+  // smoothly"). Touch events, not pointer ones: the browser takes a scroll
+  // for itself and cancels the pointer, but a non-passive touchmove can
+  // still be claimed. A wheel does the same at the top of the list, and
+  // turned the other way at Middle raises the sheet to Max.
+  const bodyRef = useRef<HTMLDivElement>(null)
+  // Read by listeners bound once: today's snap, and today's settle (its onClose).
+  const snapNow = useRef(snap)
+  snapNow.current = snap
+  const settleNow = useRef(settle)
+  settleNow.current = settle
+  useLayoutEffect(() => {
+    const body = bodyRef.current
+    const sheet = own.current
+    if (!body || !sheet) return
+    const onPhone = () => handleRef.current?.offsetParent != null
+    let pull: { startY: number; y: number; t: number; v: number; taking: boolean; h: number } | null = null
+
+    const start = (e: TouchEvent) => {
+      if (snapNow.current !== 'max' || !onPhone() || e.touches.length !== 1) return
+      const y = e.touches[0].clientY
+      pull = { startY: y, y, t: e.timeStamp, v: 0, taking: false, h: sheet.offsetHeight }
+    }
+    const move = (e: TouchEvent) => {
+      if (!pull) return
+      const y = e.touches[0].clientY
+      if (!pull.taking) {
+        // Only a pull down from the very top of the list; anything else scrolls.
+        if (body.scrollTop > 0 || y - pull.startY < 0) {
+          pull = null
+          return
+        }
+        if (y - pull.startY <= DRAG_PX / 3) return
+        pull.taking = true
+      }
+      e.preventDefault()
+      const dt = e.timeStamp - pull.t
+      if (dt > 0) pull.v = 0.7 * ((pull.y - y) / dt) + 0.3 * pull.v
+      pull.y = y
+      pull.t = e.timeStamp
+      setDragged(Math.max(0, Math.min(pull.h, pull.h - (y - pull.startY))))
+    }
+    const end = (e: TouchEvent) => {
+      const p = pull
+      pull = null
+      if (!p?.taking) return
+      const heights = { low: lowRef.current, middle: Math.round(p.h * MIDDLE), max: p.h }
+      const v = e.timeStamp - p.t > 80 ? 0 : p.v
+      settleNow.current(snapFor(Math.max(0, Math.min(p.h, p.h - (p.y - p.startY))), v, heights))
+    }
+    const wheel = (e: WheelEvent) => {
+      if (!onPhone()) return
+      if (snapNow.current === 'max' && e.deltaY < 0 && body.scrollTop <= 0) setSnap('middle')
+      else if (snapNow.current === 'middle' && e.deltaY > 0) setSnap('max')
+    }
+    body.addEventListener('touchstart', start, { passive: true })
+    body.addEventListener('touchmove', move, { passive: false })
+    body.addEventListener('touchend', end)
+    body.addEventListener('touchcancel', end)
+    body.addEventListener('wheel', wheel, { passive: true })
+    return () => {
+      body.removeEventListener('touchstart', start)
+      body.removeEventListener('touchmove', move)
+      body.removeEventListener('touchend', end)
+      body.removeEventListener('touchcancel', end)
+      body.removeEventListener('wheel', wheel)
+    }
+  }, [])
+
   // A drag and a tap are one gesture until it has travelled DRAG_PX. Taps on
   // what the sheet holds are left to it; the click after a drag, or after a
   // tap on the handle, is swallowed (sheetGesture).
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     const sheet = own.current
+    // One pointer at a time, and a mouse's main button only.
+    if (stopDrag.current || e.button !== 0) return
     // From `@float:` the notch is not drawn: no gestures there.
     if (!sheet || !handleRef.current || handleRef.current.offsetParent === null) return
     // At Max the body scrolls as a list does; the header brings the sheet down.
@@ -159,14 +236,13 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
       window.removeEventListener('pointerup', up)
       window.removeEventListener('pointercancel', cancel)
     }
-    stopDrag.current?.()
     stopDrag.current = stop
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
     window.addEventListener('pointercancel', cancel)
   }
 
-  const y = dragged === null ? slide(snap, lowPx) : `calc(100% - ${dragged}px)`
+  const y = dragged === null ? slide(snap, lowPx) : `calc(100% - ${dragged}px - env(safe-area-inset-bottom))`
 
   return (
     <div
@@ -186,20 +262,25 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
       className={
         'absolute inset-0 z-10 outline-none flex flex-col overflow-clip bg-surface pb-[env(safe-area-inset-bottom)] ' +
         'translate-y-(--sheet-y) motion-reduce:transition-none ' +
-        (dragged === null ? 'transition-[translate] duration-300 ease-out ' : '') +
+        (dragged === null ? 'transition-[translate] duration-sheet ease-enter ' : '') +
         (snap === 'max' ? 'pt-[env(safe-area-inset-top)] ' : '') +
         '@float:inset-auto @float:top-0 @float:left-0 @float:max-h-full @float:w-96 @float:pt-0 @float:pb-0 ' +
         '@float:translate-y-0 @float:transition-none'
       }
     >
-      {/* HandleNotch (3813:2963): 22 drawn, 44 to touch; `touch-none`, or the browser takes the pull for a scroll. */}
+      {/*
+        HandleNotch (3813:2963), 22 tall as drawn. It is not the only place to
+        take hold: the header under it drags the sheet too, some 80 together.
+        `touch-none`, or the browser takes the pull for a scroll.
+      */}
       <button
         ref={handleRef}
         type="button"
         data-testid="dock-handle"
         aria-label={HANDLE_LABEL[snap]}
+        title={HANDLE_LABEL[snap]}
         onClick={() => settle(snapAfter(snap, 'tap'))}
-        className="relative flex w-full shrink-0 touch-none justify-center py-2 before:absolute before:inset-x-0 before:-inset-y-2.5 @float:hidden"
+        className="flex w-full shrink-0 touch-none justify-center py-2 @float:hidden"
       >
         <span aria-hidden className="h-1.5 w-12 rounded-full bg-surface-quaternary" />
       </button>
@@ -207,10 +288,11 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
         {header}
       </div>
       <div
-        inert={snap === 'low' || undefined}
+        ref={bodyRef}
         className={
-          'min-h-0 flex-1 scrollbar-none [&::-webkit-scrollbar]:hidden @float:overflow-y-auto @float:touch-auto ' +
-          (snap === 'max' ? 'overflow-y-auto' : 'overflow-hidden touch-none')
+          'min-h-0 flex-1 scrollbar-none [&::-webkit-scrollbar]:hidden @float:visible @float:overflow-y-auto @float:touch-auto ' +
+          // At Low it is out of sight, out of reach of focus and screen readers.
+          (snap === 'max' ? 'overflow-y-auto' : snap === 'low' ? 'invisible overflow-hidden' : 'overflow-hidden touch-none')
         }
       >
         {children}
@@ -235,7 +317,7 @@ const HANDLE_LABEL = {
  * the dock does not cover it: in the middle of the map left showing — to the
  * dock's right from `@float:`, where it sits in the top-left corner, above it
  * where it is docked along the bottom. For MapLibre's `offset`, measured as
- * the glide starts: the dock's height changes with a trip's fold.
+ * the glide starts: on a phone the sheet shows as much as its snap does.
  */
 export function clearOfDock(map: HTMLElement, dock: HTMLElement | null): [number, number] {
   if (!dock || dock.hidden) return [0, 0]

@@ -210,6 +210,7 @@
   --transition-duration-quick: 150ms; /* hover, colour, shadow */
   --transition-duration-base: 200ms; /* tooltips, small things appearing */
   --transition-duration-gentle: 300ms; /* cards, panels, sheets */
+  --transition-duration-sheet: 250ms; /* the bottom sheet's glide: gentle, 1.2× as fast (the owner, 2026-09-30) */
   --transition-duration-slow: 450ms; /* big moves, full screen */
 
   --transition-delay-tooltip: 800ms; /* hover before a tooltip shows */
