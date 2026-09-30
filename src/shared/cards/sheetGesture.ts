@@ -61,8 +61,12 @@ export function snapAfterTap(snap: Snap): Snap {
   return snap === 'low' ? 'middle' : snap === 'middle' ? 'max' : 'low'
 }
 
-/** A flick faster than this, in pixels a millisecond, goes one height on in its direction. */
-const FLICK = 0.5
+/**
+ * A flick faster than this, in pixels a millisecond, goes to the end its way.
+ * 0.5 until the owner found it "too sensitive" (2026-09-30: "make it like
+ * maybe 7/10"): 0.5 ÷ 0.7, so a flick has to be that much faster.
+ */
+const FLICK = 0.7
 
 /** Middle shows this much of the map, as the owner's frames do (448 and 462 of 844). */
 const MIDDLE = 0.55

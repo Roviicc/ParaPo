@@ -31,6 +31,13 @@ test('a flick up goes all the way to Max, from Low or Middle alike', () => {
   assert.equal(snapFor(800, 0.8, heights), 'max')
 })
 
+// 0.7 px/ms since the owner's "too sensitive … maybe 7/10" (2026-09-30):
+// a quick but unhurried swipe settles on the nearest height instead.
+test('a swipe under 0.7 px/ms is no flick: it settles on the nearest height', () => {
+  assert.equal(snapFor(460, 0.6, heights), 'middle')
+  assert.equal(snapFor(780, -0.6, heights), 'max')
+})
+
 test('a flick down goes all the way to Low, from Max or Middle alike, and from Low it closes', () => {
   assert.equal(snapFor(800, -0.8, heights), 'low')
   assert.equal(snapFor(780, -0.8, heights), 'low')
@@ -63,12 +70,12 @@ test('held still before lifting it is a placement: the nearest height', () => {
 
 test('lifted while moving fast it is a flick: to the end, down from Low it closes', () => {
   const up = follow(400, 0, 464, 844)
-  for (let i = 1; i <= 4; i++) up.move(400 - i * 10, i * 16)
+  for (let i = 1; i <= 4; i++) up.move(400 - i * 15, i * 16)
   assert.equal(up.release(64 + 16), 'max')
   const fromMax = follow(100, 0, 844, 844)
-  for (let i = 1; i <= 4; i++) fromMax.move(100 + i * 10, i * 16)
+  for (let i = 1; i <= 4; i++) fromMax.move(100 + i * 15, i * 16)
   assert.equal(fromMax.release(64 + 16), 'low')
   const down = follow(700, 0, LOW_PX, 844)
-  for (let i = 1; i <= 4; i++) down.move(700 + i * 10, i * 16)
+  for (let i = 1; i <= 4; i++) down.move(700 + i * 15, i * 16)
   assert.equal(down.release(64 + 16), 'close')
 })
