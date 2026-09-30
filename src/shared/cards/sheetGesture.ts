@@ -1,8 +1,7 @@
 /**
- * What the two sheets' handles share: the hotspot card's (Sheet) and, on a
- * phone, the route list's and the trip's (RouteDock, since the owner's
- * BottomSheetConfiguration of 2026-09-30). Moved out of Sheet.tsx then,
- * unchanged.
+ * How BottomSheet's handle and drags decide, on a phone: every card's,
+ * since the owner's ask of 2026-09-30 ("make it a universal rule as
+ * component"). Moved out of the old Sheet.tsx, which went then.
  */
 
 /** How far a drag must travel before it counts as a pull rather than a tap. */

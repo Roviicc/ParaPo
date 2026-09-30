@@ -4,7 +4,7 @@ import type { Livery } from '../model/liveries'
 import { RouteCardStack, type PickedPlace } from './RouteCardStack'
 import { departures, drawnDepartures } from '../model/departures'
 import type { VariantSummary } from '../model/routes'
-import { Sheet } from './Sheet'
+import { BottomSheet, SheetHeader } from './BottomSheet'
 import { placeSummary, siblingsOf } from '../model/places'
 import { stopLabel, type StopSummary } from '../model/stops'
 import { SwitchIcon } from './SwitchIcon'
@@ -44,8 +44,8 @@ type Props = {
  * What anyone sees when they tap a hotspot. The card does not know who is
  * looking: whoever renders it decides which actions to offer.
  *
- * `Sheet` decides the shape. The peek is the name and what kind of place it
- * is; the list of routes through it is what the sheet is pulled up for.
+ * `BottomSheet` decides the shape, the same as every card's. Its header is
+ * the name and what kind of place it is; under it, the routes through it.
  */
 export function HotspotCard({
   stop,
@@ -100,107 +100,113 @@ export function HotspotCard({
   }, [showsKey])
 
   return (
-    <Sheet
+    <BottomSheet
+      testId="card"
+      floats="card"
       label={label}
       onClose={onClose}
       hidden={hidden}
-      peek={
-        <>
-          <p className="truncate text-base font-semibold text-content-primary">{label}</p>
-          {label !== stop.name && (
-            <p className="truncate text-xs text-neutral-500">{stop.name}</p>
-          )}
-          <span
-            className={
-              'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' +
-              (isTerminal ? 'bg-sky-50 text-sky-700' : 'bg-orange-50 text-orange-700')
-            }
-          >
-            {isTerminal ? 'Terminal · routes start here' : 'Hintuan · wait and board here'}
-          </span>
-        </>
+      header={
+        <SheetHeader onClose={onClose}>
+          <>
+            <p className="truncate text-base font-semibold text-content-primary">{label}</p>
+            {label !== stop.name && (
+              <p className="truncate text-xs text-neutral-500">{stop.name}</p>
+            )}
+            <span
+              className={
+                'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' +
+                (isTerminal ? 'bg-sky-50 text-sky-700' : 'bg-orange-50 text-orange-700')
+              }
+            >
+              {isTerminal ? 'Terminal · routes start here' : 'Hintuan · wait and board here'}
+            </span>
+          </>
+        </SheetHeader>
       }
     >
-      {stop.note && <p className="mt-3 text-sm text-content-tertiary">{stop.note}</p>}
+      <div className="px-4 pb-4">
+        {stop.note && <p className="mt-3 text-sm text-content-tertiary">{stop.note}</p>}
 
-      {/* The place this box belongs to, when it has company: the map shows
-          *that* they belong together, this says *what* the place has, and each
-          sibling is one tap away — a rider at a hintuan looking for the
-          terminal. Decided with the owner 2026-09-22. */}
-      {siblings.length > 0 && (
-        <div data-testid="card-place" className="mt-3 rounded-lg bg-neutral-50 px-3 py-2">
-          <p className="text-xs font-medium text-content-quaternary">
-            Part of {label} · {placeSummary([stop, ...siblings])}
-          </p>
-          <ul className="mt-1.5 flex flex-wrap gap-1">
-            {siblings.map((s) => (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  data-testid="card-sibling"
-                  onClick={() => onPickSibling?.(s.id)}
-                  disabled={!onPickSibling}
-                  title="Show this box on the map"
-                  className={
-                    'rounded-full px-2.5 py-1 text-xs ' +
-                    (s.kind === 'terminal' ? 'bg-sky-50 text-sky-800' : 'bg-orange-50 text-orange-800') +
-                    (onPickSibling ? ' hover:bg-neutral-900 hover:text-content-inverse' : '')
-                  }
-                >
-                  {s.name}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="mt-3 flex items-center gap-2">
-        <p className="min-w-0 flex-1 text-xs font-medium text-neutral-500">
-          {isTerminal ? 'Routes that stage here' : 'Routes that pass through'}
-        </p>
-        {there && backToo && (
-          <button
-            type="button"
-            data-testid="card-flip"
-            aria-pressed={back}
-            onClick={() => {
-              setFlipped((b) => !b)
-              routeCards?.onSelect(null)
-            }}
-            aria-label={flipLabel}
-            title={flipLabel}
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-content-tertiary hover:bg-surface-secondary"
-          >
-            <SwitchIcon />
-          </button>
+        {/* The place this box belongs to, when it has company: the map shows
+            *that* they belong together, this says *what* the place has, and each
+            sibling is one tap away — a rider at a hintuan looking for the
+            terminal. Decided with the owner 2026-09-22. */}
+        {siblings.length > 0 && (
+          <div data-testid="card-place" className="mt-3 rounded-lg bg-neutral-50 px-3 py-2">
+            <p className="text-xs font-medium text-content-quaternary">
+              Part of {label} · {placeSummary([stop, ...siblings])}
+            </p>
+            <ul className="mt-1.5 flex flex-wrap gap-1">
+              {siblings.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    data-testid="card-sibling"
+                    onClick={() => onPickSibling?.(s.id)}
+                    disabled={!onPickSibling}
+                    title="Show this box on the map"
+                    className={
+                      'rounded-full px-2.5 py-1 text-xs ' +
+                      (s.kind === 'terminal' ? 'bg-sky-50 text-sky-800' : 'bg-orange-50 text-orange-800') +
+                      (onPickSibling ? ' hover:bg-neutral-900 hover:text-content-inverse' : '')
+                    }
+                  >
+                    {s.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
-      </div>
-      {none ? (
-        <p className="mt-1 text-sm text-neutral-500">
-          {isTerminal ? 'None recorded yet.' : 'No saved route passes through here yet.'}
-        </p>
-      ) : routeCards ? (
-        // Edge to edge, as the route list stacks them (the owner, 2026-09-29);
-        // the rest of this card waits for his hintuan design. ⇄ lets the
-        // Selected card go, as SWITCH does over the list.
-        <div className="-mx-4 mt-1">
-          <RouteCardStack
-            routes={linked}
-            back={back}
-            selected={routeCards.selected}
-            onSelect={routeCards.onSelect}
-            onRoute={onSelectVariant}
-            testId="card"
-          />
-        </div>
-      ) : (
-        <ul className="-mx-4 mt-1 border-t border-border-primary">
-          <Departures routes={linked} back={back} onRoute={onSelectVariant} testId="card" />
-        </ul>
-      )}
 
-      {actions && <div className="mt-4 flex gap-2">{actions}</div>}
-    </Sheet>
+        <div className="mt-3 flex items-center gap-2">
+          <p className="min-w-0 flex-1 text-xs font-medium text-neutral-500">
+            {isTerminal ? 'Routes that stage here' : 'Routes that pass through'}
+          </p>
+          {there && backToo && (
+            <button
+              type="button"
+              data-testid="card-flip"
+              aria-pressed={back}
+              onClick={() => {
+                setFlipped((b) => !b)
+                routeCards?.onSelect(null)
+              }}
+              aria-label={flipLabel}
+              title={flipLabel}
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-content-tertiary hover:bg-surface-secondary"
+            >
+              <SwitchIcon />
+            </button>
+          )}
+        </div>
+        {none ? (
+          <p className="mt-1 text-sm text-neutral-500">
+            {isTerminal ? 'None recorded yet.' : 'No saved route passes through here yet.'}
+          </p>
+        ) : routeCards ? (
+          // Edge to edge, as the route list stacks them (the owner, 2026-09-29);
+          // the rest of this card waits for his hintuan design. ⇄ lets the
+          // Selected card go, as SWITCH does over the list.
+          <div className="-mx-4 mt-1">
+            <RouteCardStack
+              routes={linked}
+              back={back}
+              selected={routeCards.selected}
+              onSelect={routeCards.onSelect}
+              onRoute={onSelectVariant}
+              testId="card"
+            />
+          </div>
+        ) : (
+          <ul className="-mx-4 mt-1 border-t border-border-primary">
+            <Departures routes={linked} back={back} onRoute={onSelectVariant} testId="card" />
+          </ul>
+        )}
+
+        {actions && <div className="mt-4 flex gap-2">{actions}</div>}
+      </div>
+    </BottomSheet>
   )
 }

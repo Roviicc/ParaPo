@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { fareFor, hasFareRule, manilaDate, peso, pesoRange, ruleOn } from '../model/fares'
 import { lineLength } from '../geo/geo'
 import { MODES, routeName, variantLine, type VariantSummary } from '../model/routes'
-import { Sheet } from './Sheet'
+import { BottomSheet, SheetHeader } from './BottomSheet'
 import { StopTimeline, passesThrough } from './StopTimeline'
 import { SwitchIcon } from './SwitchIcon'
 import type { Timeline } from '../model/timeline'
@@ -65,121 +65,127 @@ export function RouteSheet({ variant, timeline, rideTo, onRideTo, sibling, onSwi
   const hintuanCount = timeline?.between.length ?? 0
 
   return (
-    <Sheet
+    <BottomSheet
+      testId="card"
+      floats="card"
       label={variant.direction_name ?? r?.name ?? 'Route'}
       onClose={onClose}
-      peek={
-        <>
-          <div className="flex items-start gap-2">
-            <p
-              data-testid="card-direction"
-              className="min-w-0 flex-1 truncate text-base font-semibold text-content-primary"
-            >
-              {variant.direction_name ?? r?.name}
-            </p>
-            {sibling && onSwitch && (
-              <button
-                type="button"
-                data-testid="card-switch"
-                disabled={!siblingDrawn}
-                onClick={() => siblingDrawn && onSwitch(sibling)}
-                aria-label={
-                  siblingDrawn
-                    ? `Switch to ${sibling.direction_name}`
-                    : `${sibling.direction_name} is not mapped yet`
-                }
-                title={
-                  siblingDrawn
-                    ? `Switch to ${sibling.direction_name}`
-                    : `${sibling.direction_name} is not mapped yet`
-                }
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-content-tertiary
-                           hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-35"
+      header={
+        <SheetHeader onClose={onClose}>
+          <>
+            <div className="flex items-start gap-2">
+              <p
+                data-testid="card-direction"
+                className="min-w-0 flex-1 truncate text-base font-semibold text-content-primary"
               >
-                <SwitchIcon />
-              </button>
-            )}
-          </div>
-          {/* The route read the way this direction rides it — "SM Fairview – Tala"
-              under "SM Fairview → Tala", the owner's note of 2026-09-22 — and
-              the signboard when known: what to look for on the jeep. */}
-          <p className="truncate text-xs text-neutral-500">
-            {timeline?.from && timeline.to ? routeName(timeline.from.label, timeline.to.label, r?.via) : r?.name}
-            {r?.signboard && <> · Signboard: {r.signboard}</>}
-          </p>
-          {sibling && !siblingDrawn && (
-            <p className="mt-1 truncate text-xs text-amber-700">
-              {sibling.direction_name} is not mapped yet.
+                {variant.direction_name ?? r?.name}
+              </p>
+              {sibling && onSwitch && (
+                <button
+                  type="button"
+                  data-testid="card-switch"
+                  disabled={!siblingDrawn}
+                  onClick={() => siblingDrawn && onSwitch(sibling)}
+                  aria-label={
+                    siblingDrawn
+                      ? `Switch to ${sibling.direction_name}`
+                      : `${sibling.direction_name} is not mapped yet`
+                  }
+                  title={
+                    siblingDrawn
+                      ? `Switch to ${sibling.direction_name}`
+                      : `${sibling.direction_name} is not mapped yet`
+                  }
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-content-tertiary
+                             hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  <SwitchIcon />
+                </button>
+              )}
+            </div>
+            {/* The route read the way this direction rides it — "SM Fairview – Tala"
+                under "SM Fairview → Tala", the owner's note of 2026-09-22 — and
+                the signboard when known: what to look for on the jeep. */}
+            <p className="truncate text-xs text-neutral-500">
+              {timeline?.from && timeline.to ? routeName(timeline.from.label, timeline.to.label, r?.via) : r?.name}
+              {r?.signboard && <> · Signboard: {r.signboard}</>}
             </p>
-          )}
-        </>
+            {sibling && !siblingDrawn && (
+              <p className="mt-1 truncate text-xs text-amber-700">
+                {sibling.direction_name} is not mapped yet.
+              </p>
+            )}
+          </>
+        </SheetHeader>
       }
     >
-      {timeline && (timeline.from || timeline.to || hintuanCount > 0) && (
-        /* Collapsed by default: the title already says the ends; this is the way between them. */
-        <details data-testid="card-timeline" className="mt-3 rounded-lg bg-neutral-50 px-3 py-2">
-          <summary className="cursor-pointer select-none text-xs font-medium text-content-quaternary">
-            {hintuanCount === 0 ? 'No hintuan on the way yet' : passesThrough(hintuanCount)}
-          </summary>
-          <StopTimeline timeline={timeline} onPick={onRideTo} pickedId={rideTo?.stopId ?? null} />
-        </details>
-      )}
-      <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-        <dt className="text-neutral-500">Mode</dt>
-        <dd className="text-content-primary">{mode}</dd>
-        <dt className="text-neutral-500">Length</dt>
-        <dd className="text-content-primary">
-          {rideLabel ? `${(rideMetres / 1000).toFixed(1)} km to ${rideLabel} · ${km} km end to end` : `${km} km`}
-        </dd>
-        {fare ? (
-          <>
-            <dt className="text-neutral-500">Fare</dt>
-            <dd data-testid="card-fare" className="text-content-primary">
-              {/* The ride's pesos lead and the rule follows — the owner's ask
-                  of 2026-09-28. "From Tala": the estimate boards at the head,
-                  and a rider standing mid-route must not read it as theirs
-                  (§4.2 C). */}
-              {rideLabel
-                ? `${timeline?.from ? `From ${timeline.from.label} to` : 'To'} ${rideLabel}, about`
-                : 'Whole ride about'}{' '}
-              {pesoRange(fare.whole.low.regular, fare.whole.high.regular)}
-              <p className="mt-0.5 text-xs text-content-quaternary">
-                Students, seniors, PWDs {pesoRange(fare.whole.low.discounted, fare.whole.high.discounted)} ·{' '}
-                {peso(fare.rule.minimum)} first {fare.rule.minimumKm} km, then {peso(fare.rule.perKm)} per km
-              </p>
-              {fare.previous && (
-                <p className="mt-0.5 text-xs text-amber-700">
-                  Some jeeps still charge the old {peso(fare.previous.minimum)} until they post the new fare guide.
-                </p>
-              )}
-              {r?.fare_note && <p className="mt-0.5 text-xs text-content-quaternary">{r.fare_note}</p>}
-              <p className="mt-0.5 text-xs text-neutral-400">Estimate · {fare.rule.source} · length of this line</p>
-            </dd>
-          </>
-        ) : (
-          r?.fare_note && (
+      <div className="px-4 pb-4">
+        {timeline && (timeline.from || timeline.to || hintuanCount > 0) && (
+          /* Collapsed by default: the title already says the ends; this is the way between them. */
+          <details data-testid="card-timeline" className="mt-3 rounded-lg bg-neutral-50 px-3 py-2">
+            <summary className="cursor-pointer select-none text-xs font-medium text-content-quaternary">
+              {hintuanCount === 0 ? 'No hintuan on the way yet' : passesThrough(hintuanCount)}
+            </summary>
+            <StopTimeline timeline={timeline} onPick={onRideTo} pickedId={rideTo?.stopId ?? null} />
+          </details>
+        )}
+        <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+          <dt className="text-neutral-500">Mode</dt>
+          <dd className="text-content-primary">{mode}</dd>
+          <dt className="text-neutral-500">Length</dt>
+          <dd className="text-content-primary">
+            {rideLabel ? `${(rideMetres / 1000).toFixed(1)} km to ${rideLabel} · ${km} km end to end` : `${km} km`}
+          </dd>
+          {fare ? (
             <>
               <dt className="text-neutral-500">Fare</dt>
-              <dd className="text-content-primary">{r.fare_note}</dd>
+              <dd data-testid="card-fare" className="text-content-primary">
+                {/* The ride's pesos lead and the rule follows — the owner's ask
+                    of 2026-09-28. "From Tala": the estimate boards at the head,
+                    and a rider standing mid-route must not read it as theirs
+                    (§4.2 C). */}
+                {rideLabel
+                  ? `${timeline?.from ? `From ${timeline.from.label} to` : 'To'} ${rideLabel}, about`
+                  : 'Whole ride about'}{' '}
+                {pesoRange(fare.whole.low.regular, fare.whole.high.regular)}
+                <p className="mt-0.5 text-xs text-content-quaternary">
+                  Students, seniors, PWDs {pesoRange(fare.whole.low.discounted, fare.whole.high.discounted)} ·{' '}
+                  {peso(fare.rule.minimum)} first {fare.rule.minimumKm} km, then {peso(fare.rule.perKm)} per km
+                </p>
+                {fare.previous && (
+                  <p className="mt-0.5 text-xs text-amber-700">
+                    Some jeeps still charge the old {peso(fare.previous.minimum)} until they post the new fare guide.
+                  </p>
+                )}
+                {r?.fare_note && <p className="mt-0.5 text-xs text-content-quaternary">{r.fare_note}</p>}
+                <p className="mt-0.5 text-xs text-neutral-400">Estimate · {fare.rule.source} · length of this line</p>
+              </dd>
             </>
-          )
-        )}
-        <dt className="text-neutral-500">Status</dt>
-        <dd>
-          <span
-            className={
-              'rounded-full px-2 py-0.5 text-xs ' +
-              (variant.confidence === 'verified'
-                ? 'bg-emerald-50 text-emerald-700'
-                : 'bg-amber-50 text-amber-700')
-            }
-          >
-            {variant.confidence === 'verified' ? 'verified by riding' : 'drawn, not yet ridden'}
-          </span>
-        </dd>
-      </dl>
+          ) : (
+            r?.fare_note && (
+              <>
+                <dt className="text-neutral-500">Fare</dt>
+                <dd className="text-content-primary">{r.fare_note}</dd>
+              </>
+            )
+          )}
+          <dt className="text-neutral-500">Status</dt>
+          <dd>
+            <span
+              className={
+                'rounded-full px-2 py-0.5 text-xs ' +
+                (variant.confidence === 'verified'
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'bg-amber-50 text-amber-700')
+              }
+            >
+              {variant.confidence === 'verified' ? 'verified by riding' : 'drawn, not yet ridden'}
+            </span>
+          </dd>
+        </dl>
 
-      {actions && <div className="mt-4 flex gap-2">{actions}</div>}
-    </Sheet>
+        {actions && <div className="mt-4 flex gap-2">{actions}</div>}
+      </div>
+    </BottomSheet>
   )
 }

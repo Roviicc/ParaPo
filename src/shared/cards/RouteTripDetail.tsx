@@ -1,7 +1,7 @@
 import type { Ref } from 'react'
 import { kmLabel } from '../geo/geo'
 import { RouteCardHeader } from './RouteCardHeader'
-import { RouteDock } from './RouteDock'
+import { BottomSheet } from './BottomSheet'
 import { TripTimeline, type TripTimelineProps } from './TripTimeline'
 
 type Props = TripTimelineProps & {
@@ -55,7 +55,7 @@ export function RouteTripDetail({
   dockRef,
 }: Props) {
   return (
-    <RouteDock
+    <BottomSheet
       ref={dockRef}
       label={`${routeOrigin} → ${routeDirection}`}
       testId="card"
@@ -87,7 +87,7 @@ export function RouteTripDetail({
         <Tile testId="trip-km" label="Kilometer" value={kmLabel(metres)} />
         {fare && <Tile testId="trip-fare" label="Expected fare" value={fare} />}
       </dl>
-    </RouteDock>
+    </BottomSheet>
   )
 }
 

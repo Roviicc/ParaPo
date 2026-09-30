@@ -30,7 +30,7 @@ const tala: VariantSummary[] = [
 ]
 
 type Frame = 'list' | 'hotspot'
-/** The list's 384 in the top-left corner, and a hotspot card's 320 (Sheet's `@wide:w-80`). */
+/** The list's 384 in the top-left corner, and a hotspot card's 320 (BottomSheet's `floats="card"`, `@wide:w-80`). */
 const FRAME = { list: 'w-96', hotspot: 'w-80' } satisfies Record<Frame, string>
 const frameOf = (p: { frame?: Frame }) => FRAME[p.frame ?? 'list']
 

@@ -180,8 +180,8 @@ function TimelineTop({
           <span className={'min-h-px w-2 flex-1 ' + rail} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col justify-center pb-2.5 pl-3">
-          {/* At a phone's Low, one line of it (RouteDock's LOW_PX); from Middle up, all of it. */}
-          <span className="text-2xl/8 font-black group-data-[snap=low]/dock:line-clamp-1 @float:group-data-[snap=low]/dock:line-clamp-none">
+          {/* At a phone's Low, one line of it (BottomSheet's LOW_PX); from Middle up, all of it. */}
+          <span className="text-2xl/8 font-black group-data-[snap=low]/sheet:line-clamp-1 @float:group-data-[snap=low]/sheet:line-clamp-none">
             {routeOrigin}
           </span>
         </span>

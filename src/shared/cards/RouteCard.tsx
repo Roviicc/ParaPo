@@ -64,13 +64,13 @@ export function RouteCard({ livery, state, routeOrigin, endPoints, onSelect, onP
       <div className="flex w-full flex-col items-start px-4 pt-2">
         {/* The name is the card's own target, stretched over all of it; the
             rows are drawn over that, so they keep their own taps. At a
-            phone's Low, one line of it (RouteDock's LOW_PX). */}
+            phone's Low, one line of it (BottomSheet's LOW_PX). */}
         <button
           type="button"
           data-testid={`${testId}-select`}
           aria-pressed={selected}
           onClick={onSelect}
-          className="w-full text-left text-2xl/8 font-black after:absolute after:inset-0 group-data-[snap=low]/dock:line-clamp-1 @float:group-data-[snap=low]/dock:line-clamp-none"
+          className="w-full text-left text-2xl/8 font-black after:absolute after:inset-0 group-data-[snap=low]/sheet:line-clamp-1 @float:group-data-[snap=low]/sheet:line-clamp-none"
         >
           {routeOrigin}
         </button>

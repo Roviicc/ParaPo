@@ -12,9 +12,9 @@ import { useEscape } from './useEscape'
 import { DRAG_PX, snapAfterTap, snapFor, swallowTheTapsClick, type Snap } from './sheetGesture'
 
 type Props = {
-  /** What a screen reader calls it: the list by its count, a trip by its direction. */
+  /** What a screen reader calls it: the list by its count, a trip by its direction, a card by its place. */
   label: string
-  /** The suites find the list as `chooser` and a direction's card as `card`. */
+  /** The suites find the list as `chooser`, and every other card as `card`. */
   testId: 'chooser' | 'card'
   /** Fixed at the top; everything else scrolls under it. */
   header: ReactNode
@@ -28,7 +28,41 @@ type Props = {
   hidden?: boolean
   /** The dock itself, for the map to keep what it glides to clear of it (clearOfDock). */
   ref?: Ref<HTMLDivElement>
+  /**
+   * What it is on a wide screen, where it stops being a sheet: the route
+   * list's and a trip's panel in the top-left corner from `@float:`
+   * (`corner`, the default), or the card a hotspot's and the studio's route
+   * card have always floated as, 16 in, from `@wide:` (`card`). On a phone
+   * every sheet is the same.
+   */
+  floats?: Floats
   children: ReactNode
+}
+
+type Floats = 'corner' | 'card'
+
+/**
+ * The classes that turn the sheet into what it floats as. Written out whole,
+ * one set per kind, so Tailwind finds them.
+ */
+const FLOAT: Record<Floats, { root: string; handle: string; head: string; body: string }> = {
+  corner: {
+    root:
+      '@float:inset-auto @float:top-0 @float:left-0 @float:max-h-full @float:w-96 @float:pt-0 @float:pb-0 ' +
+      '@float:translate-y-0 @float:transition-none',
+    handle: '@float:hidden',
+    head: '@float:touch-auto',
+    body: '@float:overflow-y-auto @float:touch-auto',
+  },
+  card: {
+    root:
+      '@wide:inset-auto @wide:top-4 @wide:left-4 @wide:w-80 @wide:max-w-[calc(100%-2rem)] @wide:max-h-[calc(100%-2rem)] ' +
+      '@wide:rounded-xl @wide:shadow-xl @wide:ring-1 @wide:ring-black/10 @wide:pt-4 @wide:pb-4 ' +
+      '@wide:translate-y-0 @wide:transition-none',
+    handle: '@wide:hidden',
+    head: '@wide:touch-auto',
+    body: '@wide:overflow-y-auto @wide:touch-auto',
+  },
 }
 
 /** Middle shows this much of the map, as the owner's frames do (448 and 462 of 844). */
@@ -38,7 +72,7 @@ const MIDDLE = 0.55
  * What Low shows, the same for the route list and a trip's card (the owner's
  * 3817:6007, 2026-09-30: "same height, same interaction, same motion"): the
  * notch, the header and the top of the first card, down past its title —
- * cut to one line there (group-data-[snap=low]/dock:line-clamp-1).
+ * cut to one line there (group-data-[snap=low]/sheet:line-clamp-1).
  */
 const LOW_PX = 140
 
@@ -58,6 +92,12 @@ function slide(snap: Snap): string {
 }
 
 /**
+ * Every card on the map is this one sheet (the owner's ask of 2026-09-30:
+ * "make it a universal rule as component"): the route list, a trip's card, a
+ * hotspot's card and the studio's route card alike, the same heights, the
+ * same gestures, the same motion. Only what it floats as on a wide screen
+ * differs (`floats`).
+ *
  * Where the route list and a trip's card sit, one at a time, in the owner's
  * frames (2026-09-28, 2026-09-29): docked along the bottom until `@float:`,
  * then flush in the top-left corner, square, 384 wide — no room above it or
@@ -80,7 +120,8 @@ function slide(snap: Snap): string {
  * tap on the handle goes round, Low → Middle → Max. From `@float:` there is
  * none of this: the corner card it was.
  */
-export function RouteDock({ label, testId, header, onClose, hidden = false, ref, children }: Props) {
+export function BottomSheet({ label, testId, header, onClose, hidden = false, ref, floats = 'corner', children }: Props) {
+  const wide = FLOAT[floats]
   const own = useRef<HTMLDivElement>(null)
   const handleRef = useRef<HTMLButtonElement>(null)
   const headRef = useRef<HTMLDivElement>(null)
@@ -208,7 +249,7 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
     const sheet = own.current
     // One pointer at a time, and a mouse's main button only.
     if (stopDrag.current || e.button !== 0) return
-    // From `@float:` the notch is not drawn: no gestures there.
+    // Floating, the notch is not drawn: no gestures there.
     if (!sheet || !handleRef.current || handleRef.current.offsetParent === null) return
     // At Max the body scrolls as a list does; the header brings the sheet down.
     const onTop = headRef.current?.contains(e.target as Node) || handleRef.current.contains(e.target as Node)
@@ -288,12 +329,11 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
       style={{ '--sheet-y': y } as CSSProperties}
       onPointerDown={onPointerDown}
       className={
-        'group/dock absolute inset-0 z-10 outline-none flex flex-col overflow-clip bg-surface pb-[env(safe-area-inset-bottom)] ' +
+        'group/sheet absolute inset-0 z-10 outline-none flex flex-col overflow-clip bg-surface pb-[env(safe-area-inset-bottom)] ' +
         'translate-y-(--sheet-y) motion-reduce:transition-none ' +
         (dragged === null ? 'transition-[translate] duration-sheet ease-enter ' : '') +
         (snap === 'max' ? 'pt-[env(safe-area-inset-top)] ' : '') +
-        '@float:inset-auto @float:top-0 @float:left-0 @float:max-h-full @float:w-96 @float:pt-0 @float:pb-0 ' +
-        '@float:translate-y-0 @float:transition-none'
+        wide.root
       }
     >
       {/*
@@ -308,11 +348,11 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
         aria-label={HANDLE_LABEL[snap]}
         title={HANDLE_LABEL[snap]}
         onClick={() => settle(snapAfterTap(snap))}
-        className="flex w-full shrink-0 touch-none justify-center py-2 @float:hidden"
+        className={'flex w-full shrink-0 touch-none justify-center py-2 ' + wide.handle}
       >
         <span aria-hidden className="h-1.5 w-12 rounded-full bg-surface-quaternary" />
       </button>
-      <div ref={headRef} className="shrink-0 touch-none @float:touch-auto">
+      <div ref={headRef} className={'shrink-0 touch-none ' + wide.head}>
         {header}
       </div>
       <div
@@ -326,12 +366,35 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
           if (snap !== 'max' && fromKeys && handleRef.current?.offsetParent != null) setSnap('max')
         }}
         className={
-          'min-h-0 flex-1 scrollbar-none [&::-webkit-scrollbar]:hidden @float:overflow-y-auto @float:touch-auto ' +
+          'min-h-0 flex-1 scrollbar-none [&::-webkit-scrollbar]:hidden ' +
+          wide.body +
+          ' ' +
           (snap === 'max' ? 'overflow-y-auto' : 'overflow-hidden touch-none')
         }
       >
         {children}
       </div>
+    </div>
+  )
+}
+
+/**
+ * The header a hotspot's card and the studio's route card have always had:
+ * what was tapped, and ✕. The route list and a trip's card bring their own
+ * (RouteCardHeader). Their bodies sit 16 in, as this does (px-4).
+ */
+export function SheetHeader({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-3 px-4">
+      <div className="min-w-0 flex-1">{children}</div>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="rounded-full px-2 text-neutral-400 hover:bg-surface-secondary hover:text-content-tertiary"
+      >
+        ✕
+      </button>
     </div>
   )
 }

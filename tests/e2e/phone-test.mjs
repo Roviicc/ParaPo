@@ -18,7 +18,7 @@
 // where two routes share a road ("N Routes", a card per place), the trip a
 // row opens in its card's colour and ‹ back to the list, every card at rest; a tap
 // just outside a hotspot, and the bottom sheet on a hotspot's card — tap and
-// drag the handle, peek → open → peek → gone; the ?r=<id> share link and the
+// drag the handle, Middle → Max → Low → Middle → Low → gone; the ?r=<id> share link and the
 // view it restores; a trip opened on its own whose ‹ lists the routes sharing
 // an end with its own; the fine-pointer desktop control (±5 px, no zoom
 // buttons for a mouse either since 2026-09-29, attribution bottom right);
@@ -408,11 +408,12 @@ const perpendicular = (p, a, bPt, line = [a, bPt], away = 20) =>
 
 const card = () => page.locator('[data-testid="card"]')
 // Every sheet locator is scoped to the card — never to the page — so the
-// route list, which is `chooser`, never answers for it. `handle()` is the
-// hotspot Sheet's: a route's trip card has the dock's own, `dock-handle`
-// (the owner's bottom sheet, 2026-09-30) — a card with its rail of stops in
-// it (RouteTripDetail, 2026-09-29), named for its direction, "Tala → Novaliches".
-const handle = () => card().locator('button[data-testid="sheet-handle"]')
+// route list, which is `chooser`, never answers for it. Every card is the
+// one BottomSheet since the owner's ask of 2026-09-30 ("make it a universal
+// rule as component"), a hotspot's and a trip's alike, with its handle,
+// `dock-handle` — a trip's card with its rail of stops in it
+// (RouteTripDetail, 2026-09-29), named for its direction, "Tala → Novaliches".
+const handle = () => card().locator('button[data-testid="dock-handle"]')
 const trip = () => card().locator('[data-testid="trip"]')
 const tripLabel = async () => ((await trip().count()) ? ((await card().first().getAttribute('aria-label')) ?? '') : '')
 const tripRow = async (id) => {
@@ -702,8 +703,19 @@ let picksChecked = false
 const noPickLeft = async () =>
   page.evaluate(async () => ((await window.__src('ride-rest'))?.features ?? []).length + document.querySelectorAll('[data-testid="ride-dot"]').length === 0)
 const cardText = async () => ((await card().count()) ? (await card().first().innerText()) : '')
+/** The card's height: 'low', 'middle' or 'max' (BottomSheet's data-snap). */
 const sheetState = async () =>
-  (await card().count()) ? await card().first().getAttribute('data-sheet') : null
+  (await card().count()) ? await card().first().getAttribute('data-snap') : null
+/**
+ * How far to drag the handle for the sheet to come to rest at `to` from
+ * where it is, by the heights BottomSheet gives it: Low 140, Middle 55% of
+ * the map, Max all of it. Negative is up.
+ */
+const dragTo = async (from, to) => {
+  const h = await card().first().evaluate((el) => el.offsetHeight)
+  const shown = { low: 140, middle: Math.round(h * 0.55), max: h }
+  return shown[from] - shown[to]
+}
 const closeCard = async () => {
   await page.getByRole('button', { name: 'Close' }).first().click({ timeout: 1500 }).catch(() => {})
   // The ✕ can be missed while the page is busy drawing; Escape closes a sheet too.
@@ -1180,8 +1192,8 @@ if (snapshot.polys.length === 0) {
 }
 
 // ------------------------------------- 4c. the sheet, on a hotspot's card
-// A route's card is the owner's trip card since 2026-09-29, with no sheet
-// to pull; a hotspot's card still is one, handle and all.
+// Every card is the one BottomSheet since 2026-09-30, a hotspot's and a
+// trip's alike; these gestures are checked on a hotspot's.
 /** Handle gestures the runner made no pointer events for, sent again by hand. */
 let handleByHand = 0
 const pointerdowns = () => page.evaluate(() => window.__pointerdowns)
@@ -1191,11 +1203,13 @@ const pointerdowns = () => page.evaluate(() => window.__pointerdowns)
  * have to be a finger on the glass for the handle to capture it.
  */
 const handGesture = (x, y, ys) =>
-  page.evaluate(([x, y, ys]) => {
+  page.evaluate(async ([x, y, ys]) => {
     const el = document.elementFromPoint(x, y)
     const at = (cy) => ({ clientX: x, clientY: cy, bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', isPrimary: true })
     el.dispatchEvent(new PointerEvent('pointerdown', at(y)))
     for (const cy of ys) el.dispatchEvent(new PointerEvent('pointermove', at(cy)))
+    // Held still before letting go, as dragHandle does: a placement, not a flick.
+    if (ys.length) await new Promise((r) => setTimeout(r, 150))
     el.dispatchEvent(new PointerEvent('pointerup', at(ys.at(-1) ?? y)))
   }, [x, y, ys])
 /**
@@ -1223,7 +1237,11 @@ const tapHandle = async () => {
   }
   return true
 }
-/** Drag the handle by dy CSS px. Touch first (CDP), mouse as a fallback. */
+/**
+ * Drag the handle by dy CSS px. Touch first (CDP), mouse as a fallback. Held
+ * still for a moment before letting go, so the sheet settles on the height
+ * nearest where it was left (BottomSheet's snapFor), not a flick's.
+ */
 const dragHandle = async (dy) => {
   if ((await handle().count()) === 0) return { ok: false, how: 'no handle' }
   const before = await sheetState()
@@ -1242,6 +1260,7 @@ const dragHandle = async (dy) => {
       })
       await page.waitForTimeout(16)
     }
+    await page.waitForTimeout(150)
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
   } catch (e) {
     return { ok: false, how: `Input.dispatchTouchEvent threw: ${String(e).slice(0, 80)}` }
@@ -1255,6 +1274,7 @@ const dragHandle = async (dy) => {
     await page.mouse.move(x, y + (dy * i) / steps)
     await page.waitForTimeout(16)
   }
+  await page.waitForTimeout(150)
   await page.mouse.up()
   await page.waitForTimeout(450)
   // Neither made a pointer event: the runner's, as with tapHandle.
@@ -1283,7 +1303,8 @@ const openSheet = async () => {
 /** Each gesture below is judged on its own, so put the sheet back if one broke it. */
 const restore = async (want) => {
   if ((await card().count()) === 0) await openSheet()
-  if ((await sheetState()) !== want) await tapHandle()
+  // The handle goes round, Low → Middle → Max: two taps at most.
+  for (let i = 0; i < 2 && (await sheetState()) !== want; i++) await tapHandle()
   return (await sheetState()) === want
 }
 
@@ -1297,9 +1318,9 @@ const sheetDiag = () =>
   page.evaluate(() => {
     const name = (el) => (el instanceof Element ? el.closest('[data-testid]')?.getAttribute('data-testid') ?? el.tagName.toLowerCase() : String(el))
     const cards = [...document.querySelectorAll('[data-testid="card"]')].map(
-      (c) => `${c.tagName.toLowerCase()}${c.hidden ? ' hidden' : ''} sheet=${c.getAttribute('data-sheet')} "${(c.textContent ?? '').trim().slice(0, 30)}"`,
+      (c) => `${c.tagName.toLowerCase()}${c.hidden ? ' hidden' : ''} snap=${c.getAttribute('data-snap')} "${(c.textContent ?? '').trim().slice(0, 30)}"`,
     )
-    const h = document.querySelector('[data-testid="card"] button[data-testid="sheet-handle"]')
+    const h = document.querySelector('[data-testid="card"] button[data-testid="dock-handle"]')
     const r = h?.getBoundingClientRect()
     const top = r ? name(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)) : '(no handle)'
     return `cards [${cards.join(' | ')}]; on the handle ${top}; chooser ${document.querySelectorAll('[data-testid="chooser"]').length}; events ${(window.__sheetEvents ?? []).slice(-14).join(', ')}; now ${Math.round(performance.now())}, the last real pointerdown ${window.__lastDown}; odd [${window.__odd.slice(-12).join(', ')}]`
@@ -1322,36 +1343,39 @@ if (!hotspot) {
       )
   })
   await openSheet()
+  // Every card opens at Middle (BottomSheet), a hotspot's too since the
+  // owner's ask of 2026-09-30; before, it opened peeking.
+  check("a hotspot's card opens at Middle", (await sheetState()) === 'middle', `data-snap=${await sheetState()}`)
 
   const hadHandle = await tapHandle()
-  const firstTap = hadHandle && (await sheetState()) === 'open'
-  check("a tap on a hotspot card's handle opens the sheet", firstTap, hadHandle ? `data-sheet=${await sheetState()}${firstTap ? '' : `; ${await sheetDiag()}`}` : 'no button[data-testid="sheet-handle"]')
-  check('  no horizontal scroll with the sheet open', await noHScroll(page))
+  const firstTap = hadHandle && (await sheetState()) === 'max'
+  check("a tap on a hotspot card's handle raises it to Max", firstTap, hadHandle ? `data-snap=${await sheetState()}${firstTap ? '' : `; ${await sheetDiag()}`}` : 'no button[data-testid="dock-handle"]')
+  check('  no horizontal scroll with the sheet at Max', await noHScroll(page))
 
   await tapHandle()
-  const afterSecond = (await card().count()) === 0 ? 'the whole card vanished' : `data-sheet=${await sheetState()}`
-  check('a second tap on the handle goes back to peek', (await sheetState()) === 'peek', afterSecond)
+  const afterSecond = (await card().count()) === 0 ? 'the whole card vanished' : `data-snap=${await sheetState()}`
+  check('a second tap on the handle goes round to Low', (await sheetState()) === 'low', afterSecond)
 
-  // From here each gesture starts from a known state, so one broken gesture
-  // does not report the next three as broken too. A start state that cannot
-  // be reached is itself a failure: the drag after it would prove nothing.
-  const readyUp = await restore('peek')
-  const up = await dragHandle(-60)
-  const upOpened = readyUp && (await sheetState()) === 'open'
-  check('dragging the handle up opens the sheet', upOpened, `${readyUp ? '' : 'could not get back to peek first; '}${up.how}; data-sheet=${await sheetState()}${upOpened ? '' : `; ${await sheetDiag()}`}`)
+  // From here each gesture starts from a known height, so one broken gesture
+  // does not report the next three as broken too. A start that cannot be
+  // reached is itself a failure: the drag after it would prove nothing.
+  const readyUp = await restore('low')
+  const up = await dragHandle(await dragTo('low', 'middle'))
+  const upOpened = readyUp && (await sheetState()) === 'middle'
+  check('dragging the handle up from Low settles at Middle', upOpened, `${readyUp ? '' : 'could not get to Low first; '}${up.how}; data-snap=${await sheetState()}${upOpened ? '' : `; ${await sheetDiag()}`}`)
 
-  const readyDown = await restore('open')
-  const down = await dragHandle(60)
-  check('dragging the handle down goes back to peek', readyDown && (await sheetState()) === 'peek', `${readyDown ? '' : 'could not get back to open first; '}${down.how}; data-sheet=${await sheetState()}`)
+  const readyDown = await restore('middle')
+  const down = await dragHandle(await dragTo('middle', 'low'))
+  check('dragging it down from Middle settles at Low', readyDown && (await sheetState()) === 'low', `${readyDown ? '' : 'could not get to Middle first; '}${down.how}; data-snap=${await sheetState()}`)
 
-  const readyPeek = await restore('peek')
-  const down2 = await dragHandle(60)
-  check('dragging down again at peek dismisses the card', readyPeek && (await card().count()) === 0, `${readyPeek ? '' : 'could not get back to peek first; '}${down2.how}; [data-testid="card"] count ${await card().count()}`)
+  const readyLow = await restore('low')
+  const down2 = await dragHandle(120)
+  check('dragging down past Low dismisses the card', readyLow && (await card().count()) === 0, `${readyLow ? '' : 'could not get to Low first; '}${down2.how}; [data-testid="card"] count ${await card().count()}`)
   await closeCard()
 
   // A mouse's drag, on a narrow window: the browser then clicks the handle it
   // was held on, and that click toggled the sheet straight back — pulled up,
-  // it fell to peek (the reviewer's note, fixed on the owner's word,
+  // it fell to peek, as it was then (the reviewer's note, fixed on the owner's word,
   // 2026-09-29). The drags above go by touch whenever the page answers it.
   const mouseDrag = async (dy) => {
     const hb = await handle().first().boundingBox()
@@ -1364,6 +1388,7 @@ if (!hotspot) {
       await page.mouse.move(x, y + (dy * i) / 8)
       await page.waitForTimeout(16)
     }
+    await page.waitForTimeout(150)
     await page.mouse.up()
     await page.waitForTimeout(450)
     // The mouse made no pointer event: the runner's, as with tapHandle. The
@@ -1374,25 +1399,25 @@ if (!hotspot) {
       handleByHand++
       await handGesture(x, y, Array.from({ length: 8 }, (_, i) => y + (dy * (i + 1)) / 8))
       await page.evaluate(([x, y]) => {
-        const h = document.querySelector('[data-testid="card"] button[data-testid="sheet-handle"]')
+        const h = document.querySelector('[data-testid="card"] button[data-testid="dock-handle"]')
         h?.dispatchEvent(new MouseEvent('click', { clientX: x, clientY: y, bubbles: true, cancelable: true, detail: 1 }))
       }, [x, y + dy])
       await page.waitForTimeout(450)
     }
     return true
   }
-  const readyMouseUp = await restore('peek')
-  const mouseUp = await mouseDrag(-60)
-  const mouseOpened = readyMouseUp && mouseUp && (await sheetState()) === 'open'
-  check('a mouse dragging the handle up leaves the sheet open', mouseOpened, `data-sheet=${await sheetState()}${mouseOpened ? '' : `; ${await sheetDiag()}`}`)
-  const readyMouseDown = await restore('open')
-  const mouseDown = await mouseDrag(60)
-  check('  and dragging it down leaves it at peek', readyMouseDown && mouseDown && (await sheetState()) === 'peek', `data-sheet=${await sheetState()}`)
+  const readyMouseUp = await restore('low')
+  const mouseUp = await mouseDrag(await dragTo('low', 'middle'))
+  const mouseOpened = readyMouseUp && mouseUp && (await sheetState()) === 'middle'
+  check('a mouse dragging the handle up from Low leaves the sheet at Middle', mouseOpened, `data-snap=${await sheetState()}${mouseOpened ? '' : `; ${await sheetDiag()}`}`)
+  const readyMouseDown = await restore('middle')
+  const mouseDown = await mouseDrag(await dragTo('middle', 'low'))
+  check('  and dragging it down leaves it at Low', readyMouseDown && mouseDown && (await sheetState()) === 'low', `data-snap=${await sheetState()}`)
   await closeCard()
 
   // The watch for the click the browser sends after a handle tap must end
   // with the next tap, or the ✕ pressed right after would be lost too.
-  const readyClose = await restore('peek')
+  const readyClose = await restore('low')
   await tapHandle()
   const cb = await card().getByRole('button', { name: 'Close' }).first().boundingBox()
   if (cb) await page.touchscreen.tap(cb.x + cb.width / 2, cb.y + cb.height / 2)
@@ -1402,14 +1427,14 @@ if (!hotspot) {
 }
 
 // ------------------------- 4d. the handle, on a hotspot's card with routes
-// Pulled up, a hotspot's card shows its routes where the finger was, and the
+// Raised, a hotspot's card shows its routes where the finger was, and the
 // click that follows the tap on the handle must not open one (seen
 // 2026-09-29: it did, with the old rows and the RouteCards alike). 4c's
 // hotspot is chosen clear of every route, so it has none to fall on.
 const drawnIds = new Set(fileDirections.filter((d) => (d.shape?.coordinates?.length ?? 0) > 1).map((d) => d.id))
 const withRoutes = snapshot.polys.find((poly) => (published?.links ?? []).some((l) => l.stop_id === poly.id && drawnIds.has(l.route_variant_id)))
 if (!withRoutes) {
-  skip('a tap on the handle of a hotspot card with routes pulls it up, opening none', published ? 'no hotspot has a drawn route linked today' : 'the published file could not be read')
+  skip('a tap on the handle of a hotspot card with routes raises it, opening none', published ? 'no hotspot has a drawn route linked today' : 'the published file could not be read')
 } else {
   const c = centroidOf(withRoutes.ring)
   await jumpTo(page, c, Z_HOT)
@@ -1422,12 +1447,12 @@ if (!withRoutes) {
   if ((await chooser.count()) > 0) {
     await buttonTap(chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: withRoutes.name }), async () => (await chooser.count()) === 0)
   }
-  const atPeek = (await cardText()).includes(withRoutes.name) && (await sheetState()) === 'peek'
+  const atMiddle = (await cardText()).includes(withRoutes.name) && (await sheetState()) === 'middle'
   await tapHandle()
   check(
-    `a tap on the handle of "${withRoutes.name}"'s card, with routes, pulls it up, opening none`,
-    atPeek && (await sheetState()) === 'open' && (await trip().count()) === 0,
-    `opened at peek ${atPeek}; now data-sheet=${await sheetState()}, trip ${await trip().count()}`,
+    `a tap on the handle of "${withRoutes.name}"'s card, with routes, raises it to Max, opening none`,
+    atMiddle && (await sheetState()) === 'max' && (await trip().count()) === 0,
+    `opened at Middle ${atMiddle}; now data-snap=${await sheetState()}, trip ${await trip().count()}`,
   )
   // On a busy page that click comes long after the finger lifts — a second on
   // GitHub's runners once the Philcoa card's routes flowed (2026-09-29), when
@@ -1465,9 +1490,9 @@ if (!withRoutes) {
     return reached
   }
   const lateDown = await lateClickTap()
-  check('  a tap whose click comes a second late takes it to peek, the click reaching nothing', lateDown === '' && (await card().count()) === 1 && (await sheetState()) === 'peek', `${lateDown === null ? 'no handle' : lateDown ? `the click reached ${lateDown}` : 'swallowed'}; data-sheet=${await sheetState()}`)
+  check('  a tap whose click comes a second late takes it round to Low, the click reaching nothing', lateDown === '' && (await card().count()) === 1 && (await sheetState()) === 'low', `${lateDown === null ? 'no handle' : lateDown ? `the click reached ${lateDown}` : 'swallowed'}; data-snap=${await sheetState()}`)
   const lateUp = await lateClickTap()
-  check('  and pulls it up again, the click reaching nothing', lateUp === '' && (await sheetState()) === 'open' && (await trip().count()) === 0, `${lateUp === null ? 'no handle' : lateUp ? `the click reached ${lateUp}` : 'swallowed'}; data-sheet=${await sheetState()}, trip ${await trip().count()}`)
+  check('  and raises it again to Middle, the click reaching nothing', lateUp === '' && (await sheetState()) === 'middle' && (await trip().count()) === 0, `${lateUp === null ? 'no handle' : lateUp ? `the click reached ${lateUp}` : 'swallowed'}; data-snap=${await sheetState()}, trip ${await trip().count()}`)
   await closeCard()
 }
 

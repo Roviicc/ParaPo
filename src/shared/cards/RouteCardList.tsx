@@ -1,7 +1,7 @@
 import type { Livery } from '../model/liveries'
 import { RouteCardHeader } from './RouteCardHeader'
 import { RouteCardStack, type PickedPlace } from './RouteCardStack'
-import { RouteDock } from './RouteDock'
+import { BottomSheet } from './BottomSheet'
 import { drawnDepartures } from '../model/departures'
 import type { VariantSummary } from '../model/routes'
 import { hotspotCount } from '../model/places'
@@ -55,7 +55,7 @@ type Props = {
  * (hotspotCount): both boxes of one hintuan, either side of the road, are
  * "1 Hotspot" over two rows. All three his picks, the same day.
  *
- * It sits where RouteDock puts it, as the trip card does.
+ * It sits where BottomSheet puts it, as the trip card does.
  */
 export function RouteCardList({ routes, stops = [], back, onFlip, selected, onSelect, onRoute, onStop, onClose, hidden }: Props) {
   const places = drawnDepartures(routes, back)
@@ -67,7 +67,7 @@ export function RouteCardList({ routes, stops = [], back, onFlip, selected, onSe
       : `${places.length} ${places.length === 1 ? 'Route' : 'Routes'}`
 
   return (
-    <RouteDock
+    <BottomSheet
       label={count}
       testId="chooser"
       onClose={onClose}
@@ -98,6 +98,6 @@ export function RouteCardList({ routes, stops = [], back, onFlip, selected, onSe
         </ul>
       )}
       <RouteCardStack routes={routes} back={back} selected={selected} onSelect={onSelect} onRoute={onRoute} testId="chooser" />
-    </RouteDock>
+    </BottomSheet>
   )
 }
