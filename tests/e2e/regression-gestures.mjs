@@ -170,7 +170,7 @@ const before = routerCalls
 await page.getByRole('button', { name: '+ New hotspot' }).click(); await page.getByRole('menuitem', { name: /Terminal/ }).click(); await page.waitForTimeout(200)
 for (const [dx,dy] of [[-80,-60],[80,-60],[80,60],[-80,60]]) { await click(cx+dx, cy+dy); await page.waitForTimeout(120) }
 check('terminal: 4 corners, fill present', await pts() === 4 && await pts('draw-area') === 1)
-check('terminal colour is sky', (await page.evaluate(() => window.__map.getPaintProperty('draw-area-fill','fill-color'))) === '#0ea5e9')
+check('terminal colour is sky', (await page.evaluate(() => window.__map.getPaintProperty('draw-area-fill','fill-color'))) === '#00a6f4')
 c = await cp(); p1 = await proj(c[1])
 await page.mouse.move(box0.x+p1[0], box0.y+p1[1]); await page.mouse.down()
 for (let i=1;i<=6;i++) await page.mouse.move(box0.x+p1[0]+40*i/6, box0.y+p1[1]-40*i/6)

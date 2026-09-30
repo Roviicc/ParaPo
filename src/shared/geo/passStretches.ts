@@ -4,7 +4,7 @@ import { variantLine, type VariantSummary } from '../model/routes'
 import { passBounds, passStretches } from './pass'
 import { stopRing, type StopSummary } from '../model/stops'
 import { bboxOf, bboxesOverlap } from './geo'
-import { PASS_ORANGE, litWidth } from '../map/lineStyle'
+import { PASS_COLOUR, litWidth } from '../map/lineStyle'
 import { litOpacity, useLighting } from '../map/savedRoutesLayers'
 import { ROUTES_HIT_LAYER } from '../map/tap'
 import { useLayerReady } from '../map/layers'
@@ -50,7 +50,7 @@ export function usePassStretches(
         source: SRC,
         // Square ends: the paint stops where the box does.
         layout: { 'line-cap': 'butt', 'line-join': 'round' },
-        paint: { 'line-color': PASS_ORANGE, 'line-width': litWidth(), 'line-opacity': ['step', ['zoom'], 0, 15, litOpacity()] as never },
+        paint: { 'line-color': PASS_COLOUR, 'line-width': litWidth(), 'line-opacity': ['step', ['zoom'], 0, 15, litOpacity()] as never },
       },
       ROUTES_HIT_LAYER,
     )
