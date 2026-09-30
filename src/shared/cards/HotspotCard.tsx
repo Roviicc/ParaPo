@@ -4,7 +4,7 @@ import type { Livery } from '../model/liveries'
 import { RouteCardStack, type PickedPlace } from './RouteCardStack'
 import { departures, drawnDepartures } from '../model/departures'
 import type { VariantSummary } from '../model/routes'
-import { BottomSheet, SheetHeader } from './BottomSheet'
+import { BottomSheet, SheetHeader, type SheetHeight } from './BottomSheet'
 import { placeSummary, siblingsOf } from '../model/places'
 import { stopLabel, type StopSummary } from '../model/stops'
 import { SwitchIcon } from './SwitchIcon'
@@ -38,6 +38,8 @@ type Props = {
   onClose: () => void
   /** Kept but not shown, while a trip picked from it is on top: ‹ comes back to it as it was left, every card at rest. */
   hidden?: boolean
+  /** Its height, shared with the trip opened from it (BottomSheet). */
+  height?: SheetHeight
 }
 
 /**
@@ -58,6 +60,7 @@ export function HotspotCard({
   actions,
   onClose,
   hidden,
+  height,
 }: Props) {
   const isTerminal = stop.kind === 'terminal'
   const label = stopLabel(stop)
@@ -106,6 +109,7 @@ export function HotspotCard({
       label={label}
       onClose={onClose}
       hidden={hidden}
+      height={height}
       header={
         <SheetHeader onClose={onClose}>
           <>

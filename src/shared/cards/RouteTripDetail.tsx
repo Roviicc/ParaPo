@@ -1,7 +1,7 @@
 import type { Ref } from 'react'
 import { kmLabel } from '../geo/geo'
 import { RouteCardHeader } from './RouteCardHeader'
-import { BottomSheet } from './BottomSheet'
+import { BottomSheet, type SheetHeight } from './BottomSheet'
 import { TripTimeline, type TripTimelineProps } from './TripTimeline'
 
 type Props = TripTimelineProps & {
@@ -20,6 +20,8 @@ type Props = TripTimelineProps & {
   onClose: () => void
   /** The dock the card sits in, for the map to glide clear of it. */
   dockRef?: Ref<HTMLDivElement>
+  /** Its height, shared with the list or card it was opened from (BottomSheet). */
+  height?: SheetHeight
 }
 
 /**
@@ -53,10 +55,12 @@ export function RouteTripDetail({
   onBackToList,
   onClose,
   dockRef,
+  height,
 }: Props) {
   return (
     <BottomSheet
       ref={dockRef}
+      height={height}
       label={`${routeOrigin} → ${routeDirection}`}
       testId="card"
       onClose={onClose}

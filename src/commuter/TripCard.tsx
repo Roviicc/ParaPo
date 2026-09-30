@@ -1,5 +1,6 @@
 import { useState, type Ref } from 'react'
 import { RouteTripDetail } from '../shared/cards/RouteTripDetail'
+import type { SheetHeight } from '../shared/cards/BottomSheet'
 import { lineLength } from '../shared/geo/geo'
 import { rideFare } from '../shared/model/fares'
 import { liveriesFor, type Livery } from '../shared/model/liveries'
@@ -71,6 +72,7 @@ export function TripCard({
   onEnd,
   endPicked,
   dockRef,
+  height,
 }: {
   variant: VariantSummary
   variants: readonly VariantSummary[]
@@ -89,6 +91,8 @@ export function TripCard({
   /** The end picked from its row (useRideTo's `endPicked`), or null. */
   endPicked: 'from' | 'to' | null
   dockRef: Ref<HTMLDivElement>
+  /** Its sheet's height, shared with the list or card behind it (BottomSheet). */
+  height: SheetHeight
 }) {
   const { from, to } = directionEnds(variant)
   const sibling = otherDirection(variants, variant)
@@ -110,6 +114,7 @@ export function TripCard({
       onEnd={onEnd}
       endPicked={endPicked}
       dockRef={dockRef}
+      height={height}
       routeDirection={to}
       switchable={switchable}
       back={variant.reversed}

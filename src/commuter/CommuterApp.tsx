@@ -7,6 +7,7 @@ import { METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
 import type { Livery } from '../shared/model/liveries'
 import { RouteCardList } from '../shared/cards/RouteCardList'
 import { clearOfDock } from '../shared/cards/BottomSheet'
+import type { Snap } from '../shared/cards/sheetGesture'
 import { useRideTo } from '../shared/map/rideTo'
 import { directionEnds, isDrawn } from '../shared/model/routes'
 import { routeTimeline, travelLine } from '../shared/model/ride'
@@ -124,6 +125,17 @@ export default function CommuterApp() {
   // that way round, there is nothing to go back to.
   const trip = saved.selected
   const fan = trip ? sharingAnEnd(saved.variants, trip) : []
+
+  // One height for the sheets that stand in for one another — the route
+  // list, a hotspot's card and the trip opened from either: a pick and ‹
+  // keep Low, Middle or Max as they were (the owner's ask of 2026-09-30:
+  // "if RouteDetail was in medium, if they go back, the RouteCard is in
+  // medium too"). With nothing open it goes back to Middle, where every
+  // sheet opens.
+  const [snap, setSnap] = useState<Snap>('middle')
+  const anyOpen = !!saved.selected || !!stops.selected || choosing
+  if (!anyOpen && snap !== 'middle') setSnap('middle')
+  const height = { snap, onSnap: setSnap }
   const backToList = stops.selected
     ? () => saved.select(null, { keepList: true })
     : choosing
@@ -190,6 +202,7 @@ export default function CommuterApp() {
           onEnd={ride.toEnd}
           endPicked={ride.endPicked}
           dockRef={tripDock}
+          height={height}
         />
       )}
 
@@ -211,6 +224,7 @@ export default function CommuterApp() {
             onShown: saved.showCard,
           }}
           hidden={!!saved.selected}
+          height={height}
           stop={stops.selected}
           linkedVariantIds={stops.linkedVariantIds(stops.selected.id)}
           variants={saved.variants}
@@ -240,6 +254,7 @@ export default function CommuterApp() {
         <RouteCardList
           key={choice.map((c) => c.id).join()}
           hidden={!!saved.selected}
+          height={height}
           routes={saved.candidates}
           stops={stops.candidates}
           back={saved.back}

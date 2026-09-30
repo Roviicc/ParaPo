@@ -1071,6 +1071,19 @@ if (!shared) {
     const litTapped = (await litIds(page)) ?? []
     const pickedAfter = await chooser.locator('[data-state="selected"]').count()
     check('  a map tap lets it go: nothing Selected, every route it lists lit', repicked && pickedAfter === 0 && (await listShown()) && sameSet(litTapped, listedIds), `picked ${repicked}; ${pickedAfter} Selected; ${litTapped.length} lit`)
+    // The list and the trip opened from it are one height (the owner's ask
+    // of 2026-09-30: "if RouteDetail was in medium, if they go back, the
+    // RouteCard is in medium too"): raised to Max here, through a pick and ‹.
+    const listSnap = async () => ((await listShown()) ? await chooser.first().getAttribute('data-snap') : null)
+    const listHandle = chooser.first().locator('button[data-testid="dock-handle"]')
+    for (let i = 0; i < 2 && (await listSnap()) !== 'max'; i++) await buttonTap(listHandle, async () => (await listSnap()) === 'max')
+    const listAtMax = (await listSnap()) === 'max'
+    await buttonTap(wanted, async () => (await trip().count()) > 0)
+    const tripSnap = await sheetState()
+    check('  a trip opened from the list at Max opens at Max too', listAtMax && tripSnap === 'max', `list at Max ${listAtMax}; trip ${tripSnap}`)
+    const backAgain = card().getByRole('button', { name: 'Back' })
+    if (await backAgain.count()) await buttonTap(backAgain, listShown)
+    check('  and ‹ brings the list back at Max', (await listSnap()) === 'max', `list ${await listSnap()}`)
   }
   await closeCard()
 }

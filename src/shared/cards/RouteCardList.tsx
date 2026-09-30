@@ -1,7 +1,7 @@
 import type { Livery } from '../model/liveries'
 import { RouteCardHeader } from './RouteCardHeader'
 import { RouteCardStack, type PickedPlace } from './RouteCardStack'
-import { BottomSheet } from './BottomSheet'
+import { BottomSheet, type SheetHeight } from './BottomSheet'
 import { drawnDepartures } from '../model/departures'
 import type { VariantSummary } from '../model/routes'
 import { hotspotCount } from '../model/places'
@@ -27,6 +27,8 @@ type Props = {
   onClose: () => void
   /** Kept but not shown, while a trip picked from it is on top: ‹ comes back to it as it was left, every card at rest. */
   hidden?: boolean
+  /** Its height, shared with the trip opened from it (BottomSheet). */
+  height?: SheetHeight
 }
 
 /**
@@ -57,7 +59,7 @@ type Props = {
  *
  * It sits where BottomSheet puts it, as the trip card does.
  */
-export function RouteCardList({ routes, stops = [], back, onFlip, selected, onSelect, onRoute, onStop, onClose, hidden }: Props) {
+export function RouteCardList({ routes, stops = [], back, onFlip, selected, onSelect, onRoute, onStop, onClose, hidden, height }: Props) {
   const places = drawnDepartures(routes, back)
   const switchable = drawnDepartures(routes, !back).length > 0
   const hotspots = hotspotCount(stops)
@@ -72,6 +74,7 @@ export function RouteCardList({ routes, stops = [], back, onFlip, selected, onSe
       testId="chooser"
       onClose={onClose}
       hidden={hidden}
+      height={height}
       header={
         <RouteCardHeader routeCount={count} onSwitch={onFlip} switchable={switchable} back={back} onClose={onClose} />
       }

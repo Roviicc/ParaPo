@@ -36,8 +36,18 @@ type Props = {
    * every sheet is the same.
    */
   floats?: Floats
+  /**
+   * The height, when the caller keeps it: sheets that stand in for one
+   * another — the route list, a hotspot's card and the trip opened from
+   * them — share one, so ‹ and a pick keep Low, Middle or Max as they were
+   * (the owner's ask of 2026-09-30). Without it, the sheet keeps its own.
+   */
+  height?: SheetHeight
   children: ReactNode
 }
+
+/** A sheet's height kept by its caller (BottomSheet's `height`). */
+export type SheetHeight = { snap: Snap; onSnap: (snap: Snap) => void }
 
 type Floats = 'corner' | 'card'
 
@@ -121,13 +131,18 @@ function slide(snap: Snap): string {
  * tap on the handle goes round, Low → Middle → Max. From `@float:` there is
  * none of this: the corner card it was.
  */
-export function BottomSheet({ label, testId, header, onClose, hidden = false, ref, floats = 'corner', children }: Props) {
+export function BottomSheet({ label, testId, header, onClose, hidden = false, ref, floats = 'corner', height, children }: Props) {
   const wide = FLOAT[floats]
   const own = useRef<HTMLDivElement>(null)
   const handleRef = useRef<HTMLButtonElement>(null)
   const headRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
-  const [snap, setSnap] = useState<Snap>('middle')
+  const [ownSnap, setOwnSnap] = useState<Snap>('middle')
+  const snap = height?.snap ?? ownSnap
+  // Read by listeners bound once, so today's caller is the one told.
+  const heightNow = useRef(height)
+  heightNow.current = height
+  const setSnap = (next: Snap) => (heightNow.current ? heightNow.current.onSnap(next) : setOwnSnap(next))
   // How much of the sheet shows while a finger drags it; null at rest.
   const [dragged, setDragged] = useState<number | null>(null)
   useDialogFocus(own, hidden)
@@ -222,10 +237,10 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
       pushed += e.deltaY
       if (snapNow.current === 'max' && pushed < -DRAG_PX) {
         pushed = 0
-        setSnap('middle')
+        settleNow.current('middle')
       } else if (snapNow.current === 'middle' && pushed > DRAG_PX) {
         pushed = 0
-        setSnap('max')
+        settleNow.current('max')
       }
     }
     body.addEventListener('touchstart', start, { passive: true })
