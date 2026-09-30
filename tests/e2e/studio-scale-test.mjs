@@ -18,15 +18,20 @@
 // loose budgets (a runner is slower than a laptop) that catch the next
 // regression rather than time the app. In development the page renders its
 // effects twice (StrictMode), so every load is asked for twice here.
+//
+// Since 2026-09-29 (0009, stage 8 of the clean-up) the rows carry an
+// `overview` too — the line thinned at 5 m — and the list asks for it
+// instead of the line: a lit direction's full line is read on its own, and
+// its orange stretches are worked out then.
 import { chromium } from 'playwright'
 import { readFileSync } from 'node:fs'
 
 const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
 const COPIES = Number(process.env.PARAPO_SCALE_COPIES ?? 250)
 /** Seconds from the navigation to the first route line on the screen. */
-const LINES_WITHIN_S = 45
+const LINES_WITHIN_S = 15
 /** Seconds the main thread may spend in long tasks while opening. */
-const BUSY_WITHIN_S = 30
+const BUSY_WITHIN_S = 10
 /** Seconds from a click on a line to that route being lit. */
 const LIT_WITHIN_S = 5
 /** Metres between points on a stored line, about what the router gives. */
@@ -65,6 +70,28 @@ const dense = (line) => {
   }
   return out
 }
+/** The overview a save writes beside the line (geo.ts overviewOf): Douglas–Peucker at 5 m, five decimals. */
+const overviewOf = (line) => {
+  const flat = (p, a, b) => {
+    const k = Math.cos((a[1] * Math.PI) / 180)
+    const [px, py, bx, by] = [(p[0] - a[0]) * k, p[1] - a[1], (b[0] - a[0]) * k, b[1] - a[1]]
+    const l2 = bx * bx + by * by
+    const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, (px * bx + py * by) / l2))
+    return Math.hypot(px - t * bx, py - t * by) * 111_195
+  }
+  const keep = line.map((_, i) => i === 0 || i === line.length - 1)
+  const stack = [[0, line.length - 1]]
+  while (stack.length) {
+    const [a, b] = stack.pop()
+    let worst = -1, worstD = 5
+    for (let i = a + 1; i < b; i++) {
+      const d = flat(line[i], line[a], line[b])
+      if (d > worstD) { worstD = d; worst = i }
+    }
+    if (worst >= 0) { keep[worst] = true; stack.push([a, worst], [worst, b]) }
+  }
+  return line.filter((_, i) => keep[i]).map(([x, y]) => [Math.round(x * 1e5) / 1e5, Math.round(y * 1e5) / 1e5])
+}
 const now = '2026-09-25T12:00:00+00:00'
 const variants = []
 const stops = []
@@ -81,6 +108,7 @@ for (let k = 0; k < COPIES; k++) {
       origin_terminal: null,
       destination_terminal: null,
       shape: line && { type: 'LineString', coordinates: line },
+      overview: line && { type: 'LineString', coordinates: overviewOf(line) },
       control_points: line ? [line[0], line[line.length - 1]] : [],
       segments: line ? [{ snap: 'snapped', coordinates: line }] : [],
       reversed: v.reversed,
@@ -141,10 +169,14 @@ const serve = (route) => {
   const u = new URL(req.url())
   const table = u.pathname.split('/rest/v1/')[1]
   let rows = tables[table] ?? []
-  // The filters the editor uses: id=eq.<id>, kind=eq.<kind>, area=not.is.null.
+  // The filters the editor uses: id=eq.<id> or in.(…), kind=eq.<kind>,
+  // <column>=is.null and not.is.null (area, overview, shape).
   for (const [k, v] of u.searchParams) {
     if (k === 'id' && v.startsWith('eq.')) rows = rows.filter((r) => r.id === v.slice(3))
+    if (k === 'id' && v.startsWith('in.(')) rows = rows.filter((r) => v.slice(4, -1).split(',').includes(r.id))
     if (k === 'kind' && v.startsWith('eq.')) rows = rows.filter((r) => r.kind === v.slice(3))
+    if (v === 'is.null') rows = rows.filter((r) => r[k] == null)
+    if (v === 'not.is.null') rows = rows.filter((r) => r[k] != null)
   }
   const offset = Number(u.searchParams.get('offset') ?? 0)
   const limit = Number(u.searchParams.get('limit') ?? 1000)
@@ -224,7 +256,6 @@ const budgetMs = LINES_WITHIN_S * 1000 + 30_000
 await mark('map load', () => !!window.__map && window.__map.loaded(), budgetMs)
 await mark('routes in the source', async () => ((await window.__src('saved-routes'))?.features?.length ?? 0) > 0, budgetMs)
 await mark('hotspots in the source', async () => ((await window.__src('saved-stops'))?.features?.length ?? 0) > 0, budgetMs)
-await mark('stretches in the source', async () => ((await window.__src('saved-routes-pass'))?.features?.length ?? 0) > 0, budgetMs)
 await mark('lines on the screen', () => !!window.__map?.getLayer('saved-routes-line') && window.__map.queryRenderedFeatures({ layers: ['saved-routes-line'] }).length > 0, budgetMs)
 await mark('idle', () => !!window.__map && window.__map.loaded(), 30_000)
 await page.waitForTimeout(500)
@@ -233,7 +264,7 @@ const busy = await page.evaluate(() => Math.round(window.__long))
 const routes = await page.evaluate(async () => (await window.__src('saved-routes'))?.features?.length ?? 0)
 // A hotspot is a box and a label point in the source: count the ids.
 const boxes = await page.evaluate(async () => new Set(((await window.__src('saved-stops'))?.features ?? []).map((f) => f.properties?.id)).size)
-const stretches = await page.evaluate(async () => (await window.__src('saved-routes-pass'))?.features?.length ?? 0)
+const stretchesAtLoad = await page.evaluate(async () => (await window.__src('saved-routes-pass'))?.features?.length ?? 0)
 
 const s = (ms) => (ms == null ? 'never' : `${(ms / 1000).toFixed(1)} s`)
 const sent = asked.reduce((a, r) => a + r.bytes, 0)
@@ -242,25 +273,26 @@ for (const r of asked) byTable[r.table] = (byTable[r.table] ?? 0) + 1
 console.log(`  ${asked.length} request(s), ${mb(sent)} sent: ${Object.entries(byTable).map(([k, n]) => `${k} ×${n}`).join(', ')}`)
 // PARAPO_SCALE_DEBUG=1 lists every request: table, select, offset, bytes, when.
 if (process.env.PARAPO_SCALE_DEBUG) for (const r of asked) console.log(`    ${r.at.toString().padStart(6)} ms  ${r.table} offset ${r.offset} ${r.one ? 'one ' : ''}${mb(r.bytes)}  select ${r.select.slice(0, 50)}`)
-console.log(`  map load ${s(marks['map load'])}; routes in the source ${s(marks['routes in the source'])}; hotspots ${s(marks['hotspots in the source'])}; stretches ${s(marks['stretches in the source'])}; idle ${s(marks.idle)}\n`)
+console.log(`  map load ${s(marks['map load'])}; routes in the source ${s(marks['routes in the source'])}; hotspots ${s(marks['hotspots in the source'])}; idle ${s(marks.idle)}\n`)
 check('every direction reached the map', routes === variants.length, `${routes} of ${variants.length}`)
 check('every hotspot reached the map', boxes === stops.length, `${boxes} of ${stops.length}`)
-check('the orange stretches were computed', stretches > 0, `${stretches} stretch(es)`)
+check('no orange stretch is worked out at load: none is lit', stretchesAtLoad === 0, `${stretchesAtLoad} stretch(es)`)
 check(`the first line is on the screen within ${LINES_WITHIN_S} s`, marks['lines on the screen'] != null && marks['lines on the screen'] <= LINES_WITHIN_S * 1000, s(marks['lines on the screen']))
 check(`the main thread is busy under ${BUSY_WITHIN_S} s while opening`, busy <= BUSY_WITHIN_S * 1000, `${(busy / 1000).toFixed(1)} s in long tasks`)
 
-// What was asked for: the list without its drawings, and the pages together.
+// What was asked for: the list without its drawings or its lines, and the
+// pages together.
 const lists = asked.filter((r) => r.table === 'route_variant' && !r.one)
 const drawingsInList = lists.filter((r) => {
   const cols = columnsOf(r.select)
-  return !cols || cols.includes('control_points') || cols.includes('segments')
+  return !cols || cols.includes('control_points') || cols.includes('segments') || cols.includes('shape')
 })
-check('the list of directions asks for no drawings', lists.length > 0 && drawingsInList.length === 0, `${lists.length} list request(s); select "${lists[0]?.select.slice(0, 60)}…"`)
+check('the list of directions asks for no drawings and no full lines, only overviews', lists.length > 0 && drawingsInList.length === 0 && lists.every((r) => columnsOf(r.select).includes('overview')), `${lists.length} list request(s); select "${lists[0]?.select.slice(0, 60)}…"`)
 const listBytes = lists.reduce((a, r) => a + r.bytes, 0)
 const wholeBytes = lists.reduce((a, r) => a + r.wholeBytes, 0)
-// The drawing is about half of a row: a line with its points, kept again as
-// one segment. What is left must be well under two thirds.
-check('the list is under two thirds of the rows as the database keeps them', listBytes < (wholeBytes * 2) / 3, `${mb(listBytes)} for ${lists.length} request(s), the same rows whole ${mb(wholeBytes)}`)
+// The drawing is about half of a row and the line most of the rest: the list
+// of overviews is a small part of the rows as the database keeps them.
+check('the list is under a sixth of the rows as the database keeps them', listBytes < wholeBytes / 6, `${mb(listBytes)} for ${lists.length} request(s), the same rows whole ${mb(wholeBytes)}`)
 // The links table: after its first page answers, the rest are asked for at
 // once. Two loads in development, so the first of each load is the one an
 // earlier page precedes by more than a moment.
@@ -292,6 +324,10 @@ const lit = await mark('lit', (ids) => ids.some((id) => !!window.__map.getFeatur
 const litMs = lit == null ? null : Date.now() - tc
 const busyClick = await page.evaluate(() => Math.round(window.__long))
 check(`a click on a line lights its route within ${LIT_WITHIN_S} s`, litMs != null && litMs <= LIT_WITHIN_S * 1000, `${litMs == null ? 'never' : `${litMs} ms`}; ${busyClick} ms in long tasks`)
+// And the lit line's full line is read on its own, its stretches worked out on it.
+await mark('stretches after the click', async () => ((await window.__src('saved-routes-pass'))?.features?.length ?? 0) > 0, LIT_WITHIN_S * 1000 + 5_000)
+const lineReads = asked.filter((r) => r.table === 'route_variant' && r.one && columnsOf(r.select)?.join() === 'shape')
+check('the lit line is read in full, on its own, and its orange stretches worked out', marks['stretches after the click'] != null && lineReads.length > 0 && lineReads.every((r) => r.bytes < 200_000), `${lineReads.length} line read(s); stretches ${s(marks['stretches after the click'])}`)
 
 // Following a line while drawing reads that line's drawing, once, for it alone.
 await page.evaluate(() => localStorage.clear())
@@ -311,7 +347,8 @@ const at2 = await page.evaluate(([c]) => {
   const q = window.__map.project(c)
   return [q.x, q.y]
 }, [mid])
-const before = asked.filter((r) => r.table === 'route_variant' && r.one).length
+const oneRow = () => asked.filter((r) => r.table === 'route_variant' && r.one)
+const before = oneRow().length
 await page.mouse.click(canvas.x + at2[0], canvas.y + at2[1], { button: 'right' })
 const until = Date.now() + 15_000
 while (Date.now() < until) {
@@ -320,8 +357,10 @@ while (Date.now() < until) {
   await page.waitForTimeout(100)
 }
 const draft = await page.evaluate(() => JSON.parse(localStorage.getItem('parapo.draft.v1') ?? 'null'))
-const drawingReads = asked.filter((r) => r.table === 'route_variant' && r.one)
-check('following a line reads its drawing, one small request for that line', drawingReads.length === before + 1 && drawingReads.every((r) => r.bytes < 200_000 && /control_points/.test(r.select)), `${drawingReads.length - before} read(s); ${drawingReads.map((r) => `${mb(r.bytes)} "${r.select}"`).join(', ')}`)
+// Every one-row read of a direction since the right-click: the follow's must
+// be its drawing and nothing more, and there must be just that one.
+const drawingReads = oneRow().slice(before)
+check('following a line reads its drawing, one small request for that line', drawingReads.length === 1 && drawingReads.every((r) => r.bytes < 200_000 && /control_points/.test(r.select) && !/\*/.test(r.select)), `${drawingReads.length} read(s); ${drawingReads.map((r) => `${mb(r.bytes)} "${r.select}"`).join(', ')}`)
 check('and the drawing follows that line to its end', !!draft?.borrow && (draft.controlPoints?.length ?? 0) > 2, `borrows ${draft?.borrow?.variantId?.slice(0, 12) ?? 'nothing'}, ${draft?.controlPoints?.length ?? 0} points`)
 check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
 

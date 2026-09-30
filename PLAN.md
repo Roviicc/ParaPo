@@ -3315,3 +3315,31 @@ owner, not done: the plan put the orange stretches in the index; they are
 worked out on the full line when it is read, so they come a moment after a
 direction lights, and offline a line never read shows none — putting them
 in the index is some 60% more index at a thousand directions.
+
+**Stage 8 — the studio's data shape, 2026-09-29.** Migration 0009 adds
+`route_variant.overview` (jsonb, nullable, no default): the line thinned at
+5 m, five decimals (`overviewOf` in `geo.ts`, the public index's tolerance
+and decimals; the publish thins with its own measure until stage 10 makes
+it this one). The save writes it beside `shape`; emptying a direction clears
+it. The editor's list selects `overview` instead of `shape`, and a drawn row
+with no overview yet (saved before 0009) has its full line read in its
+place, in one request for those rows alone — so nothing waits on a
+backfill, and `scripts/publish/backfill-overview.mjs` (dry run by default,
+`--write` with a service key) is a tidy-up for the owner to run. A
+direction's full line is read when it is lit or chosen (`lineOf`), when it
+is opened (`withDrawing` now brings `shape` with the drawing), before a
+hotspot's links are worked out on the lines its outline can reach
+(`linesOf`: a `stop_sequence` is an index into the full line and must never
+be counted on an overview), and for the line an Extend borrowed from. A
+database 0009 has not reached is read the old way. `studio-scale-test`
+checks the list carries overviews and no lines (under a sixth of the rows),
+that a lit line is read on its own with its stretches, and its budgets are
+15 s to the first line and 10 s busy (45 and 30 before).
+Applied to the live project 2026-09-30 through the Supabase connector
+(version 20260930012129, `0009_overview`). The order changed from the plan,
+by the owner's decision of 2026-09-30. CI's drawing suites read the live
+tables: before the column existed, the list's first read was refused (400,
+42703), and those suites fail on any logged error. So 0009 was applied once
+the build, the public job and the stand-in suites that write and read the
+column (studio-scale 13, save 48) were green in CI. Only then did the
+drawing suites run again, and the PR merged only after they passed.

@@ -64,6 +64,8 @@ const tables = {
   route_variant: m.variants.map((v) => ({
     id: v.id, route_id: v.route_id, owner_id: OWNER, direction_name: null, origin_terminal: null, destination_terminal: null,
     shape: v.shape,
+    // 0009's overview: the published file's line is thinned already, and serves.
+    overview: v.shape,
     control_points: v.shape ? [v.shape.coordinates[0], v.shape.coordinates.at(-1)] : [],
     segments: v.shape ? [{ snap: 'snapped', coordinates: v.shape.coordinates, streets: [] }] : [],
     reversed: v.reversed, confidence: v.confidence ?? 'drawn', borrowed_from: null, borrowed_part: null, borrowed_m: null,
@@ -168,7 +170,7 @@ let seq = 0
 const newId = () => `00000000-0000-4000-8000-${String(++seq).padStart(12, '0')}`
 const fill = (table, r) =>
   table === 'route' ? { id: newId(), owner_id: OWNER, signboard: null, route_code: null, short_name: null, long_name: null, mode: 'jeepney', fare_note: null, fare_as_of: null, via: null, created_at: now, updated_at: now, ...r }
-  : table === 'route_variant' ? { id: newId(), owner_id: OWNER, direction_name: null, origin_terminal: null, destination_terminal: null, confidence: 'drawn', borrowed_from: null, borrowed_part: null, borrowed_m: null, created_at: now, updated_at: now, ...r }
+  : table === 'route_variant' ? { id: newId(), owner_id: OWNER, direction_name: null, origin_terminal: null, destination_terminal: null, confidence: 'drawn', overview: null, borrowed_from: null, borrowed_part: null, borrowed_m: null, created_at: now, updated_at: now, ...r }
   : table === 'stop' ? { id: newId(), owner_id: OWNER, informal: null, aliases: [], note: null, created_at: now, ...r }
   : { ...r }
 
@@ -367,6 +369,7 @@ w = writesSince(n)
 const outRoute = tables.route.find((r) => r.head_stop_id === head?.id && r.tail_stop_id === tail?.id)
 check('a new route is one route row and two directions, one of them an empty slot', !!outRoute && variantsOf(outRoute.id).length === 2 && variantsOf(outRoute.id).filter((v) => v.shape === null).length === 1, said(w))
 const outV = outRoute && variantsOf(outRoute.id).find((v) => v.shape)
+check('  the save writes the overview beside the line, from the same points (0009)', !!outV?.overview && outV.overview.coordinates.length >= 2 && outV.overview.coordinates.length <= outV.shape.coordinates.length && String(outV.overview.coordinates[0][0]).split('.')[1].length <= 5, `${outV?.overview?.coordinates.length} of ${outV?.shape?.coordinates.length} points`)
 check('  the line is linked to the two hintuans it runs between', ['Stand-in Head', 'Stand-in Tail'].every((nm) => tables.route_stop.some((l) => l.route_variant_id === outV?.id && l.stop_id === tables.stop.find((s) => s.name === nm)?.id)))
 const longest = since(n).reduce((a, x) => (x.url.length > a.url.length ? x : a), { url: '' })
 check(`  no request line over ${URL_LIMIT} characters with ${tables.stop.length} hotspots (4)`, longest.url.length <= URL_LIMIT, `${longest.url.length}: ${longest.method} ${longest.table}${longest.query.slice(0, 60)}`)
@@ -432,7 +435,7 @@ await waitFor(async () => (await page.getByRole('button', { name: 'Edit route' }
 await page.waitForTimeout(500)
 w = writesSince(n)
 check('Delete empties the direction into a slot: the row stays, with no line (3)', variantsOf(outRoute?.id).length === 2 && variantsOf(outRoute?.id).find((v) => v.id === outV?.id)?.shape === null, said(w))
-check('  its links go with its line', !tables.route_stop.some((l) => l.route_variant_id === outV?.id))
+check('  its links go with its line, and its overview', !tables.route_stop.some((l) => l.route_variant_id === outV?.id) && variantsOf(outRoute?.id).find((v) => v.id === outV?.id)?.overview === null)
 check('  the route stays: its other way is drawn', tables.route.some((r) => r.id === outRoute?.id) && !w.some((x) => x.method === 'DELETE' && x.table === 'route'))
 check('  and Delete again finishes it, no error shown', !/error|refused/i.test(await body()))
 await drawLine(OUT)

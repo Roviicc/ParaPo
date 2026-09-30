@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Drawing } from '../drawing/useDrawing'
 import { haversine, joinSegments, type LngLat } from '../../shared/geo/geo'
 import { sharedMetres } from '../drawing/borrow'
@@ -18,6 +18,7 @@ import { StopTimeline, passesThrough } from '../../shared/cards/StopTimeline'
 import { saveVariant } from '../data/routesWrite'
 import { routeStreets } from '../drawing/snap'
 import { syncHintuanLinks } from '../data/stopsWrite'
+import { lineOf } from '../data/live'
 
 type Props = {
   draw: Drawing
@@ -205,10 +206,26 @@ export function SavePanel({
   const borrowFromId = draw.borrow?.variantId ?? existing?.borrowed_from ?? null
   const borrowPart = draw.borrow?.part ?? existing?.borrowed_part ?? null
   const borrowParent = borrowFromId ? (variants.find((v) => v.id === borrowFromId) ?? null) : null
-  const borrowedM = useMemo(() => {
-    if (!borrowParent || !borrowPart) return 0
+  // The parent's full line: the list holds its overview (0009), which is the
+  // same road but not the same points.
+  const [parentFull, setParentFull] = useState<{ id: string; line: LngLat[] } | null>(null)
+  useEffect(() => {
+    if (!borrowFromId) return
+    let live = true
+    lineOf(borrowFromId).then(
+      (l) => {
+        if (live && l) setParentFull({ id: borrowFromId, line: l.coordinates })
+      },
+      () => {},
+    )
+    return () => {
+      live = false
+    }
+  }, [borrowFromId])
+  /** How much of this line runs on the parent's line. */
+  const borrowedOn = (parentLine: LngLat[]) => {
+    if (!borrowPart) return 0
     const line = joinSegments(draw.segments)
-    const parentLine = variantLine(borrowParent)
     // Either way round: a line followed from a right-click is copied in the
     // jeep's order, which is the other way when its parent was stored from
     // the far end.
@@ -216,7 +233,14 @@ export function SavePanel({
       sharedMetres(line, parentLine, borrowPart),
       sharedMetres(line, [...parentLine].reverse(), borrowPart),
     )
-  }, [borrowParent, borrowPart, draw.segments])
+  }
+  // What the panel shows while the parent's full line is on its way: its
+  // overview's figure. The save itself measures on the full line.
+  const borrowedM = useMemo(() => {
+    if (!borrowParent || !borrowPart) return 0
+    return borrowedOn(parentFull?.id === borrowParent.id ? parentFull.line : variantLine(borrowParent))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [borrowParent, borrowPart, draw.segments, parentFull])
 
   const name = head && tail ? routeName(stopLabel(head), stopLabel(tail), via) : ''
   const direction = head && tail ? directionName(stopLabel(head), stopLabel(tail), reversed) : ''
@@ -240,6 +264,14 @@ export function SavePanel({
     setBusy(true)
     setError(null)
     try {
+      // The borrow is measured on the parent's full line, never its overview
+      // (0009): on an overview a shared stretch reads as none, and the save
+      // would forget where the line came from. Read now if it has not come.
+      let borrowed = borrowedM
+      if (borrowParent && borrowPart && parentFull?.id !== borrowParent.id) {
+        const full = await lineOf(borrowParent.id)
+        borrowed = full ? borrowedOn(full.coordinates) : 0
+      }
       const saved = await saveVariant({
         routeId: written?.routeId ?? parent?.id ?? null,
         variantId: written?.variantId ?? existing?.id ?? null,
@@ -253,9 +285,9 @@ export function SavePanel({
         control_points: draw.controlPoints,
         segments: draw.segments,
         // A parent deleted since, or a borrowed part redrawn away, borrows nothing.
-        borrowed_from: borrowParent && borrowedM > 0 ? borrowParent.id : null,
+        borrowed_from: borrowParent && borrowed > 0 ? borrowParent.id : null,
         borrowed_part: borrowPart,
-        borrowed_m: borrowedM > 0 ? Math.round(borrowedM) : null,
+        borrowed_m: borrowed > 0 ? Math.round(borrowed) : null,
       })
       // Every hintuan's route list is a fact about geometry, so a changed
       // line re-checks itself against all of them. Terminal links are the

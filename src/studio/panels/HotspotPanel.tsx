@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react'
-import type { VariantRow } from '../../shared/model/routes'
-import { parseAliases, stopLabel, type StopRow } from '../../shared/model/stops'
+import { useEffect, useMemo, useState } from 'react'
+import { bboxOf, bboxesOverlap, OVERVIEW_M } from '../../shared/geo/geo'
+import { variantLine, type VariantRow } from '../../shared/model/routes'
+import { PASS_WITHIN_M, parseAliases, stopLabel, type StopRow } from '../../shared/model/stops'
+import { linesOf } from '../data/live'
 import { linksThrough, saveStop, variantsStartingIn } from '../data/stopsWrite'
 import type { Drawing } from '../drawing/useDrawing'
 
@@ -75,26 +77,60 @@ export function HotspotPanel({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const through = useMemo(() => linksThrough(ring, variants), [ring, variants])
+  // The list holds overviews (0009); a link's sequence is an index into the
+  // full line, so the directions the outline can reach are read in full
+  // before anything is worked out on them, and Save waits for them.
+  const [lined, setLined] = useState<VariantRow[] | null>(null)
+  useEffect(() => {
+    let live = true
+    // Reach: the starts-here distance, the pass rule and the overview's own slack.
+    const reach = bboxOf(ring, 100 + PASS_WITHIN_M + OVERVIEW_M)
+    const near = variants.filter((v) => {
+      const line = variantLine(v)
+      return line.length > 1 && bboxesOverlap(bboxOf(line), reach)
+    })
+    linesOf(near).then(
+      (full) => {
+        if (!live) return
+        const byId = new Map(full.map((v) => [v.id, v]))
+        setLined(variants.map((v) => byId.get(v.id) ?? v))
+      },
+      (e: unknown) => live && setError(`Couldn't read the lines near this outline: ${e instanceof Error ? e.message : String(e)}`),
+    )
+    return () => {
+      live = false
+    }
+  }, [ring, variants])
+  const lines = lined ?? variants
+
+  const through = useMemo(() => linksThrough(ring, lines), [ring, lines])
   const throughIds = useMemo(() => new Set(through.map((l) => l.variantId)), [through])
 
-  const [ticked, setTicked] = useState<Set<string>>(
-    () => new Set(existing ? existingLinks : variantsStartingIn(ring, variants)),
-  )
+  // A terminal's checklist is pre-ticked from the full lines, once they are
+  // in; a box the owner ticks or unticks before then keeps the owner's
+  // choice over the pre-tick.
+  const [startTicks, setStartTicks] = useState<Set<string> | null>(() => (existing ? new Set(existingLinks) : null))
+  useEffect(() => {
+    if (lined && startTicks === null) setStartTicks(new Set(variantsStartingIn(ring, lined)))
+  }, [lined, startTicks, ring])
+  const [chosen, setChosen] = useState<ReadonlyMap<string, boolean>>(() => new Map())
+  const ticked = useMemo(() => {
+    const t = new Set(startTicks ?? [])
+    for (const [id, on] of chosen) {
+      if (on) t.add(id)
+      else t.delete(id)
+    }
+    return t
+  }, [startTicks, chosen])
 
-  const groups = useMemo(() => groupBySignboard(variants), [variants])
+  const groups = useMemo(() => groupBySignboard(lines), [lines])
   const hintuanGroups = useMemo(
-    () => groupBySignboard(variants.filter((v) => throughIds.has(v.id))),
-    [variants, throughIds],
+    () => groupBySignboard(lines.filter((v) => throughIds.has(v.id))),
+    [lines, throughIds],
   )
 
   function toggle(id: string) {
-    setTicked((s) => {
-      const next = new Set(s)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+    setChosen((m) => new Map(m).set(id, !ticked.has(id)))
   }
 
   async function submit(e: React.FormEvent) {
@@ -111,7 +147,7 @@ export function HotspotPanel({
         note,
         ring,
         variantIds: kind === 'terminal' ? [...ticked] : undefined,
-        variants,
+        variants: lines,
       })
       onSaved(saved)
     } catch (err) {
@@ -241,7 +277,7 @@ export function HotspotPanel({
           </button>
           <button
             type="submit"
-            disabled={busy || ring.length < 3}
+            disabled={busy || ring.length < 3 || !lined}
             className="flex-1 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
           >
             {busy ? 'Saving…' : existing ? 'Save changes' : `Save ${label.toLowerCase()}`}

@@ -6,7 +6,7 @@ import { MapView } from '../shared/map/MapView'
 import { RouteCardList } from '../shared/cards/RouteCardList'
 import { RouteSheet } from '../shared/cards/RouteSheet'
 import { useRideTo } from '../shared/map/rideTo'
-import { listVariants, loadStopsFromSupabase, withDrawing } from './data/live'
+import { lineOf, listVariants, loadStopsFromSupabase, withDrawing } from './data/live'
 import {
   directionEnds,
   isDrawn,
@@ -102,10 +102,12 @@ function Workshop({
   // A right-click on a saved line while drawing: decided below, once the
   // saved lines and hotspots are loaded (onFollow).
   const draw = useDrawing(map, { onFollow: (ids, at) => onFollow(ids, at) })
-  // The list rows: a direction's drawing is read when it is opened (opening, below).
+  // The list rows, each with its overview (0009): a direction's full line is
+  // read when it is lit or chosen, its drawing when it is opened (below).
   const saved = useSavedRoutes(map, listVariants, {
     drawing: draw.drawing,
     hiddenVariantId: draw.target.variantId,
+    loadLine: lineOf,
   })
   const stops = useSavedStops(map, loadStopsFromSupabase, {
     drawing: draw.drawing,
@@ -113,8 +115,10 @@ function Workshop({
   })
   const ride = useRideTo(map, saved.selected, stops.stops)
 
-  // Where a lit direction passes a hintuan, the line turns orange for that stretch.
-  usePassStretches(map, saved.variants, stops.stops, saved.lit, draw.target.variantId)
+  // Where a lit direction passes a hintuan, the line turns orange for that
+  // stretch: worked out on the full lines read, which every lit one's is.
+  const withLines = useMemo(() => saved.variants.filter((v) => saved.fullIds.has(v.id)), [saved.variants, saved.fullIds])
+  usePassStretches(map, withLines, stops.stops, saved.lit, draw.target.variantId)
 
   // Which way the jeep goes, on what is lit only — the chosen direction, the
   // Selected card's directions, or else a list's: chevrons

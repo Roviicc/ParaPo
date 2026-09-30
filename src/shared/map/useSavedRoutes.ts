@@ -94,8 +94,9 @@ export function useLitLineColour(map: MapLibreMap | null, colour: string) {
  *
  * `load` decides where the directions come from: the public map reads the
  * published file (summaries, simplified lines), the editor the live tables
- * (full rows it can reopen). Pass a function defined once at module level,
- * not a new one per render, or it reloads every render.
+ * (their overviews, 0009, and what a save needs). Pass a function defined
+ * once at module level, not a new one per render, or it reloads every
+ * render.
  *
  * The editor also passes `drawing` and `hiddenVariantId`; the public map
  * passes neither, and both default to off.
@@ -105,7 +106,8 @@ export function useLitLineColour(map: MapLibreMap | null, colour: string) {
  * or chosen, or on screen at street zoom. From then on `variants` carries that line in its `shape` — so
  * the orange stretches, the chevrons, the ride-cut and the babaan sides all
  * work on the line itself — and the map draws it in place of the overview.
- * The editor's rows are whole already and it passes none.
+ * The editor passes none: its list carries overviews, and it reads a full
+ * line itself when it needs one (live.ts, lineOf and linesOf).
  */
 export function useSavedRoutes<T extends VariantSummary>(
   map: MapLibreMap | null,
@@ -529,7 +531,7 @@ export function useSavedRoutes<T extends VariantSummary>(
 
   return {
     variants,
-    /** The directions whose full line has been read (the public map); none on the editor, whose rows are whole. */
+    /** The directions whose full line has been read (the public map); none on the editor, which reads its own. */
     fullIds,
     error,
     loading,
