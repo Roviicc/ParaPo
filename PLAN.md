@@ -3368,3 +3368,21 @@ slot, the plan's, means a newer toast replaces an older one: a notice or a
 hotspot saved after a route save takes the route's "Draw the return trip"
 toast with it. The orange stretches' lighting waits for their layer as their
 layer does.
+
+**Stage 11 — a saved route's facts can be changed, 2026-09-29.** The
+owner's ask: "Phase 1 – Novaliches" could not become "Bagong Silang Kanan 5
+– Novaliches" without deleting the route. Edit route now unlocks Head,
+Tail, Via, Signboard, Mode and Fare note; Update writes the `route` row
+first — both directions share it, and the panel says a change here is a
+change to both — then the direction; the names follow from the new ends at
+the next load. Ends another route already has are refused in one sentence,
+before anything is written, as the database's `route_ends_unique` would. A
+swap of head and tail is refused too: a direction's way round is kept
+against its route's head, so a swap would mislabel both lines — change one
+end at a time. Terminal links are left as the owner set them. Drawing a
+return trip still leaves the route as it is. `save-test` covers the edit,
+the rename of both directions, the untouched terminal links and both
+refusals; SavePanel's stories show the open panel and the two refusals. A
+picked end's box is looked for at the line's end nearer the route's head,
+whichever way it was drawn, and a swap is refused by place, as the pickers
+choose.

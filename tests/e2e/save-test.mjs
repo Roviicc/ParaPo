@@ -501,7 +501,71 @@ check('  Save again updates the row it wrote, and inserts nothing (13)', w.some(
 check('  still one route for these ends and that via', tables.route.filter((r) => r.via === 'Stand-in Road').length === 1)
 await dismissToasts()
 
-// ---- 10. Signing in from Done leaves the drawing keys alive
+// ---- 10. Edit route changes the route's facts (stage 11, the owner's ask)
+await hintuan(at(-0.004, 0.006), 'Stand-in Phase')
+const phase = tables.stop.find((s) => s.name === 'Stand-in Phase')
+await openCard(OUT[1])
+await page.getByRole('button', { name: 'Edit route' }).click()
+await waitFor(async () => (await pointsShown()) > 0)
+await done()
+check('Edit route unlocks the ends and the facts', (await page.getByTestId('save-head').isEnabled()) && (await page.getByPlaceholder('Zabarte').isEnabled()) && (await page.getByPlaceholder('Fairview – Tala').isEnabled()))
+await page.getByTestId('save-head').selectOption({ label: 'Stand-in Phase' })
+await page.getByPlaceholder('Fairview – Tala').fill('Phase – Tail')
+check('  the panel says the change is to both directions', /a change here is a change to both directions/.test(await body()))
+n = log.length
+const backId = variantsOf(outRoute?.id).find((v) => v.id !== outV?.id)?.id
+// A terminal link the owner set on this direction, as a hotspot's checklist
+// would: Edit route must leave it where it is.
+const aTerminal = tables.stop.find((s) => s.kind === 'terminal')
+if (aTerminal && outV) tables.route_stop.push({ route_variant_id: outV.id, stop_id: aTerminal.id, stop_sequence: 0 })
+await saveButton().click()
+await waitFor(async () => (await toast().count()) > 0)
+w = writesSince(n)
+const edited = tables.route.find((r) => r.id === outRoute?.id)
+check('  Update writes the route row — its new head, its signboard — then the direction', edited?.head_stop_id === phase?.id && edited?.signboard === 'Phase – Tail' && w.findIndex((x) => x.method === 'PATCH' && x.table === 'route') < w.findIndex((x) => x.method === 'PATCH' && x.table === 'route_variant'), said(w))
+check('  the name follows the new end', (await toast().innerText()).includes('Stand-in Phase – Stand-in Tail'), (await toast().innerText()).replace(/\s+/g, ' '))
+const terminals = new Set(tables.stop.filter((s) => s.kind === 'terminal').map((s) => s.id))
+const linkWrites = w.filter((x) => x.table === 'route_stop')
+check(
+  '  the terminal links are left as they are: the one set stays, and the link writes name hintuans only',
+  !!aTerminal &&
+    tables.route_stop.some((l) => l.route_variant_id === outV?.id && l.stop_id === aTerminal.id) &&
+    linkWrites.every((x) => !/stop_id=eq\./.test(x.query) && ![x.body ?? []].flat().some((l) => terminals.has(l?.stop_id)) && ![...terminals].some((t) => x.query.includes(t))),
+  said(linkWrites),
+)
+await dismissToasts()
+// The other direction, not saved here, shares the route: its card reads the
+// new end once the list is read again.
+await waitFor(async () => {
+  await openCard(BACK[1])
+  return /Stand-in Tail → Stand-in Phase/.test(await body())
+}, 8000)
+check('  and the other direction, which shares the route, is renamed with it', variantsOf(outRoute?.id).some((v) => v.id === backId) && /Stand-in Tail → Stand-in Phase/.test(await body()), (await body()).slice(-200))
+await page.keyboard.press('Escape')
+await page.waitForTimeout(300)
+await openCard(OUT[1])
+await page.getByRole('button', { name: 'Edit route' }).click()
+await waitFor(async () => (await pointsShown()) > 0)
+await done()
+await page.getByTestId('save-head').selectOption({ label: 'Stand-in Head' })
+await page.getByPlaceholder('Zabarte').fill('Stand-in Road')
+n = log.length
+await saveButton().click()
+await page.waitForTimeout(600)
+check('ends that another route already has are refused in a plain sentence', /Another route already runs between these two places/.test(await body()), (await body()).slice(-200))
+check('  and nothing is written', writesSince(n).length === 0, said(writesSince(n)))
+await page.getByTestId('save-head').selectOption({ label: 'Stand-in Tail' })
+await page.getByTestId('save-tail').selectOption({ label: 'Stand-in Phase' })
+n = log.length
+await saveButton().click()
+await page.waitForTimeout(600)
+check('head and tail swapped are refused: the route would turn round', /Head and tail swapped would turn the route round/.test(await body()), (await body()).slice(-200))
+check('  and nothing is written', writesSince(n).length === 0, said(writesSince(n)))
+await page.getByRole('button', { name: 'Back to map' }).click()
+await page.getByTitle('Discard this route').click()
+await page.waitForTimeout(300)
+
+// ---- 11. Signing in from Done leaves the drawing keys alive
 const guest = await open(false, '/studio/?e2e=1')
 const guestBody = async () => (await guest.locator('body').innerText()).replace(/\s+/g, ' ')
 const gbox = await guest.locator('canvas.maplibregl-canvas').boundingBox()

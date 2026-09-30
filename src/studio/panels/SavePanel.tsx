@@ -15,7 +15,7 @@ import {
 } from '../../shared/model/routes'
 import { hintuansAlong, placeKey, stopLabel, timelineFor, type StopRow } from '../../shared/model/stops'
 import { StopTimeline, passesThrough } from '../../shared/cards/StopTimeline'
-import { saveVariant } from '../data/routesWrite'
+import { ENDS_TAKEN, saveVariant } from '../data/routesWrite'
 import { routeStreets } from '../drawing/snap'
 import { syncHintuanLinks } from '../data/stopsWrite'
 import { lineOf } from '../data/live'
@@ -36,8 +36,9 @@ type Props = {
   /** Every hotspot, for the two end pickers and for generating the name. */
   stops: StopRow[]
   /**
-   * Every saved direction: for what an Extend borrowed from, and for noticing
-   * that the chosen ends already make a route whose empty slot this fills.
+   * Every saved direction: for what an Extend borrowed from, for noticing
+   * that the chosen ends already make a route whose empty slot this fills,
+   * and, in Edit route, for refusing ends another route already has.
    */
   variants?: VariantRow[]
   onSaved: (v: VariantRow) => void
@@ -125,15 +126,22 @@ export function SavePanel({
   const placeOf = (id: string) => places.find((p) => p.boxes.some((s) => s.id === id))
   const lineStart = line[0]
   const lineEnd = line[line.length - 1]
+  // Where a picked end's box is looked for: at the end of the line nearer
+  // the route's head, and the tail at the other — whichever way it was
+  // drawn; a new route's line starts at its head.
+  const headNow = existing ? stops.find((s) => s.id === existing.route.head_stop_id) : undefined
+  const startsAtHead =
+    !headNow || !lineStart || !lineEnd || haversine(lineStart, headNow.point.coordinates) <= haversine(lineEnd, headNow.point.coordinates)
+  const [nearHead, nearTail] = startsAtHead ? [lineStart, lineEnd] : [lineEnd, lineStart]
 
   const [signboard, setSignboard] = useState(parent?.signboard ?? '')
   const [mode, setMode] = useState<TransportMode>(parent?.mode ?? 'jeepney')
   const [fareNote, setFareNote] = useState(parent?.fare_note ?? '')
   const [via, setVia] = useState(parent?.via ?? '')
-  // The ends are the route's, so an existing route fixes them; a new one is
-  // guessed from where the line actually starts and finishes — the nearest
-  // box, then that box's place, then the place's own box — and corrected by
-  // hand when the guess is wrong.
+  // The ends are the route's: a return trip takes them as they are, and Edit
+  // route starts from them; a new route's are guessed from where the line
+  // actually starts and finishes — the nearest box, then that box's place,
+  // then the place's own box — and corrected by hand when the guess is wrong.
   const guess = (to: LngLat | undefined) => {
     const place = placeOf(nearestStop(stops, to))
     return place ? boxFor(place, to) : ''
@@ -156,9 +164,11 @@ export function SavePanel({
   // "already drawn" (review finding 13). Now it updates the row it wrote.
   const [written, setWritten] = useState<{ routeId: string; variantId: string } | null>(null)
 
-  // A return trip's route is fixed; so is a new route's once a save has
-  // written it: the retry finishes that row and would ignore a changed end.
-  const routeLocked = !!parent || !!written
+  // A return trip fills its route's slot and leaves the route as it is; Edit
+  // route may change the route's facts, for both its directions. A new
+  // route's are fixed once a save has written it: the retry finishes that
+  // row and would ignore a changed end.
+  const routeLocked = !existing && (!!parent || !!written)
   const streets = routeStreets(draw.segments)
   const head = stops.find((s) => s.id === headId)
   const tail = stops.find((s) => s.id === tailId)
@@ -190,7 +200,7 @@ export function SavePanel({
   // A new route whose ends already make a route: the save fills that route's
   // empty slot, or is refused when the direction is drawn (routesWrite).
   const sameEnds = useMemo(() => {
-    if (routeLocked || !headId || !tailId) return null
+    if (parent || !headId || !tailId) return null
     const v = variants.find(
       (x) =>
         x.route.head_stop_id === headId &&
@@ -199,7 +209,29 @@ export function SavePanel({
         x.reversed === reversed,
     )
     return v ? { name: v.route.name, drawn: isDrawn(v) } : null
-  }, [routeLocked, headId, tailId, via, reversed, variants])
+  }, [parent, headId, tailId, via, reversed, variants])
+
+  // Edit route, the ends changed: onto another route's (refused, as the
+  // database would), or turned round (a direction's way round is kept
+  // against its route's head, so a swap would mislabel both lines).
+  const endsTaken = useMemo(() => {
+    if (!existing || !headId || !tailId) return false
+    return variants.some(
+      (x) =>
+        x.route_id !== existing.route_id &&
+        x.route.head_stop_id === headId &&
+        x.route.tail_stop_id === tailId &&
+        (x.route.via ?? '') === via.trim(),
+    )
+  }, [existing, headId, tailId, via, variants])
+  // By place, as the pickers choose: another box of the same place is the
+  // same end.
+  const turnedRound =
+    !!existing &&
+    !!headPlace &&
+    !!tailPlace &&
+    headPlace === placeOf(existing.route.tail_stop_id) &&
+    tailPlace === placeOf(existing.route.head_stop_id)
 
   // What an Extend borrowed: measured on the line as it is now, so a borrowed
   // point dragged away or undone is counted as it really is.
@@ -261,6 +293,14 @@ export function SavePanel({
       setError('The two ends have to be different places.')
       return
     }
+    if (endsTaken) {
+      setError(ENDS_TAKEN)
+      return
+    }
+    if (turnedRound) {
+      setError('Head and tail swapped would turn the route round, which Edit route cannot do: its directions keep their way round. Change one end at a time.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -275,6 +315,7 @@ export function SavePanel({
       const saved = await saveVariant({
         routeId: written?.routeId ?? parent?.id ?? null,
         variantId: written?.variantId ?? existing?.id ?? null,
+        writeRoute: !!existing,
         signboard,
         mode,
         fare_note: fareNote,
@@ -321,6 +362,7 @@ export function SavePanel({
         <p className="mt-1 text-xs text-neutral-500">
           {draw.controlPoints.length} points · {(draw.metres / 1000).toFixed(2)} km
           {routeLocked && ' · the ends belong to the route, so both directions share them'}
+          {existing && " · the ends, via, signboard, mode and fare note are the route's: a change here is a change to both directions"}
         </p>
         {/* For a jeepney the street list says more than the two terminals do. */}
         {streets.names.length > 0 && (
@@ -408,7 +450,7 @@ export function SavePanel({
               required
               disabled={routeLocked}
               value={headPlace?.key ?? ''}
-              onChange={(e) => setHeadId(pickPlace(e.target.value, lineStart))}
+              onChange={(e) => setHeadId(pickPlace(e.target.value, nearHead))}
               className={field}
               data-testid="save-head"
             >
@@ -426,7 +468,7 @@ export function SavePanel({
               required
               disabled={routeLocked}
               value={tailPlace?.key ?? ''}
-              onChange={(e) => setTailId(pickPlace(e.target.value, lineEnd))}
+              onChange={(e) => setTailId(pickPlace(e.target.value, nearTail))}
               className={field}
               data-testid="save-tail"
             >
@@ -471,14 +513,16 @@ export function SavePanel({
           </strong>
           <br />
           <span className="text-xs text-neutral-500">
-            {routeLocked ? 'of the route ' : 'of a new route, '}
+            {parent ? 'of the route ' : 'of a new route, '}
             <span data-testid="save-name" className="font-medium text-neutral-700">
               {name || '—'}
             </span>
           </span>
           <br />
           <span className="text-[11px] text-neutral-400">
-            Both names are generated from the two ends. Rename a hotspot to change them.
+            {existing
+              ? 'Both names are generated from the two ends: pick another place above to change them.'
+              : 'Both names are generated from the two ends. Rename a hotspot to change them.'}
           </span>
         </p>
 
