@@ -1,7 +1,7 @@
 /**
  * How BottomSheet's handle and drags decide, on a phone: every card's,
  * since the owner's ask of 2026-09-30 ("make it a universal rule as
- * component"). Moved out of the old Sheet.tsx, which went then.
+ * component").
  */
 
 /** How far a drag must travel before it counts as a pull rather than a tap. */
@@ -23,8 +23,8 @@ export const DRAG_PX = 24
  * Philcoa card on GitHub's runners once its routes flowed, 2026-09-29).
  * Armed after a drag too: a finger's sends no click, and the next touch ends
  * the watch; a mouse's clicks the handle it was held on, which toggled the
- * sheet straight back — pulled up, it fell to peek (the reviewer's note,
- * fixed on the owner's word, 2026-09-29).
+ * sheet straight back (the reviewer's note, fixed on the owner's word,
+ * 2026-09-29).
  */
 export function swallowTheTapsClick(x: number, y: number) {
   const stop = (e: MouseEvent) => {
@@ -62,7 +62,65 @@ export function snapAfterTap(snap: Snap): Snap {
 }
 
 /** A flick faster than this, in pixels a millisecond, goes one height on in its direction. */
-export const FLICK = 0.5
+const FLICK = 0.5
+
+/** Middle shows this much of the map, as the owner's frames do (448 and 462 of 844). */
+const MIDDLE = 0.55
+
+/**
+ * What Low shows, the same for every card (the owner's 3817:6007,
+ * 2026-09-30: "same height, same interaction, same motion"; 137 since his
+ * change to it that day): the notch, the header and the top of the first
+ * card, down past its title — cut to one line there (`sheet-low:`).
+ */
+export const LOW_PX = 137
+
+/** What each height shows of a sheet `h` tall, the map's height. */
+export function heightsFor(h: number): Record<Snap, number> {
+  return { low: LOW_PX, middle: Math.round(h * MIDDLE), max: h }
+}
+
+/** How far down a sheet at `snap` slides, as a CSS length: `100%` is its own height, the map's. */
+export function slide(snap: Snap): string {
+  if (snap === 'max') return '0px'
+  // Below Max its bottom padding is off the screen: what shows stands clear
+  // of a phone's home indicator by lifting it that much.
+  if (snap === 'middle') return `calc(${(1 - MIDDLE) * 100}% - env(safe-area-inset-bottom))`
+  return `calc(100% - ${LOW_PX}px - env(safe-area-inset-bottom))`
+}
+
+/** How far down a sheet slides while `shown` px of it follow a finger. Never above the map's top. */
+export function slideShowing(shown: number): string {
+  return `max(0px, calc(100% - ${shown}px - env(safe-area-inset-bottom)))`
+}
+
+/**
+ * A finger, or a mouse, holding a sheet `max` tall that showed `from` when
+ * it took hold at `startY`: how much shows as it moves, and where it lands
+ * let go (snapFor). Its speed is smoothed over the last few moves, so one
+ * jittery sample does not decide a flick; held still 80 ms before lifting,
+ * it is a placement, not a flick. The touch pull at Max and the pointer
+ * drag share it.
+ */
+export function follow(startY: number, t: number, from: number, max: number) {
+  let y = startY
+  let last = t
+  let v = 0
+  const shown = (at: number) => Math.max(0, Math.min(max, from + startY - at))
+  return {
+    move(at: number, now: number): number {
+      const dt = now - last
+      if (dt > 0) v = 0.7 * ((y - at) / dt) + 0.3 * v
+      y = at
+      last = now
+      return shown(at)
+    },
+    /** Where it lands let go at `at` (the last move's, when the release has no position). */
+    release(now: number, at = y): Snap | 'close' {
+      return snapFor(shown(at), now - last > 80 ? 0 : v, heightsFor(max))
+    },
+  }
+}
 
 /**
  * Where a drag lets go (the owner's ask of 2026-09-30: the sheet follows the

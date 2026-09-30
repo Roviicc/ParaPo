@@ -20,6 +20,39 @@
   --container-float: 64rem;
 }
 
+/*
+ * BottomSheet (src/shared/cards/BottomSheet.tsx) stops being a sheet once
+ * the map is wide enough for what it floats as: its `corner` kind at
+ * --container-float, its `card` kind at --container-wide (the widths are
+ * written out: a container query cannot read a variable). `sheet-floating:`
+ * is that, on the sheet and on what it holds; `sheet-low:` is a sheet still
+ * docked, at Low, for what it holds.
+ */
+@custom-variant sheet-floating {
+  @container (width >= 64rem) {
+    &:where([data-floats='corner'], [data-floats='corner'] *) {
+      @slot;
+    }
+  }
+  @container (width >= 40rem) {
+    &:where([data-floats='card'], [data-floats='card'] *) {
+      @slot;
+    }
+  }
+}
+@custom-variant sheet-low {
+  @container (width < 64rem) {
+    &:where([data-floats='corner'][data-snap='low'] *) {
+      @slot;
+    }
+  }
+  @container (width < 40rem) {
+    &:where([data-floats='card'][data-snap='low'] *) {
+      @slot;
+    }
+  }
+}
+
 html,
 body,
 #root {

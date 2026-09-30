@@ -37,9 +37,9 @@ type Props = {
  * What anyone sees when they tap a route. The card does not know who is
  * looking: whoever renders it decides which actions to offer.
  *
- * `Sheet` decides the shape — a floating card on a wide screen, a bottom sheet
- * on a phone. The peek is the direction and the route, which is the least a
- * commuter needs to know whether this is the right jeep.
+ * `BottomSheet` decides the shape — a floating card on a wide screen, a
+ * bottom sheet on a phone. Its header is the direction and the route, which
+ * is the least a commuter needs to know whether this is the right jeep.
  *
  * The title is the *direction* — `SM Fairview → Tala` — not the route, since
  * 2026-09-22: the owner opened both cards of his first route, saw "Tala – SM
