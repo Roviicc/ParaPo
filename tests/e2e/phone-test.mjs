@@ -1450,8 +1450,27 @@ if (!hotspot) {
   const readyClose = await restore('low')
   await tapHandle()
   const cb = await card().getByRole('button', { name: 'Close' }).first().boundingBox()
-  if (cb) await page.touchscreen.tap(cb.x + cb.width / 2, cb.y + cb.height / 2)
-  await page.waitForTimeout(400)
+  if (cb) {
+    const [cx, cy] = [cb.x + cb.width / 2, cb.y + cb.height / 2]
+    const seen = await pointerdowns()
+    await page.touchscreen.tap(cx, cy)
+    await page.waitForTimeout(400)
+    // The runner dropped the touch, as tapHandle allows for: the same tap by
+    // hand — a press, which ends the watch, then its click — so what is
+    // checked is still the watch, not a bare click. The mouse's pointer, as
+    // handGesture's, since the sheet may capture it.
+    if ((await card().count()) > 0 && (await pointerdowns()) === seen) {
+      tapsByHand++
+      await page.evaluate(([x, y]) => {
+        const el = document.elementFromPoint(x, y)
+        const at = { clientX: x, clientY: y, bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', isPrimary: true }
+        el?.dispatchEvent(new PointerEvent('pointerdown', at))
+        el?.dispatchEvent(new PointerEvent('pointerup', at))
+        el?.dispatchEvent(new MouseEvent('click', { ...at, detail: 1 }))
+      }, [cx, cy])
+      await page.waitForTimeout(400)
+    }
+  }
   check('✕ pressed right after a handle tap still closes the card', readyClose && !!cb && (await card().count()) === 0, `[data-testid="card"] count ${await card().count()}`)
   await closeCard()
 }
