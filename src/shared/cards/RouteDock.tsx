@@ -57,7 +57,8 @@ function slide(snap: Snap, lowPx: number): string {
  * scrolls under the header, with no scrollbar drawn (his ask, 2026-09-28).
  *
  * On a phone it is his BottomSheetConfiguration (3815:5637, 2026-09-30): a
- * HandleNotch over the header, and three heights — Low, the header alone;
+ * HandleNotch over the header, and three heights — Low, the header and a
+ * trip's origin on one line (3814:3976), a tap on it raising the sheet;
  * Middle, where it opens, about half the map, white below what it holds
  * ("Stretch should expand at the bottom"); Max, the whole map, clear of a
  * phone's notch. Square along the top, as his frames draw it.
@@ -75,24 +76,40 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
   const own = useRef<HTMLDivElement>(null)
   const handleRef = useRef<HTMLButtonElement>(null)
   const headRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
   const [snap, setSnap] = useState<Snap>('middle')
   // How much of the sheet shows while a finger drags it; null at rest.
   const [dragged, setDragged] = useState<number | null>(null)
-  // What Low shows: the notch and the header, measured.
+  // What Low shows: the notch and the header, measured, and down to the
+  // body's data-dock-peek if it marks one.
   const [lowPx, setLowPx] = useState(80)
   const lowRef = useRef(80)
   lowRef.current = lowPx
   useDialogFocus(own, hidden)
   useEscape(onClose, !hidden)
 
+  // A trip's card marks its origin (TripTimeline): Low shows it, its first
+  // line only, as the owner's 3814:3976 does. It is measured as if cut to
+  // that line whatever the snap, for from Middle up it runs on in full.
   useLayoutEffect(() => {
     const head = headRef.current
     const notch = handleRef.current
     if (!head || !notch) return
-    const measure = () => setLowPx(Math.round(head.offsetHeight + notch.offsetHeight))
+    const peek = bodyRef.current?.querySelector<HTMLElement>('[data-dock-peek]')
+    const line = peek?.querySelector<HTMLElement>('[data-dock-peek-line]')
+    const measure = () => {
+      let px = head.offsetHeight + notch.offsetHeight
+      if (peek) {
+        const top = notch.getBoundingClientRect().top
+        const cut = line ? line.offsetHeight - parseFloat(getComputedStyle(line).lineHeight) : 0
+        px = peek.getBoundingClientRect().bottom - top - Math.max(0, cut)
+      }
+      setLowPx(Math.round(px))
+    }
     measure()
     const seen = new ResizeObserver(measure)
     seen.observe(head)
+    if (peek) seen.observe(peek)
     return () => seen.disconnect()
   }, [])
 
@@ -117,7 +134,6 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
   // for itself and cancels the pointer, but a non-passive touchmove can
   // still be claimed. A wheel does the same at the top of the list, and
   // turned the other way at Middle raises the sheet to Max.
-  const bodyRef = useRef<HTMLDivElement>(null)
   // Read by listeners bound once: today's snap, and today's settle (its onClose).
   const snapNow = useRef(snap)
   snapNow.current = snap
@@ -222,6 +238,9 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
     const h = sheet.offsetHeight
     const heights = { low: lowPx, middle: Math.round(h * MIDDLE), max: h }
     const onHandle = handleRef.current.contains(e.target as Node)
+    // At Low what peeks of the body is not for picking: a tap there raises
+    // the sheet, as one on the handle does.
+    const raises = onHandle || (snap === 'low' && !!bodyRef.current?.contains(e.target as Node))
     const g = { startY: e.clientY, from: heights[snap], moving: false, y: e.clientY, t: e.timeStamp, v: 0 }
     const shownAt = (clientY: number) => Math.max(0, Math.min(heights.max, g.from + g.startY - clientY))
 
@@ -250,7 +269,7 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
         // Held still before lifting: a placement, not a flick.
         const v = ev.timeStamp - g.t > 80 ? 0 : g.v
         settleNow.current(snapFor(shownAt(ev.clientY), v, heights))
-      } else if (onHandle) {
+      } else if (raises) {
         swallowTheTapsClick(ev.clientX, ev.clientY)
         settleNow.current(snapAfterTap(snap))
       }
@@ -320,18 +339,17 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
       </div>
       <div
         ref={bodyRef}
-        // Focus from the keyboard at Middle lands on rows that may be below
+        // Focus from the keyboard below Max lands on rows that may be below
         // the screen: the sheet rises to Max, where the list scrolls them
         // into view (the ds-reviewer, 2026-09-30). Focus that follows a press
         // is the press's own and leaves the sheet where it is.
         onFocus={(e) => {
           const fromKeys = e.timeStamp - lastPress.current > 800 && e.target.matches(':focus-visible')
-          if (snap === 'middle' && fromKeys && handleRef.current?.offsetParent != null) setSnap('max')
+          if (snap !== 'max' && fromKeys && handleRef.current?.offsetParent != null) setSnap('max')
         }}
         className={
-          'min-h-0 flex-1 scrollbar-none [&::-webkit-scrollbar]:hidden @float:visible @float:overflow-y-auto @float:touch-auto ' +
-          // At Low it is out of sight, out of reach of focus and screen readers.
-          (snap === 'max' ? 'overflow-y-auto' : snap === 'low' ? 'invisible overflow-hidden' : 'overflow-hidden touch-none')
+          'min-h-0 flex-1 scrollbar-none [&::-webkit-scrollbar]:hidden @float:overflow-y-auto @float:touch-auto ' +
+          (snap === 'max' ? 'overflow-y-auto' : 'overflow-hidden touch-none')
         }
       >
         {children}

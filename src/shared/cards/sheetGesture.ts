@@ -47,7 +47,7 @@ export function swallowTheTapsClick(x: number, y: number) {
 
 /**
  * The three heights of the owner's BottomSheetConfiguration (Figma 3815:5637,
- * 2026-09-30), on a phone: Low, the header alone along the bottom (3814:3976);
+ * 2026-09-30), on a phone: Low, the header and a trip's origin along the bottom (3814:3976);
  * Middle, about half the screen, where a trip opens (3813:3755, 3815:4040);
  * Max, the whole screen, the header at the top and the rest scrolling under
  * it (3815:4306).

@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react'
 import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 import { RouteTripDetail } from './RouteTripDetail'
 
 /** Sample data only: the places of the owner's frames (3762:3546), not the real map. */
@@ -334,7 +334,7 @@ export const SheetMax: Story = {
   },
 }
 
-/** Low: the header alone along the bottom, the map above it (3814:3976). */
+/** Low: the header and the origin along the bottom, the map above it (3814:3976). */
 export const SheetLow: Story = {
   play: async (ctx) => {
     await tapHandle(ctx.canvasElement, 2)
@@ -342,11 +342,21 @@ export const SheetLow: Story = {
   },
 }
 
-/** Low with a long head: its name, cut short before SWITCH. */
+/** Low with a long origin: one line of it, cut short (3814:3976). */
 export const SheetLowLongName: Story = {
   args: LongNames.args,
   play: async (ctx) => {
     await tapHandle(ctx.canvasElement, 2)
-    await expect(within(ctx.canvasElement).getByTestId('card-title')).toBeVisible()
+    const origin = within(ctx.canvasElement).getByTestId('trip-origin').querySelector('[data-dock-peek-line]')!
+    await waitFor(() => expect(origin.getBoundingClientRect().height).toBe(32))
+  },
+}
+
+/** Middle with a long origin: all of it, on as many lines as it takes. */
+export const SheetMiddleLongName: Story = {
+  args: LongNames.args,
+  play: async (ctx) => {
+    const origin = within(ctx.canvasElement).getByTestId('trip-origin').querySelector('[data-dock-peek-line]')!
+    await expect(origin.getBoundingClientRect().height).toBeGreaterThan(32)
   },
 }
