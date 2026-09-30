@@ -195,7 +195,8 @@ export const Tablet: Story = { parameters: { frame: 'tablet' } }
 
 /**
  * A hintuan picked, red — the Timeline set's Selected row on the owner's
- * card (3769:2895): Amparo's dot green in a white ring, its name Black, and
+ * card (3769:2895), recoloured 2026-09-30 (3778:3183): Amparo's dot a white
+ * ring round the rail's red, no longer green, its name Black, and
  * a white pill with the pesos from Tala to there in the card's red. Opened,
  * since the fold keeps it.
  */
@@ -228,7 +229,7 @@ export const PickAndLetGo: Story = {
 
 /**
  * The ends are buttons too, and picked like a hintuan (the owner's asks,
- * 2026-09-29): Tala picks itself, its dot green, lets Amparo go and says
+ * 2026-09-29): Tala picks itself, its dot the Selected one, lets Amparo go and says
  * which end to show; a second tap lets it go. Novaliches the same. One at a
  * time: each lets the others go.
  */
@@ -271,7 +272,7 @@ export const EndsShowTheWhole: Story = {
   },
 }
 
-/** Where the trip leaves from, picked: its dot green in a white ring, as a picked hintuan's; its name and the tiles as they were. */
+/** Where the trip leaves from, picked: its dot a white ring round the rail's colour, as a picked hintuan's; its name and the tiles as they were. */
 export const OriginPicked: Story = { args: { livery: 'red', endPicked: 'from' } }
 
 /** Where the trip goes, picked, the same way. */

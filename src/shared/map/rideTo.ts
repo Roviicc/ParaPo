@@ -36,7 +36,7 @@ export function useRideTo(
   const live = picked && picked.variantId === selected?.id ? picked : null
 
   // An end of the trip, picked from its row: the line stays whole, its dot
-  // green like a picked hintuan's (the owner's asks, 2026-09-29: "tapping
+  // picked like a hintuan's (the owner's asks, 2026-09-29: "tapping
   // Novaliches should indicate green circle too", then the origin: "it
   // should have!"). One pick at a time with the hintuans; kept by
   // direction, as a pick is.
