@@ -35,18 +35,26 @@ type Props = {
 const MIDDLE = 0.55
 
 /**
+ * What Low shows, the same for the route list and a trip's card (the owner's
+ * 3817:6007, 2026-09-30: "same height, same interaction, same motion"): the
+ * notch, the header and the top of the first card, down past its title —
+ * cut to one line there (group-data-[snap=low]/dock:line-clamp-1).
+ */
+const LOW_PX = 140
+
+/**
  * How far down the sheet slides at each snap, as a CSS length: it is always
  * the whole map tall and slides, so that moving between heights is one
  * smooth `translate` (the owner's ask of 2026-09-30: "motion ... so it
  * becomes fluid"), and a drag can follow the finger. `100%` is the sheet's
  * own height, the map's.
  */
-function slide(snap: Snap, lowPx: number): string {
+function slide(snap: Snap): string {
   if (snap === 'max') return '0px'
   // Below Max the sheet's own bottom padding is off the screen: what shows
   // stands clear of a phone's home indicator by lifting it that much.
   if (snap === 'middle') return `calc(${(1 - MIDDLE) * 100}% - env(safe-area-inset-bottom))`
-  return `calc(100% - ${lowPx}px - env(safe-area-inset-bottom))`
+  return `calc(100% - ${LOW_PX}px - env(safe-area-inset-bottom))`
 }
 
 /**
@@ -80,38 +88,8 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
   const [snap, setSnap] = useState<Snap>('middle')
   // How much of the sheet shows while a finger drags it; null at rest.
   const [dragged, setDragged] = useState<number | null>(null)
-  // What Low shows: the notch and the header, measured, and down to the
-  // body's data-dock-peek if it marks one.
-  const [lowPx, setLowPx] = useState(80)
-  const lowRef = useRef(80)
-  lowRef.current = lowPx
   useDialogFocus(own, hidden)
   useEscape(onClose, !hidden)
-
-  // A trip's card marks its origin (TripTimeline): Low shows it, its first
-  // line only, as the owner's 3814:3976 does. It is measured as if cut to
-  // that line whatever the snap, for from Middle up it runs on in full.
-  useLayoutEffect(() => {
-    const head = headRef.current
-    const notch = handleRef.current
-    if (!head || !notch) return
-    const peek = bodyRef.current?.querySelector<HTMLElement>('[data-dock-peek]')
-    const line = peek?.querySelector<HTMLElement>('[data-dock-peek-line]')
-    const measure = () => {
-      let px = head.offsetHeight + notch.offsetHeight
-      if (peek) {
-        const top = notch.getBoundingClientRect().top
-        const cut = line ? line.offsetHeight - parseFloat(getComputedStyle(line).lineHeight) : 0
-        px = peek.getBoundingClientRect().bottom - top - Math.max(0, cut)
-      }
-      setLowPx(Math.round(px))
-    }
-    measure()
-    const seen = new ResizeObserver(measure)
-    seen.observe(head)
-    if (peek) seen.observe(peek)
-    return () => seen.disconnect()
-  }, [])
 
   const settle = (next: Snap | 'close') => {
     setDragged(null)
@@ -174,7 +152,7 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
       const p = pull
       pull = null
       if (!p?.taking) return
-      const heights = { low: lowRef.current, middle: Math.round(p.h * MIDDLE), max: p.h }
+      const heights = { low: LOW_PX, middle: Math.round(p.h * MIDDLE), max: p.h }
       const v = e.timeStamp - p.t > 80 ? 0 : p.v
       settleNow.current(snapFor(Math.max(0, Math.min(p.h, p.h - (p.y - p.startY))), v, heights))
     }
@@ -236,7 +214,7 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
     const onTop = headRef.current?.contains(e.target as Node) || handleRef.current.contains(e.target as Node)
     if (snap === 'max' && !onTop) return
     const h = sheet.offsetHeight
-    const heights = { low: lowPx, middle: Math.round(h * MIDDLE), max: h }
+    const heights = { low: LOW_PX, middle: Math.round(h * MIDDLE), max: h }
     const onHandle = handleRef.current.contains(e.target as Node)
     // At Low what peeks of the body is not for picking: a tap there raises
     // the sheet, as one on the handle does.
@@ -292,7 +270,7 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
   }
 
   // Never above the map's top: at Max the inset is not taken off, so a drag there must not either.
-  const y = dragged === null ? slide(snap, lowPx) : `max(0px, calc(100% - ${dragged}px - env(safe-area-inset-bottom)))`
+  const y = dragged === null ? slide(snap) : `max(0px, calc(100% - ${dragged}px - env(safe-area-inset-bottom)))`
 
   return (
     <div

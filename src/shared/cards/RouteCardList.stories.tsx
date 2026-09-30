@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react'
 import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 import { RouteCardList } from './RouteCardList'
 import type { VariantSummary } from '../model/routes'
 import type { StopSummary } from '../model/stops'
@@ -42,6 +42,13 @@ const many: VariantSummary[] = ['Novaliches (Bayan)', 'SM Fairview', 'Lagro', 'F
   variant('m' + i, `${p} – Tala`, `${p} → Tala`, 3 + i * 2),
   variant('m' + i, `${p} – Tala`, `Tala → ${p}`, 3 + i * 2, true),
 ])
+
+/** A place whose name runs to two lines on a phone. */
+const LONG = 'Novaliches (Bayan) via Zabarte'
+const longName: VariantSummary[] = [
+  variant('l', `${LONG} – Tala`, `${LONG} → Tala`, 8.4),
+  variant('l', `${LONG} – Tala`, `Tala → ${LONG}`, 8.6, true),
+]
 
 /** Their ways back still slots: nothing to SWITCH to. */
 const oneWay: VariantSummary[] = [
@@ -175,10 +182,28 @@ export const SheetMax: Story = {
   },
 }
 
-/** Low: the count and SWITCH alone along the bottom, the map above. */
+/** Low: the count, SWITCH and the top of the first card, as a trip's card does (3817:6007). */
 export const SheetLow: Story = {
   play: async ({ canvasElement }) => {
     await tapHandle(canvasElement, 2)
     await expect(within(canvasElement).getByTestId('chooser')).toHaveAttribute('data-snap', 'low')
+  },
+}
+
+/** Low with a long place: one line of it, cut short (3817:6007). */
+export const SheetLowLongName: Story = {
+  args: { routes: longName },
+  play: async ({ canvasElement }) => {
+    await tapHandle(canvasElement, 2)
+    const name = within(canvasElement).getByText(LONG)
+    await waitFor(() => expect(name.getBoundingClientRect().height).toBe(32))
+  },
+}
+
+/** Middle with a long place: all of it, on as many lines as it takes. */
+export const SheetMiddleLongName: Story = {
+  args: { routes: longName },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByText(LONG).getBoundingClientRect().height).toBeGreaterThan(32)
   },
 }

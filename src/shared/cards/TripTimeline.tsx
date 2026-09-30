@@ -179,16 +179,9 @@ function TimelineTop({
           <TimelineDot rail={rail} selected={selected} />
           <span className={'min-h-px w-2 flex-1 ' + rail} />
         </span>
-        {/*
-          What a phone's sheet shows at Low, down to here (RouteDock's
-          data-dock-peek): the origin on one line, cut short; from Middle up,
-          all of it (the owner's 3814:3976, 2026-09-30).
-        */}
-        <span data-dock-peek className="flex min-w-0 flex-1 flex-col justify-center pb-2.5 pl-3">
-          <span
-            data-dock-peek-line
-            className="text-2xl/8 font-black group-data-[snap=low]/dock:line-clamp-1 @float:group-data-[snap=low]/dock:line-clamp-none"
-          >
+        <span className="flex min-w-0 flex-1 flex-col justify-center pb-2.5 pl-3">
+          {/* At a phone's Low, one line of it (RouteDock's LOW_PX); from Middle up, all of it. */}
+          <span className="text-2xl/8 font-black group-data-[snap=low]/dock:line-clamp-1 @float:group-data-[snap=low]/dock:line-clamp-none">
             {routeOrigin}
           </span>
         </span>

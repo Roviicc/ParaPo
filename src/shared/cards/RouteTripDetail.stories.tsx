@@ -347,7 +347,7 @@ export const SheetLowLongName: Story = {
   args: LongNames.args,
   play: async (ctx) => {
     await tapHandle(ctx.canvasElement, 2)
-    const origin = within(ctx.canvasElement).getByTestId('trip-origin').querySelector('[data-dock-peek-line]')!
+    const origin = within(ctx.canvasElement).getByText(LongNames.args!.routeOrigin!)
     await waitFor(() => expect(origin.getBoundingClientRect().height).toBe(32))
   },
 }
@@ -356,7 +356,7 @@ export const SheetLowLongName: Story = {
 export const SheetMiddleLongName: Story = {
   args: LongNames.args,
   play: async (ctx) => {
-    const origin = within(ctx.canvasElement).getByTestId('trip-origin').querySelector('[data-dock-peek-line]')!
+    const origin = within(ctx.canvasElement).getByText(LongNames.args!.routeOrigin!)
     await expect(origin.getBoundingClientRect().height).toBeGreaterThan(32)
   },
 }
