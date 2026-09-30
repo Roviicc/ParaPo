@@ -27,10 +27,7 @@ export const Red: Story = {}
 /** Orange — Figma's Pink, the Card/orange tokens. */
 export const Orange: Story = { args: { livery: 'orange', routeOrigin: 'SM Fairview' } }
 
-/** Mist: Content/primary under Route/RouteCardInverse, the Inverse Blob. */
-export const Mist: Story = { args: { livery: 'mist', routeOrigin: 'SM Fairview' } }
-
-/** Yellow: as Mist. */
+/** Yellow: Content/primary under Route/RouteCardInverse, the Inverse Blob. */
 export const Yellow: Story = { args: { livery: 'yellow', routeOrigin: 'Lagro' } }
 
 /** State=Selected, red: pressed in under Route/RouteCardPrimarySelected; nothing else changes. */
@@ -39,23 +36,26 @@ export const RedSelected: Story = { args: { state: 'selected' } }
 /** Selected, orange: the same Primary shadow. */
 export const OrangeSelected: Story = { args: { state: 'selected', livery: 'orange', routeOrigin: 'SM Fairview' } }
 
-/** Selected, mist: pressed in under Route/RouteCardInverseSelected. */
-export const MistSelected: Story = { args: { state: 'selected', livery: 'mist', routeOrigin: 'SM Fairview' } }
-
-/** Selected, yellow: as Mist. */
+/** Selected, yellow: pressed in under Route/RouteCardInverseSelected. */
 export const YellowSelected: Story = { args: { state: 'selected', livery: 'yellow', routeOrigin: 'Lagro' } }
 
-/** Violet (2026-09-30): white words, as Red, under Mist's Inverse shadow and Blob. */
+/** Violet (2026-09-30): white words, as Red, under Yellow's Inverse shadow and Blob. */
 export const Violet: Story = { args: { livery: 'violet', routeOrigin: 'Fairview' } }
 
-/** Selected, violet: as Mist. */
+/** Selected, violet: as Yellow. */
 export const VioletSelected: Story = { args: { state: 'selected', livery: 'violet', routeOrigin: 'Fairview' } }
 
 /** Rose (2026-09-30): as Violet. */
 export const Rose: Story = { args: { livery: 'rose', routeOrigin: 'Novaliches' } }
 
-/** Selected, rose: as Mist. */
+/** Selected, rose: as Yellow. */
 export const RoseSelected: Story = { args: { state: 'selected', livery: 'rose', routeOrigin: 'Novaliches' } }
+
+/** Fuchsia (2026-09-30, Figma's Fuschia, in mist's place): as Violet. */
+export const Fuchsia: Story = { args: { livery: 'fuchsia', routeOrigin: 'SM Fairview' } }
+
+/** Selected, fuchsia: as Yellow. */
+export const FuchsiaSelected: Story = { args: { state: 'selected', livery: 'fuchsia', routeOrigin: 'SM Fairview' } }
 
 /**
  * At rest, a row opens its direction straight away; a tap anywhere else on

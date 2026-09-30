@@ -110,9 +110,6 @@
   --card-orange-surface: var(--color-orange-700);
   --card-orange-border-primary: var(--color-orange-800);
   --card-orange-timeline-surface: var(--color-orange-900);
-  --card-mist-surface: var(--color-mist-300);
-  --card-mist-border-primary: var(--color-mist-400);
-  --card-mist-timeline-surface: var(--color-mist-400);
   --card-yellow-surface: var(--color-yellow-300);
   --card-yellow-border-primary: var(--color-yellow-500);
   --card-yellow-timeline-surface: var(--color-yellow-500);
@@ -122,6 +119,9 @@
   --card-rose-surface: var(--color-rose-700);
   --card-rose-border-primary: var(--color-rose-800);
   --card-rose-timeline-surface: var(--color-rose-900);
+  --card-fuchsia-surface: var(--color-fuchsia-700);
+  --card-fuchsia-border-primary: var(--color-fuchsia-800);
+  --card-fuchsia-timeline-surface: var(--color-fuchsia-800);
 
   /* Error actions — the destructive button. Figma: Error/… (2026-09-28,
      added for the Button so its fill stopped being the one primitive). */
@@ -178,9 +178,6 @@
   --color-card-orange-surface: var(--card-orange-surface);
   --color-card-orange-border-primary: var(--card-orange-border-primary);
   --color-card-orange-timeline-surface: var(--card-orange-timeline-surface);
-  --color-card-mist-surface: var(--card-mist-surface);
-  --color-card-mist-border-primary: var(--card-mist-border-primary);
-  --color-card-mist-timeline-surface: var(--card-mist-timeline-surface);
   --color-card-yellow-surface: var(--card-yellow-surface);
   --color-card-yellow-border-primary: var(--card-yellow-border-primary);
   --color-card-yellow-timeline-surface: var(--card-yellow-timeline-surface);
@@ -190,6 +187,9 @@
   --color-card-rose-surface: var(--card-rose-surface);
   --color-card-rose-border-primary: var(--card-rose-border-primary);
   --color-card-rose-timeline-surface: var(--card-rose-timeline-surface);
+  --color-card-fuchsia-surface: var(--card-fuchsia-surface);
+  --color-card-fuchsia-border-primary: var(--card-fuchsia-border-primary);
+  --color-card-fuchsia-timeline-surface: var(--card-fuchsia-timeline-surface);
 
   --color-error-surface: var(--error-surface);
   --color-error-surface-secondary: var(--error-surface-secondary);
