@@ -128,7 +128,9 @@ export function HintuanCard({
     return () => tell([])
   }, [shownKey])
 
-  const count = `${shown.length} ${shown.length === 1 ? 'route stops' : 'routes stop'} here`
+  // Figma's "2 Routes passes through" (the owner's changes, 2026-09-30), its
+  // verb agreeing with the count.
+  const count = `${shown.length} ${shown.length === 1 ? 'route passes' : 'routes pass'} through`
 
   return (
     <BottomSheet
@@ -166,13 +168,13 @@ export function HintuanCard({
                   if (!selected) onPickBox(box.id)
                 }}
                 className={
-                  'relative flex w-full items-center gap-1 border-y-[0.6px] px-4 pt-2.5 text-left font-sn-pro text-sm/5 font-medium text-content-inverse ' +
+                  'relative flex w-full items-center gap-1 border-y-[0.6px] px-4 pt-3 text-left font-sn-pro text-base/6 font-medium text-content-inverse ' +
                   BAR[box.kind] +
                   // The last row makes room for the counter across the join.
                   (i === rows.length - 1 && shown.length > 0 ? ' pb-11' : ' pb-2.5')
                 }
               >
-                <span aria-hidden className="size-5 shrink-0 *:size-full">
+                <span aria-hidden className="size-6 shrink-0 *:size-full">
                   {LETTER[box.kind]}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{name}</span>
@@ -203,7 +205,7 @@ export function HintuanCard({
           />
           {/* HintuanCardRouteCounter, across the join of the rows and the cards. */}
           <div className="absolute inset-x-0 -top-6 z-10 px-8">
-            <div className="flex w-full items-center gap-2 rounded-full bg-surface py-2 pl-4 pr-2">
+            <div className="flex w-full items-center gap-2 rounded-full bg-surface py-1.5 pl-3 pr-1.5">
               <div className="flex min-w-0 flex-1 items-center gap-1 text-content-primary">
                 <span aria-hidden className="size-6 shrink-0 *:size-full">
                   <JeepIcon />

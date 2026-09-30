@@ -157,7 +157,7 @@ export const Default: Story = {
 export const Variant2: Story = {
   args: { stop: teraccess2 },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByTestId('card-count').textContent).toBe('2 routes stop here')
+    await expect(within(canvasElement).getByTestId('card-count').textContent).toBe('2 routes pass through')
   },
 }
 
@@ -169,7 +169,7 @@ export const PickARow: Story = {
     await userEvent.click(canvas.getByText('SM Fairview Main'))
     await expect(args.onPickBox).toHaveBeenCalledWith('h2')
     await expect(selectedRow(canvasElement)?.textContent).toBe('SM Fairview Main')
-    await expect(canvas.getByTestId('card-count').textContent).toBe('1 route stops here')
+    await expect(canvas.getByTestId('card-count').textContent).toBe('1 route passes through')
   },
 }
 
