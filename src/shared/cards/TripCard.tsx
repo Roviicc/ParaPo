@@ -1,8 +1,8 @@
 import { useState, type ReactNode, type Ref } from 'react'
-import { RouteTripDetail } from './RouteTripDetail'
+import { RouteTripDetail, type Fares } from './RouteTripDetail'
 import type { SheetHeight } from './BottomSheet'
 import { lineLength } from '../geo/geo'
-import { rideFare } from '../model/fares'
+import { manilaDate, rideFare } from '../model/fares'
 import { liveriesFor, type Livery } from '../model/liveries'
 import { directionEnds, isDrawn, variantLine, type VariantSummary } from '../model/routes'
 import { otherDirection } from '../model/departures'
@@ -110,11 +110,11 @@ export function TripCard({
     <RouteTripDetail
       livery={livery}
       metres={metres}
-      fare={rideFare(variant.route?.mode, metres)}
+      fare={faresFor(variant.route?.mode, metres)}
       routeOrigin={from}
       hintuans={timeline.between}
       picked={picked}
-      pickedFare={pickedMetres === undefined ? undefined : rideFare(variant.route?.mode, pickedMetres)}
+      pickedFare={pickedMetres === undefined ? undefined : faresFor(variant.route?.mode, pickedMetres)}
       onPick={onPick}
       onEnd={onEnd}
       endPicked={endPicked}
@@ -132,4 +132,12 @@ export function TripCard({
       {extras}
     </RouteTripDetail>
   )
+}
+
+/** A ride's pesos, regular and student, for the fare tile; undefined when no fare rule prices it. */
+function faresFor(mode: Parameters<typeof rideFare>[0], metres: number): Fares | undefined {
+  const date = manilaDate()
+  const regular = rideFare(mode, metres, date)
+  const student = rideFare(mode, metres, date, 'discounted')
+  return regular && student ? { regular, student } : undefined
 }
