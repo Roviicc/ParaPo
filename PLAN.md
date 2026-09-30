@@ -3413,4 +3413,9 @@ thinning, rounding, names and schema from `src/` instead of writing them
 again — run on the live tables, one point in one line and in four overviews
 moves, which the first publish from `main` after the release writes. Stage
 11 went in after `useDrawing.ts`, before the other splits, so the owner's
-ask was not written twice.
+ask was not written twice. The first seven splits went in one file a pull
+request (#18, #20–#24 and `routes.ts`). The last five went in two, by the
+owner's word of 2026-09-30, to finish about two hours sooner: `stops.ts`
+with the saved hooks, then the arrows, `TripTimeline` and the duplicates.
+Each file kept its own commit, and each batch passed all thirteen suites
+with every count unchanged.
