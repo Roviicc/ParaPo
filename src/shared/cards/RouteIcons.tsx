@@ -70,9 +70,8 @@ export function ReloadIcon() {
   )
 }
 
-
 /**
- * Figma's Terimnal and Hintuan (the owner's HotspotSelectionBar, 3854:12690,
+ * Figma's Terminal and Hintuan (the owner's HotspotSelectionBar, 3854:12690,
  * 2026-09-30), 20 across: a disc with the letter cut out, before each box's
  * name on a HintuanCard — T for a terminal, H for a hintuan.
  */
