@@ -6,7 +6,7 @@ import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
 import { METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
 import type { Livery } from '../shared/model/liveries'
 import { RouteCardList } from '../shared/cards/RouteCardList'
-import { clearOfDock } from '../shared/cards/BottomSheet'
+import { makeRoom } from '../shared/cards/BottomSheet'
 import type { Snap } from '../shared/cards/sheetGesture'
 import { useRideTo } from '../shared/map/rideTo'
 import { directionEnds, isDrawn } from '../shared/model/routes'
@@ -64,13 +64,16 @@ export default function CommuterApp() {
   useDirectionArrows(map, rides)
   // The chosen direction's side of each hintuan it cuts across: its right.
   useBabaanSides(map, saved.selected, stops.stops)
+  // One height for the sheets that stand in for one another (below).
+  const [snap, setSnap] = useState<Snap>('middle')
   // A hintuan picked on the trip card (the owner's Timeline State=Selected,
   // 2026-09-29): the camera gliding there clear of the card, and a circle
   // popping up on it — the route left whole, no get-off circles (the
-  // owner's ask of 2026-09-30: "now I don't want to cut the route").
+  // owner's ask of 2026-09-30: "now I don't want to cut the route"). At
+  // Max, the card comes down to Middle as the camera glides (makeRoom).
   const tripDock = useRef<HTMLDivElement>(null)
   const ride = useRideTo(map, saved.selected, stops.stops, {
-    offset: () => (map ? clearOfDock(map.getContainer(), tripDock.current) : [0, 0]),
+    onGlide: () => (map ? makeRoom(map.getContainer(), tripDock.current, { snap, onSnap: setSnap }) : [0, 0]),
   })
 
   useShareLink(map, saved)
@@ -133,7 +136,6 @@ export default function CommuterApp() {
   // "if RouteDetail was in medium, if they go back, the RouteCard is in
   // medium too"). With nothing open it goes back to Middle, where every
   // sheet opens.
-  const [snap, setSnap] = useState<Snap>('middle')
   const anyOpen = !!saved.selected || !!stops.selected || choosing
   if (!anyOpen && snap !== 'middle') setSnap('middle')
   const height = { snap, onSnap: setSnap }

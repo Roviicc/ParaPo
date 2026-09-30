@@ -49,16 +49,27 @@ export function swallowTheTapsClick(x: number, y: number) {
  * 2026-09-30), on a phone: Low, the header and a trip's origin along the bottom (3814:3976);
  * Middle, about half the screen, where a trip opens (3813:3755, 3815:4040);
  * Max, the whole screen, the header at the top and the rest scrolling under
- * it (3815:4306).
+ * it (3815:4306). Between Middle and Max there is no magnet (the owner's
+ * ask, 2026-09-30: "the scrolling up for middle to max has no magnet, make
+ * it freely"): a sheet let go there stays, a number — the share of the map
+ * it shows, over Middle's and under 1.
  */
-export type Snap = 'low' | 'middle' | 'max'
+export type Snap = 'low' | 'middle' | 'max' | number
+
+/** What a sheet at `snap` is called on it (`data-snap`) and by a screen reader: a free height is `free`. */
+export type SnapName = 'low' | 'middle' | 'max' | 'free'
+export const snapName = (snap: Snap): SnapName => (typeof snap === 'number' ? 'free' : snap)
+
+/** Covering more of the map than Middle does: Max, or a free height. */
+export const aboveMiddle = (snap: Snap) => snap === 'max' || typeof snap === 'number'
 
 /**
  * Where a tap on the handle, or Enter on it, takes the sheet: round, Low →
- * Middle → Max → Low (the owner's defaults, 2026-09-30). Pulls go by snapFor.
+ * Middle → Max → Low (the owner's defaults, 2026-09-30); from a free height,
+ * on up to Max. Pulls go by snapFor.
  */
 export function snapAfterTap(snap: Snap): Snap {
-  return snap === 'low' ? 'middle' : snap === 'middle' ? 'max' : 'low'
+  return snap === 'low' ? 'middle' : snap === 'max' ? 'low' : 'max'
 }
 
 /**
@@ -85,9 +96,14 @@ const MIDDLE = 0.45
  */
 export const LOW_PX = 137
 
-/** What each height shows of a sheet `h` tall, the map's height. */
-export function heightsFor(h: number): Record<Snap, number> {
+/** What each magnet shows of a sheet `h` tall, the map's height. */
+export function heightsFor(h: number): Record<SnapName & ('low' | 'middle' | 'max'), number> {
   return { low: LOW_PX, middle: Math.round(h * MIDDLE), max: h }
+}
+
+/** What a sheet `h` tall shows at `snap`, a free height's included. */
+export function shownAt(snap: Snap, h: number): number {
+  return typeof snap === 'number' ? Math.round(h * snap) : heightsFor(h)[snap]
 }
 
 /** How far down a sheet at `snap` slides, as a CSS length: `100%` is its own height, the map's. */
@@ -96,6 +112,7 @@ export function slide(snap: Snap): string {
   // Below Max its bottom padding is off the screen: what shows stands clear
   // of a phone's home indicator by lifting it that much.
   if (snap === 'middle') return `calc(${(1 - MIDDLE) * 100}% - env(safe-area-inset-bottom))`
+  if (typeof snap === 'number') return `calc(${(1 - snap) * 100}% - env(safe-area-inset-bottom))`
   return `calc(100% - ${LOW_PX}px - env(safe-area-inset-bottom))`
 }
 
@@ -136,21 +153,28 @@ export function follow(startY: number, t: number, from: number, max: number) {
   }
 }
 
+/** Let go this close under Middle's top, it is Middle still; this close under the map's top, Max. */
+const MIDDLE_PULL_PX = 32
+const MAX_PULL_PX = 64
+
 /**
  * Where a drag lets go (the owner's asks of 2026-09-30: the sheet follows the
  * finger, fluid; then "like google maps and apple maps"). `shown` is how
  * much of the sheet is on screen as the finger lifts, `heights` what each
- * snap shows, `velocity` the finger's speed upwards in px/ms (negative:
+ * magnet shows, `velocity` the finger's speed upwards in px/ms (negative:
  * downwards). A flick goes to the end in its direction: up, to Max, from Low
  * or Middle alike; down, to Low, from Max or Middle alike — and down from
- * Low, it closes. A slow release settles on the nearest height, so a hand
- * can still leave it at Middle, or closes when less than half of Low still
- * shows.
+ * Low, it closes. Let go slowly between Middle and Max, it stays where it is
+ * (the owner's "no magnet ... make it freely"), unless near enough either
+ * end to be drawn in — up near the map's top, to Max ("when the scroll up
+ * go over, make it to max"). Below Middle it settles on Middle or Low, the
+ * nearer, or closes when less than half of Low still shows.
  */
-export function snapFor(shown: number, velocity: number, heights: Record<Snap, number>): Snap | 'close' {
+export function snapFor(shown: number, velocity: number, heights: ReturnType<typeof heightsFor>): Snap | 'close' {
   if (velocity >= FLICK) return 'max'
   if (velocity <= -FLICK) return shown > heights.low + 1 ? 'low' : 'close'
+  if (shown >= heights.max - MAX_PULL_PX) return 'max'
+  if (shown > heights.middle + MIDDLE_PULL_PX) return shown / heights.max
   if (shown < heights.low / 2) return 'close'
-  const order: Snap[] = ['low', 'middle', 'max']
-  return order.reduce((a, b) => (Math.abs(heights[b] - shown) < Math.abs(heights[a] - shown) ? b : a))
+  return Math.abs(heights.middle - shown) < Math.abs(heights.low - shown) ? 'middle' : 'low'
 }
