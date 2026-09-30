@@ -60,23 +60,32 @@ export function idsInOrder(features: IdFeature[], key: 'id' | 'route_id' = 'id')
 export type TapTargets = { routeIds: string[]; routeKeys: string[]; stopIds: string[] }
 
 /**
- * Everything under the finger is offered, nothing wins outright — decided
- * with the owner 2026-09-22: a tap lights all of it, and the sheet lists it,
- * hotspots first. `routeKeys` counts routes, not directions, because a
- * route's two directions share most of their road and are one thing to
- * choose between.
+ * One tap, one kind of thing (the owner's ask, 2026-09-30: "can we only
+ * select one not two? select hintuan only show the card, then select route
+ * show the route"). A tap inside a hotspot's box is the hotspot's, even
+ * where a route runs through it; anywhere else it is the routes' under the
+ * finger; and near nothing but a box — a finger's width off its edge — the
+ * box's still. Until then everything under the finger was offered together,
+ * the hotspots first (decided with him 2026-09-22). `routeKeys` counts
+ * routes, not directions, because a route's two directions share most of
+ * their road and are one thing to choose between.
  */
 export function tapTargets(map: MapLibreMap, point: { x: number; y: number }, event?: Event): TapTargets {
   const box = tapBox(point, event)
-  const features = (layer: string) => (map.getLayer(layer) ? map.queryRenderedFeatures(box, { layers: [layer] }) : [])
+  const features = (layer: string, where: typeof box | [number, number] = box) =>
+    map.getLayer(layer) ? map.queryRenderedFeatures(where, { layers: [layer] }) : []
+  const inside = idsInOrder(features(STOPS_FILL_LAYER, [point.x, point.y]))
+  if (inside.length > 0) return { routeIds: [], routeKeys: [], stopIds: inside }
   const routes = features(ROUTES_HIT_LAYER)
-  return { routeIds: idsInOrder(routes), routeKeys: idsInOrder(routes, 'route_id'), stopIds: idsInOrder(features(STOPS_FILL_LAYER)) }
+  if (routes.length > 0) return { routeIds: idsInOrder(routes), routeKeys: idsInOrder(routes, 'route_id'), stopIds: [] }
+  return { routeIds: [], routeKeys: [], stopIds: idsInOrder(features(STOPS_FILL_LAYER)) }
 }
 
 /**
  * What a tap means, the same in both hooks and both apps: nothing; one
  * route (its directions, to open the drawn outbound); one hotspot; or
- * several things, which light up and go to the sheet.
+ * several of one kind — routes sharing a road, or hotspots side by side —
+ * which light up and go to the sheet.
  */
 export type TapOutcome =
   | { kind: 'none' }
