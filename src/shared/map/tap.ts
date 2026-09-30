@@ -1,4 +1,5 @@
 import type { MapLibreMap } from 'maplibre-gl'
+import { LAYERS } from './layers'
 
 /**
  * How big a tap is, and what it lands on. A finger covers far more of the map
@@ -9,9 +10,9 @@ import type { MapLibreMap } from 'maplibre-gl'
 /** Half-width in px of the box queried around a tap: a finger vs a mouse. */
 const TAP_HALF_PX = { coarse: 20, fine: 5 } as const
 
-/** The hit layers the two hooks draw. Named here so each can see the other's. */
-export const ROUTES_HIT_LAYER = 'saved-routes-hit'
-export const STOPS_FILL_LAYER = 'saved-stops-fill'
+/** The hit layers the two hooks draw (layers.ts), under the names the hooks have used. */
+export const ROUTES_HIT_LAYER = LAYERS.routesHit
+export const STOPS_FILL_LAYER = LAYERS.stopsFill
 
 /**
  * Whether the tap that raised `event` came from a finger. The event itself

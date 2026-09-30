@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { useDialogFocus } from './useDialogFocus'
+import { useEscape } from './useEscape'
 
 /** How far a drag must travel before it counts as a pull rather than a tap. */
 const DRAG_PX = 24
@@ -80,15 +81,7 @@ export function Sheet({ label, peek, children, onClose, hidden = false }: Props)
   const rootRef = useRef<HTMLDivElement>(null)
   useDialogFocus(rootRef, hidden)
 
-  // Escape closes, as it does any dialog.
-  useEffect(() => {
-    if (hidden) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose, hidden])
+  useEscape(onClose, !hidden)
 
   // A pointer drag and a tap arrive as the same gesture until it has travelled
   // far enough, so the decision waits for pointermove/pointerup. `handled`
@@ -151,7 +144,7 @@ export function Sheet({ label, peek, children, onClose, hidden = false }: Props)
       data-testid="card"
       data-sheet={state}
       hidden={hidden}
-      className="absolute bottom-0 outline-none left-0 right-0 z-10 rounded-t-2xl bg-white shadow-2xl ring-1
+      className="absolute bottom-0 left-0 right-0 z-10 outline-none rounded-t-2xl bg-surface shadow-2xl ring-1
                  ring-black/10 pb-[calc(1rem+env(safe-area-inset-bottom))]
                  @wide:bottom-auto @wide:left-4 @wide:right-auto @wide:top-4 @wide:w-80
                  @wide:max-w-[calc(100%-2rem)] @wide:rounded-t-xl @wide:rounded-b-xl
@@ -182,7 +175,7 @@ export function Sheet({ label, peek, children, onClose, hidden = false }: Props)
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="rounded-full px-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+          className="rounded-full px-2 text-neutral-400 hover:bg-surface-secondary hover:text-content-tertiary"
         >
           ✕
         </button>

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { haversine, metresPerPixel, type LngLat } from '../geo/geo'
-import { MAP_COLOURS } from '../../design-system/foundation/mapColours'
+import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { endRadius, litWidthAt } from './lineStyle'
 import type { LineLook } from './liveryLine'
 import { ROUTES_HIT_LAYER } from './tap'
+import { LAYERS, useLayerReady } from './layers'
 
 /**
  * Which way the jeep goes, drawn on the lit directions only, with a circle
@@ -42,7 +43,7 @@ import { ROUTES_HIT_LAYER } from './tap'
 const SRC = 'direction-arrows'
 const CHEVRONS = 'direction-arrow-chevrons'
 const ENDS_SRC = 'direction-ends'
-const ENDS = 'direction-end-circles'
+const ENDS = LAYERS.endCircles
 const END_NAMES = 'direction-end-names'
 
 /** Two ends of one name closer than this are one place, and named once: Tala, where two rides start. */
@@ -269,11 +270,13 @@ function stillPlease(): boolean {
  * card's or an open trip's (liveryLine.ts), the ring in the line's colour.
  */
 export function useRideColours(map: MapLibreMap | null, look: LineLook) {
+  // The chevrons' hook adds both layers together; wait for them.
+  const ready = useLayerReady(map, ENDS)
   useEffect(() => {
-    if (!map || !map.getLayer(CHEVRONS) || !map.getLayer(ENDS)) return
+    if (!map || !ready || !map.getLayer(CHEVRONS)) return
     map.setPaintProperty(CHEVRONS, 'fill-color', look.arrow)
     map.setPaintProperty(ENDS, 'circle-stroke-color', look.line)
-  }, [map, look.line, look.arrow])
+  }, [map, look.line, look.arrow, ready])
 }
 
 /**
@@ -284,6 +287,7 @@ export function useRideColours(map: MapLibreMap | null, look: LineLook) {
  */
 export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride[]): void {
   const lines = useMemo(() => rides.map((r) => r.line), [rides])
+  const hitReady = useLayerReady(map, ROUTES_HIT_LAYER)
   useEffect(() => {
     // Over the lit line and its orange stretches, under the hit area and the
     // basemap's labels: the line hook's layers must be there first, and are,
@@ -291,7 +295,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     // go in just after, so they sit over the chevrons; their names go on top
     // of everything, so a street name gives way to them rather than the
     // other way round.
-    if (!map || map.getSource(SRC) || !map.getLayer(ROUTES_HIT_LAYER)) return
+    if (!map || map.getSource(SRC) || !hitReady) return
     map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
     map.addLayer(
       {
@@ -311,7 +315,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
         source: ENDS_SRC,
         paint: {
           'circle-radius': endRadius(),
-          'circle-color': '#ffffff',
+          'circle-color': MAP_PAINT['Paint/casing'],
           'circle-stroke-color': MAP_COLOURS['Map/RouteLine/surface-selected'],
           'circle-stroke-color-transition': { duration: 0, delay: 0 },
           'circle-stroke-width': 2,
@@ -334,9 +338,9 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
         'text-justify': 'auto',
         'text-allow-overlap': false,
       },
-      paint: { 'text-color': '#171717', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
+      paint: { 'text-color': MAP_PAINT['Paint/end-name'], 'text-halo-color': MAP_PAINT['Paint/casing'], 'text-halo-width': 2 },
     })
-  }, [map])
+  }, [map, hitReady])
 
   // The ends: where each lit ride starts and finishes, each named once.
   // Still, so drawn once.
@@ -363,7 +367,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
         }),
       )
     src.setData({ type: 'FeatureCollection', features })
-  }, [map, rides])
+  }, [map, rides, hitReady])
 
   const frame = useRef(0)
   useEffect(() => {
@@ -422,5 +426,5 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       cancelAnimationFrame(frame.current)
       map.off('move', redraw)
     }
-  }, [map, lines])
+  }, [map, lines, hitReady])
 }

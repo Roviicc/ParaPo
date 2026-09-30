@@ -192,7 +192,7 @@ export default function CommuterApp() {
               <button
                 type="button"
                 onClick={() => void reloadForNewerApp()}
-                className="rounded-full bg-amber-900 px-3 py-1 text-xs font-medium text-white"
+                className="rounded-full bg-amber-900 px-3 py-1 text-xs font-medium text-content-inverse"
               >
                 Reload
               </button>
@@ -206,7 +206,7 @@ export default function CommuterApp() {
                   void saved.reload()
                   void stops.reload()
                 }}
-                className="rounded-full bg-amber-900 px-3 py-1 text-xs font-medium text-white"
+                className="rounded-full bg-amber-900 px-3 py-1 text-xs font-medium text-content-inverse"
               >
                 Try again
               </button>
@@ -227,7 +227,7 @@ export default function CommuterApp() {
           data-testid="offline"
           className="absolute bottom-[calc(2.5rem+env(safe-area-inset-bottom))]
                      left-[calc(1rem+env(safe-area-inset-left))] z-10 rounded-full bg-neutral-800/90
-                     px-3 py-1.5 text-xs text-white shadow backdrop-blur
+                     px-3 py-1.5 text-xs text-content-inverse shadow backdrop-blur
                      @wide:bottom-auto @wide:top-[calc(1rem+env(safe-area-inset-top))]"
         >
           {offline ? 'Offline' : 'Not refreshed'}
@@ -242,7 +242,7 @@ export default function CommuterApp() {
           data-testid="update"
           onClick={reloadToUpdate}
           className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-1/2 z-20 -translate-x-1/2
-                     rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-lg"
+                     rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-content-inverse shadow-lg"
         >
           New version · Reload
         </button>

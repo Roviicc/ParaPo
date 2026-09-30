@@ -104,7 +104,7 @@ export function HotspotCard({
       hidden={hidden}
       peek={
         <>
-          <p className="truncate text-base font-semibold text-neutral-900">{label}</p>
+          <p className="truncate text-base font-semibold text-content-primary">{label}</p>
           {label !== stop.name && (
             <p className="truncate text-xs text-neutral-500">{stop.name}</p>
           )}
@@ -119,7 +119,7 @@ export function HotspotCard({
         </>
       }
     >
-      {stop.note && <p className="mt-3 text-sm text-neutral-700">{stop.note}</p>}
+      {stop.note && <p className="mt-3 text-sm text-content-tertiary">{stop.note}</p>}
 
       {/* The place this box belongs to, when it has company: the map shows
           *that* they belong together, this says *what* the place has, and each
@@ -127,7 +127,7 @@ export function HotspotCard({
           terminal. Decided with the owner 2026-09-22. */}
       {siblings.length > 0 && (
         <div data-testid="card-place" className="mt-3 rounded-lg bg-neutral-50 px-3 py-2">
-          <p className="text-xs font-medium text-neutral-600">
+          <p className="text-xs font-medium text-content-quaternary">
             Part of {label} · {placeSummary([stop, ...siblings])}
           </p>
           <ul className="mt-1.5 flex flex-wrap gap-1">
@@ -142,7 +142,7 @@ export function HotspotCard({
                   className={
                     'rounded-full px-2.5 py-1 text-xs ' +
                     (s.kind === 'terminal' ? 'bg-sky-50 text-sky-800' : 'bg-orange-50 text-orange-800') +
-                    (onPickSibling ? ' hover:bg-neutral-900 hover:text-white' : '')
+                    (onPickSibling ? ' hover:bg-neutral-900 hover:text-content-inverse' : '')
                   }
                 >
                   {s.name}
@@ -168,7 +168,7 @@ export function HotspotCard({
             }}
             aria-label={flipLabel}
             title={flipLabel}
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-neutral-700 hover:bg-neutral-100"
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-content-tertiary hover:bg-surface-secondary"
           >
             <SwitchIcon />
           </button>
@@ -193,7 +193,7 @@ export function HotspotCard({
           />
         </div>
       ) : (
-        <ul className="-mx-4 mt-1 border-t border-neutral-200">
+        <ul className="-mx-4 mt-1 border-t border-border-primary">
           <Departures routes={linked} back={back} onRoute={onSelectVariant} testId="card" />
         </ul>
       )}

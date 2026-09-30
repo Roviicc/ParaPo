@@ -8,10 +8,12 @@ import {
   type SnapMode,
 } from '../../shared/geo/geo'
 import { HOTSPOT_COLOUR } from '../../shared/map/colours'
+import { MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { findUTurns, snapSegments, straightSegment } from './snap'
 import { variantLine, type VariantDrawing } from '../../shared/model/routes'
 import { cutAt, nearestSpot, reverseDrawing, type BorrowPart, type LineSpot } from './borrow'
 import { ROUTES_HIT_LAYER } from '../../shared/map/tap'
+import { LAYERS } from '../../shared/map/layers'
 
 const EMPTY = { type: 'FeatureCollection', features: [] } as const
 
@@ -81,10 +83,10 @@ const POINT_LAYER = 'draw-point-dots'
 const HIT_LAYER = 'draw-line-hit'
 const AREA_FILL_LAYER = 'draw-area-fill'
 
-const ROUTE_COLOUR = '#e11d48'
-const UTURN_COLOUR = '#f59e0b'
+const ROUTE_COLOUR = MAP_PAINT['Paint/draw-line']
+const UTURN_COLOUR = MAP_PAINT['Paint/draw-uturn']
 
-const BORROW_COLOUR = '#2563eb'
+const BORROW_COLOUR = MAP_PAINT['Paint/draw-borrow']
 
 /** A tap this many pixels off the line being extended does not pick a spot on it. */
 const PICK_PX = 40
@@ -621,36 +623,36 @@ export function useDrawing(
       filter: ['==', ['geometry-type'], 'Point'],
       paint: {
         'circle-radius': 8,
-        'circle-color': '#ffffff',
+        'circle-color': MAP_PAINT['Paint/casing'],
         'circle-stroke-color': BORROW_COLOUR,
         'circle-stroke-width': 3,
       },
     })
     map.addLayer({
-      id: 'draw-line-casing',
+      id: LAYERS.drawCasing,
       type: 'line',
       source: LINE_SRC,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': 0.9 },
+      paint: { 'line-color': MAP_PAINT['Paint/casing'], 'line-width': 8, 'line-opacity': 0.9 },
     })
     // Routed and freehand are separate layers because line-dasharray cannot be
     // driven by a feature property.
     map.addLayer({
-      id: 'draw-line-snapped',
+      id: LAYERS.drawSnapped,
       type: 'line',
       source: LINE_SRC,
       filter: ['==', ['get', 'snap'], 'snapped'],
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#e11d48', 'line-width': 4 },
+      paint: { 'line-color': ROUTE_COLOUR, 'line-width': 4 },
     })
     map.addLayer({
-      id: 'draw-line-freehand',
+      id: LAYERS.drawFreehand,
       type: 'line',
       source: LINE_SRC,
       filter: ['==', ['get', 'snap'], 'freehand'],
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
-        'line-color': '#e11d48',
+        'line-color': ROUTE_COLOUR,
         'line-width': 4,
         'line-dasharray': [2, 1.5],
       },
@@ -671,7 +673,7 @@ export function useDrawing(
       type: 'line',
       source: LINE_SRC,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#000000', 'line-width': 22, 'line-opacity': 0 },
+      paint: { 'line-color': MAP_PAINT['Paint/hit'], 'line-width': 22, 'line-opacity': 0 },
     })
     // …and ring the control point it turns at.
     map.addLayer({
@@ -692,8 +694,8 @@ export function useDrawing(
       source: POINT_SRC,
       paint: {
         'circle-radius': 6,
-        'circle-color': '#ffffff',
-        'circle-stroke-color': '#e11d48',
+        'circle-color': MAP_PAINT['Paint/casing'],
+        'circle-stroke-color': ROUTE_COLOUR,
         'circle-stroke-width': 2.5,
       },
     })
@@ -1018,9 +1020,9 @@ export function useDrawing(
   useEffect(() => {
     if (!map || !map.getLayer(AREA_FILL_LAYER)) return
     const colour = area ? HOTSPOT_COLOUR[area.kind] : ROUTE_COLOUR
-    map.setPaintProperty('draw-line-snapped', 'line-color', colour)
-    map.setPaintProperty('draw-line-freehand', 'line-color', colour)
-    map.setPaintProperty('draw-line-freehand', 'line-dasharray', area ? [1, 0] : [2, 1.5])
+    map.setPaintProperty(LAYERS.drawSnapped, 'line-color', colour)
+    map.setPaintProperty(LAYERS.drawFreehand, 'line-color', colour)
+    map.setPaintProperty(LAYERS.drawFreehand, 'line-dasharray', area ? [1, 0] : [2, 1.5])
     map.setPaintProperty(POINT_LAYER, 'circle-stroke-color', colour)
     map.setPaintProperty(AREA_FILL_LAYER, 'fill-color', colour)
   }, [map, area])

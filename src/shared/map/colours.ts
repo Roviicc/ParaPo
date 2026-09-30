@@ -1,4 +1,5 @@
 import type { StopKind } from '../model/stops'
+import { MAP_PAINT } from '../../design-system/foundation/mapColours'
 
 /**
  * Colours the editor and the public map both paint with. They live apart from
@@ -7,6 +8,6 @@ import type { StopKind } from '../model/stops'
  */
 export const HOTSPOT_COLOUR: Record<StopKind, string> = {
   // Plain blue is the saved-route colour; sky keeps "blue" without clashing.
-  terminal: '#0ea5e9',
-  hintuan: '#f97316',
+  terminal: MAP_PAINT['Paint/hotspot-terminal'],
+  hintuan: MAP_PAINT['Paint/hotspot-hintuan'],
 }

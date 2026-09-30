@@ -1,3 +1,5 @@
+import { MAP_PAINT } from '../../design-system/foundation/mapColours'
+
 /**
  * How the route line is drawn: the orange of its hintuan stretches, and how
  * wide it is at every zoom.
@@ -5,7 +7,7 @@
  * The line's own colours are the owner's Map/… tokens since 2026-09-29
  * (mapColours.ts). The orange, sent 2026-09-23 as hex, has no token yet.
  */
-export const PASS_ORANGE = '#FF9831'
+export const PASS_ORANGE = MAP_PAINT['Paint/hintuan-stretch']
 
 /**
  * How wide the route line is, at every zoom.

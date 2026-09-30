@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { WhereAmI as State } from './useWhereAmI'
+import { MapControlButton } from '../shared/map/MapControlButton'
 
 type Props = {
   where: State
@@ -45,33 +46,25 @@ export function WhereAmIButton({ where, coarse }: Props) {
         coarse ? 'top-[calc(5.25rem+env(safe-area-inset-top))]' : 'top-[calc(2.875rem+env(safe-area-inset-top))]'
       }`}
     >
-      <button
-        type="button"
+      <MapControlButton
         onClick={() => (on && follow ? stop() : ask())}
         aria-label={label}
         aria-pressed={on}
         title={label}
         data-testid="where"
         data-state={state}
-        className={
-          'grid h-[29px] w-[29px] place-items-center rounded shadow-[0_0_0_2px_rgba(0,0,0,0.1)] ' +
-          (on && follow
-            ? 'bg-blue-600 text-white hover:bg-blue-700'
-            : on
-              ? 'bg-white text-blue-600 hover:bg-blue-50'
-              : 'bg-white text-neutral-800 hover:bg-neutral-100')
-        }
+        look={on && follow ? 'filled' : on ? 'on' : 'plain'}
       >
         {/* A compass needle: the usual sign for "my location". */}
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
           <path d="M14 2 2 7l6 1 1 6z" fill={on ? 'currentColor' : 'none'} />
         </svg>
-      </button>
+      </MapControlButton>
       {note && (
         <p
           role="status"
           data-testid="where-note"
-          className="max-w-[14rem] rounded-lg bg-neutral-900/90 px-3 py-2 text-right text-xs text-white shadow backdrop-blur"
+          className="max-w-[14rem] rounded-lg bg-neutral-900/90 px-3 py-2 text-right text-xs text-content-inverse shadow backdrop-blur"
         >
           {note}
         </p>

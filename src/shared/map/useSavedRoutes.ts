@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GeoJSONSource, MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { directionToOpen, isDrawn, variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes'
 import { ROUTES_HIT_LAYER, resolveTap, tapTargets } from './tap'
-import { MAP_COLOURS } from '../../design-system/foundation/mapColours'
+import { LAYERS } from './layers'
+import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { CASING_EXTRA, litWidth, roadWidth } from './lineStyle'
 import type { Livery } from '../model/liveries'
 
 const SRC = 'saved-routes'
-const CASING = 'saved-routes-casing'
+const CASING = LAYERS.routesCasing
 const LINE = 'saved-routes-line'
 /**
  * From this zoom a pixel is a couple of metres, and an overview's corners
@@ -54,17 +55,19 @@ export function litOpacity() {
 /**
  * Lights exactly `lit` on `source` and nothing else, changing only what
  * changed since the last call. Never `removeFeatureState`: a removal and a
- * set of the same id in one frame leave the removal in charge.
+ * set of the same id in one frame leave the removal in charge. `ready` is
+ * for a source added once another hook's layer is there (useLayerReady):
+ * the lighting is applied when it arrives, not only when `lit` changes.
  */
-export function useLighting(map: MapLibreMap | null, source: string, lit: readonly string[]) {
+export function useLighting(map: MapLibreMap | null, source: string, lit: readonly string[], ready = true) {
   const was = useRef(new Set<string>())
   useEffect(() => {
-    if (!map || !map.getSource(source)) return
+    if (!map || !ready || !map.getSource(source)) return
     const now = new Set(lit)
     for (const id of was.current) if (!now.has(id)) map.setFeatureState({ source, id }, { lit: false })
     for (const id of now) if (!was.current.has(id)) map.setFeatureState({ source, id }, { lit: true })
     was.current = now
-  }, [map, source, lit])
+  }, [map, source, lit, ready])
 }
 
 /**
@@ -261,7 +264,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': roadWidth(CASING_EXTRA) },
+        paint: { 'line-color': MAP_PAINT['Paint/casing'], 'line-width': roadWidth(CASING_EXTRA) },
       },
       before,
     )
@@ -287,7 +290,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#ffffff', 'line-width': litWidth(CASING_EXTRA), 'line-opacity': litOpacity() },
+        paint: { 'line-color': MAP_PAINT['Paint/casing'], 'line-width': litWidth(CASING_EXTRA), 'line-opacity': litOpacity() },
       },
       before,
     )
@@ -315,7 +318,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         type: 'line',
         source: SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#000000', 'line-width': roadWidth(14), 'line-opacity': 0 },
+        paint: { 'line-color': MAP_PAINT['Paint/hit'], 'line-width': roadWidth(14), 'line-opacity': 0 },
       },
       before,
     )

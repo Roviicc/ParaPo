@@ -46,5 +46,14 @@ export const LetGo: Story = { args: { where: where('on', false) } }
 /** The browser said no: a short note, and the button stays plain to try again. */
 export const Denied: Story = { args: { where: where('denied') } }
 
+/** Asked, the first fix not in yet: on, and following. */
+export const Asking: Story = { args: { where: where('asking', true) } }
+
+/** A browser with no location at all: a note, and the button plain. */
+export const Unavailable: Story = { args: { where: where('unavailable') } }
+
+/** On a phone: a finger's row lower, under the credit line. */
+export const OnAPhone: Story = { args: { where: where('off'), coarse: true } }
+
 /** Asking, and no fix has come yet: still on (a tap turns it off), with a note. */
 export const NoFixYet: Story = { args: { where: where('asking', true, true) } }

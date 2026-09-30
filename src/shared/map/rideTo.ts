@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Marker, type GeoJSONSource, type MapLibreMap } from 'maplibre-gl'
-import { MAP_COLOURS } from '../../design-system/foundation/mapColours'
+import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { haversine } from '../geo/geo'
 import { CASING_EXTRA, litWidth } from './lineStyle'
 import { APP_MOVE } from './MapView'
+import { LAYERS } from './layers'
 import { rideCut, travelLine, type VariantSummary } from '../model/routes'
 import type { StopSummary } from '../model/stops'
 import './rideTo.css'
@@ -121,14 +122,14 @@ export function useRideTo(
     if (!map.getSource(SRC)) {
       if (!cut) return
       map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-      const before = ['direction-end-circles', 'saved-stops-label-hintuan'].find((id) => map.getLayer(id))
+      const before = [LAYERS.endCircles, LAYERS.stopsHintuanLabel].find((id) => map.getLayer(id))
       map.addLayer(
         {
           id: REST_CASING,
           type: 'line',
           source: SRC,
           layout: { 'line-cap': 'butt', 'line-join': 'round' },
-          paint: { 'line-color': '#ffffff', 'line-width': litWidth(CASING_EXTRA) },
+          paint: { 'line-color': MAP_PAINT['Paint/casing'], 'line-width': litWidth(CASING_EXTRA) },
         },
         before,
       )

@@ -4,6 +4,7 @@ import { HOTSPOT_COLOUR } from '../map/colours'
 import { rightOfLine, ringToPolygon } from './geo'
 import { travelLine, type VariantSummary } from '../model/routes'
 import { hintuansAlong, stopRing, type StopSummary } from '../model/stops'
+import { LAYERS, useLayerReady } from '../map/layers'
 
 /**
  * The babaan side: on the chosen direction, each hintuan box it cuts across
@@ -20,11 +21,12 @@ const SRC = 'babaan-side'
 const FILL = 'babaan-side-fill'
 const EDGE = 'babaan-side-edge'
 /** Under the route lines, over the boxes, as the boxes are (useSavedStops). */
-const ROUTES_ABOVE = 'saved-routes-casing'
+const ROUTES_ABOVE = LAYERS.routesCasing
 
 export function useBabaanSides(map: MapLibreMap | null, chosen: VariantSummary | null, stops: readonly StopSummary[]): void {
+  const casingReady = useLayerReady(map, ROUTES_ABOVE)
   useEffect(() => {
-    if (!map || map.getSource(SRC) || !map.getLayer(ROUTES_ABOVE)) return
+    if (!map || map.getSource(SRC) || !casingReady) return
     map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
     map.addLayer(
       { id: FILL, type: 'fill', source: SRC, paint: { 'fill-color': HOTSPOT_COLOUR.hintuan, 'fill-opacity': 0.55 } },
@@ -40,7 +42,7 @@ export function useBabaanSides(map: MapLibreMap | null, chosen: VariantSummary |
       },
       ROUTES_ABOVE,
     )
-  }, [map])
+  }, [map, casingReady])
 
   const features = useMemo(() => {
     if (!chosen) return []
@@ -54,5 +56,5 @@ export function useBabaanSides(map: MapLibreMap | null, chosen: VariantSummary |
   useEffect(() => {
     const src = map?.getSource(SRC) as GeoJSONSource | undefined
     src?.setData({ type: 'FeatureCollection', features })
-  }, [map, features])
+  }, [map, features, casingReady])
 }

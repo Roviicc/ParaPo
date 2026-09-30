@@ -6,6 +6,7 @@ import { bboxOf, bboxesOverlap } from './geo'
 import { PASS_ORANGE, litWidth } from '../map/lineStyle'
 import { litOpacity, useLighting } from '../map/useSavedRoutes'
 import { ROUTES_HIT_LAYER } from '../map/tap'
+import { useLayerReady } from '../map/layers'
 
 /**
  * Where a lit direction passes a hintuan, the line turns orange for that
@@ -33,11 +34,11 @@ export function usePassStretches(
   lit: readonly string[],
   hiddenVariantId: string | null = null,
 ): void {
-  // Over the lit copy and under the hit area: the line hook's layers must be
-  // there first, and are, since it is called before this one on both
-  // surfaces.
+  // Over the lit copy and under the hit area: this waits for the line hook's
+  // layers (useLayerReady), whichever hook the page calls first.
+  const hitReady = useLayerReady(map, ROUTES_HIT_LAYER)
   useEffect(() => {
-    if (!map || map.getSource(SRC) || !map.getLayer(ROUTES_HIT_LAYER)) return
+    if (!map || map.getSource(SRC) || !hitReady) return
     // `promoteId`: every stretch of a direction carries its id, so one feature
     // state lights them all.
     map.addSource(SRC, { type: 'geojson', promoteId: 'id', data: { type: 'FeatureCollection', features: [] } })
@@ -52,7 +53,7 @@ export function usePassStretches(
       },
       ROUTES_HIT_LAYER,
     )
-  }, [map])
+  }, [map, hitReady])
 
   const features = useMemo(() => {
     const boxes = stops
@@ -81,13 +82,14 @@ export function usePassStretches(
     const src = map?.getSource(SRC) as GeoJSONSource | undefined
     if (!src) return
     src.setData({ type: 'FeatureCollection', features })
-  }, [map, features])
+  }, [map, features, hitReady])
 
   useEffect(() => {
     if (!map || !map.getLayer(SELECTED_PASS)) return
     map.setFilter(SELECTED_PASS, ['!=', ['get', 'id'], hiddenVariantId ?? ''] as never)
-  }, [map, hiddenVariantId])
+  }, [map, hiddenVariantId, hitReady])
 
-  // The stretches follow their direction: the same state, on this source.
-  useLighting(map, SRC, lit)
+  // The stretches follow their direction: the same state, on this source,
+  // once it is there.
+  useLighting(map, SRC, lit, hitReady)
 }
