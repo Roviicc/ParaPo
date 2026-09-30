@@ -69,8 +69,8 @@ export function HintuanPin({ map, at, label, livery }: Props) {
         <div
           data-testid="hintuan-pin-title"
           className={
-            'hintuan-pin-title absolute left-full top-1/2 ml-2.5 max-w-56 truncate rounded-full px-3 py-1 ' +
-            'text-base/6 font-medium shadow-selected-hintuan-route-title ' +
+            'hintuan-pin-title absolute left-full top-1/2 ml-2.5 max-w-56 truncate rounded-full px-2 py-1 ' +
+            'text-sm/5 font-medium shadow-selected-hintuan-route-title ' +
             CARD_SURFACE[livery] +
             ' ' +
             CARD_TEXT[livery]
