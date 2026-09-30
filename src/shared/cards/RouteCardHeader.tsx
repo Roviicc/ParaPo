@@ -22,6 +22,7 @@ type Props = {
        */
       routeCount: string
       onBackToList?: never
+      title?: never
     }
   | {
       /**
@@ -32,6 +33,12 @@ type Props = {
        * round) — then nothing stands in its place.
        */
       onBackToList: (() => void) | null
+      /**
+       * The route's head — the place the trip leaves from, the card's big
+       * title — shown beside ‹ only while the sheet is at Low, where the
+       * card itself is out of sight (the owner's ask, 2026-09-30).
+       */
+      title?: string
       routeCount?: never
     }
 )
@@ -51,7 +58,7 @@ type Props = {
  * The tooltips hang below their buttons: above, they would leave the card
  * at the top of the screen.
  */
-export function RouteCardHeader({ routeCount, onBackToList, onSwitch, switchable, back, onClose }: Props) {
+export function RouteCardHeader({ routeCount, onBackToList, title, onSwitch, switchable, back, onClose }: Props) {
   // Over a trip, 8 below, where its card follows (3778:3183); 12 over the list.
   return (
     <div className={'flex w-full items-center gap-2 bg-surface px-3 pt-0 @float:pt-3 ' + (routeCount !== undefined ? 'pb-3' : 'pb-2')}>
@@ -65,6 +72,15 @@ export function RouteCardHeader({ routeCount, onBackToList, onSwitch, switchable
       ) : (
         <div className="flex min-w-0 flex-1 items-center">
           {onBackToList && <IconButton icon={<ChevronLeftIcon />} label="Back" tooltip="top" onClick={onBackToList} />}
+          {title && (
+            // Read by CSS off the dock's snap (RouteDock's group/dock): no state here.
+            <p
+              data-testid="card-title"
+              className="ml-2 hidden min-w-0 flex-1 truncate font-sn-pro text-xl/7 font-bold text-content-primary group-data-[snap=low]/dock:block @float:group-data-[snap=low]/dock:hidden"
+            >
+              {title}
+            </p>
+          )}
         </div>
       )}
       <div className="flex shrink-0 items-center gap-3">

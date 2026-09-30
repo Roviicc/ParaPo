@@ -63,6 +63,7 @@ export function RouteTripDetail({
       header={
         <RouteCardHeader
           onBackToList={onBackToList}
+          title={routeOrigin}
           onSwitch={onSwitch}
           switchable={switchable}
           back={back}

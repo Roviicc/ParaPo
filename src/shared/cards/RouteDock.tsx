@@ -260,7 +260,7 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
       style={{ '--sheet-y': y } as CSSProperties}
       onPointerDown={onPointerDown}
       className={
-        'absolute inset-0 z-10 outline-none flex flex-col overflow-clip bg-surface pb-[env(safe-area-inset-bottom)] ' +
+        'group/dock absolute inset-0 z-10 outline-none flex flex-col overflow-clip bg-surface pb-[env(safe-area-inset-bottom)] ' +
         'translate-y-(--sheet-y) motion-reduce:transition-none ' +
         (dragged === null ? 'transition-[translate] duration-sheet ease-enter ' : '') +
         (snap === 'max' ? 'pt-[env(safe-area-inset-top)] ' : '') +
