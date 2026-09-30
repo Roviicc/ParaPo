@@ -56,6 +56,14 @@ list. Production builds drop the switch; `npm run build` fails if it survives.
 Each test prints PASS/FAIL (and SKIP) lines and exits non-zero on any failure.
 Screenshots land in the current directory.
 
+What more than one suite needs is written once in `tests/e2e/lib/`, which
+holds no suite of its own: `harness.mjs` (the address, the PASS/FAIL/SKIP
+lines and the tally, the `PARAPO_NODE_FETCH` route, the bare basemap style,
+the wait for a source's features), `studio.mjs` (the drawing suites' canvas
+helpers), `looks.mjs` (the lines' lit state and paint), `geo.mjs`,
+`big-map.mjs` (the published map read whole, the scale suites' grid) and
+`profile.mjs` (long tasks and the CPU profile). Each suite keeps its scenario.
+
 - `PARAPO_BASE` — the dev server's address. Default `http://localhost:5173`.
 - `PARAPO_NODE_FETCH=1` routes the browser's https traffic through Node — only
   for sandboxes where the browser has no network.

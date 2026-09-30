@@ -24,10 +24,10 @@
 // instead of the line: a lit direction's full line is read on its own, and
 // its orange stretches are worked out then.
 import { chromium } from 'playwright'
-import { readFileSync } from 'node:fs'
+import { COPIES, readPublished, shift } from './lib/big-map.mjs'
+import { BASE, bareStyle, harness } from './lib/harness.mjs'
+import { countLongTasks, startProfile, whereItWent } from './lib/profile.mjs'
 
-const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
-const COPIES = Number(process.env.PARAPO_SCALE_COPIES ?? 250)
 /** Seconds from the navigation to the first route line on the screen. */
 const LINES_WITHIN_S = 15
 /** Seconds the main thread may spend in long tasks while opening. */
@@ -37,21 +37,10 @@ const LIT_WITHIN_S = 5
 /** Metres between points on a stored line, about what the router gives. */
 const POINT_EVERY_M = 20
 
-const results = []
-const check = (name, ok, detail = '') => {
-  results.push({ name, ok })
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  ' + detail : ''}`)
-}
+const { check, tally } = harness()
 
 // ------------------------------------------------------------- the tables
-/** The published map with every line in full: the index, each line from lines/<id>.json beside it. */
-const readPublished = () => {
-  const at = (name) => JSON.parse(readFileSync(new URL(`../../public/data/${name}`, import.meta.url), 'utf8'))
-  const index = at('index.json')
-  return { ...index, variants: index.variants.map(({ overview, ...v }) => ({ ...v, shape: overview ? at(`lines/${v.id}.json`).shape : null })) }
-}
 const m = readPublished()
-const shift = (k) => [(k % 25) * 0.03, Math.floor(k / 25) * 0.03]
 // Shifted, and with the digits a save used to keep.
 const mv = (c, [dx, dy], j) => [c[0] + dx + (j % 9) * 1e-9 + 3e-12, c[1] + dy + (j % 7) * 1e-9 + 7e-12]
 const haversine = (a, b) => {
@@ -209,37 +198,22 @@ page.on('pageerror', (e) => errors.push(String(e)))
 page.on('console', (msg) => {
   if (msg.type() === 'error') errors.push(msg.text().slice(0, 160))
 })
-await page.route(/tiles\.openfreemap\.org/, (route) =>
-  /\/styles\//.test(route.request().url())
-    ? route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#eeeeee' } }] }),
-      })
-    : route.fulfill({ status: 404, body: '' }),
-)
+await bareStyle(page)
 await page.route(/\/rest\/v1\//, serve)
 await page.route(/\/auth\/v1\//, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }))
 // The router has no road here; a gap it would fill stays a straight line.
 await page.route(/router\.project-osrm\.org/, (route) =>
   route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 'NoRoute', routes: [] }) }),
 )
+await page.addInitScript(countLongTasks)
 await page.addInitScript(() => {
-  window.__long = 0
-  new PerformanceObserver((l) => {
-    for (const e of l.getEntries()) window.__long += e.duration
-  }).observe({ entryTypes: ['longtask'] })
   window.__src = async (id) => {
     const s = window.__map?.getSource(id)
     return s ? await s.getData() : null
   }
 })
 
-// A CPU profile of the opening, so a failure says where the time went.
-const cdp = await page.context().newCDPSession(page)
-await cdp.send('Profiler.enable')
-await cdp.send('Profiler.setSamplingInterval', { interval: 1000 })
-await cdp.send('Profiler.start')
+const cdp = await startProfile(page)
 
 let t0 = Date.now()
 await page.goto(`${BASE}/studio/?e2e=1`, { waitUntil: 'load' })
@@ -364,18 +338,7 @@ check('following a line reads its drawing, one small request for that line', dra
 check('and the drawing follows that line to its end', !!draft?.borrow && (draft.controlPoints?.length ?? 0) > 2, `borrows ${draft?.borrow?.variantId?.slice(0, 12) ?? 'nothing'}, ${draft?.controlPoints?.length ?? 0} points`)
 check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
 
-// Where the time went: the functions with the most self time.
-const self = new Map()
-const byId = new Map(profile.nodes.map((n) => [n.id, n]))
-for (let i = 0; i < profile.samples.length; i++) {
-  const f = byId.get(profile.samples[i]).callFrame
-  const key = `${f.functionName || '(anon)'} ${f.url.replace(/^.*\/(src|node_modules)\//, '$1/').split('?')[0]}:${f.lineNumber + 1}`
-  self.set(key, (self.get(key) ?? 0) + (profile.timeDeltas[i] ?? 0))
-}
-console.log('\n  where the opening went (self time):')
-for (const [k, us] of [...self.entries()].sort((x, y) => y[1] - x[1]).slice(0, 8)) console.log(`  ${String(Math.round(us / 1000)).padStart(6)} ms  ${k}`)
+whereItWent(profile)
 
 await b.close()
-const failed = results.filter((r) => !r.ok).length
-console.log(`\n${results.length - failed} passed, ${failed} failed`)
-process.exit(failed ? 1 : 0)
+tally()

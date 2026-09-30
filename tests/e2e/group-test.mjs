@@ -19,11 +19,10 @@
 // one route lying on another route's line. SKIPs when no two routes share
 // a road.
 import { chromium } from 'playwright'
+import { BASE, harness, waitForSource } from './lib/harness.mjs'
+import { lookReaders } from './lib/looks.mjs'
 
-const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
-const results = []
-const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  ' + detail : ''}`) }
-const skip = (name, reason) => console.log(`SKIP  ${name}  ${reason}`)
+const { check, skip, tally } = harness()
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
@@ -31,56 +30,12 @@ const errors = []
 page.on('pageerror', (e) => errors.push(String(e)))
 await page.addInitScript(() => {
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
-  // Since 2026-09-25 a tap is feature state, not a filter or a paint
-  // expression naming ids (useLighting in src/shared/map/savedRoutesLayers.ts).
-  // The directions a source has lit.
-  window.__lit = async (src) => {
-    const m = window.__map
-    const fc = await m?.getSource(src)?.getData()
-    if (!fc) return null
-    return [...new Set(fc.features.map((f) => f.properties.id))].filter((id) => !!m.getFeatureState({ source: src, id }).lit)
-  }
-  // The route lines' paint, the owner's two looks of 2026-09-29: the colour a
-  // line rests in, the colour of the lit copy drawn over it, and any
-  // saved-routes layer whose opacity shades a line rather than switching it
-  // on or off — the outputs of its expression, read branch by branch.
-  window.__paint = () => {
-    const m = window.__map
-    const outputs = (e) =>
-      typeof e === 'number' ? [e]
-      : !Array.isArray(e) ? []
-      : e[0] === 'case' ? [...e.slice(2, -1).filter((_, i) => i % 2 === 0), e.at(-1)].flatMap(outputs)
-      : e[0] === 'step' ? [e[2], ...e.slice(4).filter((_, i) => i % 2 === 0)].flatMap(outputs)
-      : e[0] === 'interpolate' ? e.slice(4).filter((_, i) => i % 2 === 0).flatMap(outputs)
-      : []
-    const shaded = m.getStyle().layers
-      .filter((l) => l.id.startsWith('saved-routes') && l.type === 'line')
-      .flatMap((l) => outputs(m.getPaintProperty(l.id, 'line-opacity') ?? 1).filter((o) => o > 0 && o < 1).map((o) => `${l.id} at ${o}`))
-    return {
-      rest: m.getPaintProperty('saved-routes-line', 'line-color'),
-      lit: m.getPaintProperty('saved-routes-selected', 'line-color'),
-      shaded,
-    }
-  }
 })
-// The features of one of our GeoJSON sources once the page has some, asked
-// every 100 ms from here for up to `ms`; [] when none came in time. Not
-// `page.waitForFunction` with an async function: under Playwright's default
-// polling that resolves after the function's first call whatever it returned,
-// so a slow database (GitHub's runners are far from it) let the checks start
-// on an empty map. Seen on the first CI run, 2026-09-25.
-const waitForSource = async (id, ms = 20000) => {
-  const until = Date.now() + ms
-  for (;;) {
-    const fs = await page.evaluate(async (id) => (await window.__src(id))?.features ?? [], id)
-    if (fs.length > 0 || Date.now() > until) return fs
-    await page.waitForTimeout(100)
-  }
-}
+await page.addInitScript(lookReaders)
 
 await page.goto(`${BASE}/studio/?e2e=1`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
-if ((await waitForSource('saved-routes')).length === 0) throw new Error('no saved routes arrived in 20 s')
+if ((await waitForSource(page, 'saved-routes')).length === 0) throw new Error('no saved routes arrived in 20 s')
 
 const lines = await page.evaluate(async () =>
   (await window.__src('saved-routes')).features.map((f) => ({ id: f.properties.id, route: f.properties.route_id, coords: f.geometry.coordinates })),
@@ -557,6 +512,4 @@ if (!spot) {
 
 check('no page errors', errors.length === 0, errors.join(' | '))
 await browser.close()
-const failed = results.filter((r) => !r.ok).length
-console.log(`${results.length - failed} passed, ${failed} failed`)
-process.exit(failed ? 1 : 0)
+tally({ blankLine: false })

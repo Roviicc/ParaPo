@@ -17,16 +17,12 @@
 import { chromium } from 'playwright'
 import { mkdirSync, renameSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { BASE, bareStyle, harness } from './lib/harness.mjs'
 
-const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
 const NO_TILES = !!process.env.PARAPO_NO_TILES
 const VIDEO = process.env.PARAPO_VIDEO
 
-const results = []
-const check = (name, ok, detail = '') => {
-  results.push({ name, ok })
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  ' + detail : ''}`)
-}
+const { check, tally } = harness()
 
 // Tala, on Quirino Highway. Metres to degrees at this latitude.
 const P0 = { longitude: 121.0603, latitude: 14.7351 }
@@ -36,17 +32,7 @@ const east = (p, m) => ({ longitude: p.longitude + m * M_LNG, latitude: p.latitu
 const north = (p, m) => ({ longitude: p.longitude, latitude: p.latitude + m * M_LAT })
 
 const b = await chromium.launch()
-const stubTiles = (page) =>
-  NO_TILES &&
-  page.route(/tiles\.openfreemap\.org/, (route) =>
-    /\/styles\//.test(route.request().url())
-      ? route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#eeeeee' } }] }),
-        })
-      : route.fulfill({ status: 404, body: '' }),
-  )
+const stubTiles = (page) => NO_TILES && bareStyle(page)
 const open = async (page) => {
   await page.goto(`${BASE}/`, { waitUntil: 'load' })
   await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
@@ -235,6 +221,4 @@ check('  and a tap turns it off, the watch cleared', (await where3.getAttribute(
 await ctx3.close()
 
 await b.close()
-const failed = results.filter((r) => !r.ok).length
-console.log(`\n${results.length - failed} passed, ${failed} failed`)
-process.exit(failed ? 1 : 0)
+tally()

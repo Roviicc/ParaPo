@@ -14,17 +14,16 @@
 // the wrong reason. Point counts asserted throughout come from this script's
 // own clicks, not from saved data.
 import { chromium } from 'playwright'
+import { BASE, harness, nodeFetch, waitForSource } from './lib/harness.mjs'
+import { drawing } from './lib/studio.mjs'
 
-const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
-const results = []
-const check = (name, ok, detail = '') => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  [' + detail + ']' : ''}`) }
-const skip = (name, reason) => console.log(`SKIP  ${name}${reason ? '  [' + reason + ']' : ''}`)
+const { check, tally } = harness({ bracketed: true })
 const b = await chromium.launch(); const page = await b.newPage({ viewport: { width: 1280, height: 800 } })
 let routerCalls = 0
-// PARAPO_NODE_FETCH=1: serve every https request through Node fetch. Needed only
-// where the browser cannot reach the internet but Node can (sandboxed CI).
+// With PARAPO_NODE_FETCH=1 every https request goes through Node's fetch, and
+// the router's are counted as they are served.
 if (process.env.PARAPO_NODE_FETCH) {
-await page.route(/^https:\/\//, async (route) => { const req = route.request(); if (/routing\.openstreetmap\.de|route\/v1\/driving/.test(req.url())) routerCalls++; try { const h={...req.headers()}; delete h['accept-encoding']; const r = await fetch(req.url(), { method: req.method(), headers: h, body: ['GET','HEAD'].includes(req.method())?undefined:req.postDataBuffer() }); const body=Buffer.from(await r.arrayBuffer()); const hh={}; r.headers.forEach((v,k)=>{ if(!['content-encoding','content-length','transfer-encoding'].includes(k)) hh[k]=v }); await route.fulfill({status:r.status,headers:hh,body}) } catch { await route.abort() } })
+await nodeFetch(page,(req) => { if (/routing\.openstreetmap\.de|route\/v1\/driving/.test(req.url())) routerCalls++ })
 } else {
 // Otherwise count router requests as the browser sends them; without this the
 // counter never moves and "no router calls during any hotspot gesture" cannot fail.
@@ -35,10 +34,8 @@ const errors = []; page.on('pageerror', e => errors.push(String(e))); page.on('c
 const pts = async (src='draw-points') => (await page.evaluate(async s => (await window.__src(s))?.features?.length ?? 0, src))
 const segs = async () => (await page.evaluate(async () => (await window.__src('draw-line'))?.features ?? []))
 const cp = async () => (await page.evaluate(async () => (await window.__src('draw-points')).features.map(f => f.geometry.coordinates)))
-const proj = async (c) => page.evaluate(c => { const q = window.__map.project(c); return [q.x, q.y] }, c)
-const idle = async () => page.waitForFunction(() => !document.body.innerText.includes('snapping…'), null, { timeout: 30000 })
+const { proj, idle, renderedAt } = drawing(page)
 const box0 = { x: 0, y: 0 }
-const renderedAt = async (px, layer='draw-point-dots') => page.waitForFunction(([x, y, l]) => window.__map.queryRenderedFeatures([x, y], { layers: [l] }).length > 0, [px[0], px[1], layer], { timeout: 5000 }).then(() => true).catch(() => false)
 // A gap waiting for the router is drawn as a straight stand-in that is also
 // 'snapped', so draw-line cannot tell it from a routed segment. The draft can: a
 // stand-in is written `pending` with no `streets`; a segment the router answered
@@ -60,7 +57,7 @@ const routed = async () => page.evaluate(() => {
 const CUBAO = [121.0527, 14.6187] // Metro Manila land fallback, used when there are no saved routes yet
 let savedLine = []
 const centerOnLand = async () => {
-  await waitForSource('saved-routes', 6000)
+  await waitForSource(page, 'saved-routes', 6000)
   savedLine = await page.evaluate(async () => ((await window.__src('saved-routes'))?.features ?? []).map(f => f.geometry?.coordinates ?? []).reduce((a, c) => c.length > a.length ? c : a, []))
   const center = savedLine.length > 0 ? savedLine[Math.floor(savedLine.length / 2)] : CUBAO
   await page.evaluate(c => window.__map.jumpTo({ center: c, zoom: 15 }), center)
@@ -82,21 +79,6 @@ const roadPixels = async (n, gap) => page.evaluate(([line, n, gap]) => {
   }
   return picked
 }, [savedLine, n, gap])
-
-// The features of one of our GeoJSON sources once the page has some, asked
-// every 100 ms from here for up to `ms`; [] when none came in time. Not
-// `page.waitForFunction` with an async function: under Playwright's default
-// polling that resolves after the function's first call whatever it returned,
-// so a slow database (GitHub's runners are far from it) let the checks start
-// on an empty map. Seen on the first CI run, 2026-09-25.
-const waitForSource = async (id, ms = 20000) => {
-  const until = Date.now() + ms
-  for (;;) {
-    const fs = await page.evaluate(async (id) => (await window.__src(id))?.features ?? [], id)
-    if (fs.length > 0 || Date.now() > until) return fs
-    await page.waitForTimeout(100)
-  }
-}
 
 await page.goto(`${BASE}/studio/?e2e=1`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
@@ -214,5 +196,4 @@ check('cancel returns to idle with both buttons', await page.getByRole('button',
 check('no page errors', errors.length === 0, errors.slice(0,2).join(' | '))
 await page.screenshot({ path: 'regression-final.png' })
 await b.close()
-const failed = results.filter(r => !r).length
-console.log(`\n${results.length - failed} passed, ${failed} failed`); process.exit(failed ? 1 : 0)
+tally()

@@ -12,32 +12,17 @@
 // fallback when there are none) before drawing, so clicks land on real streets instead of
 // wherever the saved-routes bounding box happens to fit right now.
 import { chromium } from 'playwright'
+import { BASE, harness, nodeFetch, waitForSource } from './lib/harness.mjs'
 
-const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
-const results = []
-const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  ' + detail : ''}`) }
-const skip = (name, reason) => { console.log(`SKIP  ${name}  ${reason}`) }
+const { check, tally } = harness()
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
 // Headless Chromium cannot use this container's TLS relay, but Node can reach
 // the internet directly: serve every https request through Node fetch.
 let routerCalls = 0
-// PARAPO_NODE_FETCH=1: serve every https request through Node fetch. Needed only
-// where the browser cannot reach the internet but Node can (sandboxed CI).
 if (process.env.PARAPO_NODE_FETCH) {
-await page.route(/^https:\/\//, async (route) => {
-  const req = route.request()
-  if (/routing\.openstreetmap\.de|route\/v1\/driving/.test(req.url())) routerCalls++
-  try {
-    const headers = { ...req.headers() }
-    delete headers['accept-encoding']
-    const r = await fetch(req.url(), { method: req.method(), headers, body: ['GET','HEAD'].includes(req.method()) ? undefined : req.postDataBuffer() })
-    const body = Buffer.from(await r.arrayBuffer())
-    const h = {}; r.headers.forEach((v, k) => { if (!['content-encoding','content-length','transfer-encoding'].includes(k)) h[k] = v })
-    await route.fulfill({ status: r.status, headers: h, body })
-  } catch (e) { await route.abort() }
-})
+  await nodeFetch(page, (req) => { if (/routing\.openstreetmap\.de|route\/v1\/driving/.test(req.url())) routerCalls++ })
 } else {
   page.on('request', r => { if (/routing\.openstreetmap\.de|route\/v1\/driving/.test(r.url())) routerCalls++ })
 }
@@ -49,20 +34,6 @@ await page.addInitScript(() => {
   // MapLibre 6: GeoJSONSource data is behind an async getter.
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
 })
-// The features of one of our GeoJSON sources once the page has some, asked
-// every 100 ms from here for up to `ms`; [] when none came in time. Not
-// `page.waitForFunction` with an async function: under Playwright's default
-// polling that resolves after the function's first call whatever it returned,
-// so a slow database (GitHub's runners are far from it) let the checks start
-// on an empty map. Seen on the first CI run, 2026-09-25.
-const waitForSource = async (id, ms = 20000) => {
-  const until = Date.now() + ms
-  for (;;) {
-    const fs = await page.evaluate(async (id) => (await window.__src(id))?.features ?? [], id)
-    if (fs.length > 0 || Date.now() > until) return fs
-    await page.waitForTimeout(100)
-  }
-}
 
 await page.goto(`${BASE}/studio/?e2e=1`, { waitUntil: 'load' })
 // wait for the map to exist and be loaded: the check is the wait's outcome
@@ -72,7 +43,7 @@ check('map loaded', await page.waitForFunction(() => window.__map && window.__ma
 // saved routes fetched (public read) — proves Supabase config is live.
 // The page normally has them in about a second; give a slow network up to
 // 20s before calling it a failure, and say plainly when that's what happened.
-const savedRoutes = await waitForSource('saved-routes')
+const savedRoutes = await waitForSource(page, 'saved-routes')
 const savedCount = savedRoutes.length
 if (savedCount > 0) {
   check('saved routes loaded from Supabase', true, `${savedCount} direction(s)`)
@@ -220,6 +191,4 @@ await page.screenshot({ path: 'route-regression.png' })
 
 check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
 await browser.close()
-const failed = results.filter(r => !r.ok).length
-console.log(`\n${results.length - failed} passed, ${failed} failed`)
-process.exit(failed ? 1 : 0)
+tally()

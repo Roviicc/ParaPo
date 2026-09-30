@@ -44,10 +44,10 @@
 // The router is the public OSRM demo (about one request a second, shared), so
 // after every gesture the script waits for "snapping…" to clear and then 1.5 s.
 import { chromium } from 'playwright'
+import { BASE, harness, nodeFetch } from './lib/harness.mjs'
+import { drawing } from './lib/studio.mjs'
 
-const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
-const results = []
-const check = (name, ok, detail = '') => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  [' + detail + ']' : ''}`) }
+const { check, tally } = harness({ bracketed: true })
 
 // Sinai Street and Assyria Street, Novaliches. The junction is at 121.042397, 14.742005.
 const A = [121.043326, 14.742006]  // Sinai Street, 100 m east of the junction
@@ -118,11 +118,7 @@ check('detector: a U-turn 40 m past the join is not at the join', !j.turnsBack, 
 
 // ------------------------------------------------------------------ browser
 const b = await chromium.launch(); const page = await b.newPage({ viewport: { width: 1280, height: 800 } })
-// PARAPO_NODE_FETCH=1: serve every https request through Node fetch. Needed only
-// where the browser cannot reach the internet but Node can (sandboxed CI).
-if (process.env.PARAPO_NODE_FETCH) {
-await page.route(/^https:\/\//, async (route) => { const req = route.request(); try { const h={...req.headers()}; delete h['accept-encoding']; const r = await fetch(req.url(), { method: req.method(), headers: h, body: ['GET','HEAD'].includes(req.method())?undefined:req.postDataBuffer() }); const body=Buffer.from(await r.arrayBuffer()); const hh={}; r.headers.forEach((v,k)=>{ if(!['content-encoding','content-length','transfer-encoding'].includes(k)) hh[k]=v }); await route.fulfill({status:r.status,headers:hh,body}) } catch { await route.abort() } })
-}
+await nodeFetch(page)
 // NoSegment comes back as HTTP 400 and is an answer; only 429 and 5xx mean the router turned us away.
 const isRouter = (u) => /routing\.openstreetmap\.de|route\/v1\/driving/.test(u)
 let routerCalls = 0, routerRefused = 0
@@ -131,8 +127,7 @@ page.on('response', r => { if (isRouter(r.url()) && (r.status() === 429 || r.sta
 const errors = []; page.on('pageerror', e => errors.push(String(e)))
 await page.addInitScript(() => { window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null } })
 
-const proj = async (c) => page.evaluate(c => { const q = window.__map.project(c); return [q.x, q.y] }, c)
-const idle = async () => page.waitForFunction(() => !document.body.innerText.includes('snapping…'), null, { timeout: 30000 })
+const { proj, idle, renderedAt } = drawing(page)
 // After a gesture that routes: let the request start, let it finish, then give the shared router a breather.
 const settle = async () => { await page.waitForTimeout(400); await idle(); await page.waitForTimeout(1500); await idle() }
 // Each drawn segment, with `real`: whether the router really answered it. A gap
@@ -148,7 +143,6 @@ const segs = async () => (await page.evaluate(async () => {
   .filter(s => s.index >= 0).sort((a, b) => a.index - b.index)
 const cps = async () => (await page.evaluate(async () => ((await window.__src('draw-points'))?.features ?? []).map(f => ({ index: f.properties.index, c: f.geometry.coordinates }))))
   .sort((a, b) => a.index - b.index).map(p => p.c)
-const renderedAt = async (px, layer) => page.waitForFunction(([x, y, l]) => window.__map.queryRenderedFeatures([x, y], { layers: [l] }).length > 0, [px[0], px[1], layer], { timeout: 5000 }).then(() => true).catch(() => false)
 const box0 = { x: 0, y: 0 }
 const clickAt = async (c) => { const [x, y] = await proj(c); await page.mouse.click(box0.x + x, box0.y + y) }
 // Centre the map on a scenario's points at street level; each scenario spans well under the viewport.
@@ -277,5 +271,4 @@ await discard()
 check('no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
 await b.close()
 console.log(`\nrouter: ${routerCalls} requests${routerRefused ? `, ${routerRefused} turned away (429/5xx): routing checks above may have failed for that reason` : ''}`)
-const failed = results.filter(r => !r).length
-console.log(`\n${results.length - failed} passed, ${failed} failed`); process.exit(failed ? 1 : 0)
+tally()

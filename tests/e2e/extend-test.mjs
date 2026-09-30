@@ -10,10 +10,9 @@
 // state it leaves: a draft holding the saved line's second half, with the
 // join at its first point. The draft is the same one a reload restores.
 import { chromium } from 'playwright'
+import { BASE, harness, waitForSource } from './lib/harness.mjs'
 
-const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
-const results = []
-const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  ' + detail : ''}`) }
+const { check, tally } = harness()
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
@@ -22,24 +21,10 @@ page.on('pageerror', (e) => errors.push(String(e)))
 await page.addInitScript(() => {
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
 })
-// The features of one of our GeoJSON sources once the page has some, asked
-// every 100 ms from here for up to `ms`; [] when none came in time. Not
-// `page.waitForFunction` with an async function: under Playwright's default
-// polling that resolves after the function's first call whatever it returned,
-// so a slow database (GitHub's runners are far from it) let the checks start
-// on an empty map. Seen on the first CI run, 2026-09-25.
-const waitForSource = async (id, ms = 20000) => {
-  const until = Date.now() + ms
-  for (;;) {
-    const fs = await page.evaluate(async (id) => (await window.__src(id))?.features ?? [], id)
-    if (fs.length > 0 || Date.now() > until) return fs
-    await page.waitForTimeout(100)
-  }
-}
 
 await page.goto(`${BASE}/studio/?e2e=1`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
-if ((await waitForSource('saved-routes')).length === 0) throw new Error('no saved routes arrived in 20 s')
+if ((await waitForSource(page, 'saved-routes')).length === 0) throw new Error('no saved routes arrived in 20 s')
 const line = await page.evaluate(async () => {
   const fs = (await window.__src('saved-routes')).features
   return fs.sort((a, b) => b.geometry.coordinates.length - a.geometry.coordinates.length)[0].geometry.coordinates
@@ -142,7 +127,7 @@ check('undo never eats into the borrowed end', d.controlPoints.length === 2 && d
 await page.evaluate(() => localStorage.removeItem('parapo.draft.v1'))
 await page.reload({ waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
-if ((await waitForSource('saved-routes')).length === 0) throw new Error('no saved routes arrived in 20 s')
+if ((await waitForSource(page, 'saved-routes')).length === 0) throw new Error('no saved routes arrived in 20 s')
 const saved = await page.evaluate(async () =>
   (await window.__src('saved-routes')).features.map((f) => ({ id: f.properties.id, coords: f.geometry.coordinates })),
 )
@@ -212,6 +197,4 @@ await page.waitForTimeout(300)
 await page.evaluate(() => localStorage.removeItem('parapo.draft.v1'))
 check('no page errors', errors.length === 0, errors.join(' | '))
 await browser.close()
-const failed = results.filter((r) => !r.ok).length
-console.log(`${results.length - failed} passed, ${failed} failed`)
-process.exit(failed ? 1 : 0)
+tally({ blankLine: false })
