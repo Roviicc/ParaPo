@@ -9,7 +9,7 @@ import { STYLE_URL } from '../shared/map/MapView'
  * (vite.config.ts, `injectRegister: false`), so /studio/ stays a plain page.
  *
  * A new version is never applied on its own: it waits, `needRefresh` turns
- * true, and the page shows "New version · Reload". Under `npm run dev` the
+ * true, and the page shows "Update Para Po!". Under `npm run dev` the
  * virtual module is a no-op, so the headless checks never meet a worker.
  */
 

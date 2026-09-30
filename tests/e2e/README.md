@@ -45,7 +45,7 @@ must still draw, the notice must read "Offline · map as of <date>" from the
 file's own `published_at`, and panning into never-seen tiles must not raise the
 failure banner. Back online it delays the map file past the worker's 3 s and
 expects "Not refreshed · map as of <date>", then changes a byte of the built
-worker and expects "New version · Reload" to appear, wait, and work.
+worker and expects "Update Para Po!" to appear, wait, and work.
 
 The tests read what the map holds today (the published file for `/`, the live tables for the studio) and assert on that, so adding
 routes and hotspots does not break them. visitor-test's count grows with the
