@@ -101,6 +101,10 @@ export function TripTimeline({
       data-livery={livery}
       className={
         'relative isolate flex w-full flex-col overflow-clip rounded-2xl border-y-[0.6px] py-4 font-sn-pro ' +
+        // 8 under the header folded, 12 opened, as 3778:3183 draws it, on a
+        // phone too (the owner, 2026-09-30: "match it"); it moves with the fold.
+        'transition-[margin] motion-reduce:transition-none ' +
+        (folds && open ? 'mt-3 duration-gentle ease-enter ' : 'mt-2 duration-base ease-exit ') +
         CARD_SURFACE[livery] +
         ' ' +
         CARD_TEXT[livery]

@@ -105,8 +105,8 @@ export function RouteTripDetail({
         />
       }
     >
-      {/* On a phone the card sits right under the header (the owner's 3817:6007, 2026-09-30); floating, 12 below it. */}
-      <div className="w-full px-3 @float:pt-3">
+      {/* The gap over the card is TripTimeline's own: it grows as the hintuans open. */}
+      <div className="w-full px-3">
         <TripTimeline
           livery={livery}
           routeOrigin={routeOrigin}
