@@ -18,7 +18,7 @@
 // where two routes share a road ("N Routes", a card per place), the trip a
 // row opens in its card's colour and ‹ back to the list, every card at rest; a tap
 // just outside a hotspot, and the bottom sheet on a hotspot's card — tap and
-// drag the handle, peek → open → peek → gone; the ?r=<id> share link and the
+// drag the handle, Middle → Max → Low → Middle → Low → gone; the ?r=<id> share link and the
 // view it restores; a trip opened on its own whose ‹ lists the routes sharing
 // an end with its own; the fine-pointer desktop control (±5 px, no zoom
 // buttons for a mouse either since 2026-09-29, attribution bottom right);
@@ -408,10 +408,12 @@ const perpendicular = (p, a, bPt, line = [a, bPt], away = 20) =>
 
 const card = () => page.locator('[data-testid="card"]')
 // Every sheet locator is scoped to the card — never to the page — so the
-// route list, which is `chooser`, never answers for it. A route's trip card
-// has no handle: it is a card with its rail of stops in it (RouteTripDetail,
-// 2026-09-29), named for its direction, "Tala → Novaliches".
-const handle = () => card().locator('button[data-testid="sheet-handle"]')
+// route list, which is `chooser`, never answers for it. Every card is the
+// one BottomSheet since the owner's ask of 2026-09-30 ("make it a universal
+// rule as component"), a hotspot's and a trip's alike, with its handle,
+// `dock-handle` — a trip's card with its rail of stops in it
+// (RouteTripDetail, 2026-09-29), named for its direction, "Tala → Novaliches".
+const handle = () => card().locator('button[data-testid="dock-handle"]')
 const trip = () => card().locator('[data-testid="trip"]')
 const tripLabel = async () => ((await trip().count()) ? ((await card().first().getAttribute('aria-label')) ?? '') : '')
 const tripRow = async (id) => {
@@ -492,9 +494,11 @@ const tripChecks = async () => {
   // 2026-09-29): that one row Selected, its name Black, a pill with the pesos
   // from where the trip leaves to there — the app's own sums over rideCut's
   // metres on the published line — in the card's own colours swapped; the
-  // tiles keep the whole ride; the map dark only that far and at rest after
-  // it, no get-off circles, the camera gliding the hintuan clear of the
-  // card, and no padding left on the map; a second tap lets it go. Checked
+  // tiles keep the whole ride; the route left whole on the map, and a circle
+  // popping up at the hintuan in the trip's rail colour (the owner's ask of
+  // 2026-09-30: "now I don't want to cut the route"), no get-off circles,
+  // the camera gliding the hintuan clear of the card, and no padding left
+  // on the map; a second tap lets it go, circle and all. Checked
   // once, on the first trip with a hintuan; it is picked again after, for
   // SWITCH, ✕ or ‹ to let go.
   let picked = false
@@ -515,7 +519,7 @@ const tripChecks = async () => {
         const found = m.variants.find((x) => x.id === id)
         const v = found && { ...found, shape: (await loadLine(id)) ?? found.shape }
         const cut = v && rideCut(v, m.stops, rowId)
-        return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, at: cut.at, rest: cut.rest } : null
+        return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, at: cut.at } : null
       } catch {
         return null
       }
@@ -548,30 +552,43 @@ const tripChecks = async () => {
     // The glide starts after the card has drawn the pick: let it start, then end.
     await page.waitForTimeout(200)
     await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
-    const drawn = await page.evaluate(async () => {
+    const drawn = await page.evaluate(async (at) => {
       const m = window.__map
-      const order = m.getStyle().layers.map((l) => l.id)
-      const at = (id) => order.indexOf(id)
-      const fs = (await window.__src('ride-rest'))?.features ?? []
-      const has = !!m.getLayer('ride-rest-line') && !!m.getLayer('ride-rest-casing')
+      const pins = [...document.querySelectorAll('[data-testid="hintuan-pin"]')]
+      const pin = pins[0]
+      const trip = document.querySelector('[data-testid="trip"]')
+      const ring = pin?.firstElementChild
+      // The circle's centre on the screen, and the hintuan's.
+      const r = pin?.getBoundingClientRect()
+      const c = m.getCanvas().getBoundingClientRect()
+      const q = at && m.project(at)
+      // The rail's colour: the card's Card/<livery>/Timeline/surface.
+      const dot = trip?.querySelector('[class*="timeline-surface"]')
       return {
         lit: (await window.__lit('saved-routes')) ?? [],
-        rest: fs.length === 1 ? fs[0].geometry.coordinates : null,
-        line: has ? m.getPaintProperty('ride-rest-line', 'line-color') : null,
-        casing: has ? m.getPaintProperty('ride-rest-casing', 'line-color') : null,
-        opacity: has ? (m.getPaintProperty('ride-rest-line', 'line-opacity') ?? 1) : null,
-        between: has && at('ride-rest-casing') > at('saved-routes-selected') && at('ride-rest-line') > at('ride-rest-casing') && (at('direction-end-circles') < 0 || at('ride-rest-line') < at('direction-end-circles')),
+        rest: ((await window.__src('ride-rest'))?.features ?? []).length,
+        restLayer: !!m.getLayer('ride-rest-line'),
+        pins: pins.length,
+        off: r && q ? Math.hypot(r.left + r.width / 2 - (c.left + q.x), r.top + r.height / 2 - (c.top + q.y)) : null,
+        ring: ring ? getComputedStyle(ring).backgroundColor : null,
+        rail: dot ? getComputedStyle(dot).backgroundColor : null,
+        livery: pin?.dataset.livery ?? null,
+        tripLivery: trip?.dataset.livery ?? null,
+        taps: pin ? getComputedStyle(pin).pointerEvents : null,
         dots: document.querySelectorAll('[data-testid="ride-dot"]').length,
         padding: Object.values(m.getPadding()).every((v) => v === 0),
       }
-    })
-    const restRight = !!pickWant && !!drawn.rest && drawn.rest.length === pickWant.rest.length &&
-      Math.abs(drawn.rest[0][0] - pickWant.at[0]) < 1e-6 && Math.abs(drawn.rest[0][1] - pickWant.at[1]) < 1e-6
+    }, pickWant?.at ?? null)
     check(
-      '  the map: the trip still lit, and from the hintuan on, drawn at rest over it — opaque, in its casing, under the far end',
-      drawn.lit.length === 1 && drawn.lit[0] === tripId && (restRight || !pickWant) && !!drawn.rest &&
-        (MAP ? drawn.line === MAP['Map/RouteLine/surface-default'] : !!drawn.line) && drawn.casing === '#ffffff' && drawn.opacity === 1 && drawn.between,
-      `${drawn.lit.length} lit; ${drawn.rest?.length ?? 0} point(s) at rest; ${drawn.line} in ${drawn.casing}, opacity ${drawn.opacity}; in its place ${drawn.between}`,
+      '  the map: the trip still lit and whole — nothing drawn at rest over it',
+      drawn.lit.length === 1 && drawn.lit[0] === tripId && drawn.rest === 0 && !drawn.restLayer,
+      `${drawn.lit.length} lit; ${drawn.rest} stretch(es) at rest; the rest layer ${drawn.restLayer ? 'there' : 'never added'}`,
+    )
+    check(
+      "  a circle pops up at the hintuan, in the trip's rail colour, taking no taps",
+      drawn.pins === 1 && (!pickWant || (drawn.off !== null && drawn.off < 2)) && drawn.livery === drawn.tripLivery &&
+        !!drawn.ring && (!drawn.rail || drawn.ring === drawn.rail) && drawn.taps === 'none',
+      `${drawn.pins} circle(s), ${drawn.off === null ? 'not measured' : Math.round(drawn.off) + ' px'} off the hintuan; ${drawn.livery} ring ${drawn.ring}, the rail ${drawn.rail}; pointer-events ${drawn.taps}`,
     )
     check('  no get-off circles on the public map', drawn.dots === 0, `${drawn.dots}`)
     if (pickWant) {
@@ -591,18 +608,18 @@ const tripChecks = async () => {
     check('  and leaves no padding on the map for later moves', drawn.padding)
     await buttonTap(pickButton, async () => !(await isPicked()))
     const letGo = await page.evaluate(async () => ({
-      rest: ((await window.__src('ride-rest'))?.features ?? []).length,
+      pins: document.querySelectorAll('[data-testid="hintuan-pin"]').length,
       lit: (await window.__lit('saved-routes')) ?? [],
     }))
     check(
-      '  a second tap lets it go: no pill, the whole ride dark again',
-      !(await isPicked()) && (await pill.count()) === 0 && letGo.rest === 0 && letGo.lit.length === 1,
-      `${letGo.rest} at rest, ${letGo.lit.length} lit`,
+      '  a second tap lets it go: no pill, no circle, the trip still lit',
+      !(await isPicked()) && (await pill.count()) === 0 && letGo.pins === 0 && letGo.lit.length === 1,
+      `${letGo.pins} circle(s), ${letGo.lit.length} lit`,
     )
     // The ends are buttons too (the owner's asks, 2026-09-29): with a
     // hintuan picked, a tap on where the trip goes, then on where it leaves
-    // from, picks that end in its place, its dot green — the whole ride
-    // dark again, the trip still lit — and glides the map to that end of the
+    // from, picks that end in its place, its dot green — the hintuan's
+    // circle gone, the trip still lit — and glides the map to that end of the
     // line, above the card. Picking the hintuan again lets the end go.
     const ends = await page.evaluate(async (id) => {
       try {
@@ -637,18 +654,18 @@ const tripChecks = async () => {
         const d = document.querySelector('[data-testid="card"]').getBoundingClientRect()
         const q = at && m.project(at)
         return {
-          rest: ((await window.__src('ride-rest'))?.features ?? []).length,
+          pins: document.querySelectorAll('[data-testid="hintuan-pin"]').length,
           lit: (await window.__lit('saved-routes')) ?? [],
           above: q ? c.top + q.y > c.top + 16 && c.top + q.y < d.top - 16 && q.x > 16 && q.x < c.width - 16 : null,
           padding: Object.values(m.getPadding()).every((v) => v === 0),
         }
       }, ends?.[end] ?? null)
       check(
-        `  ${end === 'to' ? 'where the trip goes' : 'where it leaves from'}, tapped, is picked in the hintuan's place, the whole ride dark, the map gliding there above the card`,
+        `  ${end === 'to' ? 'where the trip goes' : 'where it leaves from'}, tapped, is picked in the hintuan's place, its circle gone, the map gliding there above the card`,
         wasPicked && destinationBefore === 'rest' && !(await isPicked()) &&
           destination === (end === 'to' ? 'selected' : 'rest') && origin === (end === 'from' ? 'selected' : 'rest') &&
-          after.rest === 0 && after.lit.length === 1 && after.lit[0] === tripId && after.above !== false && after.padding,
-        `picked first ${wasPicked}; the destination ${destinationBefore} → ${destination}, the origin ${origin}; ${after.rest} at rest, ${after.lit.length} lit; in the map above the card ${after.above ?? 'not measured'}`,
+          after.pins === 0 && after.lit.length === 1 && after.lit[0] === tripId && after.above !== false && after.padding,
+        `picked first ${wasPicked}; the destination ${destinationBefore} → ${destination}, the origin ${origin}; ${after.pins} circle(s), ${after.lit.length} lit; in the map above the card ${after.above ?? 'not measured'}`,
       )
     }
     // Picked again, for SWITCH — or ✕ and ‹ — to let go.
@@ -673,9 +690,9 @@ const tripChecks = async () => {
     check('  and keeps its colour', !!colour && now === colour, `${colour} → ${now}`)
     if (picked) {
       // Another direction is another ride: the pick does not come with it.
-      const rest = await page.evaluate(async () => ((await window.__src('ride-rest'))?.features ?? []).length)
+      const pins = await page.evaluate(() => document.querySelectorAll('[data-testid="hintuan-pin"]').length)
       const still = await card().locator('[data-testid="trip-hintuan"][data-state="selected"]').count()
-      check('  and lets the picked hintuan go', rest === 0 && still === 0, `${still} Selected, ${rest} at rest`)
+      check('  and lets the picked hintuan go', pins === 0 && still === 0, `${still} Selected, ${pins} circle(s)`)
       picked = false
     }
   }
@@ -697,12 +714,25 @@ const tripChecks = async () => {
 }
 /** Whether the hintuan pick has been checked: once, on the first trip with a hintuan. */
 let picksChecked = false
-/** The map's ride cut, gone: nothing drawn at rest over a trip, no get-off circle. */
+/** The picked hintuan's circle, gone — and no cut or get-off circle, which the public map never draws. */
 const noPickLeft = async () =>
-  page.evaluate(async () => ((await window.__src('ride-rest'))?.features ?? []).length + document.querySelectorAll('[data-testid="ride-dot"]').length === 0)
+  page.evaluate(async () =>
+    ((await window.__src('ride-rest'))?.features ?? []).length +
+      document.querySelectorAll('[data-testid="ride-dot"], [data-testid="hintuan-pin"]').length === 0)
 const cardText = async () => ((await card().count()) ? (await card().first().innerText()) : '')
+/** The card's height: 'low', 'middle' or 'max' (BottomSheet's data-snap). */
 const sheetState = async () =>
-  (await card().count()) ? await card().first().getAttribute('data-sheet') : null
+  (await card().count()) ? await card().first().getAttribute('data-snap') : null
+/**
+ * How far to drag the handle for the sheet to come to rest at `to` from
+ * where it is, by the heights BottomSheet gives it: Low 137, Middle 55% of
+ * the map, Max all of it. Negative is up.
+ */
+const dragTo = async (from, to) => {
+  const h = await card().first().evaluate((el) => el.offsetHeight)
+  const shown = { low: 137, middle: Math.round(h * 0.55), max: h }
+  return shown[from] - shown[to]
+}
 const closeCard = async () => {
   await page.getByRole('button', { name: 'Close' }).first().click({ timeout: 1500 }).catch(() => {})
   // The ✕ can be missed while the page is busy drawing; Escape closes a sheet too.
@@ -1058,6 +1088,19 @@ if (!shared) {
     const litTapped = (await litIds(page)) ?? []
     const pickedAfter = await chooser.locator('[data-state="selected"]').count()
     check('  a map tap lets it go: nothing Selected, every route it lists lit', repicked && pickedAfter === 0 && (await listShown()) && sameSet(litTapped, listedIds), `picked ${repicked}; ${pickedAfter} Selected; ${litTapped.length} lit`)
+    // The list and the trip opened from it are one height (the owner's ask
+    // of 2026-09-30: "if RouteDetail was in medium, if they go back, the
+    // RouteCard is in medium too"): raised to Max here, through a pick and ‹.
+    const listSnap = async () => ((await listShown()) ? await chooser.first().getAttribute('data-snap') : null)
+    const listHandle = chooser.first().locator('button[data-testid="dock-handle"]')
+    for (let i = 0; i < 2 && (await listSnap()) !== 'max'; i++) await buttonTap(listHandle, async () => (await listSnap()) === 'max')
+    const listAtMax = (await listSnap()) === 'max'
+    await buttonTap(wanted, async () => (await trip().count()) > 0)
+    const tripSnap = await sheetState()
+    check('  a trip opened from the list at Max opens at Max too', listAtMax && tripSnap === 'max', `list at Max ${listAtMax}; trip ${tripSnap}`)
+    const backAgain = card().getByRole('button', { name: 'Back' })
+    if (await backAgain.count()) await buttonTap(backAgain, listShown)
+    check('  and ‹ brings the list back at Max', (await listSnap()) === 'max', `list ${await listSnap()}`)
   }
   await closeCard()
 }
@@ -1179,8 +1222,8 @@ if (snapshot.polys.length === 0) {
 }
 
 // ------------------------------------- 4c. the sheet, on a hotspot's card
-// A route's card is the owner's trip card since 2026-09-29, with no sheet
-// to pull; a hotspot's card still is one, handle and all.
+// Every card is the one BottomSheet since 2026-09-30, a hotspot's and a
+// trip's alike; these gestures are checked on a hotspot's.
 /** Handle gestures the runner made no pointer events for, sent again by hand. */
 let handleByHand = 0
 const pointerdowns = () => page.evaluate(() => window.__pointerdowns)
@@ -1190,11 +1233,13 @@ const pointerdowns = () => page.evaluate(() => window.__pointerdowns)
  * have to be a finger on the glass for the handle to capture it.
  */
 const handGesture = (x, y, ys) =>
-  page.evaluate(([x, y, ys]) => {
+  page.evaluate(async ([x, y, ys]) => {
     const el = document.elementFromPoint(x, y)
     const at = (cy) => ({ clientX: x, clientY: cy, bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', isPrimary: true })
     el.dispatchEvent(new PointerEvent('pointerdown', at(y)))
     for (const cy of ys) el.dispatchEvent(new PointerEvent('pointermove', at(cy)))
+    // Held still before letting go, as dragHandle does: a placement, not a flick.
+    if (ys.length) await new Promise((r) => setTimeout(r, 150))
     el.dispatchEvent(new PointerEvent('pointerup', at(ys.at(-1) ?? y)))
   }, [x, y, ys])
 /**
@@ -1222,7 +1267,11 @@ const tapHandle = async () => {
   }
   return true
 }
-/** Drag the handle by dy CSS px. Touch first (CDP), mouse as a fallback. */
+/**
+ * Drag the handle by dy CSS px. Touch first (CDP), mouse as a fallback. Held
+ * still for a moment before letting go, so the sheet settles on the height
+ * nearest where it was left (BottomSheet's snapFor), not a flick's.
+ */
 const dragHandle = async (dy) => {
   if ((await handle().count()) === 0) return { ok: false, how: 'no handle' }
   const before = await sheetState()
@@ -1241,6 +1290,7 @@ const dragHandle = async (dy) => {
       })
       await page.waitForTimeout(16)
     }
+    await page.waitForTimeout(150)
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
   } catch (e) {
     return { ok: false, how: `Input.dispatchTouchEvent threw: ${String(e).slice(0, 80)}` }
@@ -1254,6 +1304,7 @@ const dragHandle = async (dy) => {
     await page.mouse.move(x, y + (dy * i) / steps)
     await page.waitForTimeout(16)
   }
+  await page.waitForTimeout(150)
   await page.mouse.up()
   await page.waitForTimeout(450)
   // Neither made a pointer event: the runner's, as with tapHandle.
@@ -1282,7 +1333,8 @@ const openSheet = async () => {
 /** Each gesture below is judged on its own, so put the sheet back if one broke it. */
 const restore = async (want) => {
   if ((await card().count()) === 0) await openSheet()
-  if ((await sheetState()) !== want) await tapHandle()
+  // The handle goes round, Low → Middle → Max: two taps at most.
+  for (let i = 0; i < 2 && (await sheetState()) !== want; i++) await tapHandle()
   return (await sheetState()) === want
 }
 
@@ -1296,9 +1348,9 @@ const sheetDiag = () =>
   page.evaluate(() => {
     const name = (el) => (el instanceof Element ? el.closest('[data-testid]')?.getAttribute('data-testid') ?? el.tagName.toLowerCase() : String(el))
     const cards = [...document.querySelectorAll('[data-testid="card"]')].map(
-      (c) => `${c.tagName.toLowerCase()}${c.hidden ? ' hidden' : ''} sheet=${c.getAttribute('data-sheet')} "${(c.textContent ?? '').trim().slice(0, 30)}"`,
+      (c) => `${c.tagName.toLowerCase()}${c.hidden ? ' hidden' : ''} snap=${c.getAttribute('data-snap')} "${(c.textContent ?? '').trim().slice(0, 30)}"`,
     )
-    const h = document.querySelector('[data-testid="card"] button[data-testid="sheet-handle"]')
+    const h = document.querySelector('[data-testid="card"] button[data-testid="dock-handle"]')
     const r = h?.getBoundingClientRect()
     const top = r ? name(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)) : '(no handle)'
     return `cards [${cards.join(' | ')}]; on the handle ${top}; chooser ${document.querySelectorAll('[data-testid="chooser"]').length}; events ${(window.__sheetEvents ?? []).slice(-14).join(', ')}; now ${Math.round(performance.now())}, the last real pointerdown ${window.__lastDown}; odd [${window.__odd.slice(-12).join(', ')}]`
@@ -1321,36 +1373,39 @@ if (!hotspot) {
       )
   })
   await openSheet()
+  // Every card opens at Middle (BottomSheet), a hotspot's too since the
+  // owner's ask of 2026-09-30; before, it opened peeking.
+  check("a hotspot's card opens at Middle", (await sheetState()) === 'middle', `data-snap=${await sheetState()}`)
 
   const hadHandle = await tapHandle()
-  const firstTap = hadHandle && (await sheetState()) === 'open'
-  check("a tap on a hotspot card's handle opens the sheet", firstTap, hadHandle ? `data-sheet=${await sheetState()}${firstTap ? '' : `; ${await sheetDiag()}`}` : 'no button[data-testid="sheet-handle"]')
-  check('  no horizontal scroll with the sheet open', await noHScroll(page))
+  const firstTap = hadHandle && (await sheetState()) === 'max'
+  check("a tap on a hotspot card's handle raises it to Max", firstTap, hadHandle ? `data-snap=${await sheetState()}${firstTap ? '' : `; ${await sheetDiag()}`}` : 'no button[data-testid="dock-handle"]')
+  check('  no horizontal scroll with the sheet at Max', await noHScroll(page))
 
   await tapHandle()
-  const afterSecond = (await card().count()) === 0 ? 'the whole card vanished' : `data-sheet=${await sheetState()}`
-  check('a second tap on the handle goes back to peek', (await sheetState()) === 'peek', afterSecond)
+  const afterSecond = (await card().count()) === 0 ? 'the whole card vanished' : `data-snap=${await sheetState()}`
+  check('a second tap on the handle goes round to Low', (await sheetState()) === 'low', afterSecond)
 
-  // From here each gesture starts from a known state, so one broken gesture
-  // does not report the next three as broken too. A start state that cannot
-  // be reached is itself a failure: the drag after it would prove nothing.
-  const readyUp = await restore('peek')
-  const up = await dragHandle(-60)
-  const upOpened = readyUp && (await sheetState()) === 'open'
-  check('dragging the handle up opens the sheet', upOpened, `${readyUp ? '' : 'could not get back to peek first; '}${up.how}; data-sheet=${await sheetState()}${upOpened ? '' : `; ${await sheetDiag()}`}`)
+  // From here each gesture starts from a known height, so one broken gesture
+  // does not report the next three as broken too. A start that cannot be
+  // reached is itself a failure: the drag after it would prove nothing.
+  const readyUp = await restore('low')
+  const up = await dragHandle(await dragTo('low', 'middle'))
+  const upOpened = readyUp && (await sheetState()) === 'middle'
+  check('dragging the handle up from Low settles at Middle', upOpened, `${readyUp ? '' : 'could not get to Low first; '}${up.how}; data-snap=${await sheetState()}${upOpened ? '' : `; ${await sheetDiag()}`}`)
 
-  const readyDown = await restore('open')
-  const down = await dragHandle(60)
-  check('dragging the handle down goes back to peek', readyDown && (await sheetState()) === 'peek', `${readyDown ? '' : 'could not get back to open first; '}${down.how}; data-sheet=${await sheetState()}`)
+  const readyDown = await restore('middle')
+  const down = await dragHandle(await dragTo('middle', 'low'))
+  check('dragging it down from Middle settles at Low', readyDown && (await sheetState()) === 'low', `${readyDown ? '' : 'could not get to Middle first; '}${down.how}; data-snap=${await sheetState()}`)
 
-  const readyPeek = await restore('peek')
-  const down2 = await dragHandle(60)
-  check('dragging down again at peek dismisses the card', readyPeek && (await card().count()) === 0, `${readyPeek ? '' : 'could not get back to peek first; '}${down2.how}; [data-testid="card"] count ${await card().count()}`)
+  const readyLow = await restore('low')
+  const down2 = await dragHandle(120)
+  check('dragging down past Low dismisses the card', readyLow && (await card().count()) === 0, `${readyLow ? '' : 'could not get to Low first; '}${down2.how}; [data-testid="card"] count ${await card().count()}`)
   await closeCard()
 
   // A mouse's drag, on a narrow window: the browser then clicks the handle it
   // was held on, and that click toggled the sheet straight back — pulled up,
-  // it fell to peek (the reviewer's note, fixed on the owner's word,
+  // it fell to peek, as it was then (the reviewer's note, fixed on the owner's word,
   // 2026-09-29). The drags above go by touch whenever the page answers it.
   const mouseDrag = async (dy) => {
     const hb = await handle().first().boundingBox()
@@ -1363,6 +1418,7 @@ if (!hotspot) {
       await page.mouse.move(x, y + (dy * i) / 8)
       await page.waitForTimeout(16)
     }
+    await page.waitForTimeout(150)
     await page.mouse.up()
     await page.waitForTimeout(450)
     // The mouse made no pointer event: the runner's, as with tapHandle. The
@@ -1373,25 +1429,25 @@ if (!hotspot) {
       handleByHand++
       await handGesture(x, y, Array.from({ length: 8 }, (_, i) => y + (dy * (i + 1)) / 8))
       await page.evaluate(([x, y]) => {
-        const h = document.querySelector('[data-testid="card"] button[data-testid="sheet-handle"]')
+        const h = document.querySelector('[data-testid="card"] button[data-testid="dock-handle"]')
         h?.dispatchEvent(new MouseEvent('click', { clientX: x, clientY: y, bubbles: true, cancelable: true, detail: 1 }))
       }, [x, y + dy])
       await page.waitForTimeout(450)
     }
     return true
   }
-  const readyMouseUp = await restore('peek')
-  const mouseUp = await mouseDrag(-60)
-  const mouseOpened = readyMouseUp && mouseUp && (await sheetState()) === 'open'
-  check('a mouse dragging the handle up leaves the sheet open', mouseOpened, `data-sheet=${await sheetState()}${mouseOpened ? '' : `; ${await sheetDiag()}`}`)
-  const readyMouseDown = await restore('open')
-  const mouseDown = await mouseDrag(60)
-  check('  and dragging it down leaves it at peek', readyMouseDown && mouseDown && (await sheetState()) === 'peek', `data-sheet=${await sheetState()}`)
+  const readyMouseUp = await restore('low')
+  const mouseUp = await mouseDrag(await dragTo('low', 'middle'))
+  const mouseOpened = readyMouseUp && mouseUp && (await sheetState()) === 'middle'
+  check('a mouse dragging the handle up from Low leaves the sheet at Middle', mouseOpened, `data-snap=${await sheetState()}${mouseOpened ? '' : `; ${await sheetDiag()}`}`)
+  const readyMouseDown = await restore('middle')
+  const mouseDown = await mouseDrag(await dragTo('middle', 'low'))
+  check('  and dragging it down leaves it at Low', readyMouseDown && mouseDown && (await sheetState()) === 'low', `data-snap=${await sheetState()}`)
   await closeCard()
 
   // The watch for the click the browser sends after a handle tap must end
   // with the next tap, or the ✕ pressed right after would be lost too.
-  const readyClose = await restore('peek')
+  const readyClose = await restore('low')
   await tapHandle()
   const cb = await card().getByRole('button', { name: 'Close' }).first().boundingBox()
   if (cb) await page.touchscreen.tap(cb.x + cb.width / 2, cb.y + cb.height / 2)
@@ -1401,14 +1457,14 @@ if (!hotspot) {
 }
 
 // ------------------------- 4d. the handle, on a hotspot's card with routes
-// Pulled up, a hotspot's card shows its routes where the finger was, and the
+// Raised, a hotspot's card shows its routes where the finger was, and the
 // click that follows the tap on the handle must not open one (seen
 // 2026-09-29: it did, with the old rows and the RouteCards alike). 4c's
 // hotspot is chosen clear of every route, so it has none to fall on.
 const drawnIds = new Set(fileDirections.filter((d) => (d.shape?.coordinates?.length ?? 0) > 1).map((d) => d.id))
 const withRoutes = snapshot.polys.find((poly) => (published?.links ?? []).some((l) => l.stop_id === poly.id && drawnIds.has(l.route_variant_id)))
 if (!withRoutes) {
-  skip('a tap on the handle of a hotspot card with routes pulls it up, opening none', published ? 'no hotspot has a drawn route linked today' : 'the published file could not be read')
+  skip('a tap on the handle of a hotspot card with routes raises it, opening none', published ? 'no hotspot has a drawn route linked today' : 'the published file could not be read')
 } else {
   const c = centroidOf(withRoutes.ring)
   await jumpTo(page, c, Z_HOT)
@@ -1421,12 +1477,12 @@ if (!withRoutes) {
   if ((await chooser.count()) > 0) {
     await buttonTap(chooser.locator('button[data-testid="chooser-item"]').filter({ hasText: withRoutes.name }), async () => (await chooser.count()) === 0)
   }
-  const atPeek = (await cardText()).includes(withRoutes.name) && (await sheetState()) === 'peek'
+  const atMiddle = (await cardText()).includes(withRoutes.name) && (await sheetState()) === 'middle'
   await tapHandle()
   check(
-    `a tap on the handle of "${withRoutes.name}"'s card, with routes, pulls it up, opening none`,
-    atPeek && (await sheetState()) === 'open' && (await trip().count()) === 0,
-    `opened at peek ${atPeek}; now data-sheet=${await sheetState()}, trip ${await trip().count()}`,
+    `a tap on the handle of "${withRoutes.name}"'s card, with routes, raises it to Max, opening none`,
+    atMiddle && (await sheetState()) === 'max' && (await trip().count()) === 0,
+    `opened at Middle ${atMiddle}; now data-snap=${await sheetState()}, trip ${await trip().count()}`,
   )
   // On a busy page that click comes long after the finger lifts — a second on
   // GitHub's runners once the Philcoa card's routes flowed (2026-09-29), when
@@ -1464,9 +1520,9 @@ if (!withRoutes) {
     return reached
   }
   const lateDown = await lateClickTap()
-  check('  a tap whose click comes a second late takes it to peek, the click reaching nothing', lateDown === '' && (await card().count()) === 1 && (await sheetState()) === 'peek', `${lateDown === null ? 'no handle' : lateDown ? `the click reached ${lateDown}` : 'swallowed'}; data-sheet=${await sheetState()}`)
+  check('  a tap whose click comes a second late takes it round to Low, the click reaching nothing', lateDown === '' && (await card().count()) === 1 && (await sheetState()) === 'low', `${lateDown === null ? 'no handle' : lateDown ? `the click reached ${lateDown}` : 'swallowed'}; data-snap=${await sheetState()}`)
   const lateUp = await lateClickTap()
-  check('  and pulls it up again, the click reaching nothing', lateUp === '' && (await sheetState()) === 'open' && (await trip().count()) === 0, `${lateUp === null ? 'no handle' : lateUp ? `the click reached ${lateUp}` : 'swallowed'}; data-sheet=${await sheetState()}, trip ${await trip().count()}`)
+  check('  and raises it again to Middle, the click reaching nothing', lateUp === '' && (await sheetState()) === 'middle' && (await trip().count()) === 0, `${lateUp === null ? 'no handle' : lateUp ? `the click reached ${lateUp}` : 'swallowed'}; data-snap=${await sheetState()}, trip ${await trip().count()}`)
   await closeCard()
 }
 

@@ -44,13 +44,18 @@ type Props = {
  * answers to `chooser-flip` over the list and `card-switch` over a trip, as
  * the suites have known each since before the redesign.
  *
+ * On a phone it sits flush under the dock's HandleNotch (the owner's
+ * BottomSheetConfiguration, 3815:5637, 2026-09-30); from `@float:` the notch
+ * is gone and 12 stand above it, as before.
+ *
  * The tooltips hang below their buttons: above, they would leave the card
  * at the top of the screen.
  */
 export function RouteCardHeader({ routeCount, onBackToList, onSwitch, switchable, back, onClose }: Props) {
-  // Over a trip, 8 below, where its card follows (3778:3183); 12 over the list.
+  // Over a trip, 8 below, where its card follows (3778:3183); 16 over the
+  // list (3742:1049, the owner's change of 2026-09-30).
   return (
-    <div className={'flex w-full items-center gap-2 bg-surface px-3 pt-3 ' + (routeCount !== undefined ? 'pb-3' : 'pb-2')}>
+    <div className={'flex w-full items-center gap-2 bg-surface px-3 pt-0 @float:pt-3 ' + (routeCount !== undefined ? 'pb-4' : 'pb-2')}>
       {routeCount !== undefined ? (
         <div className="flex min-w-0 flex-1 items-center gap-2 text-content-primary">
           <span aria-hidden className="size-6 shrink-0 *:size-full">

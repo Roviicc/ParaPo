@@ -26,14 +26,17 @@ const REST_LINE = 'ride-rest-line'
  * end's circle, so the dark stretch alone is the ride.
  *
  * The public map picks a hintuan on its trip card since 2026-09-29 (his
- * Timeline State=Selected), with no get-off circles (`dots: false`); the
- * studio keeps them. Each mini stop of the hintuan gets one (drawn like a
- * route's end circle); the ride ends at the last one, and tapping another
- * moves the get-off side without moving the hintuan. The circles are DOM
- * markers, like the walker: their taps stay their own and never fall
- * through to the route or the box below. Tapping the row again, an end row,
- * another route or the card away puts the whole route back. On the public
- * map an end row also glides there (`toEnd`), so a rider can look along the
+ * Timeline State=Selected), and since 2026-09-30 draws no cut there at all
+ * (`cut: false`, the owner's ask of that day): the route stays whole and
+ * the public map pops a circle up where `pinAt` says (HintuanPin.tsx); the
+ * metres that price the pick and the glide are the same. The studio keeps
+ * the cut and its get-off circles, one per mini stop of the hintuan (drawn
+ * like a route's end circle): the ride ends at the last one, and tapping
+ * another moves the get-off side without moving the hintuan. They are DOM
+ * markers, like the walker, whose taps never fall through to the route or
+ * the box below. Tapping the row again, an end row, another route or the
+ * card away lets the pick go. On the public map an end row also glides
+ * there (`toEnd`), so a rider can look along the
  * route from end to end (the owner's ask, 2026-09-29).
  */
 export function useRideTo(
@@ -41,8 +44,11 @@ export function useRideTo(
   selected: VariantSummary | null,
   stops: readonly StopSummary[],
   opts: {
-    /** The studio's get-off circles; the public map has none. Default true. */
-    dots?: boolean
+    /**
+     * The way not ridden drawn at rest, and the get-off circles: the
+     * studio's. The public map has neither since 2026-09-30. Default true.
+     */
+    cut?: boolean
     /**
      * Where the glide puts the hintuan, from the map's centre, in pixels —
      * clear of a card over the map. Read as the glide starts.
@@ -118,10 +124,11 @@ export function useRideTo(
   // under the end circles, so the far end keeps its circle and its name.
   // Butt caps: a round one would lay a light half-disc back over the dark
   // line where the ride ends.
+  const drawn = (opts.cut ?? true) ? cut : null
   useEffect(() => {
     if (!map) return
     if (!map.getSource(SRC)) {
-      if (!cut) return
+      if (!drawn) return
       map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
       const before = [LAYERS.endCircles, LAYERS.stopsHintuanLabel].find((id) => map.getLayer(id))
       map.addLayer(
@@ -148,27 +155,26 @@ export function useRideTo(
     const src = map.getSource(SRC) as GeoJSONSource
     src.setData({
       type: 'FeatureCollection',
-      features: cut
-        ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: cut.rest } }]
+      features: drawn
+        ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: drawn.rest } }]
         : [],
     })
-  }, [map, cut])
+  }, [map, drawn])
 
   // The get-off circles, one a mini stop, remade whenever the cut changes.
-  const dots = opts.dots ?? true
   const markers = useRef<Marker[]>([])
   useEffect(() => {
     if (!map) return
     for (const m of markers.current) m.remove()
     markers.current = []
-    if (!cut || !dots) return
-    for (const d of cut.dots) {
-      const here = d.stopId === cut.endStopId
+    if (!drawn) return
+    for (const d of drawn.dots) {
+      const here = d.stopId === drawn.endStopId
       // Two mini stops can share a stretch of line (Bestlink's boxes overlap
       // along it), stacking their circles: each crowded circle is nudged a
       // few pixels toward its own box, so both sides can be seen and tapped.
       let offset: [number, number] = [0, 0]
-      const crowding = cut.dots.find((o) => o !== d && haversine(o.at, d.at) < 30)
+      const crowding = drawn.dots.find((o) => o !== d && haversine(o.at, d.at) < 30)
       if (crowding) {
         // Two mini stops can share the very same stretch of line (Bestlink's
         // boxes do), stacking their circles. Each is slid toward its own box
@@ -202,7 +208,7 @@ export function useRideTo(
       for (const m of markers.current) m.remove()
       markers.current = []
     }
-  }, [map, cut, stops, dots])
+  }, [map, drawn, stops])
 
   // Glide to where the rider would get off, at the height the map is at:
   // the owner tried the stretch fitted whole and it zoomed far out
@@ -218,6 +224,12 @@ export function useRideTo(
     rideTo: cut && live ? { stopId: live.rowId, metres: cut.metres } : null,
     /** The row picked, cut or not: a row whose box the line misses is still shown picked, with nothing to price. */
     pickedId: live?.rowId ?? null,
+    /**
+     * Where the picked hintuan is: where the ride would end on the line, as
+     * the glide goes; for a row whose box the line misses, the hintuan's own
+     * point. Null with nothing picked.
+     */
+    pinAt: live ? (cut?.at ?? stops.find((s) => s.id === live.rowId)?.point.coordinates ?? null) : null,
     pick,
     /** The end picked from its row (`toEnd`), or null. */
     endPicked,

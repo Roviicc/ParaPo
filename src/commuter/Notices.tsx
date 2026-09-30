@@ -1,3 +1,4 @@
+import { Button } from '../design-system/primitives/Button'
 import { MAP_FILE_TOO_NEW } from './mapFile'
 import { shortDate } from './status'
 
@@ -25,7 +26,7 @@ export function Notices({
   offline: boolean
   age: { publishedAt: string | null; stale: boolean }
   needRefresh: boolean
-  /** The new version's Reload. */
+  /** The new version's "Update Para Po!". */
   onUpdate: () => void
 }) {
   return (
@@ -86,17 +87,15 @@ export function Notices({
         </div>
       )}
 
-      {/* A new version never applies itself: a reload mid-ride would drop the selected route. */}
+      {/*
+        A new version never applies itself: a reload mid-ride would drop the
+        selected route. The owner's Primary button, 24 below the top, centred
+        (3732:2512, 2026-09-30), in place of the old black pill.
+      */}
       {needRefresh && (
-        <button
-          type="button"
-          data-testid="update"
-          onClick={onUpdate}
-          className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-1/2 z-20 -translate-x-1/2
-                     rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-content-inverse shadow-lg"
-        >
-          New version · Reload
-        </button>
+        <div className="pointer-events-none absolute top-[calc(1.5rem+env(safe-area-inset-top))] left-1/2 z-20 -translate-x-1/2 *:pointer-events-auto">
+          <Button variant="primary" label="Update Para Po!" data-testid="update" onClick={onUpdate} />
+        </div>
       )}
     </>
   )

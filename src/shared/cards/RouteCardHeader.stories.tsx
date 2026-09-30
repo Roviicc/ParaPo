@@ -12,9 +12,15 @@ import { RouteCardHeader } from './RouteCardHeader'
 const meta: Meta = {
   title: 'Shared/RouteCardHeader',
   decorators: [
-    (Story) => (
-      <div className="w-96 bg-neutral-200 p-4">
-        <Story />
+    // Marked @container, as the apps' roots are, and wide enough inside its padding for
+    // `@float:` (64rem): there the header has 12 above it, as over the corner
+    // card; on a phone (the Phone story) it sits flush under the dock's
+    // HandleNotch (3815:5637, 2026-09-30).
+    (Story, ctx) => (
+      <div className={'bg-neutral-200 p-4 @container ' + (ctx.parameters.phone ? 'w-[393px]' : 'w-[1088px]')}>
+        <div className="w-96 max-w-full">
+          <Story />
+        </div>
       </div>
     ),
   ],
@@ -47,3 +53,9 @@ export const OverATrip: Story = { render: () => <RouteCardHeader {...common} onB
 
 /** A trip opened on its own, no route sharing an end drawn its way round: no ‹. */
 export const OverATripAlone: Story = { render: () => <RouteCardHeader {...common} onBackToList={null} /> }
+
+/** On a phone: flush under the dock's HandleNotch, nothing above it. */
+export const Phone: Story = {
+  parameters: { phone: true },
+  render: () => <RouteCardHeader {...common} onBackToList={fn()} />,
+}

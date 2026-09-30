@@ -1,7 +1,7 @@
 import type { Livery } from '../model/liveries'
 import { RouteCardHeader } from './RouteCardHeader'
 import { RouteCardStack, type PickedPlace } from './RouteCardStack'
-import { RouteDock } from './RouteDock'
+import { BottomSheet, type SheetHeight } from './BottomSheet'
 import { drawnDepartures } from '../model/departures'
 import type { VariantSummary } from '../model/routes'
 import { hotspotCount } from '../model/places'
@@ -27,6 +27,8 @@ type Props = {
   onClose: () => void
   /** Kept but not shown, while a trip picked from it is on top: ‹ comes back to it as it was left, every card at rest. */
   hidden?: boolean
+  /** Its height, shared with the trip opened from it (BottomSheet). */
+  height?: SheetHeight
 }
 
 /**
@@ -55,9 +57,9 @@ type Props = {
  * (hotspotCount): both boxes of one hintuan, either side of the road, are
  * "1 Hotspot" over two rows. All three his picks, the same day.
  *
- * It sits where RouteDock puts it, as the trip card does.
+ * It sits where BottomSheet puts it, as the trip card does.
  */
-export function RouteCardList({ routes, stops = [], back, onFlip, selected, onSelect, onRoute, onStop, onClose, hidden }: Props) {
+export function RouteCardList({ routes, stops = [], back, onFlip, selected, onSelect, onRoute, onStop, onClose, hidden, height }: Props) {
   const places = drawnDepartures(routes, back)
   const switchable = drawnDepartures(routes, !back).length > 0
   const hotspots = hotspotCount(stops)
@@ -67,11 +69,12 @@ export function RouteCardList({ routes, stops = [], back, onFlip, selected, onSe
       : `${places.length} ${places.length === 1 ? 'Route' : 'Routes'}`
 
   return (
-    <RouteDock
+    <BottomSheet
       label={count}
       testId="chooser"
       onClose={onClose}
       hidden={hidden}
+      height={height}
       header={
         <RouteCardHeader routeCount={count} onSwitch={onFlip} switchable={switchable} back={back} onClose={onClose} />
       }
@@ -98,6 +101,6 @@ export function RouteCardList({ routes, stops = [], back, onFlip, selected, onSe
         </ul>
       )}
       <RouteCardStack routes={routes} back={back} selected={selected} onSelect={onSelect} onRoute={onRoute} testId="chooser" />
-    </RouteDock>
+    </BottomSheet>
   )
 }

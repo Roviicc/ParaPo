@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react'
 import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 import { RouteTripDetail } from './RouteTripDetail'
 
 /** Sample data only: the places of the owner's frames (3762:3546), not the real map. */
@@ -73,7 +73,7 @@ const meta = {
   // story itself does not scroll.
   decorators: [
     (Story, ctx) => (
-      <div className={'relative h-dvh overflow-hidden bg-neutral-200 @container ' + frameOf(ctx.parameters)}>
+      <div className={'relative h-dvh overflow-clip bg-neutral-200 @container ' + frameOf(ctx.parameters)}>
         <Story />
       </div>
     ),
@@ -313,3 +313,50 @@ export const FloatingPicked: Story = { args: { picked: 'h3' }, parameters: { fra
 
 /** A name too long for one line, picked: it wraps beside the pill, which keeps its line. Sample pesos. */
 export const LongNamesPicked: Story = { args: { ...LongNames.args, picked: 'h1', pickedFare: '₱16–18' }, play: openFold }
+
+/**
+ * The owner's BottomSheetConfiguration (3815:5637, 2026-09-30), on a phone:
+ * the stories above open at Middle; a tap on the HandleNotch goes round.
+ */
+const tapHandle = async (canvasElement: HTMLElement, times: number) => {
+  const handle = within(canvasElement).getByTestId('dock-handle')
+  for (let i = 0; i < times; i++) await userEvent.click(handle)
+  handle.blur()
+}
+
+/** Max: the whole map, the header at the top, the rest scrolling under it (3815:4306). */
+export const SheetMax: Story = {
+  args: { hintuans: aLongWay },
+  play: async (ctx) => {
+    await openFold(ctx)
+    await tapHandle(ctx.canvasElement, 1)
+    await expect(within(ctx.canvasElement).getByTestId('card')).toHaveAttribute('data-snap', 'max')
+  },
+}
+
+/** Low: the header and the origin along the bottom, the map above it (3814:3976). */
+export const SheetLow: Story = {
+  play: async (ctx) => {
+    await tapHandle(ctx.canvasElement, 2)
+    await expect(within(ctx.canvasElement).getByTestId('card')).toHaveAttribute('data-snap', 'low')
+  },
+}
+
+/** Low with a long origin: one line of it, cut short (3814:3976). */
+export const SheetLowLongName: Story = {
+  args: LongNames.args,
+  play: async (ctx) => {
+    await tapHandle(ctx.canvasElement, 2)
+    const origin = within(ctx.canvasElement).getByText(LongNames.args!.routeOrigin!)
+    await waitFor(() => expect(origin.getBoundingClientRect().height).toBe(32))
+  },
+}
+
+/** Middle with a long origin: all of it, on as many lines as it takes. */
+export const SheetMiddleLongName: Story = {
+  args: LongNames.args,
+  play: async (ctx) => {
+    const origin = within(ctx.canvasElement).getByText(LongNames.args!.routeOrigin!)
+    await expect(origin.getBoundingClientRect().height).toBeGreaterThan(32)
+  },
+}

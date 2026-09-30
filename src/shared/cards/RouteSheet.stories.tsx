@@ -45,7 +45,7 @@ const meta = {
       <div
         className={
           ctx.parameters.phone
-            ? 'relative h-[700px] w-[390px] overflow-hidden bg-neutral-200 @container'
+            ? 'relative h-[700px] w-[390px] overflow-clip bg-neutral-200 @container'
             : 'relative h-[28rem] bg-neutral-200 @container'
         }
       >
@@ -111,8 +111,9 @@ export const WithActions: Story = {
 }
 
 /**
- * A handset-sized box, so the card becomes a bottom sheet. The peek shows the
- * signboard and the direction; the handle pulls the rest up.
+ * A handset-sized box, so the card becomes the bottom sheet every card is
+ * (BottomSheet): it opens at Middle, the direction and the signboard in its
+ * header; the handle goes round Low → Middle → Max.
  */
 export const Phone: Story = {
   parameters: { phone: true },

@@ -1,7 +1,7 @@
 import type { Ref } from 'react'
 import { kmLabel } from '../geo/geo'
 import { RouteCardHeader } from './RouteCardHeader'
-import { RouteDock } from './RouteDock'
+import { BottomSheet, type SheetHeight } from './BottomSheet'
 import { TripTimeline, type TripTimelineProps } from './TripTimeline'
 
 type Props = TripTimelineProps & {
@@ -20,6 +20,8 @@ type Props = TripTimelineProps & {
   onClose: () => void
   /** The dock the card sits in, for the map to glide clear of it. */
   dockRef?: Ref<HTMLDivElement>
+  /** Its height, shared with the list or card it was opened from (BottomSheet). */
+  height?: SheetHeight
 }
 
 /**
@@ -53,10 +55,12 @@ export function RouteTripDetail({
   onBackToList,
   onClose,
   dockRef,
+  height,
 }: Props) {
   return (
-    <RouteDock
+    <BottomSheet
       ref={dockRef}
+      height={height}
       label={`${routeOrigin} → ${routeDirection}`}
       testId="card"
       onClose={onClose}
@@ -70,7 +74,8 @@ export function RouteTripDetail({
         />
       }
     >
-      <div className="w-full px-3 pt-3">
+      {/* On a phone the card sits right under the header (the owner's 3817:6007, 2026-09-30); floating, 12 below it. */}
+      <div className="w-full px-3 @float:pt-3">
         <TripTimeline
           livery={livery}
           routeOrigin={routeOrigin}
@@ -87,7 +92,7 @@ export function RouteTripDetail({
         <Tile testId="trip-km" label="Kilometer" value={kmLabel(metres)} />
         {fare && <Tile testId="trip-fare" label="Expected fare" value={fare} />}
       </dl>
-    </RouteDock>
+    </BottomSheet>
   )
 }
 

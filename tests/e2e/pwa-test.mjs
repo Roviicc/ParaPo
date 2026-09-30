@@ -11,7 +11,7 @@
 //   - offline: a reload of / still shows the routes and hotspots, the map
 //     draws, and the notice says "Offline · map as of <date>"
 //   - back online the notice goes; a changed worker (a deploy) is offered as
-//     "New version · Reload" and waits until tapped
+//     "Update Para Po!" and waits until tapped
 //   - housekeeping: no page errors, no request to the database
 //
 // Each check prints PASS/FAIL and the script exits non-zero on any failure.
@@ -231,7 +231,7 @@ try {
   await page.goto(`${base}/`, { waitUntil: 'load' })
   await page.waitForTimeout(2000)
   check('back online: the notice is gone', (await page.locator('[data-testid="offline"]').count()) === 0)
-  check('no "New version" button on an unchanged build', (await page.locator('[data-testid="update"]').count()) === 0)
+  check('no "Update Para Po!" button on an unchanged build', (await page.locator('[data-testid="update"]').count()) === 0)
 
   // Online but slow: the network does not answer within the worker's 3 s, the
   // stored copy is used, and the page must say so even though the phone
@@ -288,7 +288,7 @@ try {
   // ------------------------------------------------------------ an update
   // A deploy changes sw.js. Stand in for one by changing a byte of the built
   // worker, then ask the browser to look: the new worker must wait, the page
-  // must offer "New version · Reload", and the tap must bring the new one in.
+  // must offer "Update Para Po!", and the tap must bring the new one in.
   // The file is put back afterwards.
   const swFile = join(root, 'dist', 'sw.js')
   const swBefore = readFileSync(swFile, 'utf8')
@@ -296,7 +296,7 @@ try {
     writeFileSync(swFile, swBefore + '\n// updated build\n')
     await page.evaluate(async () => (await navigator.serviceWorker.getRegistration())?.update())
     const offered = await page.locator('[data-testid="update"]').waitFor({ timeout: 15000 }).then(() => true, () => false)
-    check('a changed worker is offered as "New version · Reload", not applied', offered)
+    check('a changed worker is offered as "Update Para Po!", not applied', offered)
     const stillOld = await page.evaluate(async () => {
       const reg = await navigator.serviceWorker.getRegistration()
       return !!reg?.waiting && !!navigator.serviceWorker.controller

@@ -58,8 +58,10 @@ export type TripTimelineProps = {
  * A hintuan's row picks it (his Timeline State=Selected, 3769:2847,
  * 2026-09-29): its dot turns green in a white ring, its name black-weight,
  * and a pill beside it gives the pesos from where the trip leaves to there,
- * while the map draws the ride dark only that far. Tapping it again lets it
- * go; one at a time. The tiles keep the whole ride. Folded away, a picked
+ * while a circle like its dot pops up on the map where it is, the route
+ * left whole (his ask of 2026-09-30, "now I don't want to cut the route";
+ * until then the map drew the ride dark only that far). Tapping it again
+ * lets it go; one at a time. The tiles keep the whole ride. Folded away, a picked
  * row stays picked (the default he kept). The origin's and the
  * destination's rows are buttons too: a tap on either lets a hintuan go,
  * the ride whole again, and the map glides to that end, so a rider can look
@@ -137,9 +139,10 @@ export function TripTimeline({
  * Figma's TimelineDot: Content/inverse ringed in the rail's colour. It sits
  * 2px into the rail after it, as the TimelineStick's -2px gap lays them.
  * Selected, the white grows and the ring thins to 2px round it, with a
- * Content/success centre: 24 across either way, so nothing moves.
+ * Content/success centre: 24 across either way, so nothing moves. The
+ * public map's picked hintuan wears the Selected one too (HintuanPin).
  */
-function TimelineDot({ rail, selected = false }: { rail: string; selected?: boolean }) {
+export function TimelineDot({ rail, selected = false }: { rail: string; selected?: boolean }) {
   return selected ? (
     <span className={'-mb-0.5 flex shrink-0 rounded-full p-0.5 ' + rail}>
       <span className="grid size-5 place-items-center rounded-full bg-content-inverse">
@@ -180,7 +183,10 @@ function TimelineTop({
           <span className={'min-h-px w-2 flex-1 ' + rail} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col justify-center pb-2.5 pl-3">
-          <span className="text-2xl/8 font-black">{routeOrigin}</span>
+          {/* At a sheet's Low, one line of it (sheetGesture's LOW_PX); from Middle up, all of it. */}
+          <span className="text-2xl/8 font-black sheet-low:line-clamp-1">
+            {routeOrigin}
+          </span>
         </span>
       </button>
     </li>

@@ -63,13 +63,14 @@ export function RouteCard({ livery, state, routeOrigin, endPoints, onSelect, onP
       <img src={CARD_BLOB[livery].src} alt="" aria-hidden className={BLOB_PLACE + ' ' + CARD_BLOB[livery].className} />
       <div className="flex w-full flex-col items-start px-4 pt-2">
         {/* The name is the card's own target, stretched over all of it; the
-            rows are drawn over that, so they keep their own taps. */}
+            rows are drawn over that, so they keep their own taps. At a
+            sheet's Low, one line of it (sheetGesture's LOW_PX). */}
         <button
           type="button"
           data-testid={`${testId}-select`}
           aria-pressed={selected}
           onClick={onSelect}
-          className="w-full text-left text-2xl/8 font-black after:absolute after:inset-0"
+          className="w-full text-left text-2xl/8 font-black after:absolute after:inset-0 sheet-low:line-clamp-1"
         >
           {routeOrigin}
         </button>

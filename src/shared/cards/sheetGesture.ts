@@ -1,0 +1,140 @@
+/**
+ * How BottomSheet's handle and drags decide, on a phone: every card's,
+ * since the owner's ask of 2026-09-30 ("make it a universal rule as
+ * component").
+ */
+
+/** How far a drag must travel before it counts as a pull rather than a tap. */
+export const DRAG_PX = 24
+
+/**
+ * Drops the `click` the browser sends after a tap on the handle. By the time
+ * it is dispatched the sheet has already re-rendered, so the click is aimed at
+ * whatever now lies under the finger: pulled down, the map, which would read
+ * it as a tap on nothing and close the card; pulled up, whatever the sheet
+ * now shows there — a hotspot's route, which it would open (seen 2026-09-29,
+ * with the old rows and the RouteCards alike). Caught at the capture phase on
+ * the document, before MapLibre or React sees it, and only where the finger
+ * lifted: a tap on the sheet's ✕ right after lands elsewhere, and is one the
+ * visitor meant. Forgotten when the next gesture starts, if none came — not
+ * after a set time: on a busy page the click came a second after the finger
+ * lifted, long after the 300 ms this once waited, and landed on the RouteCard
+ * the sheet had pulled up under it (a phone-sized page slowed 20×, and the
+ * Philcoa card on GitHub's runners once its routes flowed, 2026-09-29).
+ * Armed after a drag too: a finger's sends no click, and the next touch ends
+ * the watch; a mouse's clicks the handle it was held on, which toggled the
+ * sheet straight back (the reviewer's note, fixed on the owner's word,
+ * 2026-09-29).
+ */
+export function swallowTheTapsClick(x: number, y: number) {
+  const stop = (e: MouseEvent) => {
+    // No pointer's: Enter or Space, or a script. Left for the watch's own click.
+    if (e.detail === 0) return
+    cleanup()
+    // As far as a finger may travel and still tap.
+    if (Math.hypot(e.clientX - x, e.clientY - y) > DRAG_PX) return
+    e.stopPropagation()
+    e.preventDefault()
+  }
+  const cleanup = () => {
+    document.removeEventListener('click', stop, true)
+    document.removeEventListener('pointerdown', cleanup, true)
+  }
+  document.addEventListener('click', stop, true)
+  document.addEventListener('pointerdown', cleanup, true)
+}
+
+/**
+ * The three heights of the owner's BottomSheetConfiguration (Figma 3815:5637,
+ * 2026-09-30), on a phone: Low, the header and a trip's origin along the bottom (3814:3976);
+ * Middle, about half the screen, where a trip opens (3813:3755, 3815:4040);
+ * Max, the whole screen, the header at the top and the rest scrolling under
+ * it (3815:4306).
+ */
+export type Snap = 'low' | 'middle' | 'max'
+
+/**
+ * Where a tap on the handle, or Enter on it, takes the sheet: round, Low →
+ * Middle → Max → Low (the owner's defaults, 2026-09-30). Pulls go by snapFor.
+ */
+export function snapAfterTap(snap: Snap): Snap {
+  return snap === 'low' ? 'middle' : snap === 'middle' ? 'max' : 'low'
+}
+
+/** A flick faster than this, in pixels a millisecond, goes one height on in its direction. */
+const FLICK = 0.5
+
+/** Middle shows this much of the map, as the owner's frames do (448 and 462 of 844). */
+const MIDDLE = 0.55
+
+/**
+ * What Low shows, the same for every card (the owner's 3817:6007,
+ * 2026-09-30: "same height, same interaction, same motion"; 137 since his
+ * change to it that day): the notch, the header and the top of the first
+ * card, down past its title — cut to one line there (`sheet-low:`).
+ */
+export const LOW_PX = 137
+
+/** What each height shows of a sheet `h` tall, the map's height. */
+export function heightsFor(h: number): Record<Snap, number> {
+  return { low: LOW_PX, middle: Math.round(h * MIDDLE), max: h }
+}
+
+/** How far down a sheet at `snap` slides, as a CSS length: `100%` is its own height, the map's. */
+export function slide(snap: Snap): string {
+  if (snap === 'max') return '0px'
+  // Below Max its bottom padding is off the screen: what shows stands clear
+  // of a phone's home indicator by lifting it that much.
+  if (snap === 'middle') return `calc(${(1 - MIDDLE) * 100}% - env(safe-area-inset-bottom))`
+  return `calc(100% - ${LOW_PX}px - env(safe-area-inset-bottom))`
+}
+
+/** How far down a sheet slides while `shown` px of it follow a finger. Never above the map's top. */
+export function slideShowing(shown: number): string {
+  return `max(0px, calc(100% - ${shown}px - env(safe-area-inset-bottom)))`
+}
+
+/**
+ * A finger, or a mouse, holding a sheet `max` tall that showed `from` when
+ * it took hold at `startY`: how much shows as it moves, and where it lands
+ * let go (snapFor). Its speed is smoothed over the last few moves, so one
+ * jittery sample does not decide a flick; held still 80 ms before lifting,
+ * it is a placement, not a flick. The touch pull at Max and the pointer
+ * drag share it.
+ */
+export function follow(startY: number, t: number, from: number, max: number) {
+  let y = startY
+  let last = t
+  let v = 0
+  const shown = (at: number) => Math.max(0, Math.min(max, from + startY - at))
+  return {
+    move(at: number, now: number): number {
+      const dt = now - last
+      if (dt > 0) v = 0.7 * ((y - at) / dt) + 0.3 * v
+      y = at
+      last = now
+      return shown(at)
+    },
+    /** Where it lands let go at `at` (the last move's, when the release has no position). */
+    release(now: number, at = y): Snap | 'close' {
+      return snapFor(shown(at), now - last > 80 ? 0 : v, heightsFor(max))
+    },
+  }
+}
+
+/**
+ * Where a drag lets go (the owner's ask of 2026-09-30: the sheet follows the
+ * finger, fluid, and a swipe up at Middle takes it to Max). `shown` is how
+ * much of the sheet is on screen as the finger lifts, `heights` what each
+ * snap shows, `velocity` the finger's speed upwards in px/ms (negative:
+ * downwards). A flick goes to the next height past where the sheet is, in
+ * its direction — down past Low, it closes. A slow release settles on the
+ * nearest height, or closes when less than half of Low still shows.
+ */
+export function snapFor(shown: number, velocity: number, heights: Record<Snap, number>): Snap | 'close' {
+  const order: Snap[] = ['low', 'middle', 'max']
+  if (velocity >= FLICK) return order.find((s) => heights[s] > shown + 1) ?? 'max'
+  if (velocity <= -FLICK) return [...order].reverse().find((s) => heights[s] < shown - 1) ?? 'close'
+  if (shown < heights.low / 2) return 'close'
+  return order.reduce((a, b) => (Math.abs(heights[b] - shown) < Math.abs(heights[a] - shown) ? b : a))
+}

@@ -82,7 +82,7 @@ const meta = {
       <div
         className={
           ctx.parameters.phone
-            ? 'relative h-[700px] w-[390px] overflow-hidden bg-neutral-200 @container'
+            ? 'relative h-[700px] w-[390px] overflow-clip bg-neutral-200 @container'
             : 'relative h-[28rem] bg-neutral-200 @container'
         }
       >
@@ -214,19 +214,21 @@ export const RouteCardsTheWayBack: Story = {
 }
 
 /**
- * On a phone, pulled up: the cards scroll in the sheet under the hotspot's
- * name. Pulled up by the keyboard, whose Enter sends a click alone — the
- * handle's plain toggle — so the story does not hang on how a synthetic
- * pointer tap's events line up with the click the sheet swallows after one.
+ * On a phone, at Max: the cards scroll in the sheet under the hotspot's
+ * name. It opens at Middle, as every sheet does (BottomSheet); the handle's
+ * Enter raises it, a click alone, so the story does not hang on how a
+ * synthetic pointer tap's events line up with the click the sheet swallows
+ * after one.
  */
 export const RouteCardsPhone: Story = {
   args: RouteCards.args,
   parameters: { phone: true },
   play: async ({ canvasElement }) => {
-    const handle = within(canvasElement).getByTestId('sheet-handle')
+    const handle = within(canvasElement).getByTestId('dock-handle')
     handle.focus()
     await userEvent.keyboard('{Enter}')
     handle.blur()
+    await expect(within(canvasElement).getByTestId('card')).toHaveAttribute('data-snap', 'max')
   },
 }
 

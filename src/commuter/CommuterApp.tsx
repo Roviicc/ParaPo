@@ -6,7 +6,8 @@ import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
 import { METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
 import type { Livery } from '../shared/model/liveries'
 import { RouteCardList } from '../shared/cards/RouteCardList'
-import { clearOfDock } from '../shared/cards/RouteDock'
+import { clearOfDock } from '../shared/cards/BottomSheet'
+import type { Snap } from '../shared/cards/sheetGesture'
 import { useRideTo } from '../shared/map/rideTo'
 import { directionEnds, isDrawn } from '../shared/model/routes'
 import { routeTimeline, travelLine } from '../shared/model/ride'
@@ -18,6 +19,7 @@ import { useLitLineColour } from '../shared/map/savedRoutesLayers'
 import { useSavedRoutes } from '../shared/map/useSavedRoutes'
 import { LIT_LINE, LIVERY_LINE } from '../shared/map/liveryLine'
 import { useSavedStops } from '../shared/map/useSavedStops'
+import { HintuanPin } from './HintuanPin'
 import { Notices } from './Notices'
 import { TripCard, useTripLivery } from './TripCard'
 import { useMapAge, useOffline } from './status'
@@ -62,12 +64,13 @@ export default function CommuterApp() {
   useDirectionArrows(map, rides)
   // The chosen direction's side of each hintuan it cuts across: its right.
   useBabaanSides(map, saved.selected, stops.stops)
-  // A hintuan picked on the trip card: the ride drawn dark only that far,
-  // the camera gliding there clear of the card, and no get-off circles (the
-  // owner's Timeline State=Selected, 2026-09-29).
+  // A hintuan picked on the trip card (the owner's Timeline State=Selected,
+  // 2026-09-29): the camera gliding there clear of the card, and a circle
+  // popping up on it — the route left whole, no get-off circles (the
+  // owner's ask of 2026-09-30: "now I don't want to cut the route").
   const tripDock = useRef<HTMLDivElement>(null)
   const ride = useRideTo(map, saved.selected, stops.stops, {
-    dots: false,
+    cut: false,
     offset: () => (map ? clearOfDock(map.getContainer(), tripDock.current) : [0, 0]),
   })
 
@@ -124,6 +127,17 @@ export default function CommuterApp() {
   // that way round, there is nothing to go back to.
   const trip = saved.selected
   const fan = trip ? sharingAnEnd(saved.variants, trip) : []
+
+  // One height for the sheets that stand in for one another — the route
+  // list, a hotspot's card and the trip opened from either: a pick and ‹
+  // keep Low, Middle or Max as they were (the owner's ask of 2026-09-30:
+  // "if RouteDetail was in medium, if they go back, the RouteCard is in
+  // medium too"). With nothing open it goes back to Middle, where every
+  // sheet opens.
+  const [snap, setSnap] = useState<Snap>('middle')
+  const anyOpen = !!saved.selected || !!stops.selected || choosing
+  if (!anyOpen && snap !== 'middle') setSnap('middle')
+  const height = { snap, onSnap: setSnap }
   const backToList = stops.selected
     ? () => saved.select(null, { keepList: true })
     : choosing
@@ -139,7 +153,7 @@ export default function CommuterApp() {
     // `data-directions`: how many the map file brought, for the suites on a
     // production build, where the map itself is out of their reach — the
     // count pill that told them went on 2026-09-29.
-    <div data-directions={saved.variants.length} className="@container relative h-full w-full overflow-hidden">
+    <div data-directions={saved.variants.length} className="@container relative h-full w-full overflow-clip">
       {/*
         No count of routes and hotspots in a corner, and no +, − or compass:
         the owner's notes on his screenshot, "annoying for users"
@@ -148,6 +162,10 @@ export default function CommuterApp() {
       <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} />
       {map && <WhereAmIButton where={where} coarse={coarse} />}
       {map && where.fix && <Walker map={map} fix={where.fix} pose={where.pose} facing={where.facing} />}
+      {/* Keyed on the pick: another hintuan pops a fresh circle. */}
+      {map && ride.pinAt && tripLivery && (
+        <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} livery={tripLivery} />
+      )}
 
       {/*
         A load problem is a banner, never a blank page. On a phone it sits at
@@ -190,6 +208,7 @@ export default function CommuterApp() {
           onEnd={ride.toEnd}
           endPicked={ride.endPicked}
           dockRef={tripDock}
+          height={height}
         />
       )}
 
@@ -211,6 +230,7 @@ export default function CommuterApp() {
             onShown: saved.showCard,
           }}
           hidden={!!saved.selected}
+          height={height}
           stop={stops.selected}
           linkedVariantIds={stops.linkedVariantIds(stops.selected.id)}
           variants={saved.variants}
@@ -240,6 +260,7 @@ export default function CommuterApp() {
         <RouteCardList
           key={choice.map((c) => c.id).join()}
           hidden={!!saved.selected}
+          height={height}
           routes={saved.candidates}
           stops={stops.candidates}
           back={saved.back}
