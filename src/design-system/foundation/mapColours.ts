@@ -32,7 +32,7 @@ export const CARD_COLOURS = {
  * for every colour the map's painters paint, so
  * tests/unit/map-colours-test.mjs can fail on a colour written in any other
  * of their .ts files (stage 9 of the clean-up, 2026-09-29). The map's two
- * stylesheets (rideTo.css, walker.css) are not read by it; their few raw
+ * stylesheets (hintuanPin.css, walker.css) are not read by it; their few raw
  * colours wait on the owner's list. Each is the owner's to name
  * in Figma; until then the key says what it paints, and moving one to a
  * Map/… token is changing only this file.

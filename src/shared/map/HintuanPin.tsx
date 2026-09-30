@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
-import { TIMELINE_SURFACE } from '../shared/cards/liveryCard'
-import { TimelineDot } from '../shared/cards/TripTimeline'
-import type { LngLat } from '../shared/geo/geo'
-import type { Livery } from '../shared/model/liveries'
+import { TIMELINE_SURFACE } from '../cards/liveryCard'
+import { TimelineDot } from '../cards/TripTimeline'
+import type { LngLat } from '../geo/geo'
+import type { Livery } from '../model/liveries'
 import './hintuanPin.css'
 
 type Props = {

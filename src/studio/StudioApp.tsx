@@ -1,23 +1,31 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { MapLibreMap } from 'maplibre-gl'
 import { HotspotCard } from '../shared/cards/HotspotCard'
 import { MapView } from '../shared/map/MapView'
 import { RouteCardList } from '../shared/cards/RouteCardList'
-import { RouteSheet } from '../shared/cards/RouteSheet'
+import { TripCard, useTripLivery } from '../shared/cards/TripCard'
+import { clearOfDock } from '../shared/cards/BottomSheet'
+import type { Snap } from '../shared/cards/sheetGesture'
+import { HintuanPin } from '../shared/map/HintuanPin'
 import { useRideTo } from '../shared/map/rideTo'
+import type { Livery } from '../shared/model/liveries'
 import { lineOf, listVariants, loadStopsFromSupabase } from './data/live'
 import { directionEnds, isDrawn, type VariantRow } from '../shared/model/routes'
-import { otherDirection } from '../shared/model/departures'
+import { sharingAnEnd } from '../shared/model/departures'
 import { routeTimeline, travelLine } from '../shared/model/ride'
 import { hotspotCount } from '../shared/model/places'
 import { stopLabel, stopRing, type StopRow } from '../shared/model/stops'
 import { getSupabase, supabaseConfigError } from './data/supabase'
-import { useDirectionArrows } from '../shared/map/directionArrows'
+import { useDirectionArrows, useRideColours } from '../shared/map/directionArrows'
+import { useBabaanSides } from '../shared/geo/babaanSides'
+import { useLitLineColour } from '../shared/map/savedRoutesLayers'
+import { LIT_LINE, LIVERY_LINE } from '../shared/map/liveryLine'
 import { usePassStretches } from '../shared/geo/passStretches'
 import { useSavedRoutes } from '../shared/map/useSavedRoutes'
 import { useSavedStops } from '../shared/map/useSavedStops'
 import { CardActions } from './panels/CardActions'
+import { RouteFacts } from './panels/RouteFacts'
 import { AuthDialogs } from './auth/AuthDialogs'
 import { AccountPill } from './panels/AccountPill'
 import { NewButtons } from './panels/NewButtons'
@@ -111,8 +119,17 @@ function Workshop({
   const stops = useSavedStops(map, loadStopsFromSupabase, {
     drawing: draw.drawing,
     hiddenStopId: draw.area?.stopId ?? null,
+    // While a trip is open, the map lights only the trip, as on the public map.
+    muted: !!saved.selected,
   })
-  const ride = useRideTo(map, saved.selected, stops.stops)
+  // A hintuan picked on the trip card: the camera gliding there clear of the
+  // card and a circle popping up on it, the route left whole — the public
+  // map's (the owner, 2026-09-30: "most of the interaction of public map
+  // should be in studio").
+  const tripDock = useRef<HTMLDivElement>(null)
+  const ride = useRideTo(map, saved.selected, stops.stops, {
+    offset: () => (map ? clearOfDock(map.getContainer(), tripDock.current) : [0, 0]),
+  })
 
   // Where a lit direction passes a hintuan, the line turns orange for that
   // stretch: worked out on the full lines read, which every lit one's is.
@@ -128,6 +145,8 @@ function Workshop({
     [saved.litVariants, stops.stops],
   )
   useDirectionArrows(map, rides)
+  // The chosen direction's side of each hintuan it cuts across: its right.
+  useBabaanSides(map, saved.selected, stops.stops)
 
   // The pill counts routes, not directions: a route is two rows, one of them
   // perhaps an empty slot, and five routes once read "10 routes" (finding 7).
@@ -215,9 +234,41 @@ function Workshop({
     }
   }
 
-  // One click, several saved things: the route list shows them all.
+  // One click, several saved things: the route list shows them all. It
+  // stays behind a trip picked from it, hidden, for the trip's ‹ — and so
+  // does a hotspot's card — as on the public map.
   const choice = [...saved.candidates, ...stops.candidates]
   const choosing = choice.length > 1
+  const closeAll = () => {
+    saved.select(null)
+    stops.select(null)
+  }
+  // The trip's colour, and what is lit wearing it: the public map's
+  // (CommuterApp.tsx says how, and why a card never changes colour).
+  const [worn, setWorn] = useState<{ id: string; livery: Livery } | null>(null)
+  const tripLivery = useTripLivery(saved.selected, worn, choosing || !!stops.selected)
+  const look = tripLivery ? LIVERY_LINE[tripLivery] : saved.highlight ? LIVERY_LINE[saved.highlight.livery] : LIT_LINE
+  useLitLineColour(map, look.line)
+  useRideColours(map, look)
+  // The trip's ‹: back to what it was picked from, or to its route with those
+  // sharing an end; the public map's.
+  const trip = saved.selected
+  const fan = trip ? sharingAnEnd(saved.variants, trip) : []
+  const backToList =
+    stops.selected || choosing
+      ? () => saved.select(null, { keepList: true })
+      : trip && fan.filter((v) => v.reversed === trip.reversed && isDrawn(v)).length > 1
+        ? () => {
+            stops.select(null)
+            saved.openList(fan, trip.reversed)
+          }
+        : null
+  // One height for the sheets that stand in for one another, back to Middle
+  // with nothing open; the public map's.
+  const [snap, setSnap] = useState<Snap>('middle')
+  const anyOpen = !!saved.selected || !!stops.selected || choosing
+  if (!anyOpen && snap !== 'middle') setSnap('middle')
+  const height = { snap, onSnap: setSnap }
 
   // "Draw the return trip" only while the route still has a way undrawn: after
   // an edit of a route drawn both ways it once started a drawing whose save
@@ -252,87 +303,95 @@ function Workshop({
         </div>
       )}
 
+      {/* Keyed on the pick: another hintuan pops a fresh circle. */}
+      {map && !draw.drawing && ride.pinAt && tripLivery && (
+        <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} livery={tripLivery} />
+      )}
+
       {/*
-        Several saved things under one click: the same list the public map
-        has — the owner's "Studio too", 2026-09-29, knowing it lists only what
-        is drawn. "Not mapped yet" is left to a hotspot's card here, whose
-        rows still say it.
+        The tapped direction as the public map's trip card (the owner's pick,
+        2026-09-30), the editor's facts and its Edit, Extend and Delete under
+        its tiles. Keyed on the route, as there: SWITCH keeps its colour.
       */}
-      {!draw.drawing && choosing && (
-        <RouteCardList
-          key={choice.map((c) => c.id).join()}
-          routes={saved.candidates}
-          stops={stops.candidates}
-          back={saved.back}
-          onFlip={saved.flip}
-          selected={saved.highlight?.where === 'list' ? saved.highlight.from : null}
-          onSelect={(p) => saved.highlightCard(p && { where: 'list', ...p })}
-          onRoute={(v) => {
-            stops.select(null)
-            saved.select(v.id)
-          }}
-          onStop={(s) => {
-            saved.select(null)
-            stops.select(s.id)
-          }}
-          onClose={() => {
-            saved.select(null)
-            stops.select(null)
-          }}
+      {!draw.drawing && saved.selected && tripLivery && (
+        <TripCard
+          key={saved.selected.route_id}
+          variant={saved.selected}
+          variants={saved.variants}
+          timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
+          livery={tripLivery}
+          onBackToList={backToList}
+          onSwitch={(v) => saved.select(v.id, { keepList: true })}
+          onClose={closeAll}
+          picked={ride.pickedId}
+          pickedMetres={saved.fullIds.has(saved.selected.id) ? ride.rideTo?.metres : undefined}
+          onPick={ride.pick}
+          onEnd={ride.toEnd}
+          endPicked={ride.endPicked}
+          dockRef={tripDock}
+          height={height}
+          extras={
+            <RouteFacts
+              variant={saved.selected}
+              actions={
+                userId !== null &&
+                userId === saved.selected.owner_id && (
+                  <CardActions
+                    editLabel="Edit route"
+                    onEdit={() => {
+                      const v = saved.selected
+                      if (!v) return
+                      closeAll()
+                      void opening(v, draw.load)
+                    }}
+                    onDelete={() => {
+                      if (saved.selected) void onDelete(saved.selected)
+                    }}
+                    onExtend={
+                      isDrawn(saved.selected)
+                        ? () => {
+                            const v = saved.selected
+                            if (!v) return
+                            closeAll()
+                            void opening(v, draw.startExtend)
+                          }
+                        : undefined
+                    }
+                  />
+                )
+              }
+            />
+          }
         />
       )}
 
-      {/* Top-left: the card for a tapped route, or the account pill. */}
-      {!draw.drawing && saved.selected && (
-        <RouteSheet
-          variant={saved.selected}
-          timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
-          rideTo={ride.rideTo}
-          onRideTo={ride.pick}
-          sibling={otherDirection(saved.variants, saved.selected)}
-          onSwitch={(v) => saved.select(v.id)}
-          actions={
-            userId !== null &&
-            userId === saved.selected.owner_id && (
-              <CardActions
-                editLabel="Edit route"
-                onEdit={() => {
-                  const v = saved.selected
-                  if (!v) return
-                  saved.select(null)
-                  void opening(v, draw.load)
-                }}
-                onDelete={() => {
-                  if (saved.selected) void onDelete(saved.selected)
-                }}
-                onExtend={
-                  isDrawn(saved.selected)
-                    ? () => {
-                        const v = saved.selected
-                        if (!v) return
-                        saved.select(null)
-                        void opening(v, draw.startExtend)
-                      }
-                    : undefined
-                }
-              />
-            )
-          }
-          onClose={() => saved.select(null)}
-        />
-      )}
-      {!draw.drawing && !saved.selected && stops.selected && (
+      {/*
+        A hotspot's card, its routes as RouteCards; it stays behind the trip
+        picked from them, hidden, for the trip's ‹. After the trip on
+        purpose, as on the public map: the suites' first `card` is the trip.
+      */}
+      {!draw.drawing && stops.selected && (
         <HotspotCard
           key={stops.selected.id}
+          routeCards={{
+            selected: saved.highlight?.where === 'hotspot' ? saved.highlight.from : null,
+            onSelect: (p) => saved.highlightCard(p && { where: 'hotspot', ...p }),
+            onShown: saved.showCard,
+          }}
+          hidden={!!saved.selected}
+          height={height}
           stop={stops.selected}
           linkedVariantIds={stops.linkedVariantIds(stops.selected.id)}
           variants={saved.variants}
-          onSelectVariant={(v) => {
-            stops.select(null)
-            saved.select(v.id)
+          onSelectVariant={(v, livery) => {
+            setWorn(livery ? { id: v.id, livery } : null)
+            saved.select(v.id, { keepList: true })
           }}
           stops={stops.stops}
-          onPickSibling={stops.show}
+          onPickSibling={(id) => {
+            saved.highlightCard(null)
+            stops.show(id)
+          }}
           actions={
             userId !== null &&
             userId === stops.selected.owner_id && (
@@ -341,7 +400,7 @@ function Workshop({
                 onEdit={() => {
                   const s = stops.selected
                   if (!s) return
-                  stops.select(null)
+                  closeAll()
                   draw.loadArea(s.kind, s.id, stopRing(s))
                 }}
                 onDelete={() => {
@@ -350,7 +409,38 @@ function Workshop({
               />
             )
           }
-          onClose={() => stops.select(null)}
+          onClose={() => {
+            saved.highlightCard(null)
+            stops.select(null)
+          }}
+        />
+      )}
+
+      {/*
+        Several saved things under one click: the same list the public map
+        has — the owner's "Studio too", 2026-09-29, knowing it lists only what
+        is drawn — kept hidden behind the trip picked from it.
+      */}
+      {!draw.drawing && choosing && (
+        <RouteCardList
+          key={choice.map((c) => c.id).join()}
+          hidden={!!saved.selected}
+          height={height}
+          routes={saved.candidates}
+          stops={stops.candidates}
+          back={saved.back}
+          onFlip={saved.flip}
+          selected={saved.highlight?.where === 'list' ? saved.highlight.from : null}
+          onSelect={(p) => saved.highlightCard(p && { where: 'list', ...p })}
+          onRoute={(v, livery) => {
+            setWorn({ id: v.id, livery })
+            saved.select(v.id, { keepList: true })
+          }}
+          onStop={(s) => {
+            saved.select(null)
+            stops.select(s.id)
+          }}
+          onClose={closeAll}
         />
       )}
       {!draw.drawing && !saved.selected && !stops.selected && !choosing && (

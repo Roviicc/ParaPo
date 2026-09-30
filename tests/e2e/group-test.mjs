@@ -68,6 +68,11 @@ const MAP = await page.evaluate(async () => {
     return null
   }
 })
+/** The open trip card's name, "origin → destination", or '' with none open. */
+const tripTitle = async () =>
+  (await page.locator('[data-testid="card"] [data-testid="trip"]').count())
+    ? ((await page.locator('[data-testid="card"]').first().getAttribute('aria-label')) ?? '')
+    : ''
 {
   const p = await page.evaluate(() => window.__paint())
   const twoLooks = p.shaded.length === 0 &&
@@ -312,7 +317,9 @@ if (!spot) {
     const placeCard = chooser.locator('[data-testid="chooser-origin"]').nth(back.origins.indexOf(place))
     await placeCard.locator('button[data-testid="chooser-item"]:enabled').first().click()
     await page.waitForTimeout(600)
-    const title = await page.locator('[data-testid="card-direction"]').first().innerText().catch(() => '')
+    // The trip card the public map opens, the studio's too since 2026-09-30:
+    // its sheet is named "origin → destination".
+    const title = await tripTitle()
     check('a row opens that direction\'s card', title === `${place.from} → ${row.to}`, title)
     const litOne = ((await page.evaluate(() => window.__lit('saved-routes'))) ?? []).length
     const endsOne = await page.evaluate(async () => ((await window.__src('direction-ends'))?.features ?? []).length)
@@ -324,56 +331,43 @@ if (!spot) {
     const one = await levels()
     const others = Object.keys(one).filter((id) => id !== openId)
     check('  its way back, and the rest, stay as they rest', opaque(one, [...twins, ...others]), `${twins.length} way back, ${others.length} other line(s)`)
-    // The studio keeps its ride-to preview as the public map gains the
-    // hintuan pick (the owner, 2026-09-29): a hintuan row draws the way not
-    // ridden at rest over the lit line, opaque in its white casing, with the
-    // get-off circles the public map goes without; a second tap puts the
-    // whole route back. The first row the line reaches is the one checked.
-    const rideRows = page.locator('[data-testid="card"] button[data-testid="timeline-row"][title="Show the ride up to here"]')
-    const rideCount = await rideRows.count()
-    // The way between the ends is folded away until asked for.
-    const between = page.locator('[data-testid="card"] [data-testid="card-timeline"]').first()
-    if (rideCount && !(await between.evaluate((d) => d.open))) {
-      await between.locator('summary').click()
-      await page.waitForTimeout(200)
-    }
-    let ridden = null
-    for (let i = 0; i < rideCount && !ridden; i++) {
-      const rowEl = await rideRows.nth(i).elementHandle()
-      await rowEl.scrollIntoViewIfNeeded()
-      await rowEl.click()
-      await page.waitForTimeout(900)
-      const seen = await page.evaluate(async () => {
-        const m = window.__map
-        const fs = (await window.__src('ride-rest'))?.features ?? []
-        const has = !!m.getLayer('ride-rest-line') && !!m.getLayer('ride-rest-casing')
-        return {
-          rest: fs.length,
-          line: has ? m.getPaintProperty('ride-rest-line', 'line-color') : null,
-          casing: has ? m.getPaintProperty('ride-rest-casing', 'line-color') : null,
-          dots: document.querySelectorAll('[data-testid="ride-dot"]').length,
-        }
-      })
-      if (seen.rest > 0) ridden = { rowEl, seen }
-      else await rowEl.click() // the line misses its box: nothing to show; let it go
-    }
-    if (!ridden) {
-      skip('  a hintuan row shows the ride up to it, get-off circles and all', rideCount ? "the line reaches none of its hintuans' boxes" : 'no hintuan on this direction')
+    // A hintuan picked on the trip, as on the public map since 2026-09-30 (the
+    // owner: "most of the interaction of public map should be in studio"):
+    // the route left whole, nothing at rest over it and no get-off circles,
+    // a circle popping up at the hintuan; a second tap lets it go, circle and
+    // all. The middle hintuan is the one checked.
+    const cardEl = page.locator('[data-testid="card"]').first()
+    const hintuanRows = cardEl.locator('[data-testid="trip-hintuan"]')
+    if ((await hintuanRows.count()) === 0) {
+      skip('  a hintuan row picks it: the route left whole, a circle at it', 'no hintuan on this direction')
     } else {
-      const { seen } = ridden
+      const fold = cardEl.locator('button[data-testid="trip-fold"]')
+      if ((await fold.count()) > 0) {
+        await fold.first().click()
+        await page.waitForTimeout(450)
+      }
+      const hintuanRow = hintuanRows.nth(Math.floor(((await hintuanRows.count()) - 1) / 2))
+      const pick = hintuanRow.locator('button[data-testid="trip-hintuan-pick"]')
+      await pick.scrollIntoViewIfNeeded()
+      await pick.click()
+      await page.waitForTimeout(900)
+      const onMap = async () =>
+        page.evaluate(async () => ({
+          lit: ((await window.__lit('saved-routes')) ?? []).length,
+          rest: ((await window.__src('ride-rest'))?.features ?? []).length,
+          dots: document.querySelectorAll('[data-testid="ride-dot"]').length,
+          pins: document.querySelectorAll('[data-testid="hintuan-pin"]').length,
+        }))
+      const seen = await onMap()
       check(
-        '  a hintuan row shows the ride up to it, get-off circles and all',
-        (await ridden.rowEl.getAttribute('aria-pressed')) === 'true' && seen.dots > 0 &&
-          (MAP ? seen.line === MAP['Map/RouteLine/surface-default'] : !!seen.line) && seen.casing === '#ffffff',
-        `${seen.rest} stretch at rest in ${seen.line}, cased ${seen.casing}; ${seen.dots} circle(s)`,
+        '  a hintuan row picks it: the route left whole, a circle at it',
+        (await hintuanRow.getAttribute('data-state')) === 'selected' && seen.lit === 1 && seen.rest === 0 && seen.dots === 0 && seen.pins === 1,
+        `${seen.lit} lit; ${seen.rest} stretch(es) at rest; ${seen.pins} circle(s); ${seen.dots} get-off circle(s)`,
       )
-      await ridden.rowEl.click()
+      await pick.click()
       await page.waitForTimeout(400)
-      const back = await page.evaluate(async () => ({
-        rest: ((await window.__src('ride-rest'))?.features ?? []).length,
-        dots: document.querySelectorAll('[data-testid="ride-dot"]').length,
-      }))
-      check('  and a second tap puts the whole route back', back.rest === 0 && back.dots === 0, `${back.rest} at rest, ${back.dots} circle(s)`)
+      const after = await onMap()
+      check('  and a second tap lets it go, its circle too', after.pins === 0 && after.lit === 1, `${after.pins} circle(s), ${after.lit} lit`)
     }
     await page.locator('[data-testid="card"] button[aria-label="Close"]').first().click()
     await page.waitForTimeout(400)
@@ -423,7 +417,7 @@ if (!spot) {
     const now = await read()
     const shown = now.origins.length
       ? `list: ${now.origins.map((o) => `${o.from} → ${o.rows.map((r) => r.to).join(', ')}`).join(' | ')}`
-      : `card: ${await page.locator('[data-testid="card-direction"]').first().innerText().catch(() => 'none')}`
+      : `card: ${(await tripTitle()) || 'none'}`
     return { lit: now.origins.length > 0 ? now.listed : [...new Set(now.lit)], sheet: now.origins.length > 0, shown }
   }
   const every3 = (l) => l.coords.filter((_, i) => i % 3 === 0)
