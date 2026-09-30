@@ -513,13 +513,13 @@ const tripChecks = async () => {
     const rowId = await row.getAttribute('data-hintuan')
     const pickWant = await page.evaluate(async ([id, rowId]) => {
       try {
-        const [{ rideFare }, { rideCut }] = await Promise.all([import('/src/shared/model/fares.ts'), import('/src/shared/model/ride.ts')])
+        const [{ rideFare }, { rideCut }, { kmLabel }] = await Promise.all([import('/src/shared/model/fares.ts'), import('/src/shared/model/ride.ts'), import('/src/shared/geo/geo.ts')])
         const { loadMapFile, loadLine } = await import('/src/commuter/mapFile.ts')
         const m = await loadMapFile()
         const found = m.variants.find((x) => x.id === id)
         const v = found && { ...found, shape: (await loadLine(id)) ?? found.shape }
         const cut = v && rideCut(v, m.stops, rowId)
-        return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, at: cut.at } : null
+        return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, km: kmLabel(cut.metres), at: cut.at } : null
       } catch {
         return null
       }
@@ -552,7 +552,10 @@ const tripChecks = async () => {
     })
     if (pickWant && pickWant.fare == null) skip("  in the card's own colours, swapped", 'an unpriced route shows no pill')
     else check("  in the card's own colours, swapped", !!colours?.swapped, colours?.detail ?? 'no pill')
-    check('  the Kilometer tile keeps the whole ride', (await tile('trip-km')) === km, `${await tile('trip-km')}, the whole ${km}`)
+    // The Kilometer tile follows the pick too (the owner, 2026-09-30).
+    const pickedKm = await tile('trip-km')
+    if (!pickWant) skip('  the Kilometer tile the ride from where the trip leaves to there', 'the sums cannot be read from this server')
+    else check('  the Kilometer tile the ride from where the trip leaves to there', pickedKm === pickWant.km, `"${pickedKm}", the sums "${pickWant.km}"`)
     // The glide starts after the card has drawn the pick: let it start, then end.
     await page.waitForTimeout(200)
     await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
@@ -640,9 +643,9 @@ const tripChecks = async () => {
       lit: (await window.__lit('saved-routes')) ?? [],
     }))
     check(
-      '  a second tap lets it go: no pill, no circle, the trip still lit, the fare tile the whole ride again',
-      !(await isPicked()) && (await pill.count()) === 0 && letGo.pins === 0 && letGo.lit.length === 1 && (await tile('trip-fare')) === fare,
-      `${letGo.pins} circle(s), ${letGo.lit.length} lit; fare tile "${await tile('trip-fare')}", the whole "${fare}"`,
+      '  a second tap lets it go: no pill, no circle, the trip still lit, both tiles the whole ride again',
+      !(await isPicked()) && (await pill.count()) === 0 && letGo.pins === 0 && letGo.lit.length === 1 && (await tile('trip-fare')) === fare && (await tile('trip-km')) === km,
+      `${letGo.pins} circle(s), ${letGo.lit.length} lit; tiles "${await tile('trip-km')}", "${await tile('trip-fare')}", the whole "${km}", "${fare}"`,
     )
     // At Max the card covers the map, and the glide would go on out of
     // sight: a hintuan picked there brings the card down to Middle as the

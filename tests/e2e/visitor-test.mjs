@@ -654,13 +654,13 @@ if (PART === 1) {
         const rowId = await row.getAttribute('data-hintuan')
         const want = await page.evaluate(async ([id, rowId]) => {
           try {
-            const [{ rideFare }, { rideCut }] = await Promise.all([import('/src/shared/model/fares.ts'), import('/src/shared/model/ride.ts')])
+            const [{ rideFare }, { rideCut }, { kmLabel }] = await Promise.all([import('/src/shared/model/fares.ts'), import('/src/shared/model/ride.ts'), import('/src/shared/geo/geo.ts')])
             const { loadMapFile, loadLine } = await import('/src/commuter/mapFile.ts')
             const m = await loadMapFile()
             const found = m.variants.find((x) => x.id === id)
             const v = found && { ...found, shape: (await loadLine(id)) ?? found.shape }
             const cut = v && rideCut(v, m.stops, rowId)
-            return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, at: cut.at } : null
+            return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, km: kmLabel(cut.metres), at: cut.at } : null
           } catch {
             return null
           }
@@ -697,7 +697,13 @@ if (PART === 1) {
           (await row.getAttribute('data-state')) === 'selected' && (!want || want.fare == null || (pill === 'Calculated Fare' && fareTile === want.fare)),
           `pill "${pill}"; tile "${fareTile}"${want ? `, the sums "${want.fare}"` : ''}`,
         )
-        check('  the Kilometer tile keeps the whole ride', (await cardEl.locator('[data-testid="trip-km"]').innerText()) === kmBefore)
+        // The Kilometer tile follows the pick too (the owner, 2026-09-30).
+        const kmPicked = (await cardEl.locator('[data-testid="trip-km"]').innerText()).trim()
+        check(
+          '  the Kilometer tile the ride from the start to there',
+          want ? kmPicked === want.km : kmPicked !== '',
+          `"${kmPicked}"${want ? `, the sums "${want.km}"` : ''}; the whole ride ${kmBefore}`,
+        )
         check(
           '  the route left whole, a circle popping up at the hintuan: the trip still lit, nothing at rest over it, no get-off circles',
           seen.lit.length === 1 && seen.lit[0] === litId && seen.rest === 0 && seen.pins === 1 &&
@@ -714,7 +720,12 @@ if (PART === 1) {
         await pick.click()
         await page.waitForTimeout(250)
         const letGo = await page.evaluate(() => document.querySelectorAll('[data-testid="hintuan-pin"]').length)
-        check('  a second tap lets it go, its circle too', (await row.getAttribute('data-state')) === 'rest' && letGo === 0, `${letGo} circle(s)`)
+        const kmAfter = await cardEl.locator('[data-testid="trip-km"]').innerText()
+        check(
+          '  a second tap lets it go, its circle too, the Kilometer tile the whole ride again',
+          (await row.getAttribute('data-state')) === 'rest' && letGo === 0 && kmAfter === kmBefore,
+          `${letGo} circle(s); ${kmAfter}, the whole ${kmBefore}`,
+        )
         // Where the trip goes is a button too (the owner's ask, 2026-09-29):
         // picked again, a tap there lets the pick go and glides the map to
         // the line's end, right of the card in the corner.

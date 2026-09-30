@@ -3,6 +3,7 @@ import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 import { RouteTripDetail } from './RouteTripDetail'
+import { kmLabel } from '../geo/geo'
 
 /** Sample data only: the places of the owner's frames (3762:3546), not the real map. */
 const hintuans = (...labels: string[]) => labels.map((label, i) => ({ id: 'h' + i, label }))
@@ -97,6 +98,7 @@ const meta = {
     onEnd: fn(),
     endPicked: null,
     // Amparo's, fourth on the way: from Tala to there on today's map.
+    pickedMetres: 7_300,
     pickedFare: { regular: '₱18–20', student: '₱14–16' },
   },
 } satisfies Meta<typeof RouteTripDetail>
@@ -117,6 +119,8 @@ const pickedAsDrawn: Story['play'] = async (ctx) => {
   const pill = rows[0].querySelector<HTMLElement>('[data-testid="trip-hintuan-fare"]')
   await expect(pill?.textContent).toBe('Calculated Fare')
   await expect(within(canvasElement).getByTestId('trip-fare').textContent).toBe(args.pickedFare?.regular)
+  // The Kilometer tile follows the pick too.
+  await expect(within(canvasElement).getByTestId('trip-km').textContent).toBe(kmLabel(args.pickedMetres ?? args.metres))
   const card = within(canvasElement).getByTestId('trip')
   if (pill) {
     // Its words' colour behind the pesos, its fill for them.
@@ -319,7 +323,7 @@ export const PickFoldedAway: Story = {
 
 /** The lone hintuan picked: no fold to open. */
 export const OneHintuanPicked: Story = {
-  args: { ...OneHintuan.args, picked: 'h0', pickedFare: { regular: '₱14', student: '₱11' } },
+  args: { ...OneHintuan.args, picked: 'h0', pickedMetres: 1_900, pickedFare: { regular: '₱14', student: '₱11' } },
 }
 
 /**
@@ -328,13 +332,13 @@ export const OneHintuanPicked: Story = {
  * beside the tile; the published map has none (timeline-test checks every
  * row cuts).
  */
-export const PickedUnpriced: Story = { args: { fare: undefined, picked: 'h3', pickedFare: undefined }, play: openFold }
+export const PickedUnpriced: Story = { args: { fare: undefined, picked: 'h3', pickedMetres: undefined, pickedFare: undefined }, play: openFold }
 
 /** In the corner, picked. */
 export const FloatingPicked: Story = { args: { picked: 'h3' }, parameters: { frame: 'wide' }, play: openFold }
 
 /** A name too long for one line, picked: it wraps beside the pill, which keeps its line. Sample pesos. */
-export const LongNamesPicked: Story = { args: { ...LongNames.args, picked: 'h1', pickedFare: { regular: '₱16–18', student: '₱13–14' } }, play: openFold }
+export const LongNamesPicked: Story = { args: { ...LongNames.args, picked: 'h1', pickedMetres: 5_200, pickedFare: { regular: '₱16–18', student: '₱13–14' } }, play: openFold }
 
 /**
  * The owner's BottomSheetConfiguration (3815:5637, 2026-09-30), on a phone:
