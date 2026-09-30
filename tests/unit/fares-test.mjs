@@ -74,10 +74,13 @@ test("one ride's pesos: the trip's Expected fare", () => {
   // Up to the minimum's 4 km it is one number, part km or not.
   assert.equal(rideFare('jeepney', 3_100, '2026-09-29'), '₱14')
   assert.equal(rideFare('jeepney', 4_000, '2026-09-29'), '₱14')
-  // 12.8 km: ₱14 + ₱2 × 8 counting the part km down, × 9 up.
-  assert.equal(rideFare('jeepney', 12_800, '2026-09-29'), '₱30–32')
-  // 9.4 km: ₱24 counting the part km down, ₱26 up.
-  assert.equal(rideFare('jeepney', 9_400, '2026-09-29'), '₱24–26')
+  // One figure since 2026-09-30, the part km to the nearest whole km:
+  // 12.8 km is 13, ₱14 + ₱2 × 9; 9.4 km is 9, ₱14 + ₱2 × 5.
+  assert.equal(rideFare('jeepney', 12_800, '2026-09-29'), '₱32')
+  assert.equal(rideFare('jeepney', 9_400, '2026-09-29'), '₱24')
+  assert.equal(rideFare('jeepney', 9_500, '2026-09-29'), '₱26')
+  // The student fare: 20% off before the rounding to 25 centavos.
+  assert.equal(rideFare('jeepney', 9_400, '2026-09-29', 'discounted'), '₱19.25')
   // The old rule, before 28 Sep 2026: ₱13 + ₱1.80 × 5.
   assert.equal(rideFare('jeepney', 9_000, '2026-09-27'), '₱22')
   assert.equal(rideFare('uv_express', 5_000, '2026-09-29'), undefined)
