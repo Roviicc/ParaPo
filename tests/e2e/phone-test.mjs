@@ -492,9 +492,11 @@ const tripChecks = async () => {
   // 2026-09-29): that one row Selected, its name Black, a pill with the pesos
   // from where the trip leaves to there — the app's own sums over rideCut's
   // metres on the published line — in the card's own colours swapped; the
-  // tiles keep the whole ride; the map dark only that far and at rest after
-  // it, no get-off circles, the camera gliding the hintuan clear of the
-  // card, and no padding left on the map; a second tap lets it go. Checked
+  // tiles keep the whole ride; the route left whole on the map, and a circle
+  // popping up at the hintuan in the trip's rail colour (the owner's ask of
+  // 2026-09-30: "now I don't want to cut the route"), no get-off circles,
+  // the camera gliding the hintuan clear of the card, and no padding left
+  // on the map; a second tap lets it go, circle and all. Checked
   // once, on the first trip with a hintuan; it is picked again after, for
   // SWITCH, ✕ or ‹ to let go.
   let picked = false
@@ -515,7 +517,7 @@ const tripChecks = async () => {
         const found = m.variants.find((x) => x.id === id)
         const v = found && { ...found, shape: (await loadLine(id)) ?? found.shape }
         const cut = v && rideCut(v, m.stops, rowId)
-        return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, at: cut.at, rest: cut.rest } : null
+        return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, at: cut.at } : null
       } catch {
         return null
       }
@@ -548,30 +550,43 @@ const tripChecks = async () => {
     // The glide starts after the card has drawn the pick: let it start, then end.
     await page.waitForTimeout(200)
     await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
-    const drawn = await page.evaluate(async () => {
+    const drawn = await page.evaluate(async (at) => {
       const m = window.__map
-      const order = m.getStyle().layers.map((l) => l.id)
-      const at = (id) => order.indexOf(id)
-      const fs = (await window.__src('ride-rest'))?.features ?? []
-      const has = !!m.getLayer('ride-rest-line') && !!m.getLayer('ride-rest-casing')
+      const pins = [...document.querySelectorAll('[data-testid="hintuan-pin"]')]
+      const pin = pins[0]
+      const trip = document.querySelector('[data-testid="trip"]')
+      const ring = pin?.firstElementChild
+      // The circle's centre on the screen, and the hintuan's.
+      const r = pin?.getBoundingClientRect()
+      const c = m.getCanvas().getBoundingClientRect()
+      const q = at && m.project(at)
+      // The rail's colour: the card's Card/<livery>/Timeline/surface.
+      const dot = trip?.querySelector('[class*="timeline-surface"]')
       return {
         lit: (await window.__lit('saved-routes')) ?? [],
-        rest: fs.length === 1 ? fs[0].geometry.coordinates : null,
-        line: has ? m.getPaintProperty('ride-rest-line', 'line-color') : null,
-        casing: has ? m.getPaintProperty('ride-rest-casing', 'line-color') : null,
-        opacity: has ? (m.getPaintProperty('ride-rest-line', 'line-opacity') ?? 1) : null,
-        between: has && at('ride-rest-casing') > at('saved-routes-selected') && at('ride-rest-line') > at('ride-rest-casing') && (at('direction-end-circles') < 0 || at('ride-rest-line') < at('direction-end-circles')),
+        rest: ((await window.__src('ride-rest'))?.features ?? []).length,
+        restLayer: !!m.getLayer('ride-rest-line'),
+        pins: pins.length,
+        off: r && q ? Math.hypot(r.left + r.width / 2 - (c.left + q.x), r.top + r.height / 2 - (c.top + q.y)) : null,
+        ring: ring ? getComputedStyle(ring).backgroundColor : null,
+        rail: dot ? getComputedStyle(dot).backgroundColor : null,
+        livery: pin?.dataset.livery ?? null,
+        tripLivery: trip?.dataset.livery ?? null,
+        taps: pin ? getComputedStyle(pin).pointerEvents : null,
         dots: document.querySelectorAll('[data-testid="ride-dot"]').length,
         padding: Object.values(m.getPadding()).every((v) => v === 0),
       }
-    })
-    const restRight = !!pickWant && !!drawn.rest && drawn.rest.length === pickWant.rest.length &&
-      Math.abs(drawn.rest[0][0] - pickWant.at[0]) < 1e-6 && Math.abs(drawn.rest[0][1] - pickWant.at[1]) < 1e-6
+    }, pickWant?.at ?? null)
     check(
-      '  the map: the trip still lit, and from the hintuan on, drawn at rest over it — opaque, in its casing, under the far end',
-      drawn.lit.length === 1 && drawn.lit[0] === tripId && (restRight || !pickWant) && !!drawn.rest &&
-        (MAP ? drawn.line === MAP['Map/RouteLine/surface-default'] : !!drawn.line) && drawn.casing === '#ffffff' && drawn.opacity === 1 && drawn.between,
-      `${drawn.lit.length} lit; ${drawn.rest?.length ?? 0} point(s) at rest; ${drawn.line} in ${drawn.casing}, opacity ${drawn.opacity}; in its place ${drawn.between}`,
+      '  the map: the trip still lit and whole — nothing drawn at rest over it',
+      drawn.lit.length === 1 && drawn.lit[0] === tripId && drawn.rest === 0 && !drawn.restLayer,
+      `${drawn.lit.length} lit; ${drawn.rest} stretch(es) at rest; the rest layer ${drawn.restLayer ? 'there' : 'never added'}`,
+    )
+    check(
+      "  a circle pops up at the hintuan, in the trip's rail colour, taking no taps",
+      drawn.pins === 1 && (!pickWant || (drawn.off !== null && drawn.off < 2)) && drawn.livery === drawn.tripLivery &&
+        !!drawn.ring && (!drawn.rail || drawn.ring === drawn.rail) && drawn.taps === 'none',
+      `${drawn.pins} circle(s), ${drawn.off === null ? 'not measured' : Math.round(drawn.off) + ' px'} off the hintuan; ${drawn.livery} ring ${drawn.ring}, the rail ${drawn.rail}; pointer-events ${drawn.taps}`,
     )
     check('  no get-off circles on the public map', drawn.dots === 0, `${drawn.dots}`)
     if (pickWant) {
@@ -591,18 +606,18 @@ const tripChecks = async () => {
     check('  and leaves no padding on the map for later moves', drawn.padding)
     await buttonTap(pickButton, async () => !(await isPicked()))
     const letGo = await page.evaluate(async () => ({
-      rest: ((await window.__src('ride-rest'))?.features ?? []).length,
+      pins: document.querySelectorAll('[data-testid="hintuan-pin"]').length,
       lit: (await window.__lit('saved-routes')) ?? [],
     }))
     check(
-      '  a second tap lets it go: no pill, the whole ride dark again',
-      !(await isPicked()) && (await pill.count()) === 0 && letGo.rest === 0 && letGo.lit.length === 1,
-      `${letGo.rest} at rest, ${letGo.lit.length} lit`,
+      '  a second tap lets it go: no pill, no circle, the trip still lit',
+      !(await isPicked()) && (await pill.count()) === 0 && letGo.pins === 0 && letGo.lit.length === 1,
+      `${letGo.pins} circle(s), ${letGo.lit.length} lit`,
     )
     // The ends are buttons too (the owner's asks, 2026-09-29): with a
     // hintuan picked, a tap on where the trip goes, then on where it leaves
-    // from, picks that end in its place, its dot green — the whole ride
-    // dark again, the trip still lit — and glides the map to that end of the
+    // from, picks that end in its place, its dot green — the hintuan's
+    // circle gone, the trip still lit — and glides the map to that end of the
     // line, above the card. Picking the hintuan again lets the end go.
     const ends = await page.evaluate(async (id) => {
       try {
@@ -637,18 +652,18 @@ const tripChecks = async () => {
         const d = document.querySelector('[data-testid="card"]').getBoundingClientRect()
         const q = at && m.project(at)
         return {
-          rest: ((await window.__src('ride-rest'))?.features ?? []).length,
+          pins: document.querySelectorAll('[data-testid="hintuan-pin"]').length,
           lit: (await window.__lit('saved-routes')) ?? [],
           above: q ? c.top + q.y > c.top + 16 && c.top + q.y < d.top - 16 && q.x > 16 && q.x < c.width - 16 : null,
           padding: Object.values(m.getPadding()).every((v) => v === 0),
         }
       }, ends?.[end] ?? null)
       check(
-        `  ${end === 'to' ? 'where the trip goes' : 'where it leaves from'}, tapped, is picked in the hintuan's place, the whole ride dark, the map gliding there above the card`,
+        `  ${end === 'to' ? 'where the trip goes' : 'where it leaves from'}, tapped, is picked in the hintuan's place, its circle gone, the map gliding there above the card`,
         wasPicked && destinationBefore === 'rest' && !(await isPicked()) &&
           destination === (end === 'to' ? 'selected' : 'rest') && origin === (end === 'from' ? 'selected' : 'rest') &&
-          after.rest === 0 && after.lit.length === 1 && after.lit[0] === tripId && after.above !== false && after.padding,
-        `picked first ${wasPicked}; the destination ${destinationBefore} → ${destination}, the origin ${origin}; ${after.rest} at rest, ${after.lit.length} lit; in the map above the card ${after.above ?? 'not measured'}`,
+          after.pins === 0 && after.lit.length === 1 && after.lit[0] === tripId && after.above !== false && after.padding,
+        `picked first ${wasPicked}; the destination ${destinationBefore} → ${destination}, the origin ${origin}; ${after.pins} circle(s), ${after.lit.length} lit; in the map above the card ${after.above ?? 'not measured'}`,
       )
     }
     // Picked again, for SWITCH — or ✕ and ‹ — to let go.
@@ -673,9 +688,9 @@ const tripChecks = async () => {
     check('  and keeps its colour', !!colour && now === colour, `${colour} → ${now}`)
     if (picked) {
       // Another direction is another ride: the pick does not come with it.
-      const rest = await page.evaluate(async () => ((await window.__src('ride-rest'))?.features ?? []).length)
+      const pins = await page.evaluate(() => document.querySelectorAll('[data-testid="hintuan-pin"]').length)
       const still = await card().locator('[data-testid="trip-hintuan"][data-state="selected"]').count()
-      check('  and lets the picked hintuan go', rest === 0 && still === 0, `${still} Selected, ${rest} at rest`)
+      check('  and lets the picked hintuan go', pins === 0 && still === 0, `${still} Selected, ${pins} circle(s)`)
       picked = false
     }
   }
@@ -697,9 +712,11 @@ const tripChecks = async () => {
 }
 /** Whether the hintuan pick has been checked: once, on the first trip with a hintuan. */
 let picksChecked = false
-/** The map's ride cut, gone: nothing drawn at rest over a trip, no get-off circle. */
+/** The picked hintuan's circle, gone — and no cut or get-off circle, which the public map never draws. */
 const noPickLeft = async () =>
-  page.evaluate(async () => ((await window.__src('ride-rest'))?.features ?? []).length + document.querySelectorAll('[data-testid="ride-dot"]').length === 0)
+  page.evaluate(async () =>
+    ((await window.__src('ride-rest'))?.features ?? []).length +
+      document.querySelectorAll('[data-testid="ride-dot"], [data-testid="hintuan-pin"]').length === 0)
 const cardText = async () => ((await card().count()) ? (await card().first().innerText()) : '')
 const sheetState = async () =>
   (await card().count()) ? await card().first().getAttribute('data-sheet') : null

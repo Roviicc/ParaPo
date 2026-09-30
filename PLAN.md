@@ -3468,3 +3468,17 @@ checks keep their names, "Build and the public map" and "The editor", each
 now a summary that passes when everything under it passed or was not needed.
 The trade: a pull request that breaks only drawing is caught on `staging`
 minutes after it merges, not before.
+
+**A picked hintuan pops a circle, the route whole, 2026-09-30.** The owner's
+ask: "now I don't want to cut the route, but we still select hintuan it is
+just the a circle will pop up when that hintuan is selected". On the public
+map a hintuan picked on the trip card is still Selected, its pill still
+prices the ride to it and the tiles still keep the whole, and the camera
+still glides there clear of the card; but the line is no longer drawn at
+rest past it. Instead `HintuanPin` (src/commuter/) pops up a DOM marker
+where the ride would end — the timeline's Selected dot, ringed in the
+trip's Card/<livery>/Timeline/surface, scaling in over the base duration
+with the arriving ease, still under reduced motion — and it goes with the
+pick. `useRideTo`'s `dots` option became `cut`: the studio keeps the cut
+and its get-off circles (group-test still checks them); the public map
+passes `cut: false` and reads `pinAt`.

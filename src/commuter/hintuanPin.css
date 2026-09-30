@@ -1,0 +1,21 @@
+/*
+ * The picked hintuan's circle on the public map (HintuanPin.tsx, which
+ * imports this sheet, so only the public map loads it). The marker's own
+ * element is MapLibre's to move — it sets its transform — so the pop is on
+ * the circle inside: from nothing to its size, over the base duration with
+ * the arriving ease (tokens.css, Motion). `prefers-reduced-motion` has it
+ * simply there.
+ */
+.hintuan-pin {
+  pointer-events: none;
+}
+.hintuan-pin-dot {
+  animation: hintuan-pin-pop var(--transition-duration-base) var(--ease-enter) both;
+}
+@keyframes hintuan-pin-pop {
+  from { transform: scale(0.4); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hintuan-pin-dot { animation: none; }
+}
