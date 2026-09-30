@@ -52,6 +52,10 @@ test('pesos as the card writes them', () => {
   assert.equal(peso(1850), '₱18.50')
   assert.equal(pesoRange(2400, 2600), '₱24–26')
   assert.equal(pesoRange(1400, 1400), '₱14')
+  // Whole pesos only: the low end down, the high end up.
+  assert.equal(pesoRange(1925, 2075), '₱19–21')
+  assert.equal(pesoRange(1125, 1125), '₱11–12')
+  assert.equal(pesoRange(1200, 1200), '₱12')
 })
 
 test("the official guide of 28 Sep 2026: all 50 printed rows reproduce", () => {
@@ -74,13 +78,12 @@ test("one ride's pesos: the trip's Expected fare", () => {
   // Up to the minimum's 4 km it is one number, part km or not.
   assert.equal(rideFare('jeepney', 3_100, '2026-09-29'), '₱14')
   assert.equal(rideFare('jeepney', 4_000, '2026-09-29'), '₱14')
-  // One figure since 2026-09-30, the part km to the nearest whole km:
-  // 12.8 km is 13, ₱14 + ₱2 × 9; 9.4 km is 9, ₱14 + ₱2 × 5.
-  assert.equal(rideFare('jeepney', 12_800, '2026-09-29'), '₱32')
-  assert.equal(rideFare('jeepney', 9_400, '2026-09-29'), '₱24')
-  assert.equal(rideFare('jeepney', 9_500, '2026-09-29'), '₱26')
-  // The student fare: 20% off before the rounding to 25 centavos.
-  assert.equal(rideFare('jeepney', 9_400, '2026-09-29', 'discounted'), '₱19.25')
+  // A range, the part km counted down and up: 12.8 km is 12 or 13 km.
+  assert.equal(rideFare('jeepney', 12_800, '2026-09-29'), '₱30–32')
+  assert.equal(rideFare('jeepney', 9_400, '2026-09-29'), '₱24–26')
+  // The discounted fare, in whole pesos: ₱19.25–20.75 is ₱19–21; ₱11.25 is ₱11–12.
+  assert.equal(rideFare('jeepney', 9_400, '2026-09-29', 'discounted'), '₱19–21')
+  assert.equal(rideFare('jeepney', 3_100, '2026-09-29', 'discounted'), '₱11–12')
   // The old rule, before 28 Sep 2026: ₱13 + ₱1.80 × 5.
   assert.equal(rideFare('jeepney', 9_000, '2026-09-27'), '₱22')
   assert.equal(rideFare('uv_express', 5_000, '2026-09-29'), undefined)
