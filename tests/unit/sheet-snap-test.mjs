@@ -23,16 +23,28 @@ test('let go slowly below half of Low, it closes', () => {
   assert.equal(snapFor(30, 0, heights), 'close')
 })
 
-test('a flick up goes to the next height above: a swipe up at Middle reaches Max', () => {
-  assert.equal(snapFor(460, 0.8, heights), 'max')
-  assert.equal(snapFor(100, 0.8, heights), 'middle')
-  assert.equal(snapFor(800, 0.8, heights), 'max')
+// The owner, 2026-09-30: "like google maps and apple maps" — a flick goes to
+// the end in its direction, past Middle; a slow drag still settles near.
+test('a flick up goes all the way to Max, from Low or Middle alike', () => {
+  assert.equal(snapFor(460, 3, heights), 'max')
+  assert.equal(snapFor(100, 3, heights), 'max')
+  assert.equal(snapFor(800, 3, heights), 'max')
 })
 
-test('a flick down goes to the next height below, and past Low it closes', () => {
-  assert.equal(snapFor(780, -0.8, heights), 'middle')
-  assert.equal(snapFor(420, -0.8, heights), 'low')
-  assert.equal(snapFor(70, -0.8, heights), 'close')
+// 1.25 px/ms since the owner's 4/10 (2026-09-30, after "even if I scroll up
+// gently it doesn't stay on the middle"): an unhurried swipe settles on the
+// nearest height instead.
+test('a swipe under 1.25 px/ms is no flick: it settles on the nearest height', () => {
+  assert.equal(snapFor(460, 1, heights), 'middle')
+  assert.equal(snapFor(780, -1, heights), 'max')
+})
+
+test('a flick down goes all the way to Low, from Max or Middle alike, and from Low it closes', () => {
+  assert.equal(snapFor(800, -3, heights), 'low')
+  assert.equal(snapFor(780, -3, heights), 'low')
+  assert.equal(snapFor(420, -3, heights), 'low')
+  assert.equal(snapFor(80, -3, heights), 'close')
+  assert.equal(snapFor(70, -3, heights), 'close')
 })
 
 test('each height of a map 844 tall: Low 137, Middle 45%, Max all of it', () => {
@@ -57,11 +69,26 @@ test('held still before lifting it is a placement: the nearest height', () => {
   assert.equal(g.release(64 + 150), 'middle')
 })
 
-test('lifted while moving fast it is a flick: one height on, down past Low it closes', () => {
+test('lifted while moving fast it is a flick: to the end, down from Low it closes', () => {
   const up = follow(400, 0, 464, 844)
-  for (let i = 1; i <= 4; i++) up.move(400 - i * 10, i * 16)
+  for (let i = 1; i <= 4; i++) up.move(400 - i * 50, i * 16)
   assert.equal(up.release(64 + 16), 'max')
+  const fromMax = follow(100, 0, 844, 844)
+  for (let i = 1; i <= 4; i++) fromMax.move(100 + i * 50, i * 16)
+  assert.equal(fromMax.release(64 + 16), 'low')
   const down = follow(700, 0, LOW_PX, 844)
-  for (let i = 1; i <= 4; i++) down.move(700 + i * 10, i * 16)
+  for (let i = 1; i <= 4; i++) down.move(700 + i * 50, i * 16)
   assert.equal(down.release(64 + 16), 'close')
+})
+
+// A swipe up from Middle (380 of 844, 45%) that starts fast and slows to a
+// crawl before the finger lifts: read over its last 100 ms, it is slow, and
+// it settles on the nearest height — Middle — not a flick to Max.
+test('a swipe that slows before lifting is read as slow: it stays at the nearest height', () => {
+  const f = follow(400, 0, heightsFor(844).middle, 844)
+  let y = 400
+  let t = 0
+  for (let i = 0; i < 3; i++) f.move((y -= 50), (t += 16))
+  for (let i = 0; i < 10; i++) f.move((y -= 2), (t += 16))
+  assert.equal(f.release(t + 16), 'middle')
 })

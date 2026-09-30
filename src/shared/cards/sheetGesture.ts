@@ -61,8 +61,18 @@ export function snapAfterTap(snap: Snap): Snap {
   return snap === 'low' ? 'middle' : snap === 'middle' ? 'max' : 'low'
 }
 
-/** A flick faster than this, in pixels a millisecond, goes one height on in its direction. */
-const FLICK = 0.5
+/**
+ * A flick faster than this, in pixels a millisecond, goes to the end its way.
+ * 0.5 at first; the owner, trying it (2026-09-30), found that "too
+ * sensitive" — "even if I scroll up gently it doesn't stay on the middle" —
+ * and asked for 7/10, 5/10 and 2/10 of it, then settled on 4/10: 0.5 ÷ 0.4.
+ * With the speed read over the last moves only, a gentle swipe settles on
+ * the nearest height.
+ */
+const FLICK = 1.25
+
+/** How far back the speed at release is read: only the finger's last moves count. */
+const RECENT_MS = 100
 
 /** Middle shows this much of the map: 45% since the owner's ask of 2026-09-30 (55% before, as his frames had it). */
 const MIDDLE = 0.45
@@ -97,44 +107,50 @@ export function slideShowing(shown: number): string {
 /**
  * A finger, or a mouse, holding a sheet `max` tall that showed `from` when
  * it took hold at `startY`: how much shows as it moves, and where it lands
- * let go (snapFor). Its speed is smoothed over the last few moves, so one
- * jittery sample does not decide a flick; held still 80 ms before lifting,
- * it is a placement, not a flick. The touch pull at Max and the pointer
- * drag share it.
+ * let go (snapFor). Its speed at release is the finger's over its last
+ * RECENT_MS only, so a swipe that slowed before lifting is read as slow,
+ * however fast it began (the owner's "even if I scroll up gently it doesn't
+ * stay on the middle", 2026-09-30); held still 80 ms before lifting, it is a
+ * placement, not a flick. The touch pull at Max and the pointer drag share it.
  */
 export function follow(startY: number, t: number, from: number, max: number) {
   let y = startY
   let last = t
-  let v = 0
+  const moves: { at: number; t: number }[] = [{ at: startY, t }]
   const shown = (at: number) => Math.max(0, Math.min(max, from + startY - at))
   return {
     move(at: number, now: number): number {
-      const dt = now - last
-      if (dt > 0) v = 0.7 * ((y - at) / dt) + 0.3 * v
       y = at
       last = now
+      moves.push({ at, t: now })
+      while (moves.length > 2 && now - moves[1].t > RECENT_MS) moves.shift()
       return shown(at)
     },
     /** Where it lands let go at `at` (the last move's, when the release has no position). */
     release(now: number, at = y): Snap | 'close' {
-      return snapFor(shown(at), now - last > 80 ? 0 : v, heightsFor(max))
+      const first = moves.find((m) => last - m.t <= RECENT_MS) ?? moves[moves.length - 1]
+      const dt = last - first.t
+      const v = now - last > 80 || dt <= 0 ? 0 : (first.at - y) / dt
+      return snapFor(shown(at), v, heightsFor(max))
     },
   }
 }
 
 /**
- * Where a drag lets go (the owner's ask of 2026-09-30: the sheet follows the
- * finger, fluid, and a swipe up at Middle takes it to Max). `shown` is how
+ * Where a drag lets go (the owner's asks of 2026-09-30: the sheet follows the
+ * finger, fluid; then "like google maps and apple maps"). `shown` is how
  * much of the sheet is on screen as the finger lifts, `heights` what each
  * snap shows, `velocity` the finger's speed upwards in px/ms (negative:
- * downwards). A flick goes to the next height past where the sheet is, in
- * its direction — down past Low, it closes. A slow release settles on the
- * nearest height, or closes when less than half of Low still shows.
+ * downwards). A flick goes to the end in its direction: up, to Max, from Low
+ * or Middle alike; down, to Low, from Max or Middle alike — and down from
+ * Low, it closes. A slow release settles on the nearest height, so a hand
+ * can still leave it at Middle, or closes when less than half of Low still
+ * shows.
  */
 export function snapFor(shown: number, velocity: number, heights: Record<Snap, number>): Snap | 'close' {
-  const order: Snap[] = ['low', 'middle', 'max']
-  if (velocity >= FLICK) return order.find((s) => heights[s] > shown + 1) ?? 'max'
-  if (velocity <= -FLICK) return [...order].reverse().find((s) => heights[s] < shown - 1) ?? 'close'
+  if (velocity >= FLICK) return 'max'
+  if (velocity <= -FLICK) return shown > heights.low + 1 ? 'low' : 'close'
   if (shown < heights.low / 2) return 'close'
+  const order: Snap[] = ['low', 'middle', 'max']
   return order.reduce((a, b) => (Math.abs(heights[b] - shown) < Math.abs(heights[a] - shown) ? b : a))
 }
