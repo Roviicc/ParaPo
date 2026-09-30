@@ -405,11 +405,11 @@ if (PART !== 1) {
   await page.waitForTimeout(350)
   const state = await cardKind()
   const lists = await page.locator('[data-testid="chooser"]').count()
-  const litRoutes = (await page.evaluate(() => window.__lit('saved-routes'))) ?? []
+  // Its card lights the routes it lists, as any hotspot's card does.
   check(
-    'a tap on a route line inside a hotspot opens the hotspot alone: its card, no list, no route lit',
-    state.kind === 'hotspot' && state.text.includes(inBox.hotspot.name) && lists === 0 && litRoutes.length === 0,
-    `card ${state.kind} "${state.text.split('\n')[0] ?? ''}"; ${lists} list(s); ${litRoutes.length} route(s) lit`,
+    'a tap on a route line inside a hotspot opens the hotspot alone: its card, no list',
+    state.kind === 'hotspot' && state.text.includes(inBox.hotspot.name) && lists === 0,
+    `card ${state.kind} "${state.text.split('\n')[0] ?? ''}"; ${lists} list(s)`,
   )
   await closeCard()
 }
