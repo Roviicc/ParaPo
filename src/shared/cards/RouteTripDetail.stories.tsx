@@ -341,3 +341,12 @@ export const SheetLow: Story = {
     await expect(within(ctx.canvasElement).getByTestId('card')).toHaveAttribute('data-snap', 'low')
   },
 }
+
+/** Low with a long head: its name, cut short before SWITCH. */
+export const SheetLowLongName: Story = {
+  args: LongNames.args,
+  play: async (ctx) => {
+    await tapHandle(ctx.canvasElement, 2)
+    await expect(within(ctx.canvasElement).getByTestId('card-title')).toBeVisible()
+  },
+}

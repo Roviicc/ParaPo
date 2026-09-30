@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { useDialogFocus } from './useDialogFocus'
 import { useEscape } from './useEscape'
-import { DRAG_PX, snapAfter, snapFor, swallowTheTapsClick, type Snap } from './sheetGesture'
+import { DRAG_PX, snapAfterTap, snapFor, swallowTheTapsClick, type Snap } from './sheetGesture'
 
 type Props = {
   /** What a screen reader calls it: the list by its count, a trip by its direction. */
@@ -102,6 +102,10 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
     else setSnap(next)
   }
 
+  // When a finger or a mouse last pressed on the sheet: focus that follows a
+  // press is the press's, not the keyboard's (the body's onFocus).
+  const lastPress = useRef(-Infinity)
+
   // A drag under way, let go of if the sheet closes before the finger lifts.
   const stopDrag = useRef<(() => void) | null>(null)
   useLayoutEffect(() => () => stopDrag.current?.(), [])
@@ -158,10 +162,30 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
       const v = e.timeStamp - p.t > 80 ? 0 : p.v
       settleNow.current(snapFor(Math.max(0, Math.min(p.h, p.h - (p.y - p.startY))), v, heights))
     }
+    // A wheel moves the sheet only on a deliberate push: its deltas are added
+    // up and act past DRAG_PX, and not while a list's scroll is still coming
+    // to rest — a trackpad's momentum reaching the top is not a pull down.
+    let pushed = 0
+    let lastWheel = 0
+    let scrolledAt = -Infinity
     const wheel = (e: WheelEvent) => {
       if (!onPhone()) return
-      if (snapNow.current === 'max' && e.deltaY < 0 && body.scrollTop <= 0) setSnap('middle')
-      else if (snapNow.current === 'middle' && e.deltaY > 0) setSnap('max')
+      if (e.timeStamp - lastWheel > 200) pushed = 0
+      lastWheel = e.timeStamp
+      if (snapNow.current === 'max' && body.scrollTop > 0) {
+        scrolledAt = e.timeStamp
+        pushed = 0
+        return
+      }
+      if (e.timeStamp - scrolledAt < 300) return
+      pushed += e.deltaY
+      if (snapNow.current === 'max' && pushed < -DRAG_PX) {
+        pushed = 0
+        setSnap('middle')
+      } else if (snapNow.current === 'middle' && pushed > DRAG_PX) {
+        pushed = 0
+        setSnap('max')
+      }
     }
     body.addEventListener('touchstart', start, { passive: true })
     body.addEventListener('touchmove', move, { passive: false })
@@ -181,6 +205,7 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
   // what the sheet holds are left to it; the click after a drag, or after a
   // tap on the handle, is swallowed (sheetGesture).
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    lastPress.current = e.timeStamp
     const sheet = own.current
     // One pointer at a time, and a mouse's main button only.
     if (stopDrag.current || e.button !== 0) return
@@ -219,10 +244,10 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
         swallowTheTapsClick(ev.clientX, ev.clientY)
         // Held still before lifting: a placement, not a flick.
         const v = ev.timeStamp - g.t > 80 ? 0 : g.v
-        settle(snapFor(shownAt(ev.clientY), v, heights))
+        settleNow.current(snapFor(shownAt(ev.clientY), v, heights))
       } else if (onHandle) {
         swallowTheTapsClick(ev.clientX, ev.clientY)
-        settle(snapAfter(snap, 'tap'))
+        settleNow.current(snapAfterTap(snap))
       }
     }
     const cancel = (ev: PointerEvent) => {
@@ -242,7 +267,8 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
     window.addEventListener('pointercancel', cancel)
   }
 
-  const y = dragged === null ? slide(snap, lowPx) : `calc(100% - ${dragged}px - env(safe-area-inset-bottom))`
+  // Never above the map's top: at Max the inset is not taken off, so a drag there must not either.
+  const y = dragged === null ? slide(snap, lowPx) : `max(0px, calc(100% - ${dragged}px - env(safe-area-inset-bottom)))`
 
   return (
     <div
@@ -279,7 +305,7 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
         data-testid="dock-handle"
         aria-label={HANDLE_LABEL[snap]}
         title={HANDLE_LABEL[snap]}
-        onClick={() => settle(snapAfter(snap, 'tap'))}
+        onClick={() => settle(snapAfterTap(snap))}
         className="flex w-full shrink-0 touch-none justify-center py-2 @float:hidden"
       >
         <span aria-hidden className="h-1.5 w-12 rounded-full bg-surface-quaternary" />
@@ -289,6 +315,14 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
       </div>
       <div
         ref={bodyRef}
+        // Focus from the keyboard at Middle lands on rows that may be below
+        // the screen: the sheet rises to Max, where the list scrolls them
+        // into view (the ds-reviewer, 2026-09-30). Focus that follows a press
+        // is the press's own and leaves the sheet where it is.
+        onFocus={(e) => {
+          const fromKeys = e.timeStamp - lastPress.current > 800 && e.target.matches(':focus-visible')
+          if (snap === 'middle' && fromKeys && handleRef.current?.offsetParent != null) setSnap('max')
+        }}
         className={
           'min-h-0 flex-1 scrollbar-none [&::-webkit-scrollbar]:hidden @float:visible @float:overflow-y-auto @float:touch-auto ' +
           // At Low it is out of sight, out of reach of focus and screen readers.

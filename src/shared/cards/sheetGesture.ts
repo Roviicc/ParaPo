@@ -55,15 +55,11 @@ export function swallowTheTapsClick(x: number, y: number) {
 export type Snap = 'low' | 'middle' | 'max'
 
 /**
- * Where a pull or a tap on the handle takes the sheet. A pull moves one
- * height at a time; pulled down at Low it closes, as the hotspot's sheet does
- * at peek. A tap goes round, Low → Middle → Max → Low (the owner's defaults,
- * 2026-09-30).
+ * Where a tap on the handle, or Enter on it, takes the sheet: round, Low →
+ * Middle → Max → Low (the owner's defaults, 2026-09-30). Pulls go by snapFor.
  */
-export function snapAfter(snap: Snap, gesture: 'up' | 'down' | 'tap'): Snap | 'close' {
-  if (gesture === 'tap') return snap === 'low' ? 'middle' : snap === 'middle' ? 'max' : 'low'
-  if (gesture === 'up') return snap === 'low' ? 'middle' : 'max'
-  return snap === 'max' ? 'middle' : snap === 'middle' ? 'low' : 'close'
+export function snapAfterTap(snap: Snap): Snap {
+  return snap === 'low' ? 'middle' : snap === 'middle' ? 'max' : 'low'
 }
 
 /** A flick faster than this, in pixels a millisecond, goes one height on in its direction. */
