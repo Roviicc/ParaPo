@@ -20,6 +20,7 @@ import { useSavedRoutes } from '../shared/map/useSavedRoutes'
 import { LIT_LINE, LIVERY_LINE } from '../shared/map/liveryLine'
 import { useSavedStops } from '../shared/map/useSavedStops'
 import { HintuanPin } from '../shared/map/HintuanPin'
+import { EndTitles } from '../shared/map/EndTitles'
 import { Notices } from './Notices'
 import { TripCard, useTripLivery } from '../shared/cards/TripCard'
 import { useMapAge, useOffline } from './status'
@@ -163,6 +164,8 @@ export default function CommuterApp() {
       <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} />
       {map && <WhereAmIButton where={where} coarse={coarse} />}
       {map && where.fix && <Walker map={map} fix={where.fix} pose={where.pose} facing={where.facing} />}
+      {/* Each lit ride's ends, named over their circles. */}
+      {map && <EndTitles map={map} rides={rides} look={look} />}
       {/* Keyed on the pick: another hintuan pops a fresh circle. */}
       {map && ride.pinAt && tripLivery && (
         <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} livery={tripLivery} />

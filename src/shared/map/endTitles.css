@@ -1,0 +1,21 @@
+/*
+ * A lit ride's end names on the map (EndTitles.tsx, which imports this
+ * sheet). The marker's own element is MapLibre's to move, so the pop is on
+ * the pill inside: up from its pointer, over the base duration with the
+ * arriving ease (tokens.css, Motion). `prefers-reduced-motion` has it
+ * simply there.
+ */
+.end-title {
+  pointer-events: none;
+}
+.end-title > div {
+  transform-origin: center calc(100% + 11.5px);
+  animation: end-title-pop var(--transition-duration-base) var(--ease-enter) both;
+}
+@keyframes end-title-pop {
+  from { transform: scale(0.4); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .end-title > div { animation: none; }
+}
