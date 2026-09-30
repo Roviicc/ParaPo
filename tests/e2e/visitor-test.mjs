@@ -587,13 +587,15 @@ if (!hit) {
       check('  and on no other line', passLit.length === 1 && !alwaysOn, `lit on the stretches: ${JSON.stringify(passLit)}; the old layer for every line ${alwaysOn ? 'still there' : 'gone'}`)
       // A hintuan's row picks it (the owner's Timeline State=Selected,
       // 2026-09-29), here with the card in the top-left corner: the pill's
-      // pesos are the app's own sums over rideCut's metres, the map is dark
-      // only that far, and the camera glides the hintuan to the right of the
-      // card; a second tap lets it go, and ✕ lets a pick go.
+      // pesos are the app's own sums over rideCut's metres, the route stays
+      // whole with a circle popping up at the hintuan (the owner's ask of
+      // 2026-09-30: "now I don't want to cut the route"), and the camera
+      // glides the hintuan to the right of the card; a second tap lets it
+      // go, circle and all, and ✕ lets a pick go.
       const cardEl = page.locator('[data-testid="card"]').first()
       const rows = cardEl.locator('[data-testid="trip-hintuan"]')
       if ((await rows.count()) === 0) {
-        skip('  a hintuan row picks it, priced from the start, the map dark that far', 'no hintuan on this direction yet')
+        skip('  a hintuan row picks it, priced from the start, a circle at it on the map', 'no hintuan on this direction yet')
       } else {
         const fold = cardEl.locator('button[data-testid="trip-fold"]')
         if ((await fold.count()) > 0) {
@@ -610,7 +612,7 @@ if (!hit) {
             const found = m.variants.find((x) => x.id === id)
             const v = found && { ...found, shape: (await loadLine(id)) ?? found.shape }
             const cut = v && rideCut(v, m.stops, rowId)
-            return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, at: cut.at, rest: cut.rest.length } : null
+            return cut ? { fare: rideFare(v.route?.mode, cut.metres) ?? null, at: cut.at } : null
           } catch {
             return null
           }
@@ -624,14 +626,16 @@ if (!hit) {
         const pill = (await row.locator('[data-testid="trip-hintuan-fare"]').count()) ? (await row.locator('[data-testid="trip-hintuan-fare"]').innerText()).trim() : null
         const seen = await page.evaluate(async (at) => {
           const m = window.__map
-          const fs = (await window.__src('ride-rest'))?.features ?? []
           const c = m.getCanvas().getBoundingClientRect()
           const d = document.querySelector('[data-testid="card"]').getBoundingClientRect()
           const q = at && m.project(at)
+          const pins = document.querySelectorAll('[data-testid="hintuan-pin"]')
+          const p = pins[0]?.getBoundingClientRect()
           return {
             lit: (await window.__lit('saved-routes')) ?? [],
-            rest: fs.length === 1 ? fs[0].geometry.coordinates.length : 0,
-            line: m.getLayer('ride-rest-line') ? m.getPaintProperty('ride-rest-line', 'line-color') : null,
+            rest: ((await window.__src('ride-rest'))?.features ?? []).length,
+            pins: pins.length,
+            off: p && q ? Math.hypot(p.left + p.width / 2 - (c.left + q.x), p.top + p.height / 2 - (c.top + q.y)) : null,
             dots: document.querySelectorAll('[data-testid="ride-dot"]').length,
             x: q ? c.left + q.x : null, y: q ? c.top + q.y : null, cardRight: d.right, top: c.top, bottom: c.bottom, right: c.right,
             padding: Object.values(m.getPadding()).every((v) => v === 0),
@@ -644,10 +648,10 @@ if (!hit) {
         )
         check('  the tiles keep the whole ride', (await cardEl.locator('dl').innerText()) === tilesBefore)
         check(
-          '  the map dark only that far: the trip still lit, the way past at rest over it, no get-off circles',
-          seen.lit.length === 1 && seen.lit[0] === litId && seen.rest > 1 && (!want || seen.rest === want.rest) &&
-            (MAP ? seen.line === MAP['Map/RouteLine/surface-default'] : !!seen.line) && seen.dots === 0,
-          `${seen.lit.length} lit; ${seen.rest} point(s) at rest in ${seen.line}; ${seen.dots} circle(s)`,
+          '  the route left whole, a circle popping up at the hintuan: the trip still lit, nothing at rest over it, no get-off circles',
+          seen.lit.length === 1 && seen.lit[0] === litId && seen.rest === 0 && seen.pins === 1 &&
+            (!want || (seen.off !== null && seen.off < 2)) && seen.dots === 0,
+          `${seen.lit.length} lit; ${seen.rest} stretch(es) at rest; ${seen.pins} circle(s), ${seen.off === null ? 'not measured' : Math.round(seen.off) + ' px'} off the hintuan; ${seen.dots} get-off circle(s)`,
         )
         if (want) {
           check(
@@ -658,8 +662,8 @@ if (!hit) {
         }
         await pick.click()
         await page.waitForTimeout(250)
-        const letGo = await page.evaluate(async () => ((await window.__src('ride-rest'))?.features ?? []).length)
-        check('  a second tap lets it go', (await row.getAttribute('data-state')) === 'rest' && letGo === 0, `${letGo} at rest`)
+        const letGo = await page.evaluate(() => document.querySelectorAll('[data-testid="hintuan-pin"]').length)
+        check('  a second tap lets it go, its circle too', (await row.getAttribute('data-state')) === 'rest' && letGo === 0, `${letGo} circle(s)`)
         // Where the trip goes is a button too (the owner's ask, 2026-09-29):
         // picked again, a tap there lets the pick go and glides the map to
         // the line's end, right of the card in the corner.
@@ -688,14 +692,14 @@ if (!hit) {
           const d = document.querySelector('[data-testid="card"]').getBoundingClientRect()
           const q = at && m.project(at)
           return {
-            rest: ((await window.__src('ride-rest'))?.features ?? []).length,
+            pins: document.querySelectorAll('[data-testid="hintuan-pin"]').length,
             right: q ? c.left + q.x > d.right + 24 && q.x < c.width - 16 && q.y > 16 && q.y < c.height - 16 : null,
           }
         }, end)
         check(
-          "  where the trip goes, tapped, is picked in the hintuan's place, its line whole, gliding there right of the card",
-          wasPicked && (await row.getAttribute('data-state')) === 'rest' && destination === 'selected' && atEnd.rest === 0 && atEnd.right !== false,
-          `picked first ${wasPicked}; the destination ${destination}; ${atEnd.rest} at rest; right of the card ${atEnd.right ?? 'not measured'}`,
+          "  where the trip goes, tapped, is picked in the hintuan's place, its circle gone, gliding there right of the card",
+          wasPicked && (await row.getAttribute('data-state')) === 'rest' && destination === 'selected' && atEnd.pins === 0 && atEnd.right !== false,
+          `picked first ${wasPicked}; the destination ${destination}; ${atEnd.pins} circle(s); right of the card ${atEnd.right ?? 'not measured'}`,
         )
         // Where it leaves from is picked in the destination's place, no hintuan picked.
         await cardEl.locator('[data-testid="trip-origin"] button').click()
@@ -715,8 +719,8 @@ if (!hit) {
       await page.waitForTimeout(300)
       const after = (await page.evaluate(() => window.__lit('saved-routes'))) ?? []
       check('  closing the card lights nothing again', after.length === 0, JSON.stringify(after))
-      const restAfter = await page.evaluate(async () => ((await window.__src('ride-rest'))?.features ?? []).length)
-      check('  and lets a picked hintuan go', restAfter === 0, `${restAfter} at rest`)
+      const pinsAfter = await page.evaluate(() => document.querySelectorAll('[data-testid="hintuan-pin"]').length)
+      check('  and lets a picked hintuan go, its circle too', pinsAfter === 0, `${pinsAfter} circle(s)`)
     }
   }
 }
