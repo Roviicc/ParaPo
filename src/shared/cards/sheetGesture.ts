@@ -63,10 +63,11 @@ export function snapAfterTap(snap: Snap): Snap {
 
 /**
  * A flick faster than this, in pixels a millisecond, goes to the end its way.
- * 0.5 until the owner found it "too sensitive" (2026-09-30: "make it like
- * maybe 7/10"): 0.5 ÷ 0.7, so a flick has to be that much faster.
+ * 0.5 at first; the owner, trying it (2026-09-30), found that "too
+ * sensitive", tried 7/10 of it, then settled on 5/10: 0.5 ÷ 0.5, so a flick
+ * has to be twice as fast as at first.
  */
-const FLICK = 0.7
+const FLICK = 1
 
 /** Middle shows this much of the map, as the owner's frames do (448 and 462 of 844). */
 const MIDDLE = 0.55
