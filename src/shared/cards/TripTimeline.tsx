@@ -350,7 +350,8 @@ function TimelineBottomEndRoute({
           <span aria-hidden className="shrink-0 p-1 *:size-5">
             <CircleArrowRightIcon />
           </span>
-          <span className="min-w-0 flex-1 text-xl/7 font-medium">{routeDirection}</span>
+          {/* Bold, Figma's text-xl/bold (the owner, 2026-09-30: "bold"). */}
+          <span className="min-w-0 flex-1 text-xl/7 font-bold">{routeDirection}</span>
         </span>
       </button>
     </li>
