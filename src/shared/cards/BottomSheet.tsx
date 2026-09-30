@@ -69,12 +69,13 @@ const FLOAT: Record<Floats, { root: string; handle: string; head: string; body: 
 const MIDDLE = 0.55
 
 /**
- * What Low shows, the same for the route list and a trip's card (the owner's
- * 3817:6007, 2026-09-30: "same height, same interaction, same motion"): the
- * notch, the header and the top of the first card, down past its title —
- * cut to one line there (group-data-[snap=low]/sheet:line-clamp-1).
+ * What Low shows, the same for every card (the owner's 3817:6007,
+ * 2026-09-30: "same height, same interaction, same motion"; 137 since his
+ * change to it that day): the notch, the header and the top of the first
+ * card, down past its title — cut to one line there
+ * (group-data-[snap=low]/sheet:line-clamp-1).
  */
-const LOW_PX = 140
+const LOW_PX = 137
 
 /**
  * How far down the sheet slides at each snap, as a CSS length: it is always
