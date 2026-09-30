@@ -24,6 +24,8 @@ export const CARD_COLOURS = {
   'Card/orange/surface': '#ca3500', // orange/700
   'Card/mist/surface': '#d0d6d8', // mist/300
   'Card/yellow/surface': '#ffdf20', // yellow/300
+  'Card/violet/surface': '#7008e7', // violet/700
+  'Card/rose/surface': '#c70036', // rose/700
 } as const satisfies Record<`Card/${string}/surface`, `#${string}`>
 
 /**
