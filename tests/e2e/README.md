@@ -24,11 +24,16 @@ Chromium does.
     node tests/e2e/save-test.mjs             # 58: the studio's save flows signed in, against a stand-in for the database (today's map plus 500 far-off hintuans, answered as PostgREST answers: filters, unique indexes, foreign keys, cascades) and a faked stored session, no router, no tiles — the pill counts routes and the stop table is read once a load; a route saved with its empty slot, the return trip offered while the slot is empty and written into it, the overview written beside the line and cleared with it, an edit writing its one row, Edit route changing a route's ends and facts (the other direction renamed, the owner's terminal links kept) and refusing ends another route has and a head–tail swap, each writing nothing, a delete emptying the direction into a slot, a refused step of it said, and a redraw filling it; request lines short with 541 hotspots and the hintuans read in pages; a hotspot saved with its links, and the directions read again after it; a route's end refused a delete in words; undo to no points leaving no draft; a failed link sync and a retry that updates, the new route's ends locked meanwhile; a line back to its start rendering without a React warning; the drawing keys alive after signing in from Done
     node tests/e2e/pwa-test.mjs               # 44: the installable app, against the build in its own `vite preview` on :4173 — manifest, worker, offline, slow network, update, an opened trip's line kept for offline, a map published for a newer app and its Reload
 
-**On GitHub, every push runs these** (`.github/workflows/ci.yml`): one job builds
-and runs gate, visitor, phone, where, scale and pwa; a second runs studio-scale and save, then the
-drawing suites one at a time, with one retry after a minute for the shared router. A red check on a
-branch means the push broke something; the failing suite's screenshots are
-kept as the run's artifact.
+**On GitHub** (`.github/workflows/ci.yml`), every suite is its own job and they
+run at once, so a run takes as long as visitor-test. A pull request runs only what
+its files can reach: docs alone run nothing, `src/studio/` alone skips the public
+suites, `src/commuter/` and `public/` alone skip the studio's, anything shared runs
+both. The drawing suites (group, regression-gestures, hotspot, snap, extend) are
+not run on pull requests. They run on every push to `main` or `staging`, nightly
+and on "Run workflow", one at a time with one retry after a minute for the shared
+router. The pull request's two checks keep their names, "Build and the public map"
+and "The editor". A red check means the push broke something; the failing
+suite's screenshots are kept as the run's artifact.
 
 The service worker is off under `npm run dev`, so every suite above meets a
 plain page; `pwa-test` alone runs the production build. It starts and stops its
