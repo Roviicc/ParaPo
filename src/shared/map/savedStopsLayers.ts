@@ -45,20 +45,19 @@ const labelsOf = (kind: StopKind, hidden = '') =>
     ['==', ['get', 'kind'], kind],
     ...(hidden ? [['!', ['in', hidden, ['get', 'ids']]]] : []),
   ] as never
-/** The boxes under a tap, or the chosen one, drawn again stronger while they are asked about. */
-const LIT = 'saved-stops-lit'
-/** …and striped, the HotspotOverlayCard's State=Selected. */
+/** The boxes under a tap, or the chosen one, striped while they are asked about: the HotspotOverlayCard's State=Selected. */
 const HATCH = 'saved-stops-hatch'
 const hatchOf = (kind: StopKind) => `hotspot-hatch-${kind}`
 
 /**
  * The Selected box's stripes (3837:11308): 0.6 px lines of the box's content
- * colour, 8 px apart, rising to the right — a pattern MapLibre repeats in
+ * colour, 16 px apart since the owner's "make the lines much lesser"
+ * (2026-09-30; 8 at first), rising to the right — a pattern MapLibre repeats in
  * screen pixels, so they keep their spacing at every zoom. Drawn at twice the
  * size for a sharp screen.
  */
 function hatch(hex: string): { width: number; height: number; data: Uint8Array } {
-  const size = 16
+  const size = 32
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
   const data = new Uint8Array(size * size * 4)
   for (let y = 0; y < size; y++) {
@@ -74,9 +73,8 @@ function hatch(hex: string): { width: number; height: number; data: Uint8Array }
 }
 
 /**
- * How much stronger a chosen or sibling box's fill is drawn over its own:
- * a hintuan's to Map/OverlayCard/Hintuan/surface-selected (60% over 30%);
- * a terminal, with no selected surface, keeps its own under the stripes.
+ * How much stronger a sibling box's fill is drawn over its own, a hintuan's
+ * to Map/OverlayCard/Hintuan/surface-selected (60% over 30%).
  */
 const HINTUAN_STRONGER = 1 - (1 - MAP_OPACITY['Map/OverlayCard/Hintuan/surface-selected']) / (1 - HOTSPOT_OPACITY.hintuan)
 
@@ -202,18 +200,10 @@ export function useSavedStopsLayers(
       },
       before,
     )
-    // The lit boxes: the one chosen, or everything under a tap while the sheet
-    // asks which. Same idea as the routes' lit pair, decided 2026-09-22.
-    map.addLayer(
-      {
-        id: LIT,
-        type: 'fill',
-        source: SRC,
-        filter: ['==', ['geometry-type'], 'Polygon'],
-        paint: { 'fill-color': colour, 'fill-opacity': ['case', state('lit'), byKind(0, HINTUAN_STRONGER), 0] as never },
-      },
-      before,
-    )
+    // The lit boxes — the one chosen, or everything under a tap while the
+    // sheet asks which (the routes' lit pair's idea, 2026-09-22) — striped,
+    // their fill as it was: the owner's redrawn Selected variants
+    // (2026-09-30) keep the Rest surface under the stripes.
     map.addLayer(
       {
         id: HATCH,
