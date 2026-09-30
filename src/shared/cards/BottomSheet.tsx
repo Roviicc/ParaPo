@@ -263,7 +263,10 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
       hidden={hidden}
       onPointerDown={onPointerDown}
       className={
-        'absolute inset-0 z-10 outline-none flex flex-col overflow-clip bg-surface pb-[env(safe-area-inset-bottom)] ' +
+        // Docked, it casts BottomSheet/TopShadow (3817:6007) up onto the map;
+        // floating as a card, its own shadow-xl takes over.
+        'absolute inset-0 z-10 outline-none flex flex-col overflow-clip bg-surface shadow-bottom-sheet-top-shadow ' +
+        'pb-[env(safe-area-inset-bottom)] ' +
         'translate-y-(--sheet-y) motion-reduce:transition-none ' +
         (dragging ? '' : 'transition-[translate] duration-sheet ease-enter ') +
         (snap === 'max' ? 'pt-[env(safe-area-inset-top)] ' : '') +
