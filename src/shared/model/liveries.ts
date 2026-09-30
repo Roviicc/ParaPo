@@ -8,8 +8,8 @@
  * place: Tala → SM Fairview and Tala → Novaliches share Tala's card, and
  * whichever of them is opened wears it. Once open, a trip's card keeps that
  * colour until it closes, even SWITCHed to leave from another place: turned
- * round, it is the same card (the owner, 2026-09-29; CommuterApp's `tripWears`,
- * since its line wears the colour too).
+ * round, it is the same card (the owner, 2026-09-29; `useTripLivery` in
+ * commuter/TripCard.tsx, since its line wears the colour too).
  */
 export const LIVERIES = ['red', 'orange', 'mist', 'yellow'] as const
 export type Livery = (typeof LIVERIES)[number]
