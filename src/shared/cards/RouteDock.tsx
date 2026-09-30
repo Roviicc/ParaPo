@@ -177,7 +177,12 @@ export function RouteDock({ label, testId, header, onClose, hidden = false, ref,
         pushed = 0
         return
       }
-      if (e.timeStamp - scrolledAt < 300) return
+      // Still inside a scroll's tail: the tail goes on, however long a
+      // trackpad's momentum lasts, and moves nothing.
+      if (e.timeStamp - scrolledAt < 300) {
+        scrolledAt = e.timeStamp
+        return
+      }
       pushed += e.deltaY
       if (snapNow.current === 'max' && pushed < -DRAG_PX) {
         pushed = 0
