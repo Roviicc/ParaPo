@@ -3651,6 +3651,6 @@ a trip's row does for its trip (`useCardOverview`, beside
 go, the view stays until another card is picked. SWITCH too, the owner's
 next ask the same day: on the route list, a
 hotspot's card or a trip, a press takes the camera to what is lit after it
-— the routes the other way round, whole (`useSwitchOverview`; a trip's SWITCH
+— the routes the other way round, whole (`useSwitchOverview`, all three in `useOverviews.ts`; a trip's SWITCH
 had left the view as it was).
 

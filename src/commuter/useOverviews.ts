@@ -7,6 +7,12 @@ import { APP_MOVE } from '../shared/map/MapView'
 import type { Highlight } from '../shared/map/useSavedRoutes'
 import { variantLine, type VariantSummary } from '../shared/model/routes'
 
+/*
+ * The camera taking in routes whole — a trip opened, a RouteCard picked,
+ * SWITCH pressed — zooming in or out, clear of the card's sheet: the owner's
+ * asks of 2026-10-01, one fit for all three.
+ */
+
 /** The camera takes in these lines whole, zooming in or out, clear of the sheet on show. */
 function overview(map: MapLibreMap, lines: readonly (readonly LngLat[])[], dock: HTMLElement | null, snap: Snap) {
   const points = lines.filter((l) => l.length >= 2).flat()
@@ -42,8 +48,8 @@ export function useTripOverview(
  * A RouteCard picked — in the route list or on a hotspot's card: the camera
  * takes in the routes it stands for, as a trip's row does for its trip (the
  * owner's ask, 2026-10-01), clear of the sheet on show. Keyed on the card
- * and what it shows, so a card let go, or SWITCH turning the list round,
- * leaves the view as it is until another is picked.
+ * and what it shows, so a card let go leaves the view as it is until another
+ * is picked; SWITCH has its own (useSwitchOverview).
  */
 export function useCardOverview(
   map: MapLibreMap | null,
