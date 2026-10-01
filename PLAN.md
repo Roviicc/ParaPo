@@ -3636,3 +3636,9 @@ gone (the masters stay in `docs/figure/`). `where-test` is rewritten for it
 The button is 48 across (the owner's change the same afternoon; 40 at first):
 4 more padding round each look's icon, the icons as they were.
 
+**The HintuanCard's counter, 2026-10-01.** The owner's 3854:12690 of the
+day: the HintuanCardRouteCounter is 24 in from the card's edges (32 before),
+12 above and below, 16 before the jeep and 12 after SWITCH; the jeep 20
+(24), the count in Black, and it reads "… here" ("2 routes pass here"; "…
+through" before), the verb still agreeing with the count. The first
+RouteCard under it leaves 36 above its title (24).
