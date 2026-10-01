@@ -15,6 +15,7 @@ const locator = (over: Partial<State> = {}): State => ({
   mode: 'TrackOwnLocation',
   noFix: false,
   tap: fn(),
+  taps: 0,
   ...over,
 })
 
