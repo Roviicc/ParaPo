@@ -47,7 +47,11 @@
  * Its moods (locatorMood.ts; the owner's ask, 2026-10-01): the dot wears a
  * face for each — `data-mood` and `data-face` on .locator-dot. Every face
  * but the glance looks out from the middle, its eyes centred (4 px left of
- * where they are drawn), and morphs from the last over a quarter second.
+ * where they are drawn, a `transform`), and morphs from the last over a
+ * quarter second. They still look about — right, left, up, down — as the
+ * glance does, a smaller round about the middle (`translate`, adding to the
+ * face's own place; the owner's ask the same day), but for the faces whose
+ * eyes are shut or fixed: dozing, squeezed, and glaring.
  * Brows show only when sad or cross. A hop and a shake move the dot with
  * `transform`, which adds to the `translate` that centres it on the fix.
  */
@@ -56,6 +60,7 @@
 .locator-brow {
   transition:
     translate 0.25s ease-out,
+    transform 0.25s ease-out,
     scale 0.25s ease-out,
     rotate 0.25s ease-out,
     opacity 0.2s ease-out,
@@ -68,25 +73,30 @@
   scale: 0.5 1;
 }
 .locator-dot:not([data-face='glance']) .locator-eyes {
+  animation: locator-look 9s ease-in-out infinite;
+  transform: translate(-4px, 0);
+}
+.locator-dot[data-face='sleepy'] .locator-eyes,
+.locator-dot[data-face='squee'] .locator-eyes,
+.locator-dot[data-face='glare'] .locator-eyes {
   animation: none;
-  translate: -4px 0;
 }
 .locator-dot:not([data-face='glance']) .locator-eye {
   animation: none;
 }
 
 /* Neutral: a curious look up, one eye wider; a wink; wide-eyed; sleepy when long still. */
-.locator-dot[data-face='curious'] .locator-eyes { translate: -4px -2px; }
+.locator-dot[data-face='curious'] .locator-eyes { transform: translate(-4px, -2px); }
 .locator-dot[data-face='curious'] .locator-eye:nth-child(2) { scale: 1.25; }
 .locator-dot[data-face='wink'] .locator-eye:nth-child(2) {
   animation: locator-wink 1.6s ease-in-out 2;
 }
-.locator-dot[data-face='surprised'] .locator-eyes { translate: -4px -1px; }
+.locator-dot[data-face='surprised'] .locator-eyes { transform: translate(-4px, -1px); }
 .locator-dot[data-face='surprised'] .locator-eye { scale: 1.4 1.15; }
 .locator-dot[data-face='sleepy'] {
   animation-duration: 4s;
 }
-.locator-dot[data-face='sleepy'] .locator-eyes { translate: -4px 1.5px; }
+.locator-dot[data-face='sleepy'] .locator-eyes { transform: translate(-4px, 1.5px); }
 .locator-dot[data-face='sleepy'] .locator-eye {
   scale: 1 0.3;
   animation: locator-doze 4s ease-in-out infinite;
@@ -96,7 +106,7 @@
 .locator-dot[data-mood='happy'] {
   animation-duration: 1.4s;
 }
-.locator-dot[data-mood='happy'] .locator-eyes { translate: -4px 1px; }
+.locator-dot[data-mood='happy'] .locator-eyes { transform: translate(-4px, 1px); }
 .locator-dot[data-face='smile'] .locator-eye,
 .locator-dot[data-face='hop'] .locator-eye,
 .locator-dot[data-face='wink-smile'] .locator-eye:nth-child(1) {
@@ -128,7 +138,7 @@
 .locator-dot[data-mood='sad'] {
   animation-duration: 3.2s;
 }
-.locator-dot[data-face='droop'] .locator-eyes { translate: -4px 1.5px; }
+.locator-dot[data-face='droop'] .locator-eyes { transform: translate(-4px, 1.5px); }
 .locator-dot[data-face='droop'] .locator-eye { scale: 0.85; }
 .locator-dot[data-face='droop'] .locator-brow { opacity: 1; scale: 1; }
 .locator-dot[data-face='droop'] .locator-brow:nth-child(3) { rotate: -22deg; }
@@ -138,12 +148,21 @@
 .locator-dot[data-face='glare'] {
   animation: locator-shake 0.45s ease-in-out 2;
 }
-.locator-dot[data-face='glare'] .locator-eyes { translate: -4px 0.5px; }
+.locator-dot[data-face='glare'] .locator-eyes { transform: translate(-4px, 0.5px); }
 .locator-dot[data-face='glare'] .locator-eye { scale: 1 0.55; }
 .locator-dot[data-face='glare'] .locator-brow { opacity: 1; scale: 1; }
 .locator-dot[data-face='glare'] .locator-brow:nth-child(3) { rotate: 24deg; }
 .locator-dot[data-face='glare'] .locator-brow:nth-child(4) { rotate: -24deg; }
 
+@keyframes locator-look {
+  0%, 14% { translate: 0 0; }
+  17%, 30% { translate: 2.5px 0; }
+  33%, 44% { translate: -2.5px 0; }
+  47%, 58% { translate: 0 -2px; }
+  61%, 72% { translate: 0 1.5px; }
+  75%, 86% { translate: -2px -1px; }
+  89%, 100% { translate: 0 0; }
+}
 @keyframes locator-wink {
   0%, 25%, 75%, 100% { scale: 1 1; }
   40%, 60% { scale: 1.1 0.15; }
@@ -168,6 +187,7 @@
   .locator-dot,
   .locator-dot[data-face],
   .locator-eyes,
+  .locator-dot[data-face]:not([data-face='glance']) .locator-eyes,
   .locator-eye,
   .locator-dot[data-face] .locator-eye:nth-child(n) { animation: none; }
   .locator-eyes,

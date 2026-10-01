@@ -3746,7 +3746,9 @@ winking or wide-eyed, and dozes after a minute standing still; glad smiles
 ∩ ∩, hops, squeezes > < or winks, a new one every 2.5 s; low droops, brows
 up at the middle; cross narrows its eyes, brows down, and shakes. All CSS
 on the dot (locator.css), morphing over a quarter second; held still for
-reduced motion. Its beam cut to 7/10 of its length at the same spread (59
+reduced motion. Every face whose eyes are open still looks about — right,
+left, up, down, a smaller round about the middle (the owner's ask the same
+day); dozing, squeezed and glaring eyes keep still. Its beam cut to 7/10 of its length at the same spread (59
 long), and zoomed out it is a fifth bigger, 0.54 at the least (the owner,
 the same day). Straight to main this once, at the owner's say.
 `locator-mood-test` 6, `locator-test` 16, `where-test` 38 → 41.
