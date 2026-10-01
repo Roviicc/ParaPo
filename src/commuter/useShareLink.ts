@@ -7,10 +7,10 @@ const SHARE_KEY = 'r'
 
 /**
  * Keeps the address and the selected route in step. Opening `/?r=<id>` selects
- * that direction, and the view comes to it as the trip opens; selecting one writes `?r=` so the
- * address bar is already a link to share; closing clears it. Nothing is
- * written until the arriving link has been honoured, so a slow load never
- * wipes it.
+ * that direction, and the view comes to it as any trip's does when it opens
+ * (CommuterApp); selecting one writes `?r=` so the address bar is already a
+ * link to share; closing clears it. Nothing is written until the arriving
+ * link has been honoured, so a slow load never wipes it.
  */
 export function useShareLink(
   map: MapLibreMap | null,
@@ -33,7 +33,6 @@ export function useShareLink(
       window.history.replaceState(null, '', url)
       return
     }
-    // The view comes to it as any trip's does when it opens (CommuterApp).
     select(v.id)
   }, [map, variants, select])
 
