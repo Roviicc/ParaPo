@@ -3681,3 +3681,13 @@ dart, hold, dart on, an 11 s run of glances — and blink on a 5.3 s beat, so
 the two drift apart and never read as a loop (locator.css; still for
 reduced motion).
 
+**A picked RouteCard's overview, 2026-10-01.** The owner's ask: a RouteCard
+picked — its name tapped, in the route list or on a hotspot's card — brings
+the camera to its routes whole, zooming in or out, clear of the sheet, as
+a trip's row does for its trip (`useCardOverview`, beside
+`useTripOverview`, sharing its fit). Keyed on the card and what it shows: let
+go, the view stays until another card is picked. SWITCH too, the owner's
+next ask the same day: on the route list, a
+hotspot's card or a trip, a press takes the camera to what is lit after it
+— the routes the other way round, whole (`useSwitchOverview`, all three in `useOverviews.ts`; a trip's SWITCH
+had left the view as it was).

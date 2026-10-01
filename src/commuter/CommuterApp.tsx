@@ -19,7 +19,7 @@ import { Notices } from './Notices'
 import { TripCard } from '../shared/cards/TripCard'
 import { useMapAge, useOffline } from './status'
 import { useShareLink } from './useShareLink'
-import { useTripOverview } from './useTripOverview'
+import { useCardOverview, useSwitchOverview, useTripOverview } from './useOverviews'
 import { Locator } from './Locator'
 import { LocatorOnMap } from './LocatorIndicatorOverlay'
 import { useLocator } from './useLocator'
@@ -57,17 +57,25 @@ export default function CommuterApp() {
   const hotspotDock = useRef<HTMLDivElement>(null)
   const ride = useRideTo(map, saved.selected, stops.stops, { onGlide: cards.clearOf(tripDock) })
   useTripOverview(map, saved.selected, tripDock, cards.snap)
+  // The page, and the card's sheet on show in it, for what the camera keeps clear of.
+  const root = useRef<HTMLDivElement>(null)
+  const openSheet = () => root.current?.querySelector<HTMLElement>('[data-floats]:not([hidden])') ?? null
+  // A RouteCard picked, in the list or a hotspot's card: its routes whole.
+  useCardOverview(map, saved.highlight, saved.variants, openSheet, cards.snap)
+  // SWITCH, on any card: the routes the other way round, whole.
+  const [switches, setSwitches] = useState(0)
+  const switched = () => setSwitches((n) => n + 1)
+  useSwitchOverview(map, saved.litVariants, switches, openSheet, cards.snap)
 
   useShareLink(map, saved)
   // The visitor's own position, when they ask for it, and the camera with
   // them (the owner's LocatorButton, 2026-10-01): kept clear of the card on
   // show, as a picked hintuan is.
-  const root = useRef<HTMLDivElement>(null)
   const locator = useLocator(map, {
     compass: coarse,
     snap: cards.snap,
     offset: () =>
-      map ? clearOfSheet(map.getContainer(), root.current?.querySelector<HTMLElement>('[data-floats]:not([hidden])') ?? null, cards.snap) : [0, 0],
+      map ? clearOfSheet(map.getContainer(), openSheet(), cards.snap) : [0, 0],
   })
   const offline = useOffline()
   const age = useMapAge(saved.variants)
@@ -138,7 +146,10 @@ export default function CommuterApp() {
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
           livery={tripLivery}
           onBackToList={cards.backFromTrip}
-          onSwitch={(v) => saved.select(v.id, { keepList: true })}
+          onSwitch={(v) => {
+            saved.select(v.id, { keepList: true })
+            switched()
+          }}
           onClose={cards.closeAll}
           picked={ride.pickedId}
           // The pesos to a picked hintuan are the full line's: none while
@@ -169,6 +180,7 @@ export default function CommuterApp() {
             selected: saved.highlight?.where === 'hotspot' ? saved.highlight.from : null,
             onSelect: (p) => saved.highlightCard(p && { where: 'hotspot', ...p }),
             onShown: saved.showCard,
+            onSwitch: switched,
           }}
           hidden={!!saved.selected}
           height={height}
@@ -210,7 +222,10 @@ export default function CommuterApp() {
           routes={saved.candidates}
           stops={stops.candidates}
           back={saved.back}
-          onFlip={saved.flip}
+          onFlip={() => {
+            saved.flip()
+            switched()
+          }}
           selected={saved.highlight?.where === 'list' ? saved.highlight.from : null}
           onSelect={(p) => saved.highlightCard(p && { where: 'list', ...p })}
           onRoute={cards.openTrip}

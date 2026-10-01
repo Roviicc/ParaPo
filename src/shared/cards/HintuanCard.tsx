@@ -30,6 +30,8 @@ type Props = {
     selected: string | null
     onSelect: (place: PickedPlace | null) => void
     onShown: (ids: readonly string[]) => void
+    /** SWITCH pressed: the routes turn round (the public map takes them in whole). */
+    onSwitch?: () => void
   }
   /** Another box of the place picked — its row, or SWITCH moving to it: select it and go there. */
   onPickBox: (id: string) => void
@@ -253,6 +255,7 @@ export function HintuanCard({
                 onClick={() => {
                   if (!switchTo) return
                   routeCards.onSelect(null)
+                  routeCards.onSwitch?.()
                   setFlipped(other)
                   if (switchTo.id !== stop.id) onPickBox(switchTo.id)
                 }}
