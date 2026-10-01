@@ -608,10 +608,12 @@ if (PART === 1) {
       // a second apart finds them moved, in about fifteen redraws.
       const where = () =>
         page.evaluate(async () => ((await window.__src('direction-arrows'))?.features ?? []).map((f) => f.geometry.coordinates[0][0].map((v) => v.toFixed(7)).join()).join('|'))
+      // The trip opens on its whole route (the owner's ask, 2026-10-01); the
+      // flow is counted back where the tap was, close in, as before: a
+      // runner drawing without a GPU manages a few frames a second on the
+      // whole route, and the flow steps on frames.
+      await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 17 }), clean)
       await page.waitForTimeout(3200)
-      // The trip opened on its whole route (the owner's ask, 2026-10-01): a
-      // zoom out whose tiles, still arriving, would slow the frames counted.
-      await page.waitForFunction(() => !window.__map.isMoving() && window.__map.areTilesLoaded(), null, { timeout: 10000 }).catch(() => {})
       const flowA = await where()
       const sets = await page.evaluate(
         () =>
