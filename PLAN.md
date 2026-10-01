@@ -3760,5 +3760,8 @@ Left to itself, its mood swings (the owner: "back and forth between
 neutral and happy ... then sometimes sad and angry"): a face every 5 s,
 about half neutral, two in five happy, one in twenty each low and cross —
 those for one turn only, where a stale fix or a run of taps hold them as
-long as they last. `data-mood` follows the face shown (`MOOD_OF`).
-`locator-mood-test` 8, `locator-test` 16, `where-test` 38 → 42.
+long as they last. `data-mood` follows the face shown (`MOOD_OF`). And the
+dot itself takes a tap, the same reaction as the button's and counted with
+its taps; the map beneath never hears it (markerTap.ts), and the camera
+stays (the owner: "tapping this blue, could trigger that too").
+`locator-mood-test` 8, `locator-test` 16, `where-test` 38 → 43.

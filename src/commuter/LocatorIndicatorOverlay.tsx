@@ -1,7 +1,8 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
 import { metresPerPixel } from '../shared/geo/geo'
+import { tapsOnItsButton } from '../shared/map/markerTap'
 import './locator.css'
 import type { Face, Mood } from './locatorMood'
 import { circleRadius, indicatorScale, type Fix } from './useLocator'
@@ -33,6 +34,8 @@ type Props = {
   face?: Face
   /** Changed by each tap on the button: the dot is drawn afresh, so its reaction plays again. */
   beat?: number
+  /** Given, the dot is a button: a tap pokes it, and it reacts (locatorMood). */
+  onPoke?: () => void
 }
 
 /**
@@ -46,7 +49,8 @@ type Props = {
  * have. Figma's is 240 across; here the circle is the fix's metres, the beam
  * as drawn.
  */
-export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'neutral', face = 'glance', beat = 0 }: Props) {
+export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'neutral', face = 'glance', beat = 0, onPoke }: Props) {
+  const Dot = onPoke ? 'button' : 'div'
   const halo = haloFor(haloPx, scale)
   const gradient = useId()
   return (
@@ -82,11 +86,16 @@ export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'ne
             </svg>
           </div>
         )}
-        <div
+        {/* A button when it can be poked: the only part of the overlay that takes a tap. */}
+        <Dot
           key={beat}
+          {...(onPoke ? { type: 'button' as const, 'aria-label': 'You are here', onClick: onPoke } : {})}
           data-mood={mood}
           data-face={face}
-          className="locator-dot absolute top-1/2 left-1/2 -translate-1/2 rounded-full bg-surface p-1 shadow-locator-dot-shadow"
+          className={
+            'locator-dot absolute top-1/2 left-1/2 -translate-1/2 rounded-full bg-surface p-1 shadow-locator-dot-shadow' +
+            (onPoke ? ' pointer-events-auto cursor-pointer [-webkit-tap-highlight-color:transparent]' : '')
+          }
         >
           <div className="relative size-6 overflow-clip rounded-full bg-brand-surface">
             {/* Its wandering eyes (3878:6071, 3878:6072, 2026-10-01), and the
@@ -98,7 +107,7 @@ export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'ne
               <span className="locator-brow absolute top-[3.6px] left-[16.93px] h-[1.4px] w-[5px] rounded-full bg-surface" />
             </div>
           </div>
-        </div>
+        </Dot>
       </div>
     </div>
   )
@@ -119,6 +128,7 @@ export function LocatorOnMap({
   mood,
   face,
   beat,
+  onPoke,
 }: {
   map: MapLibreMap
   fix: Fix
@@ -126,6 +136,8 @@ export function LocatorOnMap({
   mood: Mood
   face: Face
   beat: number
+  /** A tap on the dot (locatorMood's `poke`). */
+  onPoke: () => void
 }) {
   const [el] = useState(() => {
     const div = document.createElement('div')
@@ -150,6 +162,12 @@ export function LocatorOnMap({
     marker.setLngLat(fix.at)
   }, [marker, fix.at])
 
+  // The dot answers a tap itself, and the map beneath never hears it
+  // (markerTap.ts): no line opens, no pan starts, the camera stays.
+  const poke = useRef(onPoke)
+  poke.current = onPoke
+  useEffect(() => tapsOnItsButton(el, () => poke.current()), [el])
+
   const haloPx = (2 * circleRadius(fix.accuracy)) / metresPerPixel(fix.at[1], zoom)
   const scale = indicatorScale(zoom)
   // For the suites (where-test): what the overlay was drawn from.
@@ -159,5 +177,5 @@ export function LocatorOnMap({
     el.dataset.scale = scale.toFixed(2)
     el.dataset.heading = heading === null ? '' : String(Math.round(heading))
   }, [el, fix.accuracy, haloPx, heading, scale])
-  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} beamDeg={heading} scale={scale} mood={mood} face={face} beat={beat} />, el)
+  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} beamDeg={heading} scale={scale} mood={mood} face={face} beat={beat} onPoke={onPoke} />, el)
 }

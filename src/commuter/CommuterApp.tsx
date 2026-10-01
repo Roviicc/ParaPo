@@ -79,8 +79,8 @@ export default function CommuterApp() {
       map ? clearOfSheet(map.getContainer(), openSheet(), cards.snap) : [0, 0],
   })
   // How the dot feels: glad as the location comes, low when it goes stale,
-  // a boing at a tap on the button or now and then a huff (locatorMood).
-  const { mood, face, beat } = useLocatorMood(locator)
+  // a boing at a tap on the button or on the dot, now and then a huff (locatorMood).
+  const { mood, face, beat, poke } = useLocatorMood(locator)
   const offline = useOffline()
   const age = useMapAge(saved.variants)
   const needRefresh = useNeedRefresh()
@@ -109,7 +109,7 @@ export default function CommuterApp() {
       */}
       <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} />
       {map && <Locator locator={locator} docked={cards.open} />}
-      {map && locator.fix && <LocatorOnMap map={map} fix={locator.fix} heading={locator.heading} mood={mood} face={face} beat={beat} />}
+      {map && locator.fix && <LocatorOnMap map={map} fix={locator.fix} heading={locator.heading} mood={mood} face={face} beat={beat} onPoke={poke} />}
       {/* Each lit ride's ends, named over their circles; with no trip open, a tail opens its ride's. */}
       {map && (
         <EndTitles

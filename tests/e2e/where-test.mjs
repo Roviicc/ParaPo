@@ -159,6 +159,20 @@ for (let i = 0; i < 3; i++) await button.click()
 check('three quick taps on the button: the dot is cross', (await until(async () => (await dotMood()) === 'angry', 1500)) , `mood ${await dotMood()}`)
 // Over it in 3 s; left to itself it may glare a moment longer, a 5 s turn of its mood swings.
 check('  and gets over it', await until(async () => (await dotMood()) !== 'angry', 9000), `mood ${await dotMood()}`)
+// The dot itself takes a tap (the owner, 2026-10-01): the same reaction, and
+// nothing else — the button's look and the camera stay as they were.
+const beforePoke = { mode: await mode(), cam: await camera(page) }
+await overlay(page).locator('button.locator-dot').click()
+await page.waitForTimeout(300)
+const afterPoke = await camera(page)
+check(
+  'a tap on the dot: a boing or a huff, the camera and the button as they were',
+  ['boing', 'huff'].includes(await dotFace()) &&
+    (await mode()) === beforePoke.mode &&
+    Math.abs(afterPoke.zoom - beforePoke.cam.zoom) < 0.01 &&
+    Math.abs(afterPoke.bearing - beforePoke.cam.bearing) < 0.5,
+  `face ${await dotFace()}, ${beforePoke.mode} → ${await mode()}, zoom ${beforePoke.cam.zoom.toFixed(2)} → ${afterPoke.zoom.toFixed(2)}`,
+)
 
 // The visitor drags the map: it lets go. A tap comes back.
 const box = await page.locator('canvas').first().boundingBox()
