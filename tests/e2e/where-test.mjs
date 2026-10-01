@@ -274,12 +274,32 @@ if (!onLine) {
 } else {
   await page.waitForTimeout(600)
   const [tx, ty] = await page.evaluate((c) => Object.values(window.__map.project(c)), onLine)
+  // Read in the page, not over round trips that the tap's busiest seconds
+  // could stretch past the gaze: its heading, and the eyes once their turn
+  // has ended (a face whose eyes held still turns them over a quarter second).
+  await page.evaluate(() => {
+    window.__gazed = null
+    const host = document.querySelector('[data-testid="locator-overlay"]')
+    const seen = () => {
+      const dot = host?.querySelector('.locator-dot[data-gaze]')
+      if (!dot || window.__gazed !== null) return
+      window.__gazed = false
+      const eyes = dot.querySelector('.locator-eyes')
+      const read = () => {
+        if (window.__gazed) return
+        const style = getComputedStyle(eyes)
+        window.__gazed = { deg: Number(dot.dataset.gaze), animation: style.animationName, translate: style.translate }
+      }
+      eyes.addEventListener('transitionend', read, { once: true })
+      setTimeout(read, 400)
+    }
+    new MutationObserver(seen).observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-gaze'] })
+  })
   await page.mouse.click(tx, ty)
   const dot = overlay(page).locator('.locator-dot').first()
-  const gazed = await until(async () => (await dot.getAttribute('data-gaze')) !== null, 3000)
-  const deg = Number(await dot.getAttribute('data-gaze'))
-  const eyes = await dot.locator('.locator-eyes').evaluate((e) => ({ animation: getComputedStyle(e).animationName, translate: getComputedStyle(e).translate }))
-  const [ex, ey] = eyes.translate.split(' ').map((v) => parseFloat(v))
+  const gazed = await until(async () => !!(await page.evaluate(() => window.__gazed)), 5000)
+  const { deg, ...eyes } = (await page.evaluate(() => window.__gazed)) || { deg: NaN, animation: '', translate: '' }
+  const [ex, ey] = String(eyes.translate).split(' ').map((v) => parseFloat(v))
   // Its eyes the way it gazes, 3.5 px out, the dot lying north up: x east, y south.
   const want = [3.5 * Math.sin((deg * Math.PI) / 180), -3.5 * Math.cos((deg * Math.PI) / 180)]
   check(

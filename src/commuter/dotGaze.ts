@@ -70,30 +70,56 @@ export function nearestOnLines(p: LngLat, lines: readonly (readonly LngLat[])[])
  */
 export type Subject = { key: string | null; at: () => LngLat | null }
 
+/** A change this soon after ‹ or ✕ is the way back, not a pick. */
+const HUSH_MS = 500
+
+/**
+ * The app's side of the gaze: `hush` wraps ‹ and ✕, whose changes pick
+ * nothing (‹ to a trip from a place over it, ‹ from a trip to the routes
+ * sharing its ends, ✕ on a place over a trip); `hushedAt` is read by the dot.
+ */
+export function useGazeHush() {
+  const hushedAt = useRef(-Infinity)
+  function hush<A extends unknown[]>(go: (...a: A) => void): (...a: A) => void
+  function hush<A extends unknown[]>(go: ((...a: A) => void) | null): ((...a: A) => void) | null
+  function hush<A extends unknown[]>(go: ((...a: A) => void) | null) {
+    return (
+      go &&
+      ((...a: A) => {
+        hushedAt.current = performance.now()
+        go(...a)
+      })
+    )
+  }
+  return { hush, hushedAt }
+}
+
 /**
  * Which way the dot gazes, in degrees from north, for GAZE_MS after one of
  * `subjects` is picked; null while its eyes wander. When several are picked at
  * once (a hotspot tapped lights its routes too), the first in the list wins;
- * a pick while it gazes starts afresh, and one it cannot gaze at (no fix yet,
- * or right where the dot is) ends the gaze.
+ * a pick while it gazes starts afresh, and one it cannot gaze at (right
+ * where the dot is) ends the gaze. What was picked before the dot was there
+ * is not looked back at, and a change just after ‹ or ✕ is none (`hushedAt`).
+ * Kept in the dot (LocatorOnMap), so a gaze redraws the dot alone.
  */
-export function useDotGaze(from: LngLat | null, subjects: readonly Subject[]): number | null {
+export function useDotGaze(from: LngLat, subjects: readonly Subject[], hushedAt?: { readonly current: number }): number | null {
   const [gaze, setGaze] = useState<number | null>(null)
-  const was = useRef<(string | null)[]>(subjects.map(() => null))
+  const keys = subjects.map((s) => s.key)
+  const was = useRef(keys)
   const latest = useRef({ from, subjects })
   latest.current = { from, subjects }
   const timer = useRef(0)
   useEffect(() => () => window.clearTimeout(timer.current), [])
-  const keys = subjects.map((s) => s.key)
 
   useEffect(() => {
     const before = was.current
     was.current = keys
+    if (hushedAt && performance.now() - hushedAt.current < HUSH_MS) return
     const picked = latest.current.subjects.find((s, i) => s.key !== null && s.key !== before[i])
     if (!picked) return
-    const here = latest.current.from
     const there = picked.at()
-    const next = here && there ? gazeToward(here, there) : null
+    const next = there ? gazeToward(latest.current.from, there) : null
     window.clearTimeout(timer.current)
     setGaze(next)
     if (next !== null) timer.current = window.setTimeout(() => setGaze(null), GAZE_MS)

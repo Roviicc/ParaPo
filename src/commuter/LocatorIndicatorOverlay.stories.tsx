@@ -150,17 +150,19 @@ export const AllGazes: Story = {
 }
 
 /**
- * Every face, gazing east: a face changes every few seconds, so on a phone
- * each of these is met during a gaze — for the owner to look over.
+ * Every face gazing one way: a face changes every few seconds, so on a phone
+ * each of these is met during a gaze — for the owner to look over. North is
+ * where a face that holds its eyes up (curious) would leave the dot, were the
+ * eyes not brought to the middle first.
  */
-export const AllFacesGazing: Story = {
+const facesGazing = (gazeDeg: number): Story => ({
   args: { haloPx: 0, beamDeg: null },
   render: () => (
     <div className="grid grid-cols-4 gap-x-10 gap-y-12 p-10">
       {ALL.map(([m, f]) => (
         <div key={f} className="flex flex-col items-center gap-8">
           <div className="grid size-24 place-items-center" style={{ scale: 3 }}>
-            <LocatorIndicatorOverlay haloPx={0} beamDeg={null} mood={m} face={f} gazeDeg={90} />
+            <LocatorIndicatorOverlay haloPx={0} beamDeg={null} mood={m} face={f} gazeDeg={gazeDeg} />
           </div>
           <span className="text-xs text-content-tertiary">
             {m} · {f}
@@ -169,4 +171,9 @@ export const AllFacesGazing: Story = {
       ))}
     </div>
   ),
-}
+})
+
+/** Every face, gazing east. */
+export const AllFacesGazing = facesGazing(90)
+/** Every face, gazing north. */
+export const AllFacesGazingNorth = facesGazing(0)

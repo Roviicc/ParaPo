@@ -24,7 +24,7 @@ import { Locator } from './Locator'
 import { LocatorOnMap } from './LocatorIndicatorOverlay'
 import { useLocator } from './useLocator'
 import { useLocatorMood } from './locatorMood'
-import { nearestOnLines, useDotGaze } from './dotGaze'
+import { nearestOnLines, useGazeHush, type Subject } from './dotGaze'
 import type { LngLat } from '../shared/geo/geo'
 import { variantLine } from '../shared/model/routes'
 
@@ -101,16 +101,17 @@ export default function CommuterApp() {
   // …and its gaze: at what was just picked, for three seconds (dotGaze.ts) —
   // a hintuan on the trip card, a place, a trip, a card, or the routes a tap
   // on the map lists. Keyed by route, not direction, so SWITCH is no pick;
-  // and ‹ or ✕ pick nothing.
+  // ‹ and ✕ are hushed, so going back picks nothing.
+  const { hush, hushedAt } = useGazeHush()
   const nearestLit = (lines: LngLat[][]) => (locator.fix ? nearestOnLines(locator.fix.at, lines) : null)
   const routesOf = (vs: readonly { route_id: string }[]) => [...new Set(vs.map((v) => v.route_id))].sort().join() || null
-  const gazeDeg = useDotGaze(locator.fix?.at ?? null, [
+  const gazeAt: Subject[] = [
     { key: ride.pickedId, at: () => ride.pinAt },
     { key: stops.selected && placeKey(stops.selected), at: () => (stops.selected?.point.coordinates as LngLat | undefined) ?? null },
     { key: saved.selected?.route_id ?? null, at: () => nearestLit(saved.selected ? [variantLine(saved.selected)] : []) },
     { key: saved.highlight && `${saved.highlight.where}:${saved.highlight.from}`, at: () => nearestLit(saved.litVariants.map(variantLine)) },
     { key: routesOf(saved.candidates), at: () => nearestLit(saved.litVariants.map(variantLine)) },
-  ])
+  ]
   const offline = useOffline()
   const age = useMapAge(saved.variants)
   const needRefresh = useNeedRefresh()
@@ -139,7 +140,7 @@ export default function CommuterApp() {
       */}
       <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} />
       {map && <Locator locator={locator} docked={cards.open} />}
-      {map && locator.fix && <LocatorOnMap map={map} fix={locator.fix} heading={locator.heading} mood={mood} face={face} beat={beat} gazeDeg={gazeDeg} onPoke={poke} />}
+      {map && locator.fix && <LocatorOnMap map={map} fix={locator.fix} heading={locator.heading} mood={mood} face={face} beat={beat} gazeAt={gazeAt} hushedAt={hushedAt} onPoke={poke} />}
       {/* Each lit ride's ends, named over their circles; with no trip open, a tail opens its ride's. */}
       {map && (
         <EndTitles
@@ -192,7 +193,7 @@ export default function CommuterApp() {
           variants={saved.variants}
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
           livery={tripLivery}
-          onBackToList={cards.backFromTrip}
+          onBackToList={hush(cards.backFromTrip)}
           onSwitch={(v) => {
             saved.select(v.id, { keepList: true })
             switched()
@@ -265,8 +266,8 @@ export default function CommuterApp() {
             saved.highlightCard(null)
             stops.show(id, cards.clearOf(hotspotDock))
           }}
-          onBack={cards.backToTrip}
-          onClose={cards.closeStop}
+          onBack={hush(cards.backToTrip)}
+          onClose={hush(cards.closeStop)}
         />
       )}
 

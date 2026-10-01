@@ -4,7 +4,7 @@ import { Marker, type MapLibreMap } from 'maplibre-gl'
 import { metresPerPixel } from '../shared/geo/geo'
 import { tapsOnItsButton } from '../shared/map/markerTap'
 import './locator.css'
-import { gazeOffset } from './dotGaze'
+import { gazeOffset, useDotGaze, type Subject } from './dotGaze'
 import type { Face, Mood } from './locatorMood'
 import { circleRadius, indicatorScale, type Fix } from './useLocator'
 
@@ -131,7 +131,8 @@ export function LocatorOnMap({
   mood,
   face,
   beat,
-  gazeDeg = null,
+  gazeAt = [],
+  hushedAt,
   onPoke,
 }: {
   map: MapLibreMap
@@ -140,8 +141,9 @@ export function LocatorOnMap({
   mood: Mood
   face: Face
   beat: number
-  /** Which way its eyes gaze, for a while after a pick (dotGaze.ts). */
-  gazeDeg?: number | null
+  /** What it gazes at, for a while after one is picked, and when a change is no pick (dotGaze.ts). */
+  gazeAt?: readonly Subject[]
+  hushedAt?: { readonly current: number }
   /** A tap on the dot (locatorMood's `poke`). */
   onPoke: () => void
 }) {
@@ -175,6 +177,7 @@ export function LocatorOnMap({
   poke.current = onPoke
   useEffect(() => tapsOnItsButton(el, () => poke.current(), { dragsPass: true }), [el])
 
+  const gazeDeg = useDotGaze(fix.at, gazeAt, hushedAt)
   const haloPx = (2 * circleRadius(fix.accuracy)) / metresPerPixel(fix.at[1], zoom)
   const scale = indicatorScale(zoom)
   // For the suites (where-test): what the overlay was drawn from.

@@ -159,17 +159,15 @@
  * Its gaze at what was just picked (dotGaze.ts; the owner's ask, 2026-10-01:
  * "when I tap the route it should look the route for maybe 3 sec"): the
  * eyes stop wandering and turn the way to it, `--gaze-x` and `--gaze-y` from
- * the middle (a `translate`, adding to the face's own place), then wander
- * again. The face stays; a glance or a wink comes to the middle first. One
- * selector is enough: it outranks every face's `.locator-eyes` rule above,
- * as specific and later.
+ * the middle, then wander again. The face's eyes stay as they are, but come
+ * to the middle first: a face that holds them off it (curious, up; sleepy,
+ * down) would carry them past the dot's edge. One selector is enough: it
+ * outranks every face's `.locator-eyes` rule above, as specific and later.
  */
 .locator-dot[data-gaze] .locator-eyes {
   animation: none;
-  translate: var(--gaze-x) var(--gaze-y);
-}
-.locator-dot[data-gaze]:is([data-face='glance'], [data-face='wink']) .locator-eyes {
   transform: translate(-4px, 0);
+  translate: var(--gaze-x) var(--gaze-y);
 }
 
 /*
