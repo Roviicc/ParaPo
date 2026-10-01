@@ -23,24 +23,24 @@ export const haloFor = (px: number, scale = 1) => (px < DOT_PX * scale ? 0 : Mat
 type Props = {
   /** The accuracy circle's width: the fix's 68 % radius, twice, in pixels. */
   haloPx: number
-  /** Which way the cone points, degrees clockwise from the overlay's up — north, on the map. Null: no cone. */
-  coneDeg: number | null
-  /** The dot and cone's size against Figma's, 1 at street level (indicatorScale). */
+  /** Which way the beam points, degrees clockwise from the overlay's up — north, on the map. Null: no beam. */
+  beamDeg: number | null
+  /** The dot and beam's size against Figma's, 1 at street level (indicatorScale). */
   scale?: number
 }
 
 /**
  * The owner's LocatorIndicatorOverlay (3870:5247, 2026-10-01, its second
  * pass the same day): the visitor on the map, in the walking figure's place
- * — a 24 px Brand/surface dot in white, lifted by LocatorDotShadow and
- * breathing, its wandering eyes glancing about (locator.css), a beam the way they face fading out from it, and
- * the circle the fix is good to, in Map/LocatorIndicatorOverlay/surface with
- * its border's hairline. The circle matters: GPS in Metro Manila is often
+ * — a 24 px Brand/surface dot in white, lifted by LocatorDotShadow,
+ * breathing, its wandering eyes glancing about (locator.css); a beam the
+ * way they face fading out from it; and the circle the fix is good to, in
+ * Map/LocatorIndicatorOverlay/surface with its border's hairline. The circle matters: GPS in Metro Manila is often
  * 20–50 m out, and a dot alone would claim a certainty the phone does not
  * have. Figma's is 240 across; here the circle is the fix's metres, the beam
  * as drawn.
  */
-export function LocatorIndicatorOverlay({ haloPx, coneDeg, scale = 1 }: Props) {
+export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1 }: Props) {
   const halo = haloFor(haloPx, scale)
   const gradient = useId()
   return (
@@ -54,12 +54,15 @@ export function LocatorIndicatorOverlay({ haloPx, coneDeg, scale = 1 }: Props) {
       )}
       {/* The dot and its beam, smaller zoomed out; the circle is metres, and keeps its own size. */}
       <div className="absolute inset-0" style={{ scale }}>
-        {coneDeg !== null && (
-          // The beam from the dot's centre, drawn pointing south and turned
-          // to the heading. Figma's (3876:6051) leans 2.7 px to one side;
-          // here it is the owner's size, made even (his ask, 2026-10-01).
-          // In the border's blue, as Figma's beam is (#155DFC since the third pass).
-          <div className="absolute top-1/2 left-1/2 size-0 text-map-locator-indicator-overlay-border" style={{ rotate: `${coneDeg - BEAM_DRAWN_DEG}deg` }}>
+        {beamDeg !== null && (
+          // From the dot's centre, drawn pointing south and turned to the
+          // heading, in the border's blue as Figma's is. Figma's (3876:6051)
+          // leans 2.7 px to one side; here it is his size, made even (his
+          // ask, 2026-10-01).
+          <div
+            className="absolute top-1/2 left-1/2 size-0 text-map-locator-indicator-overlay-border"
+            style={{ rotate: `${beamDeg - BEAM_DRAWN_DEG}deg` }}
+          >
             <svg viewBox="0 0 86 84" className="absolute top-0 -left-[43px] h-21 w-[86px]" aria-hidden>
               <defs>
                 <linearGradient id={gradient} x1="43" y1="0" x2="43" y2="84" gradientUnits="userSpaceOnUse">
@@ -75,7 +78,7 @@ export function LocatorIndicatorOverlay({ haloPx, coneDeg, scale = 1 }: Props) {
           <div className="relative size-6 overflow-clip rounded-full bg-brand-surface">
             {/* Its wandering eyes (3878:6071, 3878:6072, 2026-10-01): glancing about and blinking (locator.css). */}
             <div aria-hidden className="locator-eyes absolute inset-0">
-              <span className="locator-eye absolute top-[6.33px] left-[10.48px] h-[5.95px] w-1 rounded-full bg-surface" />
+              <span className="locator-eye absolute top-[6.33px] left-[10.48px] h-1.5 w-1 rounded-full bg-surface" />
               <span className="locator-eye absolute top-[6.33px] left-[17.43px] h-1.5 w-1 rounded-full bg-surface" />
             </div>
           </div>
@@ -126,5 +129,5 @@ export function LocatorOnMap({ map, fix, heading }: { map: MapLibreMap; fix: Fix
     el.dataset.scale = scale.toFixed(2)
     el.dataset.heading = heading === null ? '' : String(Math.round(heading))
   }, [el, fix.accuracy, haloPx, heading, scale])
-  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} coneDeg={heading} scale={scale} />, el)
+  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} beamDeg={heading} scale={scale} />, el)
 }

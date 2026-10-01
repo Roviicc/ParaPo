@@ -72,7 +72,7 @@ export const ACCURACY_MAX_M = 80
 export const COMPASS_PITCH = 45
 
 /**
- * How big the dot and its cone are drawn at `zoom`, as Google Maps' stays
+ * How big the dot and its beam are drawn at `zoom`, as Google Maps' stays
  * small zoomed out (the owner's ask, 2026-10-01: "at zoomed out it's 10/10
  * so big"): Figma's full size from street level in, shrinking with each
  * zoom out to SMALLEST at city level, and no smaller, so it is still seen.

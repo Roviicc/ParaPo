@@ -13,7 +13,7 @@
 // What it proves: the button shows LocationOff at the map's foot and
 // there is no overlay until asked; asking shows the overlay at the fix over
 // a circle the size of its accuracy, and brings the camera to it 200 m on the scale bar
-// across, north up (TrackedLocation); a walk turns the cone its way and the
+// across, north up (TrackedLocation); a walk turns the beam its way and the
 // camera follows; a drag lets go (TrackOwnLocation) and a tap comes back; the
 // next tap tilts the camera, 200 m on the bar, turned the way the compass says
 // (TracksTheMapBasedOnCompassFacing), and turns with it; the next puts north
@@ -142,7 +142,7 @@ for (let i = 1; i <= 4; i++) {
   await ctx.setGeolocation({ ...p, accuracy: 10 })
   await page.waitForTimeout(1000)
 }
-check('a walk turns the cone its way (east)', await until(async () => apart(Number(await attr(page, 'data-heading')), 90) < 10), `heading ${await attr(page, 'data-heading')}`)
+check('a walk turns the beam its way (east)', await until(async () => apart(Number(await attr(page, 'data-heading')), 90) < 10), `heading ${await attr(page, 'data-heading')}`)
 await page.waitForTimeout(700)
 check('  and the camera follows', (await centred(page, p)) < 4, `${(await centred(page, p)).toFixed(1)} px off`)
 await button.click()
@@ -168,7 +168,7 @@ check('  a new fix moves the overlay, not the camera', Math.abs(after.longitude 
 await page.evaluate(() => window.__map.jumpTo({ zoom: 12 }))
 await page.waitForTimeout(300)
 check('  zoomed out till the dot covers its circle, the circle is gone', (await attr(page, 'data-halo-px')) === '0' && (await overlay(page).locator('[data-part="circle"]').count()) === 0, `${await attr(page, 'data-halo-px')} px`)
-check('  and the dot and cone are drawn smaller, as Google Maps\' are', (await attr(page, 'data-scale')) === '0.45', `scale ${await attr(page, 'data-scale')}`)
+check('  and the dot and beam are drawn smaller, as Google Maps\' are', (await attr(page, 'data-scale')) === '0.45', `scale ${await attr(page, 'data-scale')}`)
 // A fix indoors, 1 km out: the circle claims 80 m at most (the owner's call, 2026-10-01).
 await page.evaluate(() => window.__map.jumpTo({ zoom: 16 }))
 await ctx.setGeolocation({ ...p, accuracy: 1000 })

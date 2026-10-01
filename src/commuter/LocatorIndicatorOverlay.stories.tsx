@@ -17,16 +17,16 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 /** As the owner drew it (3870:5247): a 240 circle with its hairline, the beam pointing south. */
-export const AsDrawn: Story = { args: { haloPx: 240, coneDeg: BEAM_DRAWN_DEG } }
+export const AsDrawn: Story = { args: { haloPx: 240, beamDeg: BEAM_DRAWN_DEG } }
 
 /** Facing up the screen. */
-export const FacingUp: Story = { args: { haloPx: 240, coneDeg: 0 } }
+export const FacingUp: Story = { args: { haloPx: 240, beamDeg: 0 } }
 
-/** No heading yet — no compass, and the fixes have shown none: no cone. */
-export const NoHeading: Story = { args: { haloPx: 240, coneDeg: null } }
+/** No heading yet — no compass, and the fixes have shown none: no beam. */
+export const NoHeading: Story = { args: { haloPx: 240, beamDeg: null } }
 
 /** A good fix zoomed out: the circle would hide under the dot, so it is gone. */
-export const TightFix: Story = { args: { haloPx: 12, coneDeg: 300 } }
+export const TightFix: Story = { args: { haloPx: 12, beamDeg: 300 } }
 
-/** Zoomed out to the city: the dot and cone at their smallest, as Google Maps' (indicatorScale). */
-export const ZoomedOut: Story = { args: { haloPx: 0, coneDeg: 30, scale: 0.45 } }
+/** Zoomed out to the city: the dot and beam at their smallest, as Google Maps' (indicatorScale). */
+export const ZoomedOut: Story = { args: { haloPx: 0, beamDeg: 30, scale: 0.45 } }
