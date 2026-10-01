@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Livery } from '../model/liveries'
-import { BLOB_PLACE, CARD_BLOB, CARD_SHADOW, CARD_SURFACE, CARD_TEXT, TIMELINE_PILL, TIMELINE_SURFACE } from './liveryCard'
+import { BLOB_PLACE, CARD_BLOB, CARD_SHADOW, CARD_SURFACE, CARD_TEXT, TIMELINE_PILL, TIMELINE_PRESSED, TIMELINE_SURFACE } from './liveryCard'
 import { ChevronDownIcon, CircleArrowRightIcon } from './RouteIcons'
 
 export type TripTimelineProps = {
@@ -94,6 +94,8 @@ export function TripTimeline({
   const [open, setOpen] = useState(false)
   const folds = hintuans.length > 1
   const rail = TIMELINE_SURFACE[livery]
+  // Every row's Pressed: the rail's colour, while the finger is down.
+  const pressed = TIMELINE_PRESSED[livery]
 
   return (
     <div
@@ -112,6 +114,7 @@ export function TripTimeline({
       <ol className="flex w-full flex-col">
         <TimelineTop
           rail={rail}
+          pressed={pressed}
           routeOrigin={routeOrigin}
           selected={endPicked === 'from'}
           onTap={() => onEnd('from')}
@@ -121,6 +124,7 @@ export function TripTimeline({
             key={i + ':' + h.id}
             id={h.id}
             rail={rail}
+            pressed={pressed}
             label={h.label}
             shown={!folds || open}
             selected={h.id === picked}
@@ -130,10 +134,11 @@ export function TripTimeline({
           />
         ))}
         {folds && (
-          <TimelineDisclosure rail={rail} open={open} count={hintuans.length} onToggle={() => setOpen((o) => !o)} />
+          <TimelineDisclosure rail={rail} pressed={pressed} open={open} count={hintuans.length} onToggle={() => setOpen((o) => !o)} />
         )}
         <TimelineBottomEndRoute
           rail={rail}
+          pressed={pressed}
           routeDirection={routeDirection}
           selected={endPicked === 'to'}
           onTap={() => onEnd('to')}
@@ -178,18 +183,21 @@ const STICK = 'flex w-6 shrink-0 flex-col items-center self-stretch'
  */
 function TimelineTop({
   rail,
+  pressed,
   routeOrigin,
   selected,
   onTap,
 }: {
   rail: string
+  /** TIMELINE_PRESSED's classes for the card's livery. */
+  pressed: string
   routeOrigin: string
   selected: boolean
   onTap: () => void
 }) {
   return (
     <li data-testid="trip-origin" data-state={selected ? 'selected' : 'rest'}>
-      <button type="button" aria-pressed={selected} onClick={onTap} className="flex w-full items-center pl-4 text-left">
+      <button type="button" aria-pressed={selected} onClick={onTap} className={'flex w-full items-center pl-4 text-left ' + pressed}>
         <span aria-hidden className={STICK}>
           <TimelineDot rail={rail} selected={selected} />
           <span className={'min-h-px w-2 flex-1 ' + rail} />
@@ -222,6 +230,7 @@ const ROW_FOLDED = 'invisible grid-rows-[0fr] duration-base ease-exit'
 function TimelineHintuan({
   id,
   rail,
+  pressed,
   label,
   shown,
   selected,
@@ -231,6 +240,8 @@ function TimelineHintuan({
 }: {
   id: string
   rail: string
+  /** TIMELINE_PRESSED's classes for the card's livery. */
+  pressed: string
   label: string
   shown: boolean
   selected: boolean
@@ -257,7 +268,7 @@ function TimelineHintuan({
           data-testid="trip-hintuan-pick"
           aria-pressed={selected}
           onClick={() => onPick(id)}
-          className="flex w-full items-start px-4 text-left"
+          className={'flex w-full items-start px-4 text-left ' + pressed}
         >
           <span aria-hidden className={STICK}>
             <span className={'-mb-0.5 min-h-px w-2 flex-1 ' + rail} />
@@ -284,11 +295,14 @@ function TimelineHintuan({
 /** Figma's TimelineDisclosure: the hintuans folded into one row, or, opened, the row that folds them. */
 function TimelineDisclosure({
   rail,
+  pressed,
   open,
   count,
   onToggle,
 }: {
   rail: string
+  /** TIMELINE_PRESSED's classes for the card's livery. */
+  pressed: string
   open: boolean
   count: number
   onToggle: () => void
@@ -300,7 +314,7 @@ function TimelineDisclosure({
         data-testid="trip-fold"
         aria-expanded={open}
         onClick={onToggle}
-        className="flex w-full items-start pl-4 text-left"
+        className={'flex w-full items-start pl-4 text-left ' + pressed}
       >
         <span aria-hidden className={STICK}>
           <span className={'min-h-px w-2 flex-1 ' + rail} />
@@ -330,18 +344,21 @@ function TimelineDisclosure({
  */
 function TimelineBottomEndRoute({
   rail,
+  pressed,
   routeDirection,
   selected,
   onTap,
 }: {
   rail: string
+  /** TIMELINE_PRESSED's classes for the card's livery. */
+  pressed: string
   routeDirection: string
   selected: boolean
   onTap: () => void
 }) {
   return (
     <li data-testid="trip-destination" data-state={selected ? 'selected' : 'rest'}>
-      <button type="button" aria-pressed={selected} onClick={onTap} className="flex w-full items-center pl-4 text-left">
+      <button type="button" aria-pressed={selected} onClick={onTap} className={'flex w-full items-center pl-4 text-left ' + pressed}>
         <span aria-hidden className={STICK}>
           <span className={'-mb-0.5 h-5 w-2 shrink-0 ' + rail} />
           <TimelineDot rail={rail} selected={selected} />

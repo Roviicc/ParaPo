@@ -3500,3 +3500,12 @@ uses, which name what an exported function takes or returns; and
 HotspotPanel's alias and note state with no setter, which keeps a box's Also
 called and Note while those are off the form. Nothing a visitor or the owner
 sees changes.
+
+**The trip's timeline rows have a Pressed state, 2026-10-01.** The owner's
+Timeline (3716:1894) gained State=Pressed on all four rows — where the trip
+leaves from, a hintuan, the fold, where it goes: the whole row in
+Card/<livery>/Timeline/surface, so the rail runs into it and only the dot's
+white shows. Shown while the finger or the mouse is down (`:active`), as the
+RouteCard's rows are; the phone's own tap highlight is off on them.
+`TIMELINE_PRESSED` in liveryCard.ts. Story: RowPressed, every livery opened,
+a hintuan picked, press and hold.

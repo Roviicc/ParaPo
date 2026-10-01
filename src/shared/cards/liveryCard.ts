@@ -94,6 +94,21 @@ export const TIMELINE_SURFACE = {
 } satisfies Record<Livery, string>
 
 /**
+ * A timeline row Pressed (the owner's Timeline State=Pressed, 3716:1894,
+ * 2026-10-01): while the finger is down, the whole row in the rail's colour,
+ * so the rail runs into it and only the dot's white shows. The phone's own
+ * tap highlight is off, so the colour under the finger is the token's.
+ */
+export const TIMELINE_PRESSED = {
+  red: 'active:bg-card-red-timeline-surface [-webkit-tap-highlight-color:transparent]',
+  orange: 'active:bg-card-orange-timeline-surface [-webkit-tap-highlight-color:transparent]',
+  yellow: 'active:bg-card-yellow-timeline-surface [-webkit-tap-highlight-color:transparent]',
+  violet: 'active:bg-card-violet-timeline-surface [-webkit-tap-highlight-color:transparent]',
+  rose: 'active:bg-card-rose-timeline-surface [-webkit-tap-highlight-color:transparent]',
+  fuchsia: 'active:bg-card-fuchsia-timeline-surface [-webkit-tap-highlight-color:transparent]',
+} satisfies Record<Livery, string>
+
+/**
  * A picked hintuan's pill, with the pesos to it (the owner's Timeline
  * State=Selected, 3769:2847; his yellow card, 3785:4462): the card's own
  * colour on Content/inverse where its words are white, on Content/primary
