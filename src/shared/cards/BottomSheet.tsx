@@ -363,6 +363,36 @@ export function clearOfDock(map: HTMLElement, dock: HTMLElement | null, snap?: S
 }
 
 /**
+ * The height a sheet is measured at when the camera moves under it: its own,
+ * or Middle when it is higher — the sheet stays put (the owner, 2026-10-01),
+ * and what the camera brings in is there to see when it comes down.
+ */
+const framedAt = (snap: Snap): Snap => (aboveMiddle(snap) ? 'middle' : snap)
+
+/** Between a route fitted whole and the map's edges, or the sheet's. */
+const FIT_MARGIN_PX = 48
+
+/**
+ * The room a sheet leaves for a whole route the camera fits (a trip as it
+ * opens), as MapLibre's fit padding: beside the sheet where it floats in the
+ * corner, above it where it is docked along the bottom, at `framedAt`'s
+ * height (the owner, 2026-10-01).
+ */
+export function roomBeside(
+  map: HTMLElement,
+  dock: HTMLElement | null,
+  snap: Snap,
+): { top: number; bottom: number; left: number; right: number } {
+  const room = { top: FIT_MARGIN_PX, bottom: FIT_MARGIN_PX, left: FIT_MARGIN_PX, right: FIT_MARGIN_PX }
+  if (!dock || dock.hidden) return room
+  const m = map.getBoundingClientRect()
+  const d = dock.getBoundingClientRect()
+  if (d.right < m.right - 1) room.left += Math.max(0, d.right - m.left)
+  else room.bottom += showsAt(dock, framedAt(snap))
+  return room
+}
+
+/**
  * How much of a docked sheet shows at `snap`: below Max, lifted clear of a
  * phone's home indicator by its bottom padding, as `slide` lifts it.
  */
@@ -374,17 +404,13 @@ function showsAt(sheet: HTMLElement, snap: Snap): number {
 
 /**
  * The camera is about to glide to a point on the map — a hintuan picked on
- * a trip, or one of its ends. A sheet docked at Max, or left higher than
- * Middle, comes down to Middle as the camera moves, so the move is seen (the owner's ask,
- * 2026-09-30: "if the bottomSheet is at max, then they click hintuan, the
- * bottomSheet must move to middle, while the camera is dragging"); lower, or
- * floating in a corner, it stays. Returns where the point should sit
- * (clearOfDock): clear of the sheet where it stops, not where it starts.
+ * a trip, one of its ends, another box of a place. The sheet stays at the
+ * height it was left at (the owner's ask, 2026-10-01: "since the card can
+ * settle anywhere, don't move the bottomsheet to the middle"; until then
+ * Max came down to Middle). Returns where the point should sit
+ * (clearOfDock): above the sheet at `framedAt`'s height, or beside it in the
+ * corner.
  */
-export function makeRoom(map: HTMLElement, dock: HTMLElement | null, height: SheetHeight): [number, number] {
-  const m = map.getBoundingClientRect()
-  const docked = !!dock && !dock.hidden && dock.getBoundingClientRect().right >= m.right - 1
-  if (!docked || !aboveMiddle(height.snap)) return clearOfDock(map, dock)
-  height.onSnap('middle')
-  return clearOfDock(map, dock, 'middle')
+export function clearOfSheet(map: HTMLElement, dock: HTMLElement | null, snap: Snap): [number, number] {
+  return clearOfDock(map, dock, framedAt(snap))
 }

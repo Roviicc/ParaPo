@@ -5,6 +5,7 @@ import type { LngLat } from '../geo/geo'
 import { rideEnds, type Ride } from './directionArrows'
 import type { LineLook } from './liveryLine'
 import { litWidthAt } from './lineStyle'
+import { tapsOnItsButton } from './markerTap'
 import './endTitles.css'
 
 /**
@@ -16,17 +17,40 @@ import './endTitles.css'
  *
  * DOM markers, like the picked hintuan's circle (HintuanPin): a pill with a
  * pointer is a box and a triangle, which a map symbol would need
- * a stretched picture for in every livery. They take no taps, so a tap on
- * one reaches the line or the box beneath. Each place is named once
+ * a stretched picture for in every livery. Each place is named once
  * (`rideEnds`).
+ *
+ * Given `onPick`, a pill whose ride says which hotspot it ends at is a
+ * button: a tap opens that place (the owner's ask, 2026-10-01), and the map
+ * beneath never hears it (markerTap.ts). Without one, or a hotspot, it takes
+ * no taps, and a tap on it reaches the line or the box beneath. How a
+ * focused or pressed pill looks is the owner's to design; until then it is
+ * the browser's own focus ring.
  */
-export function EndTitles({ map, rides, look }: { map: MapLibreMap; rides: readonly Ride[]; look: LineLook }) {
+export function EndTitles({
+  map,
+  rides,
+  look,
+  onPick,
+}: {
+  map: MapLibreMap
+  rides: readonly Ride[]
+  look: LineLook
+  onPick?: (stopId: string) => void
+}) {
   return (
     <>
       {rideEnds(rides)
         .filter((e) => e.named)
-        .map((e) => (
-          <EndTitle key={`${e.name}@${e.at.join(',')}`} map={map} at={e.at} name={e.name} look={look} />
+        .map(({ name, at, stopId }) => (
+          <EndTitle
+            key={`${name}@${at.join(',')}`}
+            map={map}
+            at={at}
+            name={name}
+            look={look}
+            onPick={onPick && stopId ? () => onPick(stopId) : undefined}
+          />
         ))}
     </>
   )
@@ -42,7 +66,19 @@ function ringPx(zoom: number): number {
   return litWidthAt(zoom) / 2 + 2 + 2
 }
 
-function EndTitle({ map, at, name, look }: { map: MapLibreMap; at: LngLat; name: string; look: LineLook }) {
+function EndTitle({
+  map,
+  at,
+  name,
+  look,
+  onPick,
+}: {
+  map: MapLibreMap
+  at: LngLat
+  name: string
+  look: LineLook
+  onPick?: () => void
+}) {
   const [el] = useState(() => {
     const div = document.createElement('div')
     div.className = 'end-title'
@@ -71,10 +107,17 @@ function EndTitle({ map, at, name, look }: { map: MapLibreMap; at: LngLat; name:
     marker.current?.setLngLat(at)
   }, [at])
 
+  // Read as the tap comes: a fresh function each render binds nothing anew.
+  const pick = useRef(onPick)
+  pick.current = onPick
+  useEffect(() => tapsOnItsButton(el, () => pick.current?.()), [el])
+
   el.dataset.name = name
+  const Pill = onPick ? 'button' : 'div'
   return createPortal(
-    <div
-      className="relative max-w-56 rounded-full px-2 py-1 text-center text-sm/5 font-medium"
+    <Pill
+      {...(onPick ? { type: 'button' as const, 'aria-label': `${name}: the routes there` } : {})}
+      className="relative block max-w-56 rounded-full px-2 py-1 text-center text-sm/5 font-medium"
       style={{ backgroundColor: look.line, color: look.arrow }}
     >
       <span className="block truncate">{name}</span>
@@ -87,7 +130,7 @@ function EndTitle({ map, at, name, look }: { map: MapLibreMap; at: LngLat; name:
       >
         <path d="M6.48632 0.5C6.87122 -0.166666 7.83347 -0.166667 8.21837 0.499999L14.5692 11.5C14.9541 12.1667 14.473 13 13.7032 13H1.00149C0.231692 13 -0.249434 12.1667 0.135466 11.5L6.48632 0.5Z" />
       </svg>
-    </div>,
+    </Pill>,
     el,
   )
 }

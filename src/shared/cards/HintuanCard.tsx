@@ -8,7 +8,7 @@ import { placeBoxes } from '../model/places'
 import type { VariantSummary } from '../model/routes'
 import { stopLabel, type StopKind, type StopSummary } from '../model/stops'
 import { BottomSheet, type SheetHeight } from './BottomSheet'
-import { CloseIcon, HintuanIcon, InformationIcon, JeepIcon, TerminalIcon } from './RouteIcons'
+import { ChevronLeftIcon, CloseIcon, HintuanIcon, InformationIcon, JeepIcon, TerminalIcon } from './RouteIcons'
 import { RouteCardStack, type PickedPlace } from './RouteCardStack'
 
 type Props = {
@@ -42,6 +42,8 @@ type Props = {
   /** The Selected row tapped: let it go. */
   onDeselect?: () => void
   onClose: () => void
+  /** ‹, back to the trip whose name on the map opened the card; none, and no ‹. */
+  onBack?: (() => void) | null
   /** Kept but not shown, while a trip picked from it is on top: ‹ comes back to it as it was left. */
   hidden?: boolean
   /** Its height, shared with the trip opened from it (BottomSheet). */
@@ -67,10 +69,11 @@ const LETTER = { terminal: <TerminalIcon />, hintuan: <HintuanIcon /> } satisfie
  * Under the place's name, a HotspotSelectionBar per box: terminals first, in
  * sky, then the hintuans, in green, each in the order drawn, and boxes of one
  * name numbered (placeBoxes). The box tapped on the map is the Selected one,
- * pressed in; a tap on another row picks it, and the map goes there (the
- * caller's `onPickBox`). A tap on the Selected row lets it go: no row
- * Selected, and the routes below are the whole place's until a row is
- * picked again (`deselected`, the owner's ask of 2026-10-01).
+ * pressed in; a tap on another row picks it, and the map goes there, the
+ * card staying at its height (the caller's `onPickBox`). A tap on the
+ * Selected row lets it go: no row Selected, and the routes below are the
+ * whole place's until a row is picked again (`deselected`, the owner's ask
+ * of 2026-10-01).
  *
  * Under the rows, the routes that stop at the Selected box — only there:
  * Lagro 1, on the way to SM Fairview, lists Tala → SM Fairview and
@@ -95,6 +98,7 @@ export function HintuanCard({
   deselected = false,
   onDeselect,
   onClose,
+  onBack,
   hidden,
   height,
   dockRef,
@@ -161,8 +165,10 @@ export function HintuanCard({
       hidden={hidden}
       height={height}
       header={
-        // RouteCardHeader/Variant3: the place's name, ⓘ and ✕.
+        // RouteCardHeader/Variant3: the place's name, ⓘ and ✕; ‹ before
+        // the name when a trip's name on the map opened it, as a trip has.
         <div data-testid="card-place" className="flex w-full items-center gap-2 bg-surface px-3 pb-4 pt-0 @float:pt-3">
+          {onBack && <IconButton variant="special" icon={<ChevronLeftIcon />} label="Back" tooltip="top" onClick={onBack} />}
           <p className="min-w-0 flex-1 truncate font-sn-pro text-2xl/8 font-black text-content-primary">{label}</p>
           <div className="flex shrink-0 items-center gap-2">
             <IconButton variant="special" icon={<InformationIcon />} label="About this place" tooltip="top" disabled />

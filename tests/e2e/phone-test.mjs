@@ -19,7 +19,7 @@
 // row opens in its card's colour and ‹ back to the list, every card at rest; a tap
 // just outside a hotspot, and the bottom sheet on a hotspot's card — tap and
 // drag the handle, Middle → Max → Low → Middle → Low → gone; the ?r=<id> share link and the
-// view it restores; a trip opened on its own whose ‹ lists the routes sharing
+// view it frames; a trip opened on its own whose ‹ lists the routes sharing
 // an end with its own; the fine-pointer desktop control (±5 px, no zoom
 // buttons for a mouse either since 2026-09-29, attribution bottom right);
 // and housekeeping.
@@ -647,35 +647,38 @@ const tripChecks = async () => {
       !(await isPicked()) && (await pill.count()) === 0 && letGo.pins === 0 && letGo.lit.length === 1 && (await tile('trip-fare')) === fare && (await tile('trip-km')) === km,
       `${letGo.pins} circle(s), ${letGo.lit.length} lit; tiles "${await tile('trip-km')}", "${await tile('trip-fare')}", the whole "${km}", "${fare}"`,
     )
-    // At Max the card covers the map, and the glide would go on out of
-    // sight: a hintuan picked there brings the card down to Middle as the
-    // camera glides (the owner's ask, 2026-09-30), the hintuan landing above
-    // where the card stops, not where it started. Let go again after, for
-    // the ends below.
+    // At Max the card stays at Max (the owner's ask, 2026-10-01: "since the
+    // card can settle anywhere, don't move the bottomsheet to the middle"),
+    // the hintuan landing above where Middle would be, there to see when the
+    // card comes down. Let go again after, for the ends below.
     await buttonTap(handle(), async () => (await sheetState()) === 'max')
     if ((await sheetState()) !== 'max') {
-      skip('  picked at Max, the card comes down to Middle as the camera glides there', `the card would not rise to Max: data-snap=${await sheetState()}`)
+      skip('  picked at Max, the card stays at Max, the hintuan above where Middle would be', `the card would not rise to Max: data-snap=${await sheetState()}`)
     } else {
       await pickButton.scrollIntoViewIfNeeded()
       await buttonTap(pickButton, isPicked)
       await page.waitForTimeout(200)
       await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
-      const lowered = await sheetState()
+      const stayed = await sheetState()
       const spot = pickWant
         ? await page.evaluate((at) => {
             const m = window.__map
             const c = m.getCanvas().getBoundingClientRect()
             const q = m.project(at)
-            return { y: c.top + q.y, top: c.top, cardTop: document.querySelector('[data-testid="card"]').getBoundingClientRect().top }
+            return { y: c.top + q.y, top: c.top, cardTop: c.bottom - Math.round(c.height * 0.45) }
           }, pickWant.at)
         : null
       check(
-        '  picked at Max, the card comes down to Middle as the camera glides there, the hintuan above it',
-        (await isPicked()) && lowered === 'middle' && (!spot || (spot.y > spot.top + 16 && spot.y < spot.cardTop - 16)),
-        `data-snap=${lowered}; ${spot ? `the hintuan at ${Math.round(spot.y)}, the map ${Math.round(spot.top)}–${Math.round(spot.cardTop)} above the card` : 'not measured'}`,
+        '  picked at Max, the card stays at Max, the hintuan above where Middle would be',
+        (await isPicked()) && stayed === 'max' && (!spot || (spot.y > spot.top + 16 && spot.y < spot.cardTop - 16)),
+        `data-snap=${stayed}; ${spot ? `the hintuan at ${Math.round(spot.y)}, the map ${Math.round(spot.top)}–${Math.round(spot.cardTop)} above Middle` : 'not measured'}`,
       )
       await pickButton.scrollIntoViewIfNeeded()
       await buttonTap(pickButton, async () => !(await isPicked()))
+      // The card stays at Max now: back to Middle by its handle (round
+      // through Low), for the ends below to glide into the map above it.
+      if ((await sheetState()) === 'max') await buttonTap(handle(), async () => (await sheetState()) === 'low')
+      if ((await sheetState()) === 'low') await buttonTap(handle(), async () => (await sheetState()) === 'middle')
     }
     // The ends are buttons too (the owner's asks, 2026-09-29): with a
     // hintuan picked, a tap on where the trip goes, then on where it leaves
@@ -803,6 +806,32 @@ const closeCard = async () => {
   }
   await page.waitForTimeout(300)
 }
+/**
+ * Where a route's box lands once the camera stops: a trip opening takes in
+ * its whole route, clear of the card (the owner's ask, 2026-10-01). `inside`
+ * is every corner on the map and above the card, 2 px either way.
+ */
+const framedAboveCard = async (bbox) =>
+  page.evaluate(
+    ([w, s, e, n]) =>
+      new Promise((done) => {
+        const m = window.__map
+        const read = () => {
+          const c = m.getCanvas().getBoundingClientRect()
+          const d = document.querySelector('[data-testid="card"]')?.getBoundingClientRect()
+          const nw = m.project([w, n])
+          const se = m.project([e, s])
+          const box = { left: c.left + nw.x, top: c.top + nw.y, right: c.left + se.x, bottom: c.top + se.y }
+          const floor = d && d.right >= c.right - 1 ? d.top : c.bottom
+          const inside = box.left >= c.left - 2 && box.right <= c.right + 2 && box.top >= c.top - 2 && box.bottom <= floor + 2
+          done({ inside, box: Object.fromEntries(Object.entries(box).map(([k, v]) => [k, Math.round(v)])), map: [Math.round(c.top), Math.round(c.bottom)], width: Math.round(c.width), floor: Math.round(floor), zoom: +m.getZoom().toFixed(2) })
+        }
+        if (m.isMoving()) m.once('moveend', () => setTimeout(read, 50))
+        else read()
+        setTimeout(read, 5000)
+      }),
+    bbox,
+  )
 // The owner's two looks for the lines (2026-09-29): every one opaque in
 // Map/RouteLine/surface-default, the lit ones drawn over them in
 // …/surface-selected, and no layer shading a line. The hexes are
@@ -937,6 +966,9 @@ if (routeA) {
   const origin = await tripRow('trip-origin')
   const end = await tripRow('trip-destination')
   check('  it opens the trip card, from where its direction leaves to where it goes', !!from && !!to && origin === from && end === to, `"${label}": top "${origin}", bottom "${end}"`)
+  // Opened, the camera takes in the whole route, clear of the card.
+  const framed = await framedAboveCard(r.bbox)
+  check('  the camera takes in the whole route, above the card', framed.inside, JSON.stringify(framed))
   const routeEnds = r.signboard.split(' – ').map((e) => e.replace(/ via .*$/, ''))
   check("  its ends are the route's two ends", routeEnds.length === 2 && routeEnds.every((e) => text.includes(e)), r.signboard)
   // Dropped by the owner for now, to design later (2026-09-28).
@@ -997,6 +1029,43 @@ if (routeA) {
       ends.rows.every((r) => !r.missing && r.colour && Math.abs(r.across) < 1.5 && r.above > 14 && r.above < 40),
     JSON.stringify(ends),
   )
+
+  // An end's name is a button (the owner's ask, 2026-10-01): its place's
+  // card opens over the trip, the map flown in to it, and its ‹ brings the
+  // trip back as it was.
+  const named = await page.evaluate(async () =>
+    ((await window.__src('direction-ends'))?.features ?? []).filter((f) => f.properties.named).map((f) => ({ name: f.properties.name, at: f.geometry.coordinates })),
+  )
+  const endButton = (name) => page.locator(`[data-testid="end-title"][data-name="${name}"] button`)
+  const tappable = []
+  for (const n of named) if ((await endButton(n.name).count()) > 0) tappable.push(n)
+  if (tappable.length === 0) {
+    skip("  a tap on an end's name opens its place over the trip, ‹ back to it", `no end of "${label}" names its hotspot`)
+  } else {
+    const end = tappable[0]
+    await jumpTo(page, end.at)
+    await endButton(end.name).click()
+    await page.waitForTimeout(300)
+    await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 4000 }).catch(() => {})
+    const opened = await page.evaluate(() => {
+      const shown = [...document.querySelectorAll('[data-testid="card"]')].filter((c) => !c.hidden)
+      return {
+        shown: shown.length,
+        place: shown[0]?.querySelector('[data-testid="card-place"]')?.innerText.trim() ?? null,
+        trip: shown.some((c) => c.querySelector('[data-testid="trip"]')),
+        zoom: +window.__map.getZoom().toFixed(2),
+      }
+    })
+    check(
+      "  a tap on an end's name opens its place's card over the trip, the map flown in to it",
+      opened.shown === 1 && !opened.trip && !!opened.place?.includes(end.name) && opened.zoom >= 15.9,
+      JSON.stringify({ end: end.name, ...opened }),
+    )
+    // A tap, as on the other buttons here: the runner may drop the touch.
+    const tripShown = async () => (await page.locator('[data-testid="card"]:not([hidden]) [data-testid="trip"]').count()) === 1
+    await buttonTap(card().getByRole('button', { name: 'Back' }), tripShown)
+    check("  its ‹ brings the trip back", (await tripLabel()) === label && (await page.locator('[data-testid="card"]:not([hidden]) [data-testid="trip"]').count()) === 1, `"${await tripLabel()}", want "${label}"`)
+  }
 
   const trip2 = await tripChecks()
 
@@ -1275,13 +1344,13 @@ if (!inside) {
   check('  and a tap on it picks it back', (await pressedBox()) === poly.id && (await countOf()) === boxCount, `${await pressedBox()} pressed; ${await countOf()} routes, ${boxCount} before`)
 
   // Another box of its place, from its row: that row Selected, the card
-  // down to Middle from Max, and the map gone there, the box clear of the
-  // card (the owner's HintuanCard, 2026-09-30).
+  // staying at Max (the owner, 2026-10-01), and the map gone there, the box
+  // above where Middle would be (the owner's HintuanCard, 2026-09-30).
   const otherRow = card().first().locator(`[data-testid="card-box"]:not([data-box="${poly.id}"])`)
   const otherId = (await otherRow.count()) ? await otherRow.first().getAttribute('data-box') : null
   const otherPoly = otherId && snapshot.polys.find((o) => o.id === otherId)
   if (!otherPoly) {
-    skip('  another box from its row: Selected, the card at Middle, the map there', `"${poly.name}" is its place's only box`)
+    skip('  another box from its row: Selected, the card staying at Max, the map there', `"${poly.name}" is its place's only box`)
   } else {
     await buttonTap(handle(), async () => (await sheetState()) === 'max')
     const from = await sheetState()
@@ -1291,14 +1360,13 @@ if (!inside) {
     const at = await project(page, centroidOf(otherPoly.ring))
     const edges = await page.evaluate(() => {
       const c = window.__map.getCanvas().getBoundingClientRect()
-      const d = document.querySelector('[data-testid="card"]').getBoundingClientRect()
-      return { top: c.top, cardTop: d.top }
+      return { top: c.top, cardTop: c.bottom - Math.round(c.height * 0.45) }
     })
     const y = edges.top + at[1]
     check(
-      '  another box from its row: Selected, the card down to Middle, the map there above it',
-      (await pressedBox()) === otherId && (await sheetState()) === 'middle' && y > edges.top && y < edges.cardTop,
-      `from ${from}: ${await pressedBox()} pressed (want ${otherId}), data-snap=${await sheetState()}; the box at ${Math.round(y)}, the card from ${Math.round(edges.cardTop)}`,
+      '  another box from its row: Selected, the card staying at Max, the map there above where Middle would be',
+      (await pressedBox()) === otherId && (await sheetState()) === from && y > edges.top && y < edges.cardTop,
+      `from ${from}: ${await pressedBox()} pressed (want ${otherId}), data-snap=${await sheetState()}; the box at ${Math.round(y)}, Middle from ${Math.round(edges.cardTop)}`,
     )
   }
   await closeCard()
@@ -1704,23 +1772,13 @@ if (!routeA) {
   const ends = r.signboard.split(' – ').map((e) => e.replace(/ via .*$/, ''))
   check('loading /?r=<id> opens that route', ends.length === 2 && ends.every((e) => shareText.includes(e)), shareText.split('\n')[0] ?? '(no card)')
 
-  const view = await page.evaluate(() => {
-    const c = window.__map.getCenter()
-    return { lng: c.lng, lat: c.lat, zoom: window.__map.getZoom() }
-  })
-  const [w, s, e, n] = r.bbox
-  const mx = (e - w) * 0.1 + 0.0005
-  const my = (n - s) * 0.1 + 0.0005
-  check(
-    '  it centres the view on the route',
-    view.lng >= w - mx && view.lng <= e + mx && view.lat >= s - my && view.lat <= n + my,
-    `centre ${view.lng.toFixed(4)},${view.lat.toFixed(4)} vs bbox ${w.toFixed(4)},${s.toFixed(4)} → ${e.toFixed(4)},${n.toFixed(4)}`,
-  )
-  // The view fits the whole route. A jeepney route is kilometres long, so on a
-  // 390 px screen that lands around zoom 12–13, well in from the metro-wide 11
-  // the map opens at.
-  const spanKm = ((e - w) * mPerDegLng(view.lat) * 0.001).toFixed(1)
-  check('  it zooms in from the metro-wide view (≥ 12)', view.zoom >= 12, `zoom ${view.zoom.toFixed(2)} for a route ${spanKm} km wide`)
+  const shareFramed = await framedAboveCard(r.bbox)
+  check('  it frames the whole route, above the card', shareFramed.inside, JSON.stringify(shareFramed))
+  // Framed, not merely shown: the route fills the room the card leaves along
+  // one side or the other (its 48 px margins aside), however long it is.
+  const { box: fb } = shareFramed
+  const fill = Math.max((fb.right - fb.left) / (shareFramed.width - 96), (fb.bottom - fb.top) / (shareFramed.floor - shareFramed.map[0] - 96))
+  check('  zoomed to fit it: the route fills the room along one side', fill > 0.8 && fill < 1.05, `${Math.round(fill * 100)}% at zoom ${shareFramed.zoom}`)
 
   // Opened by a link, no list is behind the trip: ‹ only where another route
   // sharing an end is drawn its way round (the owner's ask, 2026-09-29). No
