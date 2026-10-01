@@ -19,11 +19,13 @@ import { Notices } from './Notices'
 import { TripCard } from '../shared/cards/TripCard'
 import { useMapAge, useOffline } from './status'
 import { useShareLink } from './useShareLink'
-import { useCardOverview, useSwitchOverview, useTripOverview } from './useOverviews'
+import { useCardOverview, useHeightOverview, useSwitchOverview, useTripOverview, type Framed } from './useOverviews'
 import { Locator } from './Locator'
 import { LocatorOnMap } from './LocatorIndicatorOverlay'
 import { useLocator } from './useLocator'
 import { useLocatorMood } from './locatorMood'
+import type { LngLat } from '../shared/geo/geo'
+import { variantLine } from '../shared/model/routes'
 
 /**
  * The public map at /. Everything published so far and a card for whatever is
@@ -67,6 +69,18 @@ export default function CommuterApp() {
   const [switches, setSwitches] = useState(0)
   const switched = () => setSwitches((n) => n + 1)
   useSwitchOverview(map, saved.litVariants, switches, openSheet, cards.snap)
+  // The sheet settled at another height: what the card on show frames, again,
+  // in the map it leaves — a trip's route, a picked card's routes or what the
+  // list lights, a hotspot's place.
+  const framed = (): Framed => {
+    const ids = saved.highlight && new Set(saved.highlight.ids)
+    const picked = ids && { lines: saved.variants.filter((v) => ids.has(v.id)).map(variantLine) }
+    if (saved.selected) return { lines: [variantLine(saved.selected)] }
+    if (stops.selected) return picked ?? { at: stops.selected.point.coordinates as LngLat }
+    if (cards.choosing) return picked ?? { lines: saved.litVariants.map(variantLine) }
+    return null
+  }
+  useHeightOverview(map, cards.snap, framed, openSheet)
 
   useShareLink(map, saved)
   // The visitor's own position, when they ask for it, and the camera with
