@@ -187,7 +187,7 @@ export function RouteTripDetail({
         )}
       </div>
       {otherRoutes.length > 0 && (
-        <section data-testid="trip-other-routes" aria-labelledby={othersHeading} className="flex w-full flex-col gap-2 px-3 pb-4 font-sn-pro">
+        <section data-testid="trip-other-routes" aria-labelledby={othersHeading} className="flex w-full flex-col gap-2 px-3 pt-2 pb-4 font-sn-pro">
           <h3 id={othersHeading} className="text-sm/5 font-medium text-content-tertiary">
             Other routes
           </h3>
@@ -199,7 +199,7 @@ export function RouteTripDetail({
                   data-testid="trip-other-route"
                   data-direction={r.id}
                   onClick={() => onOtherRoute?.(r.id)}
-                  className="flex w-full items-center gap-1 px-4 py-2 text-left text-base/6 font-medium text-content-primary transition-colors duration-quick ease-move hover:bg-surface-tertiary active:bg-surface-quaternary"
+                  className="flex w-full items-center gap-1 rounded-full px-4 py-2 text-left text-base/6 font-medium text-content-primary transition-colors duration-quick ease-move hover:bg-surface-tertiary active:bg-surface-quaternary"
                 >
                   <span aria-hidden className="size-6 shrink-0 *:size-full">
                     <CircleArrowRightIcon />

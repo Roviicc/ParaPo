@@ -1912,11 +1912,20 @@ if (!withOthers) {
   )
   const to = others[0]
   const toName = (to.direction_name ?? '').split(' → ')[1] ?? ''
+  // Opened first: another route leaves the hintuans as they were, not folded
+  // (the owner, 2026-10-01: "don't shrink it").
+  const tripFold = card().locator('[data-testid="trip-fold"]')
+  const openedFold = (await tripFold.count()) > 0 && (await buttonTap(tripFold, async () => (await tripFold.first().getAttribute('aria-expanded')) === 'true'))
   await rows.first().scrollIntoViewIfNeeded()
   await buttonTap(card().locator(`[data-testid="trip-other-route"][data-direction="${to.id}"]`), async () => ((await litIds(page)) ?? []).join() === to.id)
   const now = await tripLabel()
   const lit = (await litIds(page)) ?? []
   check('  a tap opens that route\'s trip in the card\'s place, its line alone lit', now.endsWith(toName) && lit.length === 1 && lit[0] === to.id, JSON.stringify({ trip: now, lit, want: to.id }))
+  if (!openedFold || (await tripFold.count()) === 0) {
+    skip('  its hintuans left open, as they were', openedFold ? 'the other route has no hintuans to fold' : 'this trip has no hintuans to fold')
+  } else {
+    check('  its hintuans left open, as they were', (await tripFold.first().getAttribute('aria-expanded')) === 'true', `aria-expanded ${await tripFold.first().getAttribute('aria-expanded')}`)
+  }
   await closeCard()
 }
 

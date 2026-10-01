@@ -149,11 +149,11 @@ export default function CommuterApp() {
       />
 
       {saved.selected && tripLivery && (
-        // Keyed on the route: SWITCH leaves the hintuans open or folded as
-        // they were, in the colour the trip opened in; another route opens
-        // folded, in its own.
+        // One card for as long as a trip is open: SWITCH, and another
+        // route from its "Other routes", leave the hintuans open or folded
+        // as they were (the owner, 2026-10-01: "don't shrink it"), and the
+        // sheet at its height. A trip opened afresh opens folded.
         <TripCard
-          key={saved.selected.route_id}
           variant={saved.selected}
           variants={saved.variants}
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}

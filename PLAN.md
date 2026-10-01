@@ -3722,4 +3722,9 @@ drawn, leaving the same hotspot (`otherRoutesFrom`); its own way back is
 SWITCH's. No "via" on the rows for now: the signboard will tell two routes
 to one place apart, later (the owner, the same day). The rows hover and
 press as the fare tile does (surface-tertiary, then -quaternary): Figma
-draws no state for them yet. `phone-test` 102 → 104; `timeline-test` 20 → 22.
+draws no state for them yet. The owner's second pass the same day: 24 above
+the heading (16 before), the rows rounded full. And another route keeps the
+card as it was — the hintuans open if they were ("don't shrink it"), the
+sheet at its height: the trip card is no longer keyed on its route, so it
+stays one card while a trip is open, as SWITCH always kept it.
+`phone-test` 102 → 105; `timeline-test` 20 → 22.
