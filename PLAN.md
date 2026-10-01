@@ -3796,4 +3796,8 @@ its place. Above Low it comes in closer; whatever the visitor did to the map
 since, the overview comes back. A whole route is now fitted at the sheet's
 own height (roomBeside), not Middle's. Max on a phone covers the whole map
 (the sheet from the top, 844 of 844), so there it is framed as at Middle,
-there to see as the sheet comes down. `phone-test` 106 → 109.
+there to see as the sheet comes down. Going up, the camera zooms out no
+further than 2.5 km on the scale bar (the owner: "for scrolling up only";
+`RAISED_FARTHEST_M`): a long route is cut at the edges, not shrunk; coming
+down, and as a card opens, the whole route; the visitor's own hand goes as
+far out as they like. `phone-test` 106 → 109.
