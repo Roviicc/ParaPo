@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
 import { metresPerPixel } from '../shared/geo/geo'
 import './locator.css'
-import { ACCURACY_CAP_M, indicatorScale, type Fix } from './useLocator'
+import { circleRadius, indicatorScale, type Fix } from './useLocator'
 
 /** Where the beam points as drawn: due south, so it is turned by the heading less this. */
 export const BEAM_DRAWN_DEG = 180
@@ -109,7 +109,7 @@ export function LocatorOnMap({ map, fix, heading }: { map: MapLibreMap; fix: Fix
     marker.setLngLat(fix.at)
   }, [marker, fix.at])
 
-  const haloPx = (2 * Math.min(fix.accuracy, ACCURACY_CAP_M)) / metresPerPixel(fix.at[1], zoom)
+  const haloPx = (2 * circleRadius(fix.accuracy)) / metresPerPixel(fix.at[1], zoom)
   const scale = indicatorScale(zoom)
   // For the suites (where-test): what the overlay was drawn from.
   useEffect(() => {

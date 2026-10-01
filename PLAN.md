@@ -3665,3 +3665,11 @@ for reduced motion); and a beam in the cone's place — 32 at the dot, 86 at
 its end, 84 long — drawn even where Figma's leans (his ask: "make it
 consistent"). `where-test` 38, `locator-test` 15.
 
+**The locator, read off the scale bar, 2026-10-01.** The owner reads the
+camera's height off the map's scale bar, so the rules are in its terms now
+(metres per 100 px; metres across the screen before, which the bar showed
+as some 50 and 20): a tap to the visitor keeps the zoom while the bar reads
+2 km or less, and comes in to 200 m from further out; the compass view is
+200 m too. The accuracy circle is held between 40 and 80 m (150 m at most
+before: "too large").
+
