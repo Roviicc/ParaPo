@@ -3588,3 +3588,15 @@ unit test (`card-stack-test`, 7). CommuterApp and StudioApp, which had the
 list, the ‹ and the height inline word for word, both call them; each call
 stands where its expression stood, so nothing a visitor or the owner sees
 changes. Next: the state and actions themselves in one hook.
+
+**CommuterApp's clean-up, step 3, 2026-10-01.** The cards' state and what
+their buttons do to one another are one hook, `useCardStack`
+(src/shared/cards/): the list and what it lists, the shared height, the
+colour a trip opens in and what is lit wearing it, a trip stepped behind a
+place's card, and the actions — open a trip from a card, open a hotspot from
+the list, ✕, a trip's ‹, a place's name, the place card's ‹. Both apps use
+it, so the studio's cards keep doing what the public map's do. A box's row
+let go is the stops hook's own now (`stops.letGo()`, `stops.letGone`),
+cleared as before when another box is picked or the card closes.
+CommuterApp is 214 lines (368 before the clean-up), StudioApp 491 (556).
+Nothing a visitor or the owner sees changes.
