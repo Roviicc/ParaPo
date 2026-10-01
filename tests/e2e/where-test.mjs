@@ -162,7 +162,8 @@ check('  and gets over it', await until(async () => (await dotMood()) !== 'angry
 // The dot itself takes a tap (the owner, 2026-10-01): the same reaction, and
 // nothing else — the button's look and the camera stay as they were.
 const beforePoke = { mode: await mode(), cam: await camera(page) }
-await overlay(page).locator('button.locator-dot').click()
+// A real click at its centre; `force`, as it never holds still (it breathes, it may hop).
+await overlay(page).locator('button.locator-dot').click({ force: true })
 await page.waitForTimeout(300)
 const afterPoke = await camera(page)
 check(
