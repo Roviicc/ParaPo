@@ -25,5 +25,5 @@ export const FacingUp: Story = { args: { haloPx: 240, coneDeg: 0 } }
 /** No heading yet — no compass, and the fixes have shown none: no cone. */
 export const NoHeading: Story = { args: { haloPx: 240, coneDeg: null } }
 
-/** A good fix zoomed out: the circle never shrinks under the dot. */
+/** A good fix zoomed out: the circle would hide under the dot, so it is gone. */
 export const TightFix: Story = { args: { haloPx: 12, coneDeg: 300 } }

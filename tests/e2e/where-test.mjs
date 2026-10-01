@@ -134,7 +134,7 @@ const measuredMpp = () =>
   }, [P0.longitude, P0.latitude])
 const haloPx = Number(await attr(page, 'data-halo-px'))
 const mpp = await measuredMpp()
-check('  its circle is the accuracy in pixels at this zoom, the dot at least', Math.abs(haloPx - Math.max(32, (2 * 30) / mpp)) <= 3, `${haloPx} px for 60 m, ${mpp.toFixed(2)} m/px`)
+check('  its circle is the accuracy in pixels at this zoom', Math.abs(haloPx - (2 * 30) / mpp) <= 3, `${haloPx} px for 60 m, ${mpp.toFixed(2)} m/px`)
 let cam = await camera(page)
 const trackedZoom = await zoomFor(page, 1000 * FT)
 check('  the camera came to it, 1000 ft across, north up', (await centred(page, P0)) < 4 && Math.abs(cam.zoom - trackedZoom) < 0.05 && cam.pitch < 0.5 && Math.abs(cam.bearing) < 0.5, `${(await centred(page, P0)).toFixed(1)} px off, zoom ${cam.zoom.toFixed(2)} for ${trackedZoom.toFixed(2)}, pitch ${cam.pitch.toFixed(1)}, bearing ${cam.bearing.toFixed(1)}`)
@@ -168,6 +168,11 @@ await ctx.setGeolocation({ ...p, accuracy: 10 })
 await page.waitForTimeout(1200)
 const after = await camera(page)
 check('  a new fix moves the overlay, not the camera', Math.abs(after.longitude - dragged.longitude) < 1e-7 && Math.abs(after.latitude - dragged.latitude) < 1e-7 && (await overlay(page).count()) === 1)
+// Google Maps' way (the owner's screenshots, 2026-10-01): the circle is the
+// fix's metres, so zoomed out it shrinks under the dot and is gone.
+await page.evaluate(() => window.__map.jumpTo({ zoom: 12 }))
+await page.waitForTimeout(300)
+check('  zoomed out till the dot covers its circle, the circle is gone', (await attr(page, 'data-halo-px')) === '0' && (await overlay(page).locator('.rounded-full').count()) === 2, `${await attr(page, 'data-halo-px')} px`)
 // The phone's compass, facing east-south-east.
 await face(page, 120)
 await button.click()
