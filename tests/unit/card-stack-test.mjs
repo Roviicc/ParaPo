@@ -86,12 +86,14 @@ test('an open trip frames its route, whatever stands behind it', () => {
   assert.deepEqual(framedBy(trip, place, true, [card], [lit]), { lines: [trip.shape.coordinates] })
 })
 
+// A place's card can stand in front of the list (an end name tapped on a trip
+// opened from it keeps the list behind), and wins over it.
 test("a place's card with a RouteCard picked frames that card's routes", () => {
-  assert.deepEqual(framedBy(null, place, false, [card], [lit]), { lines: [card.shape.coordinates] })
+  assert.deepEqual(framedBy(null, place, true, [card], [lit]), { lines: [card.shape.coordinates] })
 })
 
-test("a place's card with none picked frames the place", () => {
-  assert.deepEqual(framedBy(null, place, false, null, [lit]), { at: place })
+test("a place's card with none picked frames the place, not the list behind it", () => {
+  assert.deepEqual(framedBy(null, place, true, null, [lit]), { at: place })
 })
 
 test("the route list with a RouteCard picked frames that card's routes", () => {
