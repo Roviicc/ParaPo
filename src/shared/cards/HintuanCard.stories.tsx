@@ -224,3 +224,12 @@ export const OneBox: Story = {
 
 /** On a phone: a bottom sheet at Middle. */
 export const Phone: Story = { args: { stop: teraccess2 }, parameters: { phone: true } }
+
+/** Opened from a trip's name for the place on the map: ‹ goes back to the trip. */
+export const OverATrip: Story = {
+  args: { onBack: fn() },
+  play: async ({ args, canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Back' }))
+    await expect(args.onBack).toHaveBeenCalledOnce()
+  },
+}

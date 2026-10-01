@@ -3500,3 +3500,16 @@ uses, which name what an exported function takes or returns; and
 HotspotPanel's alias and note state with no setter, which keeps a box's Also
 called and Note while those are off the form. Nothing a visitor or the owner
 sees changes.
+
+**A place's name on the map opens it, 2026-10-01.** The owner's ask: the
+names beside the circles — a lit ride's Head and Tail (EndTitles), the
+picked hintuan's (HintuanPin) — are clickable, zooming in to the place and
+showing the routes connected to it. A tap opens the place's HintuanCard, the
+map flying in to it (zoom 16 at least) and lighting its routes, as a tap on
+its box does. An open trip steps behind it with whatever stood behind the
+trip, and the card's new ‹ brings it back as it was; a route picked on the
+card, or ✕, lets the trip go. The names are buttons only where the ride
+says which hotspot it ends at (`directionEndStops`), and a tap on one never
+reaches the map beneath: MapLibre hears its container before React hears
+the page, so `markerTap.ts` stops it on the marker itself. The circles still
+take no taps.

@@ -198,6 +198,13 @@ export function directionEnds(v: VariantSummary): { from: string; to: string } {
   return v.reversed ? { from: tail, to: head } : { from: head, to: tail }
 }
 
+/** The hotspots a direction runs from and to: its route's head and tail, the way it rides them. */
+export function directionEndStops(v: VariantSummary): { fromStop: string | null; toStop: string | null } {
+  const head = v.route?.head_stop_id ?? null
+  const tail = v.route?.tail_stop_id ?? null
+  return v.reversed ? { fromStop: tail, toStop: head } : { fromStop: head, toStop: tail }
+}
+
 /** Geometry to draw: the stored shape, or rebuilt from segments when the row has them. */
 export function variantLine(v: VariantSummary & { segments?: Segment[] | null }): LngLat[] {
   if (v.shape?.coordinates?.length) return v.shape.coordinates

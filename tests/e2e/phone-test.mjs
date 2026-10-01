@@ -998,6 +998,42 @@ if (routeA) {
     JSON.stringify(ends),
   )
 
+  // An end's name is a button (the owner's ask, 2026-10-01): its place's
+  // card opens over the trip, the map flown in to it, and its ‹ brings the
+  // trip back as it was.
+  const named = await page.evaluate(async () =>
+    ((await window.__src('direction-ends'))?.features ?? []).filter((f) => f.properties.named).map((f) => ({ name: f.properties.name, at: f.geometry.coordinates })),
+  )
+  const endButton = (name) => page.locator(`[data-testid="end-title"][data-name="${name}"] button`)
+  const tappable = []
+  for (const n of named) if ((await endButton(n.name).count()) > 0) tappable.push(n)
+  if (tappable.length === 0) {
+    skip("  a tap on an end's name opens its place over the trip, ‹ back to it", `no end of "${label}" names its hotspot`)
+  } else {
+    const end = tappable[0]
+    await jumpTo(page, end.at)
+    await endButton(end.name).click()
+    await page.waitForTimeout(300)
+    await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 4000 }).catch(() => {})
+    const opened = await page.evaluate(() => {
+      const shown = [...document.querySelectorAll('[data-testid="card"]')].filter((c) => !c.hidden)
+      return {
+        shown: shown.length,
+        place: shown[0]?.querySelector('[data-testid="card-place"]')?.innerText.trim() ?? null,
+        trip: shown.some((c) => c.querySelector('[data-testid="trip"]')),
+        zoom: +window.__map.getZoom().toFixed(2),
+      }
+    })
+    check(
+      "  a tap on an end's name opens its place's card over the trip, the map flown in to it",
+      opened.shown === 1 && !opened.trip && !!opened.place?.includes(end.name) && opened.zoom >= 15.9,
+      JSON.stringify({ end: end.name, ...opened }),
+    )
+    await card().getByRole('button', { name: 'Back' }).first().click({ timeout: 1500 }).catch(() => {})
+    await page.waitForTimeout(500)
+    check("  its ‹ brings the trip back", (await tripLabel()) === label && (await page.locator('[data-testid="card"]:not([hidden]) [data-testid="trip"]').count()) === 1, `"${await tripLabel()}", want "${label}"`)
+  }
+
   const trip2 = await tripChecks()
 
   // Negative control: 40 px out is twice as far as the box reaches — but only
