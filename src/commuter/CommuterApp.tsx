@@ -1,17 +1,18 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { HintuanCard } from '../shared/cards/HintuanCard'
 import { placeKey } from '../shared/model/places'
 import { MAP_FILE_TOO_NEW, loadLine, loadStopsFromFile, loadVariantsFromFile } from './mapFile'
 import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
-import { METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
+import { APP_MOVE, METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
 import type { Livery } from '../shared/model/liveries'
 import { RouteCardList } from '../shared/cards/RouteCardList'
-import { clearOfSheet } from '../shared/cards/BottomSheet'
+import { clearOfSheet, roomBeside } from '../shared/cards/BottomSheet'
 import type { Snap } from '../shared/cards/sheetGesture'
 import { useRideTo } from '../shared/map/rideTo'
-import { directionEnds, isDrawn } from '../shared/model/routes'
+import { directionEnds, isDrawn, variantLine } from '../shared/model/routes'
 import { routeTimeline, travelLine } from '../shared/model/ride'
+import { bboxOf } from '../shared/geo/geo'
 import { sharingAnEnd } from '../shared/model/departures'
 import { useDirectionArrows, useRideColours } from '../shared/map/directionArrows'
 import { usePassStretches } from '../shared/geo/passStretches'
@@ -79,6 +80,23 @@ export default function CommuterApp() {
   const ride = useRideTo(map, saved.selected, stops.stops, {
     onGlide: () => (map ? clearOfSheet(map.getContainer(), tripDock.current, snap) : [0, 0]),
   })
+
+  // A trip opened — from a card, a tap on its line, a shared link: the
+  // camera takes in its whole route, zooming in or out, clear of the card
+  // (the owner's ask, 2026-10-01). Keyed on the route, so SWITCH, which
+  // covers the same ground the other way, leaves the view as it is.
+  const tripRouteId = saved.selected?.route_id
+  useEffect(() => {
+    const trip = saved.selected
+    if (!map || !trip) return
+    const line = variantLine(trip)
+    if (line.length < 2) return
+    const [w, s, e, n] = bboxOf(line)
+    const padding = roomBeside(map.getContainer(), tripDock.current, snap)
+    map.fitBounds([[w, s], [e, n]], { padding, maxZoom: 16, duration: 700, linear: true }, APP_MOVE)
+    // Only as a trip opens: the card's height and the trip's own changes move nothing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, tripRouteId])
 
   useShareLink(map, saved)
   // The visitor's own position, when they ask for it: a walking figure.
