@@ -3753,9 +3753,10 @@ same day). All CSS
 on the dot (locator.css), morphing over a quarter second; held still for
 reduced motion. Every face whose eyes are open still looks about — right,
 left, up, down, a smaller round about the middle (the owner's ask the same
-day); dozing, squeezed and glaring eyes keep still. A wink keeps the glance going and shuts the
-one eye, so going from glance to wink the eyes no longer jump (the owner,
-the same day: "more fluid"). Its beam cut to 7/10 of its length at the same spread (59
+day); dozing, squeezed and glaring eyes keep still. A wink holds the glance still where it is and
+shuts the one eye once: no jump to the middle, no looking about (the
+owner, the same day: "more fluid", and no "looking left right bottom and
+down"). Its beam cut to 7/10 of its length at the same spread (59
 long), and zoomed out it is a fifth bigger, 0.54 at the least (the owner,
 the same day). Straight to main this once, at the owner's say.
 And a tap on the button gets a reaction, for 2.5 s (the owner's ask, the

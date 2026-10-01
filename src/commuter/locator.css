@@ -51,10 +51,10 @@
  * quarter second. They still look about — right, left, up, down — as the
  * glance does, a smaller round about the middle (`translate`, adding to the
  * face's own place; the owner's ask the same day), but for the faces whose
- * eyes are shut or fixed: dozing, squeezed, and glaring. A wink keeps the
- * glance as it is, its eyes wandering and blinking on, and only shuts the
- * one: swapping one look for the other made the eyes jump (the owner, the
- * same day: "the movement of the eyes from neutral to wink more fluid").
+ * eyes are shut or fixed: dozing, squeezed, and glaring. A wink holds the
+ * glance still where it is, no jump to the middle and no looking about,
+ * and shuts the one eye once (the owner, the same day: "more fluid", and
+ * "don't make it wink then looking left right bottom and down").
  * Cross shows in the eyes' own shape, no brows (the owner, the same day):
  * their tops slope down to the middle. A hop and a
  * shake move the dot with
@@ -87,8 +87,12 @@
 /* Neutral: a curious look up, one eye wider; a wink; wide-eyed; sleepy when long still. */
 .locator-dot[data-face='curious'] .locator-eyes { transform: translate(-4px, -2px); }
 .locator-dot[data-face='curious'] .locator-eye:nth-child(2) { scale: 1.25; }
+.locator-dot[data-face='wink'] .locator-eyes,
+.locator-dot[data-face='wink'] .locator-eye:nth-child(1) {
+  animation-play-state: paused;
+}
 .locator-dot[data-face='wink'] .locator-eye:nth-child(2) {
-  animation: locator-wink 1.6s ease-in-out 2;
+  animation: locator-wink 1.6s ease-in-out;
 }
 .locator-dot[data-face='surprised'] .locator-eyes { transform: translate(-4px, -1px); }
 .locator-dot[data-face='surprised'] .locator-eye { scale: 1.4 1.15; }
