@@ -3636,3 +3636,12 @@ gone (the masters stay in `docs/figure/`). `where-test` is rewritten for it
 The button is 48 across (the owner's change the same afternoon; 40 at first):
 4 more padding round each look's icon, the icons as they were.
 
+**The locator's overlay, smaller and honest, 2026-10-01.** The owner, trying
+it on a phone: the dot and its cone were as big zoomed out as at street
+level ("10/10 so big"), and a fix indoors drew a circle across the map. Now,
+as Google Maps': the dot and cone are Figma's size from zoom 16 in, shrinking
+with each zoom out to 45 % at 12 and no smaller (`indicatorScale`); the
+circle is the fix's real accuracy, capped at 150 m (the owner's pick of the
+two, the same day). `where-test` gains both (35 → 37), `locator-test` the
+scale (14).
+

@@ -54,6 +54,27 @@ export const COMPASS_ACROSS_M = 200 * 0.3048
 export const COMPASS_PITCH = 45
 
 /**
+ * The accuracy circle never claims more than this (the owner's call,
+ * 2026-10-01): a fix indoors or off the wifi can say 1 km, and drew a circle
+ * across the whole map. Better fixes show as they are.
+ */
+export const ACCURACY_CAP_M = 150
+
+/**
+ * How big the dot and its cone are drawn at `zoom`, as Google Maps' stays
+ * small zoomed out (the owner's ask, 2026-10-01: "at zoomed out it's 10/10
+ * so big"): Figma's full size from street level in, shrinking with each
+ * zoom out to SMALLEST at city level, and no smaller, so it is still seen.
+ */
+export function indicatorScale(zoom: number): number {
+  const FULL_FROM = 16
+  const SMALLEST_AT = 12
+  const SMALLEST = 0.45
+  const t = Math.min(1, Math.max(0, (zoom - SMALLEST_AT) / (FULL_FROM - SMALLEST_AT)))
+  return SMALLEST + (1 - SMALLEST) * t
+}
+
+/**
  * The button's look for where the camera is, and whether there is a fix to
  * be on: none yet — not asked, refused, asking, or no fix in — is
  * LocationOff (the owner's, 2026-10-01), and a tap asks for it.

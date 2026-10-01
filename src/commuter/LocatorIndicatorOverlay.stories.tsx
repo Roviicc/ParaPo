@@ -27,3 +27,6 @@ export const NoHeading: Story = { args: { haloPx: 240, coneDeg: null } }
 
 /** A good fix zoomed out: the circle would hide under the dot, so it is gone. */
 export const TightFix: Story = { args: { haloPx: 12, coneDeg: 300 } }
+
+/** Zoomed out to the city: the dot and cone at their smallest, as Google Maps' (indicatorScale). */
+export const ZoomedOut: Story = { args: { haloPx: 0, coneDeg: 30, scale: 0.45 } }

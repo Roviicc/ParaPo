@@ -173,6 +173,18 @@ check('  a new fix moves the overlay, not the camera', Math.abs(after.longitude 
 await page.evaluate(() => window.__map.jumpTo({ zoom: 12 }))
 await page.waitForTimeout(300)
 check('  zoomed out till the dot covers its circle, the circle is gone', (await attr(page, 'data-halo-px')) === '0' && (await overlay(page).locator('.rounded-full').count()) === 2, `${await attr(page, 'data-halo-px')} px`)
+check('  and the dot and cone are drawn smaller, as Google Maps\' are', (await attr(page, 'data-scale')) === '0.45', `scale ${await attr(page, 'data-scale')}`)
+// A fix indoors, 1 km out: the circle claims 150 m at most (the owner's call, 2026-10-01).
+await page.evaluate(() => window.__map.jumpTo({ zoom: 16 }))
+await ctx.setGeolocation({ ...p, accuracy: 1000 })
+await page.waitForTimeout(1200)
+const capMpp = await page.evaluate(([lng, lat]) => {
+  const east = 100 / (111319.49079 * Math.cos((lat * Math.PI) / 180))
+  const a = window.__map.project([lng, lat]), b = window.__map.project([lng + east, lat])
+  return 100 / Math.hypot(b.x - a.x, b.y - a.y)
+}, [p.longitude, p.latitude])
+const capped = Number(await attr(page, 'data-halo-px'))
+check('  a fix 1 km out draws a 150 m circle, no more', (await attr(page, 'data-accuracy-m')) === '1000' && Math.abs(capped - 300 / capMpp) <= 3, `${capped} px for 300 m across`)
 // The phone's compass, facing east-south-east.
 await face(page, 120)
 await button.click()

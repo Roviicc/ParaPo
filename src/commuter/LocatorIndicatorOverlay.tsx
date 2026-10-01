@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
 import { metresPerPixel } from '../shared/geo/geo'
-import type { Fix } from './useLocator'
+import { ACCURACY_CAP_M, indicatorScale, type Fix } from './useLocator'
 
 /**
  * Where Figma's cone points as drawn (3870:5241): its arc runs from due east
@@ -20,13 +20,15 @@ const HALO_MAX_PX = 1600
  * map zooms out and is gone once the dot covers it, as Google Maps' is (the
  * owner's screenshots, 2026-10-01); never past HALO_MAX_PX. 0: none.
  */
-export const haloFor = (px: number) => (px < DOT_PX ? 0 : Math.round(Math.min(HALO_MAX_PX, px)))
+export const haloFor = (px: number, scale = 1) => (px < DOT_PX * scale ? 0 : Math.round(Math.min(HALO_MAX_PX, px)))
 
 type Props = {
   /** The accuracy circle's width: the fix's 68 % radius, twice, in pixels. */
   haloPx: number
   /** Which way the cone points, degrees clockwise from the overlay's up — north, on the map. Null: no cone. */
   coneDeg: number | null
+  /** The dot and cone's size against Figma's, 1 at street level (indicatorScale). */
+  scale?: number
 }
 
 /**
@@ -38,8 +40,8 @@ type Props = {
  * claim a certainty the phone does not have. Figma's is 240 across, its
  * cone 70 long; here the circle is the fix's metres, the cone stays as drawn.
  */
-export function LocatorIndicatorOverlay({ haloPx, coneDeg }: Props) {
-  const halo = haloFor(haloPx)
+export function LocatorIndicatorOverlay({ haloPx, coneDeg, scale = 1 }: Props) {
+  const halo = haloFor(haloPx, scale)
   const gradient = useId()
   return (
     <div className="pointer-events-none relative size-0">
@@ -49,27 +51,30 @@ export function LocatorIndicatorOverlay({ haloPx, coneDeg }: Props) {
           style={{ width: halo, height: halo }}
         />
       )}
-      {coneDeg !== null && (
-        <div
-          className="absolute top-1/2 left-1/2 size-35 -translate-1/2 text-map-locator-indicator-overlay-surface"
-          style={{ rotate: `${coneDeg - CONE_DRAWN_DEG}deg` }}
-        >
-          <svg viewBox="0 0 99.8046 70" className="absolute top-1/2 left-[28.71%] h-17.5 w-[99.8px]" aria-hidden>
-            <defs>
-              <linearGradient id={gradient} x1="29.8046" y1="3.05551" x2="54.8732" y2="70" gradientUnits="userSpaceOnUse">
-                <stop stopColor="currentColor" />
-                <stop offset="1" stopColor="currentColor" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M99.8046 0C99.8046 11.7907 96.8263 23.3905 91.146 33.7228C85.4658 44.0551 77.2677 52.7852 67.3124 59.103C57.3572 65.4208 45.9674 69.1215 34.1999 69.8619C22.4324 70.6022 10.6686 68.3581 8.2676e-07 63.3379L29.8046 0H99.8046Z"
-              fill={`url(#${gradient})`}
-            />
-          </svg>
+      {/* The dot and its cone, smaller zoomed out; the circle is metres, and keeps its own size. */}
+      <div className="absolute inset-0" style={{ scale }}>
+        {coneDeg !== null && (
+          <div
+            className="absolute top-1/2 left-1/2 size-35 -translate-1/2 text-map-locator-indicator-overlay-surface"
+            style={{ rotate: `${coneDeg - CONE_DRAWN_DEG}deg` }}
+          >
+            <svg viewBox="0 0 99.8046 70" className="absolute top-1/2 left-[28.71%] h-17.5 w-[99.8px]" aria-hidden>
+              <defs>
+                <linearGradient id={gradient} x1="29.8046" y1="3.05551" x2="54.8732" y2="70" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="currentColor" />
+                  <stop offset="1" stopColor="currentColor" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M99.8046 0C99.8046 11.7907 96.8263 23.3905 91.146 33.7228C85.4658 44.0551 77.2677 52.7852 67.3124 59.103C57.3572 65.4208 45.9674 69.1215 34.1999 69.8619C22.4324 70.6022 10.6686 68.3581 8.2676e-07 63.3379L29.8046 0H99.8046Z"
+                fill={`url(#${gradient})`}
+              />
+            </svg>
+          </div>
+        )}
+        <div className="absolute top-1/2 left-1/2 -translate-1/2 rounded-full bg-surface p-1">
+          <div className="size-6 rounded-full bg-brand-surface" />
         </div>
-      )}
-      <div className="absolute top-1/2 left-1/2 -translate-1/2 rounded-full bg-surface p-1">
-        <div className="size-6 rounded-full bg-brand-surface" />
       </div>
     </div>
   )
@@ -107,12 +112,14 @@ export function LocatorOnMap({ map, fix, heading }: { map: MapLibreMap; fix: Fix
     marker.setLngLat(fix.at)
   }, [marker, fix.at])
 
-  const haloPx = (2 * fix.accuracy) / metresPerPixel(fix.at[1], zoom)
+  const haloPx = (2 * Math.min(fix.accuracy, ACCURACY_CAP_M)) / metresPerPixel(fix.at[1], zoom)
+  const scale = indicatorScale(zoom)
   // For the suites (where-test): what the overlay was drawn from.
   useEffect(() => {
     el.dataset.accuracyM = String(Math.round(fix.accuracy))
-    el.dataset.haloPx = String(haloFor(haloPx))
+    el.dataset.haloPx = String(haloFor(haloPx, scale))
+    el.dataset.scale = scale.toFixed(2)
     el.dataset.heading = heading === null ? '' : String(Math.round(heading))
-  }, [el, fix.accuracy, haloPx, heading])
-  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} coneDeg={heading} />, el)
+  }, [el, fix.accuracy, haloPx, heading, scale])
+  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} coneDeg={heading} scale={scale} />, el)
 }
