@@ -5,7 +5,7 @@ import { HotspotCard } from '../shared/cards/HotspotCard'
 import { MapView } from '../shared/map/MapView'
 import { RouteCardList } from '../shared/cards/RouteCardList'
 import { TripCard, useTripLivery } from '../shared/cards/TripCard'
-import { makeRoom } from '../shared/cards/BottomSheet'
+import { clearOfSheet } from '../shared/cards/BottomSheet'
 import type { Snap } from '../shared/cards/sheetGesture'
 import { HintuanPin } from '../shared/map/HintuanPin'
 import { EndTitles } from '../shared/map/EndTitles'
@@ -128,11 +128,10 @@ function Workshop({
   // A hintuan picked on the trip card: the camera gliding there clear of the
   // card and a circle popping up on it, the route left whole — the public
   // map's (the owner, 2026-09-30: "most of the interaction of public map
-  // should be in studio"), the card coming down from Max to Middle as the
-  // camera glides with it (makeRoom).
+  // should be in studio"), the card staying at its height (clearOfSheet).
   const tripDock = useRef<HTMLDivElement>(null)
   const ride = useRideTo(map, saved.selected, stops.stops, {
-    onGlide: () => (map ? makeRoom(map.getContainer(), tripDock.current, { snap, onSnap: setSnap }) : [0, 0]),
+    onGlide: () => (map ? clearOfSheet(map.getContainer(), tripDock.current, snap) : [0, 0]),
   })
 
   // Where a lit direction passes a hintuan, the line turns orange for that

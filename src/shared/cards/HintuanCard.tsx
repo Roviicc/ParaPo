@@ -61,8 +61,8 @@ const LETTER = { terminal: <TerminalIcon />, hintuan: <HintuanIcon /> } satisfie
  * Under the place's name, a HotspotSelectionBar per box: terminals first, in
  * sky, then the hintuans, in green, each in the order drawn, and boxes of one
  * name numbered (placeBoxes). The box tapped on the map is the Selected one,
- * pressed in; a tap on another row picks it, and the map goes there with the
- * card at Middle (the caller's `onPickBox`).
+ * pressed in; a tap on another row picks it, and the map goes there, the
+ * card staying at its height (the caller's `onPickBox`).
  *
  * Under the rows, the routes that stop at the Selected box — only there:
  * Lagro 1, on the way to SM Fairview, lists Tala → SM Fairview and
