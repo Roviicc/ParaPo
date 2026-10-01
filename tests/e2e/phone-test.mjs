@@ -479,7 +479,22 @@ const tripChecks = async () => {
   } else {
     const folded = (await fold.first().innerText()).trim()
     const n = Number(/^(\d+) more hintuans$/.exec(folded)?.[1] ?? NaN)
+    // DIAGNOSTIC (temporary): what happens to the fold on this tap.
+    await page.evaluate(() => {
+      window.__diag = []
+      const t0 = performance.now()
+      const log = (s) => window.__diag.push(`${Math.round(performance.now() - t0)}ms ${s}`)
+      for (const ev of ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click']) {
+        document.addEventListener(ev, (e) => log(`${ev} ${e.target?.closest?.('[data-testid]')?.getAttribute('data-testid') ?? e.target?.tagName} ${e.pointerType ?? ''} trusted=${e.isTrusted}`), true)
+      }
+      new MutationObserver((ms) => ms.forEach((m) => log(`attr ${m.attributeName}=${m.target.getAttribute(m.attributeName)} on ${m.target.getAttribute('data-testid') ?? m.target.tagName}`))).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['aria-expanded', 'hidden'] })
+      const cards = [...document.querySelectorAll('[data-testid="card"]')]
+      log(`cards ${cards.length}: ${cards.map((c) => `${c.hidden ? 'hidden' : 'shown'}/${c.querySelectorAll('[data-testid="trip-fold"]').length} folds`).join(', ')}`)
+    })
+    const foldBox = await fold.first().boundingBox().catch(() => null)
     await buttonTap(fold, async () => (await fold.first().getAttribute('aria-expanded')) === 'true')
+    await page.waitForTimeout(600)
+    console.log(`DIAG fold box ${JSON.stringify(foldBox)}; tapsByHand ${tapsByHand}\n  ${(await page.evaluate(() => window.__diag)).join('\n  ')}`)
     const opening = await rowMotion()
     const shown = await restingRows()
     check('  its hintuans fold into one row, "N more hintuans", that opens to N rows', n > 1 && shown === n && (await fold.first().innerText()).includes('View less'), `"${folded}" opened to ${shown} row(s)`)
