@@ -3633,4 +3633,6 @@ the map's foot; where the card floats in the corner, bottom right, clear of
 the credit line. The walker, its sheets in `public/figure/` and its CSS are
 gone (the masters stay in `docs/figure/`). `where-test` is rewritten for it
 (27 → 35), `locator-test` replaces `where-am-i-test`.
+The button is 48 across (the owner's change the same afternoon; 40 at first):
+4 more padding round each look's icon, the icons as they were.
 

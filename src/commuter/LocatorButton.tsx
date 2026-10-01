@@ -25,7 +25,8 @@ type Props = Omit<
 
 /**
  * The owner's LocatorButton (3870:5437, 2026-10-01), in WhereAmI's place:
- * a 40 px Special pill showing where the camera is with the visitor —
+ * a 48 px Special pill (40 until the owner's change later that day) showing
+ * where the camera is with the visitor —
  * a struck-through compass while there is no location (LocationOff),
  * a blue dot when it is elsewhere (TrackOwnLocation), a black arrow when it
  * follows them (TrackedLocation), a blue arrow when it also turns with the
@@ -43,7 +44,7 @@ export function LocatorButton({ mode, heading = null, 'aria-label': label, ...re
       title={label}
       data-mode={mode}
       className={
-        'group relative grid size-10 shrink-0 place-items-center rounded-full bg-surface-tertiary ' +
+        'group relative grid size-12 shrink-0 place-items-center rounded-full bg-surface-tertiary ' +
         'outline-none focus-visible:ring-2 focus-visible:ring-brand-surface [-webkit-tap-highlight-color:transparent]'
       }
     >
