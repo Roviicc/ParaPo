@@ -99,6 +99,16 @@ export function rideEnds(rides: readonly Ride[]): RideEnd[] {
  */
 const STEP_MS = 1000 / 15
 
+/**
+ * Steps that came this late, this many in a row, and they stop flowing where
+ * they are, as when asked to keep still: on a phone that cannot draw the map
+ * four times a second, each step took the whole frame and a tap waited
+ * seconds for its turn (a GitHub runner, 2026-10-01: the trip card's buttons
+ * answering five seconds late, 13 frames in 8 s; 51 ms with them still).
+ */
+const SLOW_STEP_MS = 4 * STEP_MS
+const SLOW_STEPS = 3
+
 /** Whether this browser has been asked to keep still. */
 function stillPlease(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
@@ -199,6 +209,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     let flowed = 0
     let last = performance.now()
     let moving = false
+    let slow = 0
     const draw = () => {
       const zoom = map.getZoom()
       const bounds = map.getBounds()
@@ -220,10 +231,21 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     const onEnd = () => {
       moving = false
       last = performance.now()
+      // Another view, another cost: a flow that rested for being slow tries again.
+      if (!still && slow >= SLOW_STEPS) {
+        slow = 0
+        frame.current = requestAnimationFrame(tick)
+      }
     }
     const tick = (now: number) => {
+      if (moving || now - last < STEP_MS) {
+        frame.current = requestAnimationFrame(tick)
+        return
+      }
+      slow = now - last > SLOW_STEP_MS ? slow + 1 : 0
+      // Too slow to flow: they rest where they are, until the map next comes to rest.
+      if (slow >= SLOW_STEPS) return
       frame.current = requestAnimationFrame(tick)
-      if (moving || now - last < STEP_MS) return
       // Back from a hidden page, or a long frame: one step on, not a leap.
       flowed += Math.min(now - last, 2 * STEP_MS)
       last = now
