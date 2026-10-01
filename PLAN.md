@@ -3542,3 +3542,11 @@ rows are those through every box of the place (the owner's choice), lit on
 the map, SWITCH turning them round where they run both ways. On the map the
 box is drawn as one of its place's like the others (`boxMarks`' `letGo`).
 A tap on any row, the same one included, picks it again and goes there.
+
+**A RouteCard's row has a Pressed state, 2026-10-01.** The owner's
+RouteEndPointBar (3848:11928) gained State=Pressed: the row in
+Card/<livery>/Timeline/surface. Shown while the finger or the mouse is down
+on it (`:active`), the trip opening as it lets go — the owner's pick, a
+tap's feedback rather than a state kept while the trip is open. The phone's
+own tap highlight is off on the row, so the colour under the finger is the
+token's. Story: RowPressed, every livery, press and hold.

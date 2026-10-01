@@ -17,7 +17,24 @@ import { CircleArrowRightIcon } from './RouteIcons'
  * around its rows — selects it, or lets it go (the owner's picks, the same
  * day). Which card is Selected, one at a time, is the caller's to keep. The
  * pesos left the card with this set: the trip's Expected fare carries them.
+ *
+ * A row's State (RouteEndPointBar, 3848:11928, 2026-10-01): Rest, or Pressed
+ * — while the finger is down on it, the row in the card's timeline colour,
+ * Card/<livery>/Timeline/surface; the trip opens as it lets go (the owner's
+ * pick, the same day: a tap's feedback, not kept once the trip is open).
+ * A phone's own tap highlight is turned off on the row, so the colour under
+ * the finger is the token's alone.
  */
+
+/** A row Pressed: Card/<livery>/Timeline/surface, as the timeline's rail wears it. */
+const ROW_PRESSED = {
+  red: 'active:bg-card-red-timeline-surface',
+  orange: 'active:bg-card-orange-timeline-surface',
+  yellow: 'active:bg-card-yellow-timeline-surface',
+  violet: 'active:bg-card-violet-timeline-surface',
+  rose: 'active:bg-card-rose-timeline-surface',
+  fuchsia: 'active:bg-card-fuchsia-timeline-surface',
+} satisfies Record<Livery, string>
 
 export type EndPoint = {
   /** Which direction the row opens. */
@@ -85,7 +102,8 @@ export function RouteCard({ livery, state, routeOrigin, endPoints, onSelect, onP
               data-testid={`${testId}-item`}
               data-direction={e.id}
               onClick={() => onPick(e.id)}
-              className="relative flex w-full items-center gap-1 px-4 py-2 text-left text-base/6 font-medium"
+              className={'relative flex w-full items-center gap-1 px-4 py-2 text-left text-base/6 font-medium [-webkit-tap-highlight-color:transparent] ' +
+                ROW_PRESSED[livery]}
             >
               <span aria-hidden className="size-6 shrink-0 *:size-full">
                 <CircleArrowRightIcon />
