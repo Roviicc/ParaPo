@@ -100,7 +100,7 @@ export default defineConfig({
         // chunk (the editor, the Supabase client) is never stored on a phone.
         // The fonts too, since they were subset to Latin (2026-09-29, 109 kB
         // for all six): offline, the text keeps its face.
-        globPatterns: ['index.html', 'manifest.webmanifest', 'assets/*.{js,css,woff2}', 'icons/icon-*.png', 'figure/*.png'],
+        globPatterns: ['index.html', 'manifest.webmanifest', 'assets/*.{js,css,woff2}', 'icons/icon-*.png'],
         manifestTransforms: [
           (entries) => {
             // Written by Vite with the bundle; the worker is generated after.

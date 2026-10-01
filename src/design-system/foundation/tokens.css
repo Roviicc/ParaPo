@@ -162,6 +162,11 @@
   --map-hotspots-card-hintuan-border-primary: var(--color-green-900);
   --map-hotspots-card-terminal-surface: var(--color-sky-700);
   --map-hotspots-card-terminal-border-primary: var(--color-sky-900);
+  /* The visitor's own place: LocatorIndicatorOverlay's accuracy circle and
+     heading cone, and the LocatorButton's ring (3870:5247, 2026-10-01).
+     Figma gives it 15% opacity with the colour; here the colour, and `/15`
+     where it is used. */
+  --map-locator-indicator-overlay-surface: var(--color-blue-600);
 }
 
 /* The semantics as utilities: text-content-primary, bg-surface, border-border-primary… */
@@ -233,6 +238,7 @@
   --color-map-hotspots-card-hintuan-border-primary: var(--map-hotspots-card-hintuan-border-primary);
   --color-map-hotspots-card-terminal-surface: var(--map-hotspots-card-terminal-surface);
   --color-map-hotspots-card-terminal-border-primary: var(--map-hotspots-card-terminal-border-primary);
+  --color-map-locator-indicator-overlay-surface: var(--map-locator-indicator-overlay-surface);
 }
 
 /*

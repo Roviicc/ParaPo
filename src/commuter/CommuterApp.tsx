@@ -6,6 +6,7 @@ import { MAP_FILE_TOO_NEW, loadLine, loadStopsFromFile, loadVariantsFromFile } f
 import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
 import { METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
 import { RouteCardList } from '../shared/cards/RouteCardList'
+import { clearOfSheet } from '../shared/cards/BottomSheet'
 import { useCardStack } from '../shared/cards/useCardStack'
 import { useRideTo } from '../shared/map/rideTo'
 import { routeTimeline } from '../shared/model/ride'
@@ -19,9 +20,9 @@ import { TripCard } from '../shared/cards/TripCard'
 import { useMapAge, useOffline } from './status'
 import { useShareLink } from './useShareLink'
 import { useTripOverview } from './useTripOverview'
-import { Walker } from './Walker'
-import { WhereAmIButton } from './WhereAmI'
-import { useWhereAmI } from './useWhereAmI'
+import { Locator } from './Locator'
+import { LocatorOnMap } from './LocatorIndicatorOverlay'
+import { useLocator } from './useLocator'
 
 /**
  * The public map at /. Everything published so far and a card for whatever is
@@ -58,8 +59,16 @@ export default function CommuterApp() {
   useTripOverview(map, saved.selected, tripDock, cards.snap)
 
   useShareLink(map, saved)
-  // The visitor's own position, when they ask for it: a walking figure.
-  const where = useWhereAmI(map)
+  // The visitor's own position, when they ask for it, and the camera with
+  // them (the owner's LocatorButton, 2026-10-01): kept clear of the card on
+  // show, as a picked hintuan is.
+  const root = useRef<HTMLDivElement>(null)
+  const locator = useLocator(map, {
+    compass: coarse,
+    snap: cards.snap,
+    offset: () =>
+      map ? clearOfSheet(map.getContainer(), root.current?.querySelector<HTMLElement>('[data-floats]:not([hidden])') ?? null, cards.snap) : [0, 0],
+  })
   const offline = useOffline()
   const age = useMapAge(saved.variants)
   const needRefresh = useNeedRefresh()
@@ -73,15 +82,17 @@ export default function CommuterApp() {
     // `data-directions`: how many the map file brought, for the suites on a
     // production build, where the map itself is out of their reach — the
     // count pill that told them went on 2026-09-29.
-    <div data-directions={saved.variants.length} className="@container relative h-full w-full overflow-clip">
+    // `data-dock-host`: the open card's sheet says where its top is here,
+    // for the LocatorButton to follow (BottomSheet).
+    <div ref={root} data-dock-host data-directions={saved.variants.length} className="@container relative h-full w-full overflow-clip">
       {/*
         No count of routes and hotspots in a corner, and no +, − or compass:
         the owner's notes on his screenshot, "annoying for users"
         (2026-09-29).
       */}
       <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} />
-      {map && <WhereAmIButton where={where} coarse={coarse} />}
-      {map && where.fix && <Walker map={map} fix={where.fix} pose={where.pose} facing={where.facing} />}
+      {map && <Locator locator={locator} docked={cards.open} />}
+      {map && locator.fix && <LocatorOnMap map={map} fix={locator.fix} heading={locator.heading} />}
       {/* Each lit ride's ends, named over their circles. */}
       {map && <EndTitles map={map} rides={rides} look={look} onPick={openPlace} />}
       {/* Keyed on the pick: another hintuan pops a fresh circle. */}
