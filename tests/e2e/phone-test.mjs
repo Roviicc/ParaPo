@@ -1016,6 +1016,11 @@ if (routeA) {
       const q = m.project(f.geometry.coordinates)
       return {
         name: f.properties.name,
+        // Head Route where the ride starts, larger; Tail Route where it goes, its circled arrow first.
+        look:
+          f.properties.end === 'from'
+            ? pill.dataset.end === 'head' && getComputedStyle(pill.firstElementChild).fontSize === '16px' && !pill.querySelector('svg:not(:last-child)')
+            : pill.dataset.end === 'tail' && getComputedStyle(pill.firstElementChild).fontSize === '14px' && !!pill.querySelector('svg:not(:last-child)'),
         colour: getComputedStyle(pill.firstElementChild).backgroundColor === ringRgb,
         across: box.left + box.width / 2 - (c.left + q.x),
         above: c.top + q.y - box.bottom,
@@ -1024,10 +1029,10 @@ if (routeA) {
     return { named: named.length, pills: pills.length, rows }
   })
   check(
-    "  each end named once, in a pill over its circle in the line's colour",
+    "  each end named once, in a pill over its circle in the line's colour, the start's the larger, where it goes led by an arrow",
     ends.named > 0 &&
       ends.pills === ends.named &&
-      ends.rows.every((r) => !r.missing && r.colour && Math.abs(r.across) < 1.5 && r.above > 14 && r.above < 40),
+      ends.rows.every((r) => !r.missing && r.look && r.colour && Math.abs(r.across) < 1.5 && r.above > 14 && r.above < 40),
     JSON.stringify(ends),
   )
 
