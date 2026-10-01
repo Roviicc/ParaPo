@@ -2,7 +2,8 @@ import { useId, useState, type ReactNode, type Ref } from "react";
 import { kmLabel } from "../geo/geo";
 import { RouteCardHeader } from "./RouteCardHeader";
 import { BottomSheet, type SheetHeight } from "./BottomSheet";
-import { CircleArrowRightIcon, ReloadIcon } from "./RouteIcons";
+import { ReloadIcon } from "./RouteIcons";
+import { RouteEndPointBar } from "./RouteEndPointBar";
 import { TripTimeline, type TripTimelineProps } from "./TripTimeline";
 
 /** A ride's pesos both ways: `₱26` regular, and its discounted price — students, seniors, PWDs. */
@@ -194,18 +195,13 @@ export function RouteTripDetail({
           <ul>
             {otherRoutes.map((r) => (
               <li key={r.id}>
-                <button
-                  type="button"
+                <RouteEndPointBar
+                  routeDirection={r.to}
+                  on="surface"
                   data-testid="trip-other-route"
                   data-direction={r.id}
                   onClick={() => onOtherRoute?.(r.id)}
-                  className="flex w-full items-center gap-1 rounded-full px-4 py-2 text-left text-base/6 font-medium text-content-primary transition-colors duration-quick ease-move hover:bg-surface-tertiary active:bg-surface-quaternary"
-                >
-                  <span aria-hidden className="size-6 shrink-0 *:size-full">
-                    <CircleArrowRightIcon />
-                  </span>
-                  <span className="min-w-0 flex-1">{r.to}</span>
-                </button>
+                />
               </li>
             ))}
           </ul>

@@ -3728,3 +3728,9 @@ card as it was — the hintuans open if they were ("don't shrink it"), the
 sheet at its height: the trip card is no longer keyed on its route, so it
 stays one card while a trip is open, as SWITCH always kept it.
 `phone-test` 102 → 105; `timeline-test` 20 → 22.
+
+**RouteEndPointBar, 2026-10-01.** The owner's .RouteEndPointBar (3656:132)
+was written twice — a RouteCard's rows and a trip's "Other routes" — and is
+one component now (`RouteEndPointBar`), on a livery (pressing to the card's
+timeline colour) or on the sheet's surface (rounded, pressing grey). Nothing
+looks different; a change to the row is made once.
