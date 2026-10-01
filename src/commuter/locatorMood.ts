@@ -48,13 +48,6 @@ export function reactionTo(count: number, roll: number): 'happy' | 'angry' {
 
 /** Happy this long when the location first comes, or the camera arrives on the visitor. */
 export const HAPPY_FOR_MS = 3000
-/**
- * Sad when the fix is this rough, in metres: really lost. Not for an old fix
- * — a browser sends none while the visitor stands still, so "stale" was
- * most of the time — nor at 80 m, common indoors (the owner, 2026-10-01:
- * "why it sad most of the time").
- */
-export const POOR_OVER_M = 150
 /** Happy on the move from walking pace up, in metres a second. */
 export const MOVING_FROM_MPS = 1
 /** Sleepy, a neutral face, after standing still this long. */
@@ -65,8 +58,8 @@ export const SLEEPY_AFTER_MS = 60_000
  * "back and forth between neutral and happy ... then sometimes sad and
  * angry"): a face every AMBIENT_EVERY_MS from this list, half of them
  * neutral, nearly all the rest happy, one in forty each sad and cross —
- * those two for one turn only, where a rough fix or a run of taps hold them
- * as long as they last, so the real ones still read as real (halved from one
+ * those two for one turn only, where a run of taps holds cross as long as
+ * it lasts, so that one still reads as real (halved from one
  * in twenty at the owner's "make neutral and happy more", the same day).
  */
 const AMBIENT_EVERY_MS = 5000
@@ -120,15 +113,17 @@ export function inATemper({ now, taps }: Pick<Signals, 'now' | 'taps'>): boolean
 
 /**
  * The mood for these signals, the strongest first: cross at a run of taps,
- * then a tap's own reaction, then glad as the visitor arrives, then low,
- * then glad on the move.
+ * then a tap's own reaction, then glad as the visitor arrives, then glad on
+ * the move. Never low for the location itself: an old fix (a browser sends
+ * none while the visitor stands still) or a rough one (common indoors) made
+ * it sad most of the time, so low is its swings' alone for now (the owner,
+ * 2026-10-01: "can we drop the bad location for now").
  */
 export function moodAt(s: Signals): Mood {
   const { now, fix, arrivedAt } = s
   if (inATemper(s)) return 'angry'
   if (reacting(s)) return s.reaction!.mood
   if (arrivedAt !== null && now >= arrivedAt && now - arrivedAt < HAPPY_FOR_MS) return 'happy'
-  if (fix && fix.accuracy > POOR_OVER_M) return 'sad'
   if (fix && fix.speed >= MOVING_FROM_MPS) return 'happy'
   return 'neutral'
 }

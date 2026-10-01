@@ -1,6 +1,6 @@
 // The visitor's dot's moods (src/commuter/locatorMood.ts, the owner's ask of
 // 2026-10-01): cross at a run of taps, glad as the location comes or the
-// camera arrives and on the move, low when the fix is really rough, and
+// camera arrives and on the move, and
 // otherwise neutral; and the faces each wears.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/locator-mood-test.mjs
@@ -12,7 +12,6 @@ import {
   MOOD_OF,
   REACT_FOR_MS,
   HAPPY_FOR_MS,
-  POOR_OVER_M,
   SLEEPY_AFTER_MS,
   faceFor,
   moodAt,
@@ -39,11 +38,10 @@ test('happy on the move, from walking pace', () => {
   assert.equal(at(T, { fix: { ...good, speed: 0.6 } }), 'neutral')
 })
 
-test('sad when the fix is really rough, over being on the move; never for an old fix of a visitor standing still', () => {
+test('never sad for the location itself: not for an old fix, nor a rough one', () => {
   assert.equal(at(T + 10 * 60_000), 'neutral')
-  assert.equal(at(T, { fix: { ...good, accuracy: 120 } }), 'neutral')
-  assert.equal(at(T, { fix: { ...good, accuracy: POOR_OVER_M + 1 } }), 'sad')
-  assert.equal(at(T, { fix: { ...good, accuracy: POOR_OVER_M + 1, speed: 2 } }), 'sad')
+  assert.equal(at(T, { fix: { ...good, accuracy: 500 } }), 'neutral')
+  assert.equal(at(T, { fix: { ...good, accuracy: 500, speed: 2 } }), 'happy')
 })
 
 test('cross at three taps within two seconds, for three seconds, over everything else', () => {
@@ -85,7 +83,7 @@ test("a tap's reaction shows for a while, over arriving, under a run of taps; it
   const glad = { at: T, mood: 'happy' }
   const cross = { at: T, mood: 'angry' }
   assert.equal(at(T + 100, { reaction: cross, arrivedAt: T }), 'angry')
-  assert.equal(at(T + 100, { reaction: glad, fix: { ...good, accuracy: POOR_OVER_M + 1 } }), 'happy')
+  assert.equal(at(T + 100, { reaction: glad, fix: { ...good, speed: 0 } }), 'happy')
   assert.equal(at(T + REACT_FOR_MS + 1, { reaction: cross }), 'neutral')
   assert.equal(faceFor('happy', T, 0, true), 'boing')
   assert.equal(faceFor('angry', T, 0, true), 'huff')
