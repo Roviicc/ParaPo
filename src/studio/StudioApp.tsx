@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { MapLibreMap } from 'maplibre-gl'
 import { HotspotCard } from '../shared/cards/HotspotCard'
-import { MapView } from '../shared/map/MapView'
+import { APP_MOVE, MapView } from '../shared/map/MapView'
 import { RouteCardList } from '../shared/cards/RouteCardList'
 import { TripCard } from '../shared/cards/TripCard'
 import { useCardStack } from '../shared/cards/useCardStack'
@@ -361,6 +361,12 @@ function Workshop({
                   const s = stops.selected
                   if (!s) return
                   closeAll()
+                  // A RouteCard picked on the way here, on this card or in
+                  // the list, took in its routes whole and left the box a
+                  // few pixels across: the outline opens on the box, in
+                  // close enough to take its corners. Already that close,
+                  // the map stays where it is.
+                  if (map && map.getZoom() < 16) map.flyTo({ center: s.point.coordinates, zoom: 16 }, APP_MOVE)
                   draw.loadArea(s.kind, s.id, stopRing(s))
                 }}
                 onDelete={() => {
