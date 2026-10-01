@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { MapLibreMap } from 'maplibre-gl'
 import { HotspotCard } from '../shared/cards/HotspotCard'
@@ -6,9 +6,9 @@ import { MapView } from '../shared/map/MapView'
 import { RouteCardList } from '../shared/cards/RouteCardList'
 import { TripCard } from '../shared/cards/TripCard'
 import { useCardStack } from '../shared/cards/useCardStack'
+import { useCardCamera } from '../shared/cards/useCardCamera'
 import { HintuanPin } from '../shared/map/HintuanPin'
 import { EndTitles } from '../shared/map/EndTitles'
-import { useRideTo } from '../shared/map/rideTo'
 import { lineOf, listVariants, loadStopsFromSupabase } from './data/live'
 import { isDrawn, type VariantRow } from '../shared/model/routes'
 import { routeTimeline } from '../shared/model/ride'
@@ -121,13 +121,14 @@ function Workshop({
   // The route list, a hotspot's card and the trip opened from either, as on
   // the public map (useCardStack).
   const cards = useCardStack(map, saved, stops)
-  // A hintuan picked on the trip card: the camera gliding there clear of the
-  // card and a circle popping up on it, the route left whole — the public
-  // map's (the owner, 2026-09-30: "most of the interaction of public map
-  // should be in studio"), the card staying at its height (clearOfSheet).
-  const tripDock = useRef<HTMLDivElement>(null)
-  const ride = useRideTo(map, saved.selected, stops.stops, {
-    onGlide: cards.clearOf(tripDock),
+  // The camera with the cards, as on the public map (useCardCamera): a
+  // hintuan picked on the trip card, the camera gliding there clear of the
+  // card and a circle popping up on it, the route left whole (the owner,
+  // 2026-09-30: "most of the interaction of public map should be in
+  // studio"), the card staying at its height. Its overviews are off here for
+  // now (`camera: false`), so the studio's camera moves as it did.
+  const { root, tripDock, ride, switchTrip, flipList, pickOnPlaceCard } = useCardCamera(map, saved, stops, cards, {
+    camera: false,
   })
 
   // What the lit routes wear on the map, as on the public map (useLitRides);
@@ -242,7 +243,7 @@ function Workshop({
   }
 
   return (
-    <div className="@container relative h-full w-full overflow-clip">
+    <div ref={root} className="@container relative h-full w-full overflow-clip">
       <MapView onReady={setMap} />
 
       {/* A config or load problem is a banner, never a blank page. */}
@@ -275,7 +276,7 @@ function Workshop({
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
           livery={tripLivery}
           onBackToList={cards.backFromTrip}
-          onSwitch={(v) => saved.select(v.id, { keepList: true })}
+          onSwitch={switchTrip}
           onClose={closeAll}
           picked={ride.pickedId}
           pickedMetres={saved.fullIds.has(saved.selected.id) ? ride.rideTo?.metres : undefined}
@@ -335,7 +336,7 @@ function Workshop({
           key={stops.selected.id}
           routeCards={{
             selected: saved.highlight?.where === 'hotspot' ? saved.highlight.from : null,
-            onSelect: (p) => saved.highlightCard(p && { where: 'hotspot', ...p }),
+            onSelect: pickOnPlaceCard,
             onShown: saved.showCard,
           }}
           hidden={!!saved.selected}
@@ -383,7 +384,7 @@ function Workshop({
           routes={saved.candidates}
           stops={stops.candidates}
           back={saved.back}
-          onFlip={saved.flip}
+          onFlip={flipList}
           selected={saved.highlight?.where === 'list' ? saved.highlight.from : null}
           onSelect={(p) => saved.highlightCard(p && { where: 'list', ...p })}
           onRoute={cards.openTrip}
