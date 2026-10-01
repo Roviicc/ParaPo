@@ -3734,3 +3734,8 @@ was written twice — a RouteCard's rows and a trip's "Other routes" — and is
 one component now (`RouteEndPointBar`), on a livery (pressing to the card's
 timeline colour) or on the sheet's surface (rounded, pressing grey). Nothing
 looks different; a change to the row is made once.
+
+**Other routes from Max, 2026-10-01.** The owner: at Max, a tap on one of
+"Other routes" brings the sheet down to Middle, so the map shows the route
+it takes in; the hintuans stay open or folded as they were. `phone-test`
+105 → 106.
