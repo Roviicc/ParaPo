@@ -1,8 +1,10 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
 import { metresPerPixel } from '../shared/geo/geo'
+import { tapsOnItsButton } from '../shared/map/markerTap'
 import './locator.css'
+import type { Face, Mood } from './locatorMood'
 import { circleRadius, indicatorScale, type Fix } from './useLocator'
 
 /** Where the beam points as drawn: due south, so it is turned by the heading less this. */
@@ -27,6 +29,13 @@ type Props = {
   beamDeg: number | null
   /** The dot and beam's size against Figma's, 1 at street level (indicatorScale). */
   scale?: number
+  /** How the dot feels, and the face it wears for it (locatorMood); neutral's glance by default. */
+  mood?: Mood
+  face?: Face
+  /** Changed by each tap on the button: the dot is drawn afresh, so its reaction plays again. */
+  beat?: number
+  /** The dot is a button, to be poked: LocatorOnMap hears the tap (markerTap.ts). */
+  pokeable?: boolean
 }
 
 /**
@@ -40,7 +49,8 @@ type Props = {
  * have. Figma's is 240 across; here the circle is the fix's metres, the beam
  * as drawn.
  */
-export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1 }: Props) {
+export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'neutral', face = 'glance', beat = 0, pokeable = false }: Props) {
+  const Dot = pokeable ? 'button' : 'div'
   const halo = haloFor(haloPx, scale)
   const gradient = useId()
   return (
@@ -57,32 +67,44 @@ export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1 }: Props) {
         {beamDeg !== null && (
           // From the dot's centre, drawn pointing south and turned to the
           // heading, in the border's blue as Figma's is. Figma's (3876:6051)
-          // leans 2.7 px to one side; here it is his size, made even (his
-          // ask, 2026-10-01).
+          // leans 2.7 px to one side; here it is the owner's size, made even
+          // (their ask, 2026-10-01), then cut to 7/10 of its length at the
+          // same spread ("make it like 7/10 only", the same day): 59 long, 70
+          // across at its end.
           <div
             className="absolute top-1/2 left-1/2 size-0 text-map-locator-indicator-overlay-border"
             style={{ rotate: `${beamDeg - BEAM_DRAWN_DEG}deg` }}
           >
-            <svg viewBox="0 0 86 84" className="absolute top-0 -left-[43px] h-21 w-[86px]" aria-hidden>
+            <svg viewBox="0 0 86 59" className="absolute top-0 -left-[43px] h-[59px] w-[86px]" aria-hidden>
               <defs>
-                <linearGradient id={gradient} x1="43" y1="0" x2="43" y2="84" gradientUnits="userSpaceOnUse">
+                <linearGradient id={gradient} x1="43" y1="0" x2="43" y2="59" gradientUnits="userSpaceOnUse">
                   <stop stopColor="currentColor" stopOpacity="0.8" />
                   <stop offset="1" stopColor="currentColor" stopOpacity="0" />
                 </linearGradient>
               </defs>
-              <path d="M27 0H59L86 84H0Z" fill={`url(#${gradient})`} />
+              <path d="M27 0H59L78 59H8Z" fill={`url(#${gradient})`} />
             </svg>
           </div>
         )}
-        <div className="locator-dot absolute top-1/2 left-1/2 -translate-1/2 rounded-full bg-surface p-1 shadow-locator-dot-shadow">
+        {/* A button when it can be poked: the only part of the overlay that takes a tap. */}
+        <Dot
+          key={beat}
+          {...(pokeable ? { type: 'button' as const, 'aria-label': 'You are here' } : {})}
+          data-mood={mood}
+          data-face={face}
+          className={
+            'locator-dot absolute top-1/2 left-1/2 -translate-1/2 rounded-full bg-surface p-1 shadow-locator-dot-shadow' +
+            (pokeable ? ' pointer-events-auto cursor-pointer [-webkit-tap-highlight-color:transparent]' : '')
+          }
+        >
           <div className="relative size-6 overflow-clip rounded-full bg-brand-surface">
-            {/* Its wandering eyes (3878:6071, 3878:6072, 2026-10-01): glancing about and blinking (locator.css). */}
+            {/* Its wandering eyes (3878:6071, 3878:6072, 2026-10-01): every face is theirs (locator.css). */}
             <div aria-hidden className="locator-eyes absolute inset-0">
               <span className="locator-eye absolute top-[6.33px] left-[10.48px] h-1.5 w-1 rounded-full bg-surface" />
               <span className="locator-eye absolute top-[6.33px] left-[17.43px] h-1.5 w-1 rounded-full bg-surface" />
             </div>
           </div>
-        </div>
+        </Dot>
       </div>
     </div>
   )
@@ -96,7 +118,24 @@ export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1 }: Props) {
  * compass view, the circle and the dot go oval with the street; and its
  * beam points the way they face, from north.
  */
-export function LocatorOnMap({ map, fix, heading }: { map: MapLibreMap; fix: Fix; heading: number | null }) {
+export function LocatorOnMap({
+  map,
+  fix,
+  heading,
+  mood,
+  face,
+  beat,
+  onPoke,
+}: {
+  map: MapLibreMap
+  fix: Fix
+  heading: number | null
+  mood: Mood
+  face: Face
+  beat: number
+  /** A tap on the dot (locatorMood's `poke`). */
+  onPoke: () => void
+}) {
   const [el] = useState(() => {
     const div = document.createElement('div')
     div.dataset.testid = 'locator-overlay'
@@ -120,6 +159,13 @@ export function LocatorOnMap({ map, fix, heading }: { map: MapLibreMap; fix: Fix
     marker.setLngLat(fix.at)
   }, [marker, fix.at])
 
+  // The dot answers a tap itself, and the map beneath never hears the tap
+  // (markerTap.ts): no line opens, the camera stays. A drag that starts on
+  // it still pans the map: it sits mid-screen, where a finger lands to pan.
+  const poke = useRef(onPoke)
+  poke.current = onPoke
+  useEffect(() => tapsOnItsButton(el, () => poke.current(), { dragsPass: true }), [el])
+
   const haloPx = (2 * circleRadius(fix.accuracy)) / metresPerPixel(fix.at[1], zoom)
   const scale = indicatorScale(zoom)
   // For the suites (where-test): what the overlay was drawn from.
@@ -129,5 +175,5 @@ export function LocatorOnMap({ map, fix, heading }: { map: MapLibreMap; fix: Fix
     el.dataset.scale = scale.toFixed(2)
     el.dataset.heading = heading === null ? '' : String(Math.round(heading))
   }, [el, fix.accuracy, haloPx, heading, scale])
-  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} beamDeg={heading} scale={scale} />, el)
+  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} beamDeg={heading} scale={scale} mood={mood} face={face} beat={beat} pokeable />, el)
 }

@@ -23,6 +23,7 @@ import { useCardOverview, useSwitchOverview, useTripOverview } from './useOvervi
 import { Locator } from './Locator'
 import { LocatorOnMap } from './LocatorIndicatorOverlay'
 import { useLocator } from './useLocator'
+import { useLocatorMood } from './locatorMood'
 
 /**
  * The public map at /. Everything published so far and a card for whatever is
@@ -77,6 +78,9 @@ export default function CommuterApp() {
     offset: () =>
       map ? clearOfSheet(map.getContainer(), openSheet(), cards.snap) : [0, 0],
   })
+  // How the dot feels: glad as the location comes, a boing at a tap on the
+  // button or on the dot, now and then a huff (locatorMood).
+  const { mood, face, beat, poke } = useLocatorMood(locator)
   const offline = useOffline()
   const age = useMapAge(saved.variants)
   const needRefresh = useNeedRefresh()
@@ -105,7 +109,7 @@ export default function CommuterApp() {
       */}
       <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} />
       {map && <Locator locator={locator} docked={cards.open} />}
-      {map && locator.fix && <LocatorOnMap map={map} fix={locator.fix} heading={locator.heading} />}
+      {map && locator.fix && <LocatorOnMap map={map} fix={locator.fix} heading={locator.heading} mood={mood} face={face} beat={beat} onPoke={poke} />}
       {/* Each lit ride's ends, named over their circles; with no trip open, a tail opens its ride's. */}
       {map && (
         <EndTitles
