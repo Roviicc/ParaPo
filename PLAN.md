@@ -3606,3 +3606,11 @@ day: Low is 129 (3869:5195; 137 before); the HandleNotch has 8 above its bar
 and 4 below (8 both before); RouteCardHeader leaves 12 below it over the
 list and over a trip alike (16 and 8 before), and the trip's card follows
 it straight away, the header's 12 being the gap (3778:3183, 3742:1049).
+
+**The HintuanCard's counter, 2026-10-01.** The owner's 3854:12690 of the
+day: the HintuanCardRouteCounter is 24 in from the card's edges (32 before),
+12 above and below, 16 before the jeep and 12 after SWITCH; the jeep 20
+(24), the count in Black, and it reads "… here" ("2 routes pass here"; "…
+through" before), the verb still agreeing with the count. The first
+RouteCard under it leaves 36 above its title (24).
+

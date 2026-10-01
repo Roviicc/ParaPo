@@ -152,9 +152,9 @@ export function HintuanCard({
     return () => tell([])
   }, [shownKey])
 
-  // Figma's "2 Routes passes through" (the owner's changes, 2026-09-30), its
-  // verb agreeing with the count.
-  const count = `${shown.length} ${shown.length === 1 ? 'route passes' : 'routes pass'} through`
+  // Figma's "2 routes passes here" (the owner's of 2026-10-01; "… through"
+  // before), its verb agreeing with the count.
+  const count = `${shown.length} ${shown.length === 1 ? 'route passes' : 'routes pass'} here`
 
   return (
     <BottomSheet
@@ -221,8 +221,9 @@ export function HintuanCard({
       </ul>
 
       {shown.length > 0 && (
-        // The first RouteCard makes room at its top for the counter.
-        <div className="relative [&>:first-child]:pt-6">
+        // The first RouteCard makes room at its top for the counter: 36 over
+        // its title's own 8 (3854:12526, 2026-10-01).
+        <div className="relative [&>:first-child]:pt-9">
           <RouteCardStack
             routes={routes}
             back={back}
@@ -231,14 +232,14 @@ export function HintuanCard({
             onRoute={onSelectVariant}
             testId="card"
           />
-          {/* HintuanCardRouteCounter, across the join of the rows and the cards. */}
-          <div className="absolute inset-x-0 -top-6 z-10 px-8">
-            <div className="flex w-full items-center gap-2 rounded-full bg-surface py-1.5 pl-3 pr-1.5">
+          {/* HintuanCardRouteCounter (3851:12206, 2026-10-01), across the join of the rows and the cards, 24 in. */}
+          <div className="absolute inset-x-0 -top-6 z-10 px-6">
+            <div className="flex w-full items-center gap-2 rounded-full bg-surface py-3 pl-4 pr-3">
               <div className="flex min-w-0 flex-1 items-center gap-1 text-content-primary">
-                <span aria-hidden className="size-6 shrink-0 *:size-full">
+                <span aria-hidden className="size-5 shrink-0 *:size-full">
                   <JeepIcon />
                 </span>
-                <p data-testid="card-count" className="min-w-0 flex-1 truncate font-sn-pro text-base/6 font-bold">
+                <p data-testid="card-count" className="min-w-0 flex-1 truncate font-sn-pro text-base/6 font-black">
                   {count}
                 </p>
               </div>
