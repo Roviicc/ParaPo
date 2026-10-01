@@ -220,7 +220,8 @@ export default function CommuterApp() {
             selected: saved.highlight?.where === 'hotspot' ? saved.highlight.from : null,
             onSelect: (p) => saved.highlightCard(p && { where: 'hotspot', ...p }),
             onShown: saved.showCard,
-            onSwitch: switched,
+            // The other way round, the camera kept where it is (HintuanCard's onSwitch).
+            onSwitch: (box) => box && stops.select(box),
           }}
           hidden={!!saved.selected}
           height={height}

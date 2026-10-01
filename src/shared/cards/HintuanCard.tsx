@@ -31,10 +31,16 @@ type Props = {
     selected: string | null
     onSelect: (place: PickedPlace | null) => void
     onShown: (ids: readonly string[]) => void
-    /** SWITCH pressed: the routes turn round (the public map takes them in whole). */
-    onSwitch?: () => void
+    /**
+     * SWITCH pressed: the routes turn round, and `box`, when the other way
+     * leaves from another box of the place, is the one to select. The camera
+     * stays where the visitor tapped the hintuan — no zoom, no glide (the
+     * owner, 2026-10-01: "it must remain where the camera the user clicked
+     * the hintuan").
+     */
+    onSwitch?: (box: string | null) => void
   }
-  /** Another box of the place picked — its row, or SWITCH moving to it: select it and go there. */
+  /** Another box of the place picked from its row: select it and go there. */
   onPickBox: (id: string) => void
   /**
    * No row Selected: the Selected one tapped again lets it go (the owner's
@@ -256,9 +262,8 @@ export function HintuanCard({
                 onClick={() => {
                   if (!switchTo) return
                   routeCards.onSelect(null)
-                  routeCards.onSwitch?.()
                   setFlipped(other)
-                  if (switchTo.id !== stop.id) onPickBox(switchTo.id)
+                  routeCards.onSwitch?.(switchTo.id !== stop.id ? switchTo.id : null)
                 }}
               />
             </div>

@@ -377,6 +377,26 @@ for (const [i, p] of snapshot.polys.entries()) {
       await page.waitForTimeout(250)
       const letGo = await litNow()
       check(`  a second tap on a picked card lets it go: every route lit again`, repicked && (await firstCard.getAttribute('data-state')) === 'rest' && sameIds(letGo, shownIds), `picked ${repicked}; ${letGo.length} lit`)
+      // ⇄ turns the routes round and leaves the camera where the visitor tapped
+      // the hintuan: no zoom, no glide, even onto another box of the place (the
+      // owner, 2026-10-01). Pressed twice, so the card is the way round it was;
+      // last, as it may leave another box of the place the one Selected.
+      if ((await flip.count()) === 1 && (await flip.isEnabled())) {
+        const view = () => page.evaluate(() => {
+          const m = window.__map
+          const c = m.getCenter()
+          return { lng: c.lng, lat: c.lat, zoom: m.getZoom() }
+        })
+        const still = (a, b) => Math.abs(a.zoom - b.zoom) < 0.01 && Math.abs(a.lng - b.lng) < 1e-6 && Math.abs(a.lat - b.lat) < 1e-6
+        const before = await view()
+        await flip.click()
+        await page.waitForTimeout(900)
+        const turned = await view()
+        await flip.click()
+        await page.waitForTimeout(900)
+        const back = await view()
+        check(`  ⇄ turns the routes round with the camera kept still, there and back`, still(before, turned) && still(before, back), JSON.stringify({ before, turned, back }))
+      }
       // ✕ closes it, a picked card and all: nothing stays lit.
       await name.click()
       await page.waitForTimeout(250)
