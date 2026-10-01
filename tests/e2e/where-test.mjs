@@ -155,8 +155,13 @@ check('with no compass read yet, a tap stays TrackedLocation, flat', (await mode
 const dotFace = () => overlay(page).locator('.locator-dot').first().getAttribute('data-face')
 check('  and the dot reacts to it: a boing, or a huff', ['boing', 'huff'].includes(await dotFace()), `face ${await dotFace()}`)
 // Three taps in a run: cross, scowling, for a few seconds; then over it.
-for (let i = 0; i < 3; i++) await button.click()
-check('three quick taps on the button: the dot is cross', await until(async () => (await dotMood()) === 'angry', 1500), `mood ${await dotMood()}`)
+// Taps as a thumb does, at its place: Playwright's click waits for the
+// button to hold still, and its boing then stretches three over the 2 s.
+const box = await button.boundingBox()
+const t0 = Date.now()
+for (let i = 0; i < 3; i++) await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+const tapsTook = Date.now() - t0
+check('three quick taps on the button: the dot is cross', await until(async () => (await dotMood()) === 'angry', 1500), `mood ${await dotMood()}; 3 taps in ${tapsTook} ms`)
 // Over it in 3 s; left to itself it may glare a moment longer, a 5 s turn of its mood swings.
 check('  and gets over it', await until(async () => (await dotMood()) !== 'angry', 9000), `mood ${await dotMood()}`)
 // The dot itself takes a tap (the owner, 2026-10-01): the same reaction, and
