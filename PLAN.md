@@ -3673,3 +3673,11 @@ as some 50 and 20): a tap to the visitor keeps the zoom while the bar reads
 200 m too. The accuracy circle is held between 40 and 80 m (150 m at most
 before: "too large").
 
+**The locator's colours and its wandering eyes, 2026-10-01.** The owner's
+third pass at LocatorIndicatorOverlay (3870:5247): the circle in blue/300 at
+15% (blue/600 before), its hairline and the beam in blue/600 at 75% (the
+border was blue/800); and two white eyes on the dot, which glance about —
+dart, hold, dart on, an 11 s run of glances — and blink on a 5.3 s beat, so
+the two drift apart and never read as a loop (locator.css; still for
+reduced motion).
+

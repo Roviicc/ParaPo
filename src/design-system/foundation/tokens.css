@@ -165,10 +165,12 @@
   /* The visitor's own place: LocatorIndicatorOverlay's accuracy circle and
      heading cone, and the LocatorButton's ring (3870:5247, 2026-10-01).
      Figma gives it 15% opacity with the colour; here the colour, and `/15`
-     where it is used. */
-  --map-locator-indicator-overlay-surface: var(--color-blue-600);
-  /* Its circle's hairline (3870:5247, the owner's second pass, 2026-10-01): at 75%. */
-  --map-locator-indicator-overlay-border: var(--color-blue-800);
+     where it is used. Blue/300 since the owner's third pass the same day
+     (blue/600 before). */
+  --map-locator-indicator-overlay-surface: var(--color-blue-300);
+  /* Its circle's hairline, at 75%, and the beam's colour (3870:5247, the
+     owner's second and third passes, 2026-10-01; blue/800 at first). */
+  --map-locator-indicator-overlay-border: var(--color-blue-600);
 }
 
 /* The semantics as utilities: text-content-primary, bg-surface, border-border-primary… */

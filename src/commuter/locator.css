@@ -14,6 +14,36 @@
   100% { scale: 1; }
   50% { scale: 1.15; }
 }
+/*
+ * Its wandering eyes (the owner's, 2026-10-01): they dart to a spot, hold
+ * it, and dart on — right, as drawn, then left, up, down and about — and
+ * blink now and then. The glances run 11 s and the blinks 5.3 s, so the two
+ * drift against each other and never fall into an obvious loop. Each dart
+ * is a few hundred ms (3% of the cycle), the holds the rest.
+ */
+.locator-eyes {
+  animation: locator-glance 11s ease-in-out infinite;
+}
+.locator-eye {
+  transform-origin: center;
+  animation: locator-blink 5.3s ease-in-out infinite;
+}
+@keyframes locator-glance {
+  0%, 12% { translate: 0 0; }
+  15%, 26% { translate: -6px 0; }
+  29%, 36% { translate: -4px -2px; }
+  39%, 50% { translate: 0 0; }
+  53%, 60% { translate: -3px 3px; }
+  63%, 74% { translate: -7px 1px; }
+  77%, 86% { translate: -2px -1px; }
+  89%, 100% { translate: 0 0; }
+}
+@keyframes locator-blink {
+  0%, 92%, 100% { scale: 1 1; }
+  95% { scale: 1 0.1; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .locator-dot { animation: none; }
+  .locator-dot,
+  .locator-eyes,
+  .locator-eye { animation: none; }
 }
