@@ -1966,8 +1966,13 @@ if (!routeA) {
   await dpage.mouse.click(box.x + anchor[0] + perp[0] * 4, box.y + anchor[1] + perp[1] * 4)
   await dpage.waitForTimeout(500)
   check('a mouse click 4 px beside the line selects it', (await dCard.count()) > 0, `card count ${await dCard.count()}`)
-  await dpage.getByRole('button', { name: 'Close' }).first().click({ timeout: 1500 }).catch(() => {})
-  await dpage.waitForFunction(() => document.querySelectorAll('[data-testid="card"]').length === 0, null, { timeout: 2000 }).catch(() => {})
+  // Its ✕, sent straight to the button: a pointer click waits for nothing
+  // to lie over it, and the trip's framing can bring an end's name there.
+  await dCard.getByRole('button', { name: 'Close', exact: true }).first().dispatchEvent('click').catch(() => {})
+  const closed = await dpage
+    .waitForFunction(() => document.querySelectorAll('[data-testid="card"]').length === 0, null, { timeout: 3000 })
+    .then(() => true)
+    .catch(() => false)
 
   // The box and the hit line add up: a ±5 px box around a line drawn 18 px wide
   // reaches 5 + 9 = 14 px from the centre — the mouse tolerance the map always
@@ -1985,7 +1990,7 @@ if (!routeA) {
   check(
     'a mouse click 20 px away does not — the fine box is ±5 px on an 18 px hit line',
     (await dCard.count()) === 0,
-    `card count ${await dCard.count()}; saved-routes-hit is ${hitWidth} px wide, so a ±5 px box reaches ${5 + Number(hitWidth) / 2} px`,
+    `card count ${await dCard.count()} (the first one closed: ${closed}); saved-routes-hit is ${hitWidth} px wide, so a ±5 px box reaches ${5 + Number(hitWidth) / 2} px`,
   )
 }
 
