@@ -90,11 +90,11 @@ const MIDDLE = 0.45
 
 /**
  * What Low shows, the same for every card (the owner's 3817:6007,
- * 2026-09-30: "same height, same interaction, same motion"; 137 since his
- * change to it that day): the notch, the header and the top of the first
- * card, down past its title — cut to one line there (`sheet-low:`).
+ * 2026-09-30: "same height, same interaction, same motion"; 129 since his
+ * 3869:5195, 2026-10-01, 137 before): the notch, the header and the top of
+ * the first card, down past its title — cut to one line there (`sheet-low:`).
  */
-export const LOW_PX = 137
+export const LOW_PX = 129
 
 /** What each magnet shows of a sheet `h` tall, the map's height. */
 export function heightsFor(h: number): Record<SnapName & ('low' | 'middle' | 'max'), number> {
