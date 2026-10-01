@@ -3734,3 +3734,19 @@ was written twice — a RouteCard's rows and a trip's "Other routes" — and is
 one component now (`RouteEndPointBar`), on a livery (pressing to the card's
 timeline colour) or on the sheet's surface (rounded, pressing grey). Nothing
 looks different; a change to the row is made once.
+
+**The locator dot's moods, 2026-10-01.** The owner's ask: "add other
+emotion ... sad, angry, happy", and more faces for neutral and happy. Each
+mood is tied to something true (locatorMood.ts, the strongest first): cross
+for 3 s at three taps on the button within 2 s; glad for 3 s as the
+location first comes, or the camera arrives on the visitor; low when the
+fix is over 30 s old or rougher than 80 m; glad on the move from 1 m/s;
+else neutral. Neutral mostly glances about as before, now and then curious,
+winking or wide-eyed, and dozes after a minute standing still; glad smiles
+∩ ∩, hops, squeezes > < or winks, a new one every 2.5 s; low droops, brows
+up at the middle; cross narrows its eyes, brows down, and shakes. All CSS
+on the dot (locator.css), morphing over a quarter second; held still for
+reduced motion. Its beam cut to 7/10 of its length at the same spread (59
+long), and zoomed out it is a fifth bigger, 0.54 at the least (the owner,
+the same day). Straight to main this once, at the owner's say.
+`locator-mood-test` 6, `locator-test` 16, `where-test` 38 → 41.

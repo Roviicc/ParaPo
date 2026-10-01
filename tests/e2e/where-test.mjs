@@ -116,6 +116,9 @@ check('  at the map foot, bottom right, 12 in', Math.abs(foot.below - 12) <= 1 &
 
 await button.click()
 check('a tap shows the overlay', await until(async () => (await overlay(page).count()) === 1, 8000))
+// Its moods (locatorMood.ts, the owner's ask of 2026-10-01): glad as the location comes.
+const dotMood = () => overlay(page).locator('.locator-dot').first().getAttribute('data-mood')
+check('  the dot glad as the location comes', (await dotMood()) === 'happy', `mood ${await dotMood()}`)
 await page.waitForTimeout(1200)
 check('  at 30 m accuracy', (await attr(page, 'data-accuracy-m')) === '30', `${await attr(page, 'data-accuracy-m')} m`)
 // The map's own scale, measured: 100 m east of the fix on Web Mercator's
@@ -148,6 +151,10 @@ check('  and the camera follows', (await centred(page, p)) < 4, `${(await centre
 await button.click()
 await page.waitForTimeout(900)
 check('with no compass read yet, a tap stays TrackedLocation, flat', (await mode()) === 'TrackedLocation' && (await camera(page)).pitch < 0.5, `${await mode()}, pitch ${(await camera(page)).pitch.toFixed(1)}`)
+// Three taps in a run: cross, its brows down, for a few seconds; then over it.
+for (let i = 0; i < 3; i++) await button.click()
+check('three quick taps on the button: the dot is cross', (await until(async () => (await dotMood()) === 'angry', 1500)) , `mood ${await dotMood()}`)
+check('  and gets over it', await until(async () => (await dotMood()) !== 'angry', 6000), `mood ${await dotMood()}`)
 
 // The visitor drags the map: it lets go. A tap comes back.
 const box = await page.locator('canvas').first().boundingBox()
@@ -168,7 +175,7 @@ check('  a new fix moves the overlay, not the camera', Math.abs(after.longitude 
 await page.evaluate(() => window.__map.jumpTo({ zoom: 12 }))
 await page.waitForTimeout(300)
 check('  zoomed out till the dot covers its circle, the circle is gone', (await attr(page, 'data-halo-px')) === '0' && (await overlay(page).locator('[data-part="circle"]').count()) === 0, `${await attr(page, 'data-halo-px')} px`)
-check('  and the dot and beam are drawn smaller, as Google Maps\' are', (await attr(page, 'data-scale')) === '0.45', `scale ${await attr(page, 'data-scale')}`)
+check('  and the dot and beam are drawn smaller, as Google Maps\' are', (await attr(page, 'data-scale')) === '0.54', `scale ${await attr(page, 'data-scale')}`)
 // A fix indoors, 1 km out: the circle claims 80 m at most (the owner's call, 2026-10-01).
 await page.evaluate(() => window.__map.jumpTo({ zoom: 16 }))
 await ctx.setGeolocation({ ...p, accuracy: 1000 })

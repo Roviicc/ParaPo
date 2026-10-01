@@ -42,8 +42,135 @@
   0%, 92%, 100% { scale: 1 1; }
   95% { scale: 1 0.1; }
 }
+
+/*
+ * Its moods (locatorMood.ts; the owner's ask, 2026-10-01): the dot wears a
+ * face for each — `data-mood` and `data-face` on .locator-dot. Every face
+ * but the glance looks out from the middle, its eyes centred (4 px left of
+ * where they are drawn), and morphs from the last over a quarter second.
+ * Brows show only when sad or cross. A hop and a shake move the dot with
+ * `transform`, which adds to the `translate` that centres it on the fix.
+ */
+.locator-eyes,
+.locator-eye,
+.locator-brow {
+  transition:
+    translate 0.25s ease-out,
+    scale 0.25s ease-out,
+    rotate 0.25s ease-out,
+    opacity 0.2s ease-out,
+    width 0.2s ease-out,
+    height 0.2s ease-out,
+    clip-path 0.2s ease-out;
+}
+.locator-brow {
+  opacity: 0;
+  scale: 0.5 1;
+}
+.locator-dot:not([data-face='glance']) .locator-eyes {
+  animation: none;
+  translate: -4px 0;
+}
+.locator-dot:not([data-face='glance']) .locator-eye {
+  animation: none;
+}
+
+/* Neutral: a curious look up, one eye wider; a wink; wide-eyed; sleepy when long still. */
+.locator-dot[data-face='curious'] .locator-eyes { translate: -4px -2px; }
+.locator-dot[data-face='curious'] .locator-eye:nth-child(2) { scale: 1.25; }
+.locator-dot[data-face='wink'] .locator-eye:nth-child(2) {
+  animation: locator-wink 1.6s ease-in-out 2;
+}
+.locator-dot[data-face='surprised'] .locator-eyes { translate: -4px -1px; }
+.locator-dot[data-face='surprised'] .locator-eye { scale: 1.4 1.15; }
+.locator-dot[data-face='sleepy'] {
+  animation-duration: 4s;
+}
+.locator-dot[data-face='sleepy'] .locator-eyes { translate: -4px 1.5px; }
+.locator-dot[data-face='sleepy'] .locator-eye {
+  scale: 1 0.3;
+  animation: locator-doze 4s ease-in-out infinite;
+}
+
+/* Happy: smiling eyes, ∩ ∩ — rings cut to their top half; a hop; squeezed > <; a smile and a wink. */
+.locator-dot[data-mood='happy'] {
+  animation-duration: 1.4s;
+}
+.locator-dot[data-mood='happy'] .locator-eyes { translate: -4px 1px; }
+.locator-dot[data-face='smile'] .locator-eye,
+.locator-dot[data-face='hop'] .locator-eye,
+.locator-dot[data-face='wink-smile'] .locator-eye:nth-child(1) {
+  width: 5px;
+  height: 5px;
+  background: transparent;
+  border: 1.6px solid var(--color-surface);
+  clip-path: inset(0 0 48% 0);
+}
+.locator-dot[data-face='hop'] {
+  animation: locator-hop 0.9s ease-in-out infinite;
+}
+.locator-dot[data-face='squee'] .locator-eye {
+  width: 5px;
+  height: 5px;
+  border-radius: 0;
+}
+.locator-dot[data-face='squee'] .locator-eye:nth-child(1) {
+  clip-path: polygon(0 0, 100% 50%, 0 100%, 0 72%, 62% 50%, 0 28%);
+}
+.locator-dot[data-face='squee'] .locator-eye:nth-child(2) {
+  clip-path: polygon(100% 0, 0 50%, 100% 100%, 100% 72%, 38% 50%, 100% 28%);
+}
+.locator-dot[data-face='wink-smile'] .locator-eye:nth-child(2) {
+  scale: 1.1 0.25;
+}
+
+/* Sad: eyes down and smaller, brows raised at the middle; breathing slow. */
+.locator-dot[data-mood='sad'] {
+  animation-duration: 3.2s;
+}
+.locator-dot[data-face='droop'] .locator-eyes { translate: -4px 1.5px; }
+.locator-dot[data-face='droop'] .locator-eye { scale: 0.85; }
+.locator-dot[data-face='droop'] .locator-brow { opacity: 1; scale: 1; }
+.locator-dot[data-face='droop'] .locator-brow:nth-child(3) { rotate: -22deg; }
+.locator-dot[data-face='droop'] .locator-brow:nth-child(4) { rotate: 22deg; }
+
+/* Cross: eyes narrowed, brows down at the middle, and a shake. */
+.locator-dot[data-face='glare'] {
+  animation: locator-shake 0.45s ease-in-out 2;
+}
+.locator-dot[data-face='glare'] .locator-eyes { translate: -4px 0.5px; }
+.locator-dot[data-face='glare'] .locator-eye { scale: 1 0.55; }
+.locator-dot[data-face='glare'] .locator-brow { opacity: 1; scale: 1; }
+.locator-dot[data-face='glare'] .locator-brow:nth-child(3) { rotate: 24deg; }
+.locator-dot[data-face='glare'] .locator-brow:nth-child(4) { rotate: -24deg; }
+
+@keyframes locator-wink {
+  0%, 25%, 75%, 100% { scale: 1 1; }
+  40%, 60% { scale: 1.1 0.15; }
+}
+@keyframes locator-doze {
+  0%, 70%, 100% { scale: 1 0.3; }
+  80%, 90% { scale: 1 0.08; }
+}
+@keyframes locator-hop {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-3px); }
+  60% { transform: translateY(-3px); }
+}
+@keyframes locator-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-1.5px); }
+  40%, 80% { transform: translateX(1.5px); }
+}
+
+/* Asked to keep still: no breathing, glancing, hops or shakes — each face still shows, held. */
 @media (prefers-reduced-motion: reduce) {
   .locator-dot,
+  .locator-dot[data-face],
   .locator-eyes,
-  .locator-eye { animation: none; }
+  .locator-eye,
+  .locator-dot[data-face] .locator-eye:nth-child(n) { animation: none; }
+  .locator-eyes,
+  .locator-eye,
+  .locator-brow { transition: none; }
 }

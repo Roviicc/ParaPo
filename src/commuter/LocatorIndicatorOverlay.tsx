@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
 import { metresPerPixel } from '../shared/geo/geo'
 import './locator.css'
+import type { Face, Mood } from './locatorMood'
 import { circleRadius, indicatorScale, type Fix } from './useLocator'
 
 /** Where the beam points as drawn: due south, so it is turned by the heading less this. */
@@ -27,6 +28,9 @@ type Props = {
   beamDeg: number | null
   /** The dot and beam's size against Figma's, 1 at street level (indicatorScale). */
   scale?: number
+  /** How the dot feels, and the face it wears for it (locatorMood); neutral's glance by default. */
+  mood?: Mood
+  face?: Face
 }
 
 /**
@@ -40,7 +44,7 @@ type Props = {
  * have. Figma's is 240 across; here the circle is the fix's metres, the beam
  * as drawn.
  */
-export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1 }: Props) {
+export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'neutral', face = 'glance' }: Props) {
   const halo = haloFor(haloPx, scale)
   const gradient = useId()
   return (
@@ -58,28 +62,37 @@ export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1 }: Props) {
           // From the dot's centre, drawn pointing south and turned to the
           // heading, in the border's blue as Figma's is. Figma's (3876:6051)
           // leans 2.7 px to one side; here it is his size, made even (his
-          // ask, 2026-10-01).
+          // ask, 2026-10-01), then cut to 7/10 of its length at the same
+          // spread (his "make it like 7/10 only", the same day): 59 long, 70
+          // across at its end.
           <div
             className="absolute top-1/2 left-1/2 size-0 text-map-locator-indicator-overlay-border"
             style={{ rotate: `${beamDeg - BEAM_DRAWN_DEG}deg` }}
           >
-            <svg viewBox="0 0 86 84" className="absolute top-0 -left-[43px] h-21 w-[86px]" aria-hidden>
+            <svg viewBox="0 0 86 59" className="absolute top-0 -left-[43px] h-[59px] w-[86px]" aria-hidden>
               <defs>
-                <linearGradient id={gradient} x1="43" y1="0" x2="43" y2="84" gradientUnits="userSpaceOnUse">
+                <linearGradient id={gradient} x1="43" y1="0" x2="43" y2="59" gradientUnits="userSpaceOnUse">
                   <stop stopColor="currentColor" stopOpacity="0.8" />
                   <stop offset="1" stopColor="currentColor" stopOpacity="0" />
                 </linearGradient>
               </defs>
-              <path d="M27 0H59L86 84H0Z" fill={`url(#${gradient})`} />
+              <path d="M27 0H59L78 59H8Z" fill={`url(#${gradient})`} />
             </svg>
           </div>
         )}
-        <div className="locator-dot absolute top-1/2 left-1/2 -translate-1/2 rounded-full bg-surface p-1 shadow-locator-dot-shadow">
+        <div
+          data-mood={mood}
+          data-face={face}
+          className="locator-dot absolute top-1/2 left-1/2 -translate-1/2 rounded-full bg-surface p-1 shadow-locator-dot-shadow"
+        >
           <div className="relative size-6 overflow-clip rounded-full bg-brand-surface">
-            {/* Its wandering eyes (3878:6071, 3878:6072, 2026-10-01): glancing about and blinking (locator.css). */}
+            {/* Its wandering eyes (3878:6071, 3878:6072, 2026-10-01), and the
+                brows its sad and cross faces raise over them (locator.css). */}
             <div aria-hidden className="locator-eyes absolute inset-0">
               <span className="locator-eye absolute top-[6.33px] left-[10.48px] h-1.5 w-1 rounded-full bg-surface" />
               <span className="locator-eye absolute top-[6.33px] left-[17.43px] h-1.5 w-1 rounded-full bg-surface" />
+              <span className="locator-brow absolute top-[3.6px] left-[9.98px] h-[1.4px] w-[5px] rounded-full bg-surface" />
+              <span className="locator-brow absolute top-[3.6px] left-[16.93px] h-[1.4px] w-[5px] rounded-full bg-surface" />
             </div>
           </div>
         </div>
@@ -96,7 +109,19 @@ export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1 }: Props) {
  * compass view, the circle and the dot go oval with the street; and its
  * beam points the way they face, from north.
  */
-export function LocatorOnMap({ map, fix, heading }: { map: MapLibreMap; fix: Fix; heading: number | null }) {
+export function LocatorOnMap({
+  map,
+  fix,
+  heading,
+  mood,
+  face,
+}: {
+  map: MapLibreMap
+  fix: Fix
+  heading: number | null
+  mood: Mood
+  face: Face
+}) {
   const [el] = useState(() => {
     const div = document.createElement('div')
     div.dataset.testid = 'locator-overlay'
@@ -129,5 +154,5 @@ export function LocatorOnMap({ map, fix, heading }: { map: MapLibreMap; fix: Fix
     el.dataset.scale = scale.toFixed(2)
     el.dataset.heading = heading === null ? '' : String(Math.round(heading))
   }, [el, fix.accuracy, haloPx, heading, scale])
-  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} beamDeg={heading} scale={scale} />, el)
+  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} beamDeg={heading} scale={scale} mood={mood} face={face} />, el)
 }

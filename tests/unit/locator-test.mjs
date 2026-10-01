@@ -132,12 +132,12 @@ test('motion: a move within the jitter keeps the last heading, whatever its spee
   assert.ok(apart(east.heading, 90) < 0.05, `${east.heading}°`)
 })
 
-test('the dot and cone: full size from street level, smaller zoomed out, never under 45 %', () => {
+test('the dot and cone: full size from street level, smaller zoomed out, never under 54 %', () => {
   assert.equal(indicatorScale(18), 1)
   assert.equal(indicatorScale(16), 1)
-  assert.ok(Math.abs(indicatorScale(14) - 0.725) < 1e-9, `${indicatorScale(14)}`)
-  assert.equal(indicatorScale(12), 0.45)
-  assert.equal(indicatorScale(8), 0.45)
+  assert.ok(Math.abs(indicatorScale(14) - 0.77) < 1e-9, `${indicatorScale(14)}`)
+  assert.equal(indicatorScale(12), 0.54)
+  assert.equal(indicatorScale(8), 0.54)
   for (let z = 8; z < 18; z += 0.5) assert.ok(indicatorScale(z) <= indicatorScale(z + 0.5), `grows with zoom at ${z}`)
 })
 
