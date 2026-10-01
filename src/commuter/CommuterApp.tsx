@@ -44,8 +44,13 @@ export default function CommuterApp() {
   // One index, fetched once, shared by both hooks; a direction's full line
   // read as it is lit (mapFile.ts).
   const saved = useSavedRoutes(map, loadVariantsFromFile, { loadLine })
+  // A hotspot's box let go on its card, its Selected row tapped again (the
+  // owner's ask, 2026-10-01): until a row is picked, no box is the one.
+  const [letGoId, setLetGoId] = useState<string | null>(null)
   // While a trip is open, the map lights only the trip (the owner, 2026-09-29).
-  const stops = useSavedStops(map, loadStopsFromFile, { muted: !!saved.selected })
+  const stops = useSavedStops(map, loadStopsFromFile, { muted: !!saved.selected, letGoId })
+  // Another box, or the card closed: the next card opens with its box Selected.
+  if (letGoId && stops.selected?.id !== letGoId) setLetGoId(null)
   const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW
 
   // Where a lit direction passes a hintuan, the line turns orange for that
@@ -248,10 +253,18 @@ export default function CommuterApp() {
             setWorn(livery ? { id: v.id, livery } : null)
             saved.select(v.id, { keepList: true })
           }}
+          // Its Selected row tapped again: no box is the one until a row is
+          // picked (the owner, 2026-10-01).
+          deselected={letGoId === stops.selected.id}
+          onDeselect={() => {
+            saved.highlightCard(null)
+            setLetGoId(stops.selected?.id ?? null)
+          }}
           // Another box: the card comes down to Middle as the map goes
           // there, the box clear of it (the owner, 2026-09-30).
           onPickBox={(id) => {
             saved.highlightCard(null)
+            setLetGoId(null)
             setSnap('middle')
             stops.show(id, () => (map ? clearOfDock(map.getContainer(), hotspotDock.current, 'middle') : [0, 0]))
           }}

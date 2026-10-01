@@ -1216,7 +1216,7 @@ const NEAR_M = 20 * M_HOT + 9 * M_HOT
  * colour and letter, where a badge said it before.
  */
 const pressedBox = () =>
-  page.evaluate(() => document.querySelector('[data-testid="card"] [data-testid="card-box"][aria-current="true"]')?.dataset.box ?? null)
+  page.evaluate(() => document.querySelector('[data-testid="card"] [data-testid="card-box"][aria-pressed="true"]')?.dataset.box ?? null)
 
 // 4a. Inside a hotspot, on a pixel no route covers, with a route or not in
 // the finger's reach: the box's card opens straight away, alone — one tap,
@@ -1257,6 +1257,23 @@ if (!inside) {
     `${text.split('\n')[0] || '(no card)'}; ${await chooser.count()} list(s); ${routesInBox.length} route(s) in reach`,
   )
   check(`  no chooser for one thing`, (await chooser.count()) === 0)
+  // Its Selected row tapped again lets it go, and a tap picks it back (the
+  // owner's ask, 2026-10-01): with none Selected, the card lists the routes
+  // through every box of the place, at least as many as through this one.
+  const ownRow = card().first().locator(`[data-testid="card-box"][data-box="${poly.id}"]`)
+  const countOf = async () => Number(((await card().first().locator('[data-testid="card-count"]').innerText().catch(() => '0')) || '0').match(/\d+/)?.[0] ?? 0)
+  const boxCount = await countOf()
+  await buttonTap(ownRow, async () => (await pressedBox()) === null)
+  const letGo = { pressed: await pressedBox(), count: await countOf(), open: await card().count() }
+  check(
+    '  its Selected row tapped again lets it go: no row Selected, the card open, the whole place\'s routes',
+    letGo.pressed === null && letGo.open > 0 && letGo.count >= boxCount,
+    `${JSON.stringify(letGo)}; ${boxCount} through the box`,
+  )
+  await buttonTap(ownRow, async () => (await pressedBox()) === poly.id)
+  await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 4000 }).catch(() => {})
+  check('  and a tap on it picks it back', (await pressedBox()) === poly.id && (await countOf()) === boxCount, `${await pressedBox()} pressed; ${await countOf()} routes, ${boxCount} before`)
+
   // Another box of its place, from its row: that row Selected, the card
   // down to Middle from Max, and the map gone there, the box clear of the
   // card (the owner's HintuanCard, 2026-09-30).
