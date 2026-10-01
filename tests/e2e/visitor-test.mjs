@@ -332,6 +332,27 @@ for (const [i, p] of snapshot.polys.entries()) {
     // ⇄ only where both ways pass: a box passed one way only has nothing to flip to.
     const flip = page.locator('[data-testid="card-flip"]')
     check(`  and ⇄ offers the way back, or the box is passed one way only`, (await flip.count()) <= 1)
+    // ⇄ turns the routes round and leaves the camera where the visitor tapped
+    // the hintuan: no zoom, no glide, even onto another box of the place (the
+    // owner, 2026-10-01). Pressed twice, so the card is the way round it was;
+    // what follows reads it as it is left.
+    if ((await flip.count()) === 1 && (await flip.isEnabled())) {
+      const view = () => page.evaluate(() => {
+        const m = window.__map
+        const c = m.getCenter()
+        return { lng: c.lng, lat: c.lat, zoom: m.getZoom() }
+      })
+      const still = (a, b) => Math.abs(a.zoom - b.zoom) < 0.01 && Math.abs(a.lng - b.lng) < 1e-6 && Math.abs(a.lat - b.lat) < 1e-6
+      const before = await view()
+      await flip.click()
+      await page.waitForTimeout(900)
+      const turned = await view()
+      await flip.click()
+      await page.waitForTimeout(900)
+      const back = await view()
+      check(`  ⇄ turns the routes round with the camera kept still, there and back`, still(before, turned) && still(before, back), JSON.stringify({ before, turned, back }))
+      opened = (await cardKind()).text
+    }
     // A hotspot's cards light every route they show, the way round ⇄ has
     // them (the owner, 2026-09-29: "on hintuan it should light its routes");
     // a tap on a card off its rows narrows that to its own, a second lets it
