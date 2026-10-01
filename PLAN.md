@@ -3701,3 +3701,12 @@ Head Route's 16 px, and a semibold, tried and taken back the same day). A place
 two rides share keeps the name of the first to reach it, so a trip's
 change of ride is the earlier ride's tail; SWITCH turns the rides round,
 and the head with them. `phone-test` checks each pill's look.
+
+**A tail's name opens its trip, 2026-10-01.** The owner's ask: with no trip
+open — the route list, a picked card, a hotspot's card — a Tail Route's
+pill is a button that opens its ride's RouteTripDetail, its line lit, as
+the card's row of the same arrow does; in the picked card's colour, if
+one is. Only where one lit ride alone goes: where two go, the place's own
+card lists both, so the tap opens that, as before (`rideEnds` now carries
+each named end's directions). With a trip open, the pills open their
+places as they did. `phone-test` 100 → 102.
