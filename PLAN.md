@@ -3648,9 +3648,8 @@ picked — its name tapped, in the route list or on a hotspot's card — brings
 the camera to its routes whole, zooming in or out, clear of the sheet, as
 a trip's row does for its trip (`useCardOverview`, beside
 `useTripOverview`, sharing its fit). Keyed on the card and what it shows: let
-go, or SWITCH turning the list round, the view stays until another card is
-picked.
-SWITCH too, the owner's next ask the same day: on the route list, a
+go, the view stays until another card is picked. SWITCH too, the owner's
+next ask the same day: on the route list, a
 hotspot's card or a trip, a press takes the camera to what is lit after it
 — the routes the other way round, whole (`useSwitchOverview`; a trip's SWITCH
 had left the view as it was).
