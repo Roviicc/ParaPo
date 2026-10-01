@@ -289,7 +289,8 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
         aria-label={HANDLE_LABEL[snapName(snap)]}
         title={HANDLE_LABEL[snapName(snap)]}
         onClick={() => setSnap(snapAfterTap(snap))}
-        className="flex w-full shrink-0 touch-none justify-center py-2 sheet-floating:hidden"
+        // The owner's HandleNotch: 8 above the bar, 4 below (3742:1049, 2026-10-01).
+        className="flex w-full shrink-0 touch-none justify-center pt-2 pb-1 sheet-floating:hidden"
       >
         <span aria-hidden className="h-1.5 w-12 rounded-full bg-surface-quaternary" />
       </button>

@@ -117,8 +117,8 @@ export function RouteTripDetail({
         />
       }
     >
-      {/* 12 under the header, on a phone too (the owner's RouteTripDetail, 3778:3183, 2026-10-01; right under it there since 3817:6007 until then). */}
-      <div className="w-full px-3 pt-3">
+      {/* Right under the header, whose 12 below is the gap (the owner's RouteTripDetail, 3778:3183, 2026-10-01). */}
+      <div className="w-full px-3">
         <TripTimeline
           livery={livery}
           routeOrigin={routeOrigin}

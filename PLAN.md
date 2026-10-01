@@ -3600,3 +3600,9 @@ let go is the stops hook's own now (`stops.letGo()`, `stops.letGone`),
 cleared as before when another box is picked or the card closes.
 CommuterApp is 214 lines (368 before the clean-up), StudioApp 491 (556).
 Nothing a visitor or the owner sees changes.
+
+**Low and the sheets' spacing, 2026-10-01.** The owner's frames of the
+day: Low is 129 (3869:5195; 137 before); the HandleNotch has 8 above its bar
+and 4 below (8 both before); RouteCardHeader leaves 12 below it over the
+list and over a trip alike (16 and 8 before), and the trip's card follows
+it straight away, the header's 12 being the gap (3778:3183, 3742:1049).
