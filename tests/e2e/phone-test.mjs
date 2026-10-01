@@ -1021,12 +1021,7 @@ if (routeA) {
           f.properties.end === 'from'
             ? pill.dataset.end === 'head' && getComputedStyle(pill.firstElementChild).fontSize === '16px' && !pill.querySelector('svg:not(:last-child)')
             : pill.dataset.end === 'tail' && getComputedStyle(pill.firstElementChild).fontSize === '14px' && !!pill.querySelector('svg:not(:last-child)'),
-        // The head solid in the line's colour; a tail white, its words the line's (near-black on yellow).
-        colour:
-          pill.dataset.end === 'head'
-            ? getComputedStyle(pill.firstElementChild).backgroundColor === ringRgb
-            : getComputedStyle(pill.firstElementChild).backgroundColor === 'rgb(255, 255, 255)' &&
-              getComputedStyle(pill.firstElementChild).color !== 'rgb(255, 255, 255)',
+        colour: getComputedStyle(pill.firstElementChild).backgroundColor === ringRgb,
         across: box.left + box.width / 2 - (c.left + q.x),
         above: c.top + q.y - box.bottom,
       }
@@ -1034,7 +1029,7 @@ if (routeA) {
     return { named: named.length, pills: pills.length, rows }
   })
   check(
-    "  each end named once, in a pill over its circle: the start's larger, in the line's colour; where it goes white, led by an arrow",
+    "  each end named once, in a pill over its circle in the line's colour, the start's the larger, where it goes led by an arrow",
     ends.named > 0 &&
       ends.pills === ends.named &&
       ends.rows.every((r) => !r.missing && r.look && r.colour && Math.abs(r.across) < 1.5 && r.above > 14 && r.above < 40),

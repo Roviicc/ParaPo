@@ -7,7 +7,6 @@ import type { LineLook } from './liveryLine'
 import { litWidthAt } from './lineStyle'
 import { tapsOnItsButton } from './markerTap'
 import { CircleArrowRightIcon } from '../cards/RouteIcons'
-import { MAP_COLOURS } from '../../design-system/foundation/mapColours'
 import './endTitles.css'
 
 /**
@@ -20,10 +19,7 @@ import './endTitles.css'
  * Its Head and Tail Route variants (2026-10-01) read as the RouteCard does:
  * where a ride starts, the top of its timeline, is the card's title, so its
  * pill is larger; where it goes is one of the card's rows, so its pill
- * leads with the rows' circled arrow — and is white, lifted off the map,
- * its words in the line's colour (the owner's try, the same day), so the
- * start alone is solid. Yellow on white cannot be read: its words keep the
- * near-black they have on the line. A place two rides share is named by
+ * leads with the rows' circled arrow. A place two rides share is named by
  * the first to reach it (`rideEnds`), so a trip's change of ride is the
  * earlier ride's tail, as it sits under the start on the timeline.
  *
@@ -130,17 +126,15 @@ function EndTitle({
 
   el.dataset.name = name
   el.dataset.end = head ? 'head' : 'tail'
-  // A tail's words: the line's colour, but near-black where the line's own are.
-  const ink = look.arrow === MAP_COLOURS['Map/RouteLine/Arrow/Rest'] ? look.line : look.arrow
   const Pill = onPick ? 'button' : 'div'
   return createPortal(
     <Pill
       {...(onPick ? { type: 'button' as const, 'aria-label': `${name}: the routes there` } : {})}
       className={
         'relative flex max-w-56 items-center gap-1 rounded-full py-1 font-medium ' +
-        (head ? 'px-2 text-base/6' : 'bg-surface pr-2 pl-1 text-sm/5 shadow-selected-hintuan-route-title')
+        (head ? 'px-2 text-base/6' : 'pr-2 pl-1 text-sm/5')
       }
-      style={head ? { backgroundColor: look.line, color: look.arrow } : { color: ink }}
+      style={{ backgroundColor: look.line, color: look.arrow }}
     >
       {!head && (
         <span aria-hidden className="size-5 shrink-0 *:size-full">
@@ -152,10 +146,8 @@ function EndTitle({
       <svg
         aria-hidden
         viewBox="0 0 14.7047 13"
-        className={
-          'absolute left-1/2 top-full -mt-[1.5px] h-[13px] w-[14.7px] -translate-x-1/2 rotate-180' + (head ? '' : ' fill-surface')
-        }
-        style={head ? { fill: look.line } : undefined}
+        className="absolute left-1/2 top-full -mt-[1.5px] h-[13px] w-[14.7px] -translate-x-1/2 rotate-180"
+        style={{ fill: look.line }}
       >
         <path d="M6.48632 0.5C6.87122 -0.166666 7.83347 -0.166667 8.21837 0.499999L14.5692 11.5C14.9541 12.1667 14.473 13 13.7032 13H1.00149C0.231692 13 -0.249434 12.1667 0.135466 11.5L6.48632 0.5Z" />
       </svg>
