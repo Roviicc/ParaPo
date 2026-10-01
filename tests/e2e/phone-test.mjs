@@ -675,6 +675,10 @@ const tripChecks = async () => {
       )
       await pickButton.scrollIntoViewIfNeeded()
       await buttonTap(pickButton, async () => !(await isPicked()))
+      // The card stays at Max now: back to Middle by its handle (round
+      // through Low), for the ends below to glide into the map above it.
+      if ((await sheetState()) === 'max') await buttonTap(handle(), async () => (await sheetState()) === 'low')
+      if ((await sheetState()) === 'low') await buttonTap(handle(), async () => (await sheetState()) === 'middle')
     }
     // The ends are buttons too (the owner's asks, 2026-09-29): with a
     // hintuan picked, a tap on where the trip goes, then on where it leaves
