@@ -1828,9 +1828,9 @@ if (!routeA) {
   // map it leaves (the owner's ask, 2026-10-01) — at Max, the whole screen on
   // a phone, as at Middle; in closer above Low; and back to the overview
   // after the visitor has moved the map. Going up, no further out than
-  // 2.5 km on the scale bar (100 px; MapLibre's 512 px tiles), the owner's
+  // 5 km on the scale bar (100 px; MapLibre's 512 px tiles), the owner's
   // "for scrolling up only": a long route is cut, not shrunk.
-  const capZoom = Math.log2((78271.51696 * Math.cos((((r.bbox[1] + r.bbox[3]) / 2) * Math.PI) / 180) * 100) / 2500)
+  const capZoom = Math.log2((78271.51696 * Math.cos((((r.bbox[1] + r.bbox[3]) / 2) * Math.PI) / 180) * 100) / 5000)
   const raised = Math.max(shareFramed.zoom, capZoom)
   const toMax = await buttonTap(handle(), async () => (await sheetState()) === 'max')
   const atMax = await framedAboveCard(r.bbox)
@@ -1839,9 +1839,9 @@ if (!routeA) {
   if (!toLow) skip('  the sheet at Max, then Low: the route taken in again in the map it leaves', `the handle would not go round: data-snap=${await sheetState()}`)
   else {
     check(
-      '  the sheet up to Max: framed as at Middle, no further out than 2.5 km on the scale bar',
+      '  the sheet up to Max: framed as at Middle, no further out than 5 km on the scale bar',
       Math.abs(atMax.zoom - raised) < 0.05,
-      `zoom ${atMax.zoom}; at Middle ${shareFramed.zoom}, 2.5 km at ${capZoom.toFixed(2)}`,
+      `zoom ${atMax.zoom}; at Middle ${shareFramed.zoom}, 5 km at ${capZoom.toFixed(2)}`,
     )
     check('  at Low: in closer, the whole route above the sheet', atLow.inside && atLow.zoom > shareFramed.zoom + 0.1, JSON.stringify(atLow))
   }
@@ -1852,7 +1852,7 @@ if (!routeA) {
   await buttonTap(handle(), async () => (await sheetState()) === 'middle')
   const back = await framedAboveCard(r.bbox)
   check(
-    '  moved away, then up to Middle: the overview again, 2.5 km on the bar at the farthest',
+    '  moved away, then up to Middle: the overview again, 5 km on the bar at the farthest',
     Math.abs(back.zoom - raised) < 0.05 && (back.inside || capZoom > shareFramed.zoom),
     JSON.stringify(back),
   )

@@ -16,10 +16,11 @@ import { zoomForScale } from './useLocator'
 
 /**
  * The farthest out the sheet going up takes the camera: the scale bar at
- * 2.5 km (the owner, 2026-10-01). Further out than that only by the
+ * 5 km (the owner, 2026-10-01; 2.5 km at first, too close from Middle
+ * up). Further out than that only by the
  * visitor's own hand.
  */
-export const RAISED_FARTHEST_M = 2500
+export const RAISED_FARTHEST_M = 5000
 
 /**
  * The camera takes in these lines whole, zooming in or out, clear of the
