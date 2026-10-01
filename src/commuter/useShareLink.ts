@@ -1,14 +1,13 @@
 import { useEffect, useRef } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
-import { APP_MOVE } from '../shared/map/MapView'
-import { variantLine, type VariantSummary } from '../shared/model/routes'
+import type { VariantSummary } from '../shared/model/routes'
 
 /** The query key a shared link carries: `/?r=<direction id>`. A query, not a path, so no SPA fallback is needed. */
 const SHARE_KEY = 'r'
 
 /**
  * Keeps the address and the selected route in step. Opening `/?r=<id>` selects
- * that direction and brings the view to it; selecting one writes `?r=` so the
+ * that direction, and the view comes to it as the trip opens; selecting one writes `?r=` so the
  * address bar is already a link to share; closing clears it. Nothing is
  * written until the arriving link has been honoured, so a slow load never
  * wipes it.
@@ -34,17 +33,8 @@ export function useShareLink(
       window.history.replaceState(null, '', url)
       return
     }
+    // The view comes to it as any trip's does when it opens (CommuterApp).
     select(v.id)
-    const line = variantLine(v)
-    if (line.length < 2) return
-    let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity]
-    for (const [x, y] of line) {
-      if (x < w) w = x
-      if (x > e) e = x
-      if (y < s) s = y
-      if (y > n) n = y
-    }
-    map.fitBounds([[w, s], [e, n]], { padding: 60, maxZoom: 15, duration: 0 }, APP_MOVE)
   }, [map, variants, select])
 
   const selectedId = saved.selected?.id ?? null

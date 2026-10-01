@@ -362,6 +362,30 @@ export function clearOfDock(map: HTMLElement, dock: HTMLElement | null, snap?: S
   return [0, -Math.max(0, snap ? showsAt(dock, snap) : m.bottom - d.top) / 2]
 }
 
+/** Between a route fitted whole and the map's edges, or the sheet's. */
+const FIT_MARGIN_PX = 48
+
+/**
+ * The room a sheet leaves for a whole route the camera fits (a trip as it
+ * opens), as MapLibre's fit padding: beside the sheet where it floats in the
+ * corner, above it where it is docked along the bottom. A sheet higher than
+ * Middle is measured at Middle, and stays where it is: the route is framed
+ * for when it comes down (the owner, 2026-10-01).
+ */
+export function roomBeside(
+  map: HTMLElement,
+  dock: HTMLElement | null,
+  snap: Snap,
+): { top: number; bottom: number; left: number; right: number } {
+  const room = { top: FIT_MARGIN_PX, bottom: FIT_MARGIN_PX, left: FIT_MARGIN_PX, right: FIT_MARGIN_PX }
+  if (!dock || dock.hidden) return room
+  const m = map.getBoundingClientRect()
+  const d = dock.getBoundingClientRect()
+  if (d.right < m.right - 1) room.left += Math.max(0, d.right - m.left)
+  else room.bottom += showsAt(dock, aboveMiddle(snap) ? 'middle' : snap)
+  return room
+}
+
 /**
  * How much of a docked sheet shows at `snap`: below Max, lifted clear of a
  * phone's home indicator by its bottom padding, as `slide` lifts it.

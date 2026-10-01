@@ -3500,3 +3500,14 @@ uses, which name what an exported function takes or returns; and
 HotspotPanel's alias and note state with no setter, which keeps a box's Also
 called and Note while those are off the form. Nothing a visitor or the owner
 sees changes.
+
+**A trip opens on its whole route, 2026-10-01.** The owner's ask: a trip
+picked from a RouteCard zooms in or out to show the route's overview. Any
+trip opening now does it — from the route list, a hotspot's card, a tap on
+its line or a shared link — fitting the direction's line in the room the
+card leaves (`roomBeside` in BottomSheet.tsx: above it docked, beside it in
+the corner, 48 px from every edge), with `fitBounds`, which keeps no
+padding for later moves. A card above Middle is measured at Middle and stays
+where it is: the route is framed for when it comes down. Keyed on the route,
+so SWITCH leaves the view alone. The shared link's own fit went: the trip's
+does it now.
