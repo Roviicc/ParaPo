@@ -147,7 +147,7 @@ function TokensPage() {
         <Swatch box="bg-map-overlay-card-terminal-content" token="…/Terminal/content" cls="bg-map-overlay-card-terminal-content" />
         <Swatch box="bg-map-hotspots-card-hintuan-surface border-3 border-map-hotspots-card-hintuan-border-primary" token="Map/HotspotsCard/Hintuan" cls="bg-map-hotspots-card-hintuan-surface" />
         <Swatch box="bg-map-hotspots-card-terminal-surface border-3 border-map-hotspots-card-terminal-border-primary" token="Map/HotspotsCard/Terminal" cls="bg-map-hotspots-card-terminal-surface" />
-        <Swatch box="bg-map-locator-indicator-overlay-surface/15" token="Map/LocatorIndicatorOverlay (15%)" cls="bg-map-locator-indicator-overlay-surface" />
+        <Swatch box="bg-map-locator-indicator-overlay-surface/15 border-[0.6px] border-map-locator-indicator-overlay-border/75" token="Map/LocatorIndicatorOverlay (15%, border 75%)" cls="bg-map-locator-indicator-overlay-surface" />
       </Group>
 
       <Group title="Motion — hover a row to play it">
@@ -179,6 +179,7 @@ function TokensPage() {
         <Swatch box="bg-card-red-surface shadow-route-card-primary-selected" token="Route/RouteCardPrimarySelected" cls="shadow-route-card-primary-selected" />
         <Swatch box="bg-card-yellow-surface shadow-route-card-inverse-selected" token="Route/RouteCardInverseSelected" cls="shadow-route-card-inverse-selected" />
         <Swatch box="rounded-full bg-card-red-surface shadow-selected-hintuan-route-title" token="Map/SelectedHintuanRouteTitle" cls="shadow-selected-hintuan-route-title" />
+        <Swatch box="rounded-full bg-surface shadow-locator-dot-shadow" token="LocatorDotShadow" cls="shadow-locator-dot-shadow" />
       </Group>
 
       <Group title="Type — the two families">

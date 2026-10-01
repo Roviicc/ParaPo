@@ -3651,3 +3651,17 @@ with each zoom out to 45 % at 12 and no smaller (`indicatorScale`); the
 circle is the fix's real accuracy, capped at 150 m (the owner's pick of the
 two, the same day). `where-test` gains both (35 → 37), `locator-test` the
 scale (14).
+
+**The locator's camera and overlay, second pass, 2026-10-01.** The owner's
+rules of the afternoon: a tap on TrackOwnLocation no longer changes the
+camera's height — it goes to the visitor at the zoom the map is at — unless
+the map shows more than 2 km across, when it comes in to 200 m; the
+compass view is 100 m across (1000 and 200 ft before); and back from it,
+TrackedLocation's own zoom (`trackedZoom`). His second LocatorIndicatorOverlay
+(3870:5247): a 0.6 hairline round the circle in a new token,
+Map/LocatorIndicatorOverlay/border (blue/800 at 75%); the dot lifted by a
+new LocatorDotShadow and breathing, 1 → 1.15 over 2 s (locator.css, still
+for reduced motion); and a beam in the cone's place — 32 at the dot, 86 at
+its end, 84 long — drawn even where Figma's leans (his ask: "make it
+consistent"). `where-test` 38, `locator-test` 15.
+

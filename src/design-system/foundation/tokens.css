@@ -167,6 +167,8 @@
      Figma gives it 15% opacity with the colour; here the colour, and `/15`
      where it is used. */
   --map-locator-indicator-overlay-surface: var(--color-blue-600);
+  /* Its circle's hairline (3870:5247, the owner's second pass, 2026-10-01): at 75%. */
+  --map-locator-indicator-overlay-border: var(--color-blue-800);
 }
 
 /* The semantics as utilities: text-content-primary, bg-surface, border-border-primary… */
@@ -239,6 +241,7 @@
   --color-map-hotspots-card-terminal-surface: var(--map-hotspots-card-terminal-surface);
   --color-map-hotspots-card-terminal-border-primary: var(--map-hotspots-card-terminal-border-primary);
   --color-map-locator-indicator-overlay-surface: var(--map-locator-indicator-overlay-surface);
+  --color-map-locator-indicator-overlay-border: var(--map-locator-indicator-overlay-border);
 }
 
 /*
@@ -310,6 +313,9 @@
 
   /* The picked hintuan's name on the map, lifted off it (SelectedHintuanRouteTitle, 3847:11760, 2026-09-30). */
   --shadow-selected-hintuan-route-title: 0 2px 8px 0 rgb(0 0 0 / 0.32);
+
+  /* The visitor's dot, lifted off the map in a deep blue (LocatorDotShadow, 3870:5242, 2026-10-01). */
+  --shadow-locator-dot-shadow: 0 2px 8px 0 rgb(1 27 85 / 0.48);
 
   /* A RouteCard's State=Selected: pressed in, lit from the top left (2026-09-29). */
   --shadow-route-card-primary-selected:

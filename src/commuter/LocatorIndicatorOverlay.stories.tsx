@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { CONE_DRAWN_DEG, LocatorIndicatorOverlay } from './LocatorIndicatorOverlay'
+import { BEAM_DRAWN_DEG, LocatorIndicatorOverlay } from './LocatorIndicatorOverlay'
 
 const meta = {
   title: 'Commuter/LocatorIndicatorOverlay',
@@ -16,8 +16,8 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** As the owner drew it (3870:5247): a 240 circle, the cone pointing south-east. */
-export const AsDrawn: Story = { args: { haloPx: 240, coneDeg: CONE_DRAWN_DEG } }
+/** As the owner drew it (3870:5247): a 240 circle with its hairline, the beam pointing south. */
+export const AsDrawn: Story = { args: { haloPx: 240, coneDeg: BEAM_DRAWN_DEG } }
 
 /** Facing up the screen. */
 export const FacingUp: Story = { args: { haloPx: 240, coneDeg: 0 } }

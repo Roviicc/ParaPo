@@ -17,6 +17,7 @@ import {
   modeFor,
   motionFrom,
   indicatorScale,
+  trackedZoom,
   zoomShowing,
 } from '../../src/commuter/useLocator.ts'
 import { M_PER_DEG, metresPerPixel } from '../../src/shared/geo/geo.ts'
@@ -45,13 +46,13 @@ test('a tap with no compass (a laptop) stays tracked: it only comes back to the 
   assert.equal(afterTap('tracked', false), 'tracked')
 })
 
-test('zoom: 1000 ft across a phone is street level, 200 ft some 2.3 zooms closer', () => {
+test('zoom: 200 m across a phone is street level, 100 m one zoom closer', () => {
   const tracked = zoomShowing(TRACKED_ACROSS_M, 14.7, 390)
   const compass = zoomShowing(COMPASS_ACROSS_M, 14.7, 390)
   // Measured back with the map's own scale: the span comes out as asked.
   assert.ok(Math.abs(metresPerPixel(14.7, tracked) * 390 - TRACKED_ACROSS_M) < 0.01)
-  assert.ok(Math.abs(compass - tracked - Math.log2(5)) < 1e-9)
-  assert.ok(tracked > 16 && tracked < 17.5, `${tracked}`)
+  assert.ok(Math.abs(compass - tracked - 1) < 1e-9)
+  assert.ok(tracked > 16.5 && tracked < 18, `${tracked}`)
   assert.ok(compass < 22, `${compass}: within MapLibre's zoom`)
 })
 
@@ -133,5 +134,17 @@ test('the dot and cone: full size from street level, smaller zoomed out, never u
   assert.equal(indicatorScale(12), 0.45)
   assert.equal(indicatorScale(8), 0.45)
   for (let z = 8; z < 18; z += 0.5) assert.ok(indicatorScale(z) <= indicatorScale(z + 0.5), `grows with zoom at ${z}`)
+})
+
+test("a tap to the visitor keeps the map's zoom, unless it is further out than 2 km", () => {
+  const far = zoomShowing(2000, 14.7, 390)
+  const street = zoomShowing(200, 14.7, 390)
+  // Nearer than 2 km across: the visitor's height stays.
+  assert.equal(trackedZoom(16, 14.7, 390), 16)
+  assert.equal(trackedZoom(far, 14.7, 390), far)
+  assert.equal(trackedZoom(19, 14.7, 390), 19)
+  // Further out (the city at 11): in to 200 m.
+  assert.equal(trackedZoom(far - 0.01, 14.7, 390), street)
+  assert.equal(trackedZoom(11, 14.7, 390), street)
 })
 
