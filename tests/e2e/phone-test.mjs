@@ -1029,8 +1029,9 @@ if (routeA) {
       opened.shown === 1 && !opened.trip && !!opened.place?.includes(end.name) && opened.zoom >= 15.9,
       JSON.stringify({ end: end.name, ...opened }),
     )
-    await card().getByRole('button', { name: 'Back' }).first().click({ timeout: 1500 }).catch(() => {})
-    await page.waitForTimeout(500)
+    // A tap, as on the other buttons here: the runner may drop the touch.
+    const tripShown = async () => (await page.locator('[data-testid="card"]:not([hidden]) [data-testid="trip"]').count()) === 1
+    await buttonTap(card().getByRole('button', { name: 'Back' }), tripShown)
     check("  its ‹ brings the trip back", (await tripLabel()) === label && (await page.locator('[data-testid="card"]:not([hidden]) [data-testid="trip"]').count()) === 1, `"${await tripLabel()}", want "${label}"`)
   }
 
