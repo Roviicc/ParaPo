@@ -19,7 +19,7 @@
 // row opens in its card's colour and ‹ back to the list, every card at rest; a tap
 // just outside a hotspot, and the bottom sheet on a hotspot's card — tap and
 // drag the handle, Middle → Max → Low → Middle → Low → gone; the ?r=<id> share link and the
-// view it restores; a trip opened on its own whose ‹ lists the routes sharing
+// view it frames; a trip opened on its own whose ‹ lists the routes sharing
 // an end with its own; the fine-pointer desktop control (±5 px, no zoom
 // buttons for a mouse either since 2026-09-29, attribution bottom right);
 // and housekeeping.
@@ -803,6 +803,32 @@ const closeCard = async () => {
   }
   await page.waitForTimeout(300)
 }
+/**
+ * Where a route's box lands once the camera stops: a trip opening takes in
+ * its whole route, clear of the card (the owner's ask, 2026-10-01). `inside`
+ * is every corner on the map and above the card, 2 px either way.
+ */
+const framedAboveCard = async (bbox) =>
+  page.evaluate(
+    ([w, s, e, n]) =>
+      new Promise((done) => {
+        const m = window.__map
+        const read = () => {
+          const c = m.getCanvas().getBoundingClientRect()
+          const d = document.querySelector('[data-testid="card"]')?.getBoundingClientRect()
+          const nw = m.project([w, n])
+          const se = m.project([e, s])
+          const box = { left: c.left + nw.x, top: c.top + nw.y, right: c.left + se.x, bottom: c.top + se.y }
+          const floor = d && d.right >= c.right - 1 ? d.top : c.bottom
+          const inside = box.left >= c.left - 2 && box.right <= c.right + 2 && box.top >= c.top - 2 && box.bottom <= floor + 2
+          done({ inside, box: Object.fromEntries(Object.entries(box).map(([k, v]) => [k, Math.round(v)])), map: [Math.round(c.top), Math.round(c.bottom)], width: Math.round(c.width), floor: Math.round(floor), zoom: +m.getZoom().toFixed(2) })
+        }
+        if (m.isMoving()) m.once('moveend', () => setTimeout(read, 50))
+        else read()
+        setTimeout(read, 5000)
+      }),
+    bbox,
+  )
 // The owner's two looks for the lines (2026-09-29): every one opaque in
 // Map/RouteLine/surface-default, the lit ones drawn over them in
 // …/surface-selected, and no layer shading a line. The hexes are
@@ -937,6 +963,9 @@ if (routeA) {
   const origin = await tripRow('trip-origin')
   const end = await tripRow('trip-destination')
   check('  it opens the trip card, from where its direction leaves to where it goes', !!from && !!to && origin === from && end === to, `"${label}": top "${origin}", bottom "${end}"`)
+  // Opened, the camera takes in the whole route, clear of the card.
+  const framed = await framedAboveCard(r.bbox)
+  check('  the camera takes in the whole route, above the card', framed.inside, JSON.stringify(framed))
   const routeEnds = r.signboard.split(' – ').map((e) => e.replace(/ via .*$/, ''))
   check("  its ends are the route's two ends", routeEnds.length === 2 && routeEnds.every((e) => text.includes(e)), r.signboard)
   // Dropped by the owner for now, to design later (2026-09-28).
@@ -1687,23 +1716,13 @@ if (!routeA) {
   const ends = r.signboard.split(' – ').map((e) => e.replace(/ via .*$/, ''))
   check('loading /?r=<id> opens that route', ends.length === 2 && ends.every((e) => shareText.includes(e)), shareText.split('\n')[0] ?? '(no card)')
 
-  const view = await page.evaluate(() => {
-    const c = window.__map.getCenter()
-    return { lng: c.lng, lat: c.lat, zoom: window.__map.getZoom() }
-  })
-  const [w, s, e, n] = r.bbox
-  const mx = (e - w) * 0.1 + 0.0005
-  const my = (n - s) * 0.1 + 0.0005
-  check(
-    '  it centres the view on the route',
-    view.lng >= w - mx && view.lng <= e + mx && view.lat >= s - my && view.lat <= n + my,
-    `centre ${view.lng.toFixed(4)},${view.lat.toFixed(4)} vs bbox ${w.toFixed(4)},${s.toFixed(4)} → ${e.toFixed(4)},${n.toFixed(4)}`,
-  )
-  // The view fits the whole route. A jeepney route is kilometres long, so on a
-  // 390 px screen that lands around zoom 12–13, well in from the metro-wide 11
-  // the map opens at.
-  const spanKm = ((e - w) * mPerDegLng(view.lat) * 0.001).toFixed(1)
-  check('  it zooms in from the metro-wide view (≥ 12)', view.zoom >= 12, `zoom ${view.zoom.toFixed(2)} for a route ${spanKm} km wide`)
+  const shareFramed = await framedAboveCard(r.bbox)
+  check('  it frames the whole route, above the card', shareFramed.inside, JSON.stringify(shareFramed))
+  // Framed, not merely shown: the route fills the room the card leaves along
+  // one side or the other (its 48 px margins aside), however long it is.
+  const { box: fb } = shareFramed
+  const fill = Math.max((fb.right - fb.left) / (shareFramed.width - 96), (fb.bottom - fb.top) / (shareFramed.floor - shareFramed.map[0] - 96))
+  check('  zoomed to fit it: the route fills the room along one side', fill > 0.8 && fill < 1.05, `${Math.round(fill * 100)}% at zoom ${shareFramed.zoom}`)
 
   // Opened by a link, no list is behind the trip: ‹ only where another route
   // sharing an end is drawn its way round (the owner's ask, 2026-09-29). No
