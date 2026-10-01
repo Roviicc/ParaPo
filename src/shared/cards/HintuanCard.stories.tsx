@@ -168,7 +168,7 @@ export const Default: Story = {
 export const Variant2: Story = {
   args: { stop: teraccess2 },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByTestId('card-count').textContent).toBe('2 routes pass through')
+    await expect(within(canvasElement).getByTestId('card-count').textContent).toBe('2 routes pass here')
   },
 }
 
@@ -180,7 +180,7 @@ export const PickARow: Story = {
     await userEvent.click(canvas.getByText('SM Fairview Main'))
     await expect(args.onPickBox).toHaveBeenCalledWith('h2')
     await expect(selectedRow(canvasElement)?.textContent).toBe('SM Fairview Main')
-    await expect(canvas.getByTestId('card-count').textContent).toBe('1 route passes through')
+    await expect(canvas.getByTestId('card-count').textContent).toBe('1 route passes here')
   },
 }
 
@@ -195,11 +195,11 @@ export const LetGoAndPickBack: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
     const row = () => canvas.getAllByTestId('card-box').find((b) => b.dataset.box === 'h2')!
-    await expect(canvas.getByTestId('card-count').textContent).toBe('1 route passes through')
+    await expect(canvas.getByTestId('card-count').textContent).toBe('1 route passes here')
     await userEvent.click(row())
     await expect(args.onDeselect).toHaveBeenCalledOnce()
     await expect(selectedRow(canvasElement)).toBeUndefined()
-    await expect(canvas.getByTestId('card-count').textContent).toBe('2 routes pass through')
+    await expect(canvas.getByTestId('card-count').textContent).toBe('2 routes pass here')
     await userEvent.click(canvas.getByTestId('card-flip'))
     await expect(args.onPickBox).not.toHaveBeenCalled()
     await expect(canvas.getByTestId('card-flip').getAttribute('aria-pressed')).toBe('true')
