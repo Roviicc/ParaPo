@@ -3606,3 +3606,26 @@ day: Low is 129 (3869:5195; 137 before); the HandleNotch has 8 above its bar
 and 4 below (8 both before); RouteCardHeader leaves 12 below it over the
 list and over a trip alike (16 and 8 before), and the trip's card follows
 it straight away, the header's 12 being the gap (3778:3183, 3742:1049).
+
+**The LocatorButton, 2026-10-01.** The owner's LocatorButton (3870:5437),
+LocatorIndicatorOverlay (3870:5247), its rules (3870:5408) and where it sits
+(ScreenLocationBehavior, 3870:5941) take "Where am I"'s place, and the
+walking figure's. The button shows where the camera is with the visitor:
+TrackOwnLocation, the camera elsewhere — before the first tap and at any
+move off them, a finger's or the app's; a tap brings it to them 1000 ft
+across the map's shorter side, north up (TrackedLocation, its arrow turning
+the way the phone faces); the next tilts it 45°, 200 ft across, turned with
+the phone's compass (TracksTheMapBasedOnCompassFacing); the next puts north
+up again, and round. Once on, location stays on — no off, the owner's call;
+with a mouse there is no compass, and a tap on TrackedLocation only comes
+back to the visitor. On the map the visitor is a blue dot with a cone the
+way they face and the circle the fix is good to, a new token,
+Map/LocatorIndicatorOverlay/surface (blue/600 at 15%). The button sits 12
+above the open card's sheet at the right edge, following it from Middle
+down to Low and staying at Middle's place above that (BottomSheet says where
+its top is, `--dock-y`, on the page's `data-dock-host`); with no card, at
+the map's foot; where the card floats in the corner, bottom right, clear of
+the credit line. The walker, its sheets in `public/figure/` and its CSS are
+gone (the masters stay in `docs/figure/`). `where-test` is rewritten for it
+(27 → 33), `locator-test` replaces `where-am-i-test`.
+

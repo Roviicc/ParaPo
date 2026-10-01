@@ -79,7 +79,7 @@ export function lineLength(coords: LngLat[]): number {
  * Metres one screen pixel covers at this latitude and zoom, on MapLibre's
  * map: Web Mercator with 512 px tiles, so the equator's 40,075 km span 512 px
  * at zoom 0 — half the 156,543 m figure quoted for 256 px tiles. One function
- * for the chevrons' spacing and the walker's halo; the halo had the 256 px
+ * for the chevrons' spacing and the locator's accuracy circle; the halo had the 256 px
  * figure and was drawn at half the fix's accuracy (review finding 10).
  */
 export function metresPerPixel(lat: number, zoom: number): number {
