@@ -3802,3 +3802,12 @@ further than 5 km on the scale bar (the owner: "for scrolling up only";
 `RAISED_FARTHEST_M`): a long route is cut at the edges, not shrunk; coming
 down, and as a card opens, the whole route; the visitor's own hand goes as
 far out as they like. `phone-test` 106 → 109.
+
+**Papunta and Pabalik, 2026-10-01.** The owner: "instead of switch on the
+word", "Papunta" and "Pabalik". SWITCH now reads the way that is showing —
+Papunta, there; Pabalik, the way back (`wayWord`, the `back` it was
+already pressed by) — on the list's header, the trip's and a hotspot
+card's counter alike; a tap turns it round and the word with it. In SN
+Pro Bold, not Cubao, which has capitals only: "Papunta at Pabalik", as
+written (the owner, the same day) — the Special button's one use. The suites find it by its test id,
+not its word.
