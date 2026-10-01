@@ -1967,7 +1967,7 @@ if (!routeA) {
   await dpage.waitForTimeout(500)
   check('a mouse click 4 px beside the line selects it', (await dCard.count()) > 0, `card count ${await dCard.count()}`)
   await dpage.getByRole('button', { name: 'Close' }).first().click({ timeout: 1500 }).catch(() => {})
-  await dpage.waitForTimeout(300)
+  await dpage.waitForFunction(() => document.querySelectorAll('[data-testid="card"]').length === 0, null, { timeout: 2000 }).catch(() => {})
 
   // The box and the hit line add up: a ±5 px box around a line drawn 18 px wide
   // reaches 5 + 9 = 14 px from the centre — the mouse tolerance the map always
@@ -1975,7 +1975,12 @@ if (!routeA) {
   const hitWidth = await dpage.evaluate(() =>
     window.__map.getLayer('saved-routes-hit') ? window.__map.getPaintProperty('saved-routes-hit', 'line-width') : null,
   )
-  await dpage.mouse.click(box.x + anchor[0] + perp[0] * 20, box.y + anchor[1] + perp[1] * 20)
+  // The trip the first click opened moved the camera to take it in: back to
+  // the vertex, measured again, so the 20 px are 20 px from the line.
+  await jumpTo(dpage, routeA.point)
+  const anchor2 = await project(dpage, routeA.point)
+  const perp2 = await perpendicular(dpage, routeA.point, neighbour, routeA.route.coords, 20)
+  await dpage.mouse.click(box.x + anchor2[0] + perp2[0] * 20, box.y + anchor2[1] + perp2[1] * 20)
   await dpage.waitForTimeout(500)
   check(
     'a mouse click 20 px away does not — the fine box is ±5 px on an 18 px hit line',
