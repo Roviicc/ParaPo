@@ -98,6 +98,8 @@ export function useCardStack<V extends VariantSummary, S extends { id: string }>
     /** What the route list lists, and whether it is up. */
     choice,
     choosing,
+    /** Any card up: the list, a trip or a hotspot's. */
+    open: anyOpen,
     height,
     snap,
     clearOf,

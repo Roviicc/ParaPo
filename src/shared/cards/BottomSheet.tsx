@@ -94,8 +94,11 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
   useEscape(onClose, !hidden)
 
   useLayoutEffect(() => {
-    if (!dragging) own.current?.style.setProperty('--sheet-y', slide(snap))
-  }, [snap, dragging])
+    if (!dragging) at(slide(snap))
+    // What follows the sheet on the page (the LocatorButton) glides with it,
+    // or keeps up with the finger.
+    own.current?.closest('[data-dock-host]')?.toggleAttribute('data-dock-dragging', dragging && !hidden)
+  }, [snap, dragging, hidden])
 
   const settle = (next: Snap | 'close') => {
     setDragging(false)
@@ -108,7 +111,19 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
 
   /** Docked, not floating: the notch is drawn only then. */
   const docked = () => handleRef.current?.offsetParent != null
-  const show = (shown: number) => own.current?.style.setProperty('--sheet-y', slideShowing(shown))
+  const show = (shown: number) => at(slideShowing(shown))
+  /**
+   * Where the sheet slides to. The page's `[data-dock-host]` hears it too, as
+   * `--dock-y`, while this is the sheet on show: what sits on the map above
+   * the sheet follows it (the owner's ScreenLocationBehavior, 3870:5941,
+   * 2026-10-01). The same length, so both glide alike.
+   */
+  function at(y: string) {
+    const sheet = own.current
+    if (!sheet) return
+    sheet.style.setProperty('--sheet-y', y)
+    if (!sheet.hidden) sheet.closest<HTMLElement>('[data-dock-host]')?.style.setProperty('--dock-y', y)
+  }
 
   // When a finger or a mouse last pressed on the sheet: focus that follows a
   // press is the press's, not the keyboard's (the body's onFocus).

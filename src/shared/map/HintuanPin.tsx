@@ -28,9 +28,9 @@ type Props = {
  * TimelineDot, Selected, in the trip's livery, so the map and the card
  * point at the same place the same way.
  *
- * A DOM marker, like the walker: the pop is a CSS animation that costs the
- * map nothing, and it takes no taps, so a tap on it reaches the line or the
- * box beneath. The caller keys it on the pick, so another hintuan pops a
+ * A DOM marker, like the visitor's own (LocatorIndicatorOverlay): the pop
+ * is a CSS animation that costs the map nothing, and it takes no taps, so
+ * a tap on it reaches the line or the box beneath. The caller keys it on the pick, so another hintuan pops a
  * fresh circle.
  *
  * Beside it, its name (the owner's SelectedHintuanRouteTitle, Figma
