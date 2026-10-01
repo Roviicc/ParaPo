@@ -16,9 +16,10 @@ import './endTitles.css'
  * wrote beside it. The pill wears what is lit: the line's colour, and the
  * chevrons' white — near-black on yellow — for its words, as a card's are.
  *
- * Its Head and Tail Route variants (2026-10-01) read as the RouteCard does: where a ride starts, the top of its timeline,
- * is the card's title; where it goes is one of the card's rows, so its pill
- * leads with the rows' circled arrow. A place two rides share is named by
+ * Its Head and Tail Route variants (2026-10-01) read as the RouteCard
+ * does: where a ride starts, the top of its timeline, is the card's title;
+ * where it goes is one of the card's rows, so its pill leads with the rows'
+ * circled arrow. A place two rides share is named by
  * the first to reach it (`rideEnds`), so a trip's change of ride is the
  * earlier ride's tail, as it sits under the start on the timeline.
  *
