@@ -412,8 +412,14 @@ for (const [i, p] of snapshot.polys.entries()) {
       await page.waitForTimeout(250)
       const pickedAgain = (await firstCard.getAttribute('data-state')) === 'selected'
       await closeCard()
-      await page.waitForTimeout(250)
-      const closed = await litNow()
+      // Nothing lit as soon as the map has drawn the close: a runner drawing a
+      // few frames a second may take more than a quarter second (2026-10-01).
+      const closeBy = Date.now() + 2000
+      let closed = await litNow()
+      while (closed.length && Date.now() < closeBy) {
+        await page.waitForTimeout(100)
+        closed = await litNow()
+      }
       check(`  ✕ closes it all: nothing lit`, pickedAgain && closed.length === 0, `picked ${pickedAgain}; ${closed.length} lit`)
     }
   } else {
