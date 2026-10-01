@@ -33,6 +33,14 @@ type Props = {
   }
   /** Another box of the place picked — its row, or SWITCH moving to it: select it and go there. */
   onPickBox: (id: string) => void
+  /**
+   * No row Selected: the Selected one tapped again lets it go (the owner's
+   * ask, 2026-10-01), and the card shows the routes through every box of
+   * the place until a row is picked — the same one, or another.
+   */
+  deselected?: boolean
+  /** The Selected row tapped: let it go. */
+  onDeselect?: () => void
   onClose: () => void
   /** ‹, back to the trip whose name on the map opened the card; none, and no ‹. */
   onBack?: (() => void) | null
@@ -62,7 +70,10 @@ const LETTER = { terminal: <TerminalIcon />, hintuan: <HintuanIcon /> } satisfie
  * sky, then the hintuans, in green, each in the order drawn, and boxes of one
  * name numbered (placeBoxes). The box tapped on the map is the Selected one,
  * pressed in; a tap on another row picks it, and the map goes there, the
- * card staying at its height (the caller's `onPickBox`).
+ * card staying at its height (the caller's `onPickBox`). A tap on the
+ * Selected row lets it go: no row Selected, and the routes below are the
+ * whole place's until a row is picked again (`deselected`, the owner's ask
+ * of 2026-10-01).
  *
  * Under the rows, the routes that stop at the Selected box — only there:
  * Lagro 1, on the way to SM Fairview, lists Tala → SM Fairview and
@@ -84,6 +95,8 @@ export function HintuanCard({
   onSelectVariant,
   routeCards,
   onPickBox,
+  deselected = false,
+  onDeselect,
   onClose,
   onBack,
   hidden,
@@ -100,21 +113,29 @@ export function HintuanCard({
   /** Whether a box is passed `back` — the way back — or the way there, by a drawn direction. */
   const passes = (id: string, back: boolean) => drawnDepartures(linked(id), back).length > 0
 
-  // The way round asked for; a box passed one way only shows that way.
+  // What the routes below are of: the Selected box, or with none, every box
+  // of the place, each direction once.
+  const routes = deselected
+    ? [...new Map(rows.flatMap((r) => linked(r.box.id)).map((v) => [v.id, v])).values()]
+    : linked(stop.id)
+
+  // The way round asked for; routes passing one way only show that way.
   const [flipped, setFlipped] = useState(false)
-  const there = passes(stop.id, false)
-  const backToo = passes(stop.id, true)
+  const there = drawnDepartures(routes, false).length > 0
+  const backToo = drawnDepartures(routes, true).length > 0
   const back = there && backToo ? flipped : backToo
-  const routes = linked(stop.id)
   const shown = drawnDepartures(routes, back).flatMap((p) => p.directions.map((d) => d.v.id))
 
-  // The other way round: here, when this box is passed both ways; else the
-  // nearest box of the place that is passed that way.
+  // The other way round: here, when these routes run both ways; else the
+  // nearest box of the place that is passed that way — none with no row
+  // Selected, where the whole place already shows.
   const other = !back
   const switchTo =
     there && backToo
       ? stop
-      : (rows
+      : deselected
+        ? null
+        : (rows
           .map((r) => r.box)
           .filter((b) => b.id !== stop.id && passes(b.id, other))
           .sort((a, b) => haversine(a.point.coordinates, stop.point.coordinates) - haversine(b.point.coordinates, stop.point.coordinates))[0] ?? null)
@@ -158,7 +179,7 @@ export function HintuanCard({
     >
       <ul>
         {rows.map(({ box, label: name }, i) => {
-          const selected = box.id === stop.id
+          const selected = !deselected && box.id === stop.id
           return (
             <li key={box.id}>
               <button
@@ -166,11 +187,13 @@ export function HintuanCard({
                 data-testid="card-box"
                 data-box={box.id}
                 data-kind={box.kind}
-                // One of the place's boxes is the one: `aria-current`, not a
-                // toggle — a tap on the Selected row leaves it Selected.
-                aria-current={selected ? 'true' : undefined}
+                // A toggle since the owner's ask of 2026-10-01: the Selected
+                // row is pressed, a tap on it lets it go, and a tap on any
+                // row picks that one.
+                aria-pressed={selected}
                 onClick={() => {
                   if (!selected) onPickBox(box.id)
+                  else onDeselect?.()
                 }}
                 className={
                   'relative flex w-full items-center gap-1 border-y-[0.6px] px-4 pt-3 text-left font-sn-pro text-base/6 font-medium text-content-inverse ' +

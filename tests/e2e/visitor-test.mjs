@@ -303,7 +303,7 @@ for (const [i, p] of snapshot.polys.entries()) {
   const own = await page.evaluate((id) => {
     const rows = [...document.querySelectorAll('[data-testid="card"] [data-testid="card-box"]')]
     const row = rows.find((r) => r.dataset.box === id)
-    return { rows: rows.length, pressed: rows.filter((r) => r.getAttribute('aria-current') === 'true').map((r) => r.dataset.box), kind: row?.dataset.kind ?? null }
+    return { rows: rows.length, pressed: rows.filter((r) => r.getAttribute('aria-pressed') === 'true').map((r) => r.dataset.box), kind: row?.dataset.kind ?? null }
   }, p.id)
   check(
     `  its row Selected, the one pressed of its place's ${own.rows}, a ${p.kind}'s`,

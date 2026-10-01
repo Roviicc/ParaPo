@@ -45,8 +45,13 @@ export default function CommuterApp() {
   // One index, fetched once, shared by both hooks; a direction's full line
   // read as it is lit (mapFile.ts).
   const saved = useSavedRoutes(map, loadVariantsFromFile, { loadLine })
+  // A hotspot's box let go on its card, its Selected row tapped again (the
+  // owner's ask, 2026-10-01): until a row is picked, no box is the one.
+  const [letGoId, setLetGoId] = useState<string | null>(null)
   // While a trip is open, the map lights only the trip (the owner, 2026-09-29).
-  const stops = useSavedStops(map, loadStopsFromFile, { muted: !!saved.selected })
+  const stops = useSavedStops(map, loadStopsFromFile, { muted: !!saved.selected, letGoId })
+  // Another box, or the card closed: the next card opens with its box Selected.
+  if (letGoId && stops.selected?.id !== letGoId) setLetGoId(null)
   const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW
 
   // Where a lit direction passes a hintuan, the line turns orange for that
@@ -302,13 +307,21 @@ export default function CommuterApp() {
             setWorn(livery ? { id: v.id, livery } : null)
             // Over a trip, another one lets that trip and what stood behind
             // it go: this card is what its ‹ comes back to.
-            if (tripBehind) stops.select(stops.selected!.id)
+            if (tripBehind) stops.select(stops.selected?.id ?? null)
             saved.select(v.id, { keepList: !tripBehind })
+          }}
+          // Its Selected row tapped again: no box is the one until a row is
+          // picked (the owner, 2026-10-01).
+          deselected={letGoId === stops.selected.id}
+          onDeselect={() => {
+            saved.highlightCard(null)
+            setLetGoId(stops.selected?.id ?? null)
           }}
           // Another box: the map goes there, the box clear of the card,
           // which stays at its height (the owner, 2026-10-01).
           onPickBox={(id) => {
             saved.highlightCard(null)
+            setLetGoId(null)
             stops.show(id, () => (map ? clearOfSheet(map.getContainer(), hotspotDock.current, snap) : [0, 0]))
           }}
           onBack={backToTrip}

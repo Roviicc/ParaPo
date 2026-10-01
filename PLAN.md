@@ -3534,3 +3534,11 @@ says which hotspot it ends at (`directionEndStops`), and a tap on one never
 reaches the map beneath: MapLibre hears its container before React hears
 the page, so `markerTap.ts` stops it on the marker itself. The circles still
 take no taps.
+
+**A HintuanCard row lets go, 2026-10-01.** The owner's ask: the Selected
+row of a HintuanCard can be deselected, and selected back. A tap on it lets
+it go: no row is Selected, the card stays open, and the routes under the
+rows are those through every box of the place (the owner's choice), lit on
+the map, SWITCH turning them round where they run both ways. On the map the
+box is drawn as one of its place's like the others (`boxMarks`' `letGo`).
+A tap on any row, the same one included, picks it again and goes there.

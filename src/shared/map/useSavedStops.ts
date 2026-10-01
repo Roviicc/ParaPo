@@ -23,7 +23,7 @@ import { useStopTaps } from './stopTaps'
 export function useSavedStops<S extends StopSummary>(
   map: MapLibreMap | null,
   load: () => Promise<{ stops: S[]; links: StopLink[] }>,
-  opts: { drawing?: boolean; hiddenStopId?: string | null; muted?: boolean } = {},
+  opts: { drawing?: boolean; hiddenStopId?: string | null; muted?: boolean; letGoId?: string | null } = {},
 ) {
   const muted = opts.muted ?? false
   const [stops, setStops] = useState<S[]>([])
@@ -76,7 +76,9 @@ export function useSavedStops<S extends StopSummary>(
   }, [reload])
 
   // What a tap marks, and the place wash (stopsShown.ts).
-  const marks = useMemo(() => boxMarks(stops, selectedId, candidates, muted), [stops, selectedId, candidates, muted])
+  // The chosen box let go on its card (HintuanCard's `deselected`): its place's boxes all alike.
+  const letGo = !!selectedId && opts.letGoId === selectedId
+  const marks = useMemo(() => boxMarks(stops, selectedId, candidates, muted, letGo), [stops, selectedId, candidates, muted, letGo])
   const hull = useMemo(() => placeHull(stops, selectedId, muted), [stops, selectedId, muted])
 
   // ----------------------------------------------------------------- layers
