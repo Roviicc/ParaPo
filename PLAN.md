@@ -3500,3 +3500,11 @@ uses, which name what an exported function takes or returns; and
 HotspotPanel's alias and note state with no setter, which keeps a box's Also
 called and Note while those are off the form. Nothing a visitor or the owner
 sees changes.
+
+**A RouteCard's row has a Pressed state, 2026-10-01.** The owner's
+RouteEndPointBar (3848:11928) gained State=Pressed: the row in
+Card/<livery>/Timeline/surface. Shown while the finger or the mouse is down
+on it (`:active`), the trip opening as it lets go — the owner's pick, a
+tap's feedback rather than a state kept while the trip is open. The phone's
+own tap highlight is off on the row, so the colour under the finger is the
+token's. Story: RowPressed, every livery, press and hold.
