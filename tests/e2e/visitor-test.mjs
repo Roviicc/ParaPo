@@ -609,6 +609,9 @@ if (PART === 1) {
       const where = () =>
         page.evaluate(async () => ((await window.__src('direction-arrows'))?.features ?? []).map((f) => f.geometry.coordinates[0][0].map((v) => v.toFixed(7)).join()).join('|'))
       await page.waitForTimeout(3200)
+      // The trip opened on its whole route (the owner's ask, 2026-10-01): a
+      // zoom out whose tiles, still arriving, would slow the frames counted.
+      await page.waitForFunction(() => !window.__map.isMoving() && window.__map.areTilesLoaded(), null, { timeout: 10000 }).catch(() => {})
       const flowA = await where()
       const sets = await page.evaluate(
         () =>
