@@ -10,3 +10,13 @@
 # The editor is for one person. Keep it out of search results.
 /studio/*
   X-Robots-Tag: noindex
+
+# Signboards (0010): SVGs uploaded in the studio, cleaned twice
+# (signboardSvg.ts). Shown as pictures they run nothing; opened on their own
+# they are documents on this domain, so nothing in one may run or fetch
+# either. Each name is a new uuid when a board changes, so it never changes
+# under the same name.
+/data/signboards/*
+  Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox
+  X-Content-Type-Options: nosniff
+  Cache-Control: public, max-age=31536000, immutable

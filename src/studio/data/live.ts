@@ -35,8 +35,11 @@ import { readAll, type Page } from './readAll'
 // line is read when it is lit or opened (lineOf, withDrawing), and before a
 // hotspot's links are worked out (linesOf). `shape` stayed in the list until
 // then, 15–27 MB of it at a thousand directions.
+//
+// `signboards` (0010, 2026-10-01): a few file names, for the trip card's
+// Signboard and the editor's own (SignboardEditor).
 export const VARIANT_SELECT =
-  'id, route_id, owner_id, direction_name, origin_terminal, destination_terminal, overview, reversed, confidence, updated_at, borrowed_from, borrowed_part, borrowed_m, route:route(*)'
+  'id, route_id, owner_id, direction_name, origin_terminal, destination_terminal, overview, reversed, confidence, updated_at, borrowed_from, borrowed_part, borrowed_m, signboards, route:route(*)'
 /** The list as it was before 0009, for a database it has not reached yet. */
 const VARIANT_SELECT_BEFORE_0009 = VARIANT_SELECT.replace('overview', 'shape')
 

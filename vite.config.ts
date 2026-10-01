@@ -193,6 +193,19 @@ export default defineConfig({
             },
           },
           {
+            // A direction's signboards (0010): from the cache once seen, as a
+            // board's name is a new uuid whenever it changes — so a board
+            // ridden with stays offline. A few kB each.
+            urlPattern: ({ url, request }) =>
+              request.method === 'GET' && url.origin === self.location.origin && url.pathname.startsWith('/data/signboards/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'signboards',
+              cacheableResponse: { statuses: [200] },
+              expiration: { maxEntries: 2000, purgeOnQuotaError: true },
+            },
+          },
+          {
             // Style, TileJSON, sprites, glyphs: served from the cache at once,
             // refreshed behind it. Glyphs are one entry per font and 256-glyph
             // range, and Liberty uses three faces, so the cap is roomy.

@@ -101,10 +101,12 @@ jobs:
 
       # `git add` first: `git diff` alone cannot see a file git does not track
       # yet, and would report "unchanged" for a brand-new one forever. `-A`
-      # for lines/, where the file of a direction gone is removed.
+      # for lines/ and signboards/, where the file of a direction gone is
+      # removed. The folder whole: signboards/ is empty until a board is
+      # uploaded, and git refuses a path that matches nothing.
       - name: Commit if the map changed
         run: |
-          git add -A public/data/map.json public/data/index.json public/data/lines
+          git add -A public/data
           if git diff --cached --quiet; then
             echo "The map is unchanged; nothing to commit."
             exit 0

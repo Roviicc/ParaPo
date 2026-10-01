@@ -3148,6 +3148,12 @@ tracking table. Do not re-apply.
       line borrowing from itself and a part of 'middle' all refused; deleting
       the parent left the child whole with `borrowed_from` null; 2 rows, none
       borrowing, afterwards)
+- [x] 0009_overview — applied 2026-09-30 through the MCP (its own file)
+- [x] 0010_signboards — written and applied 2026-10-01 through the MCP, on
+      the owner's yes ("sure"): `route_variant.signboards text[]` (default
+      empty; all 10 rows empty after), the public `signboards` bucket (SVG
+      only, 100 kB) and its four editor-only policies on `storage.objects`,
+      read back after apply; the security advisor showed nothing new
 
 0004 and 0005 went through the Supabase MCP, which records them in
 `supabase_migrations.schema_migrations` (`stop_hotspot`, `editor_role`);
@@ -3158,7 +3164,7 @@ enums match 0004, and TRUNCATE, TRIGGER and REFERENCES are off `anon` and
 `authenticated`. 0006 and 0007 followed later the same day (their sections
 above); the live `route_variant` columns and indexes were read back on
 2026-09-22 and match 0006 exactly. 0008 followed on 2026-09-25. Nothing in
-`supabase/migrations/` is left to apply; the next number is 0009.
+`supabase/migrations/` is left to apply; the next number is 0011.
 
 ## Open items
 
@@ -3811,3 +3817,22 @@ card's counter alike; a tap turns it round and the word with it. In SN
 Pro Bold, not Cubao, which has capitals only: "Papunta at Pabalik", as
 written (the owner, the same day) — the Special button's one use. The suites find it by its test id,
 not its word.
+
+**Signboards, per direction, 2026-10-01.** The owner: "in studio, per
+route, papunta and balikan … upload signboard in svg format", shown as in
+RouteTripDetail (Figma 3778:3183, its Signboard 3919:11355); the studio's
+side left to us ("you can create one"). Each direction lists its boards in
+order (`route_variant.signboards`, 0010); the files sit in the public
+`signboards` bucket under fresh uuids, editor-only to write. The studio's
+trip card shows them as visitors will, and under its facts the owner's
+**Signboard · Papunta/Pabalik**: each board with ‹ (earlier) and ✕, and
+Add SVG (one or several; up to 100 kB). An SVG can carry script, so every
+file is cleaned to drawing only — allowed elements, no handlers, links only
+to its own parts, pictures only as data (`signboardSvg.ts`) — once in the
+studio before it is sent and again by the publish before it lands beside
+the map (`public/data/signboards/`, served with a CSP that runs nothing, and
+kept offline once seen). The index carries a direction's names only when it
+has some, so the file is unchanged until a board is uploaded. The trip card
+shows them under the tiles, 40 tall at their own widths, 8 apart. Text in a
+board should be outlined before export: a visitor's phone may not have its
+font. `route.signboard`, the words, stays as it was. `save-test` 59 → 66.

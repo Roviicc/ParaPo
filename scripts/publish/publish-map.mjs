@@ -61,6 +61,7 @@ import { OVERVIEW_M, lineLength, overviewOf, pointToSegmentM, round6, roundLngLa
 import { directionName, routeName } from '../../src/shared/model/routes.ts'
 import { stopLabel } from '../../src/shared/model/stops.ts'
 import { MAP_FILE_SCHEMA } from '../../src/commuter/mapFile.ts'
+import { cleanSignboardSvg } from '../../src/shared/model/signboardSvg.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -81,6 +82,9 @@ const DATA = join(root, 'public', 'data')
 const OUT = join(DATA, 'map.json')
 const INDEX = join(DATA, 'index.json')
 const LINES = join(DATA, 'lines')
+const SIGNBOARDS = join(DATA, 'signboards')
+/** A board's name in the bucket, as the studio writes it (signboards.ts): a uuid. Anything else is not read. */
+const BOARD_NAME = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.svg$/
 const FORCE = process.argv.includes('--force')
 
 /**
@@ -162,6 +166,24 @@ async function rest(path) {
   }
 }
 
+/**
+ * A signboard from the bucket, cleaned again before it lands on the map's own
+ * domain (shared/model/signboardSvg.ts): null when it is gone from the bucket.
+ */
+async function board(name) {
+  const attempt = async () => {
+    const res = await fetch(`${URL_BASE}/storage/v1/object/public/signboards/${name}`, { signal: AbortSignal.timeout(TIMEOUT_MS) })
+    if (res.status === 400 || res.status === 404) return null
+    if (!res.ok) throw new Error(`signboards/${name}: HTTP ${res.status}`)
+    return res.text()
+  }
+  const text = await attempt().catch(attempt)
+  if (text === null) return null
+  const clean = cleanSignboardSvg(text)
+  if ('error' in clean) fail(`FAIL  signboards/${name}: ${clean.error}`)
+  return clean.svg + '\n'
+}
+
 // ---------------------------------------------------------------- geometry
 
 /** A Point or Polygon with every coordinate rounded to 6 decimals; anything else as it came. */
@@ -201,12 +223,31 @@ function maxDeviation(original, simplified) {
 // see. (The map draws them in file order, which nothing depends on.)
 const [variantRows, stopRows, linkRows] = await Promise.all([
   rest(
-    'route_variant?select=id,route_id,direction_name,origin_terminal,destination_terminal,shape,confidence,reversed,' +
+    'route_variant?select=id,route_id,direction_name,origin_terminal,destination_terminal,shape,confidence,reversed,signboards,' +
       'route:route(id,signboard,long_name,mode,fare_note,head_stop_id,tail_stop_id,via)&order=id.asc',
   ),
   rest('stop?select=id,name,informal,aliases,kind,point,area,note,created_at&order=id.asc'),
   rest('route_stop?select=route_variant_id,stop_id,stop_sequence&order=route_variant_id.asc,stop_sequence.asc,stop_id.asc'),
 ])
+
+// Each direction's signboards, in its order, as files (0010, the owner's ask
+// of 2026-10-01). One the bucket no longer holds is left out, said, and the
+// rest still publish; a name not the studio's is never asked for.
+const boardText = new Map()
+const boardsOf = new Map()
+let boardsMissing = 0
+for (const v of variantRows) {
+  const names = (Array.isArray(v.signboards) ? v.signboards : []).filter((n) => BOARD_NAME.test(n))
+  for (const n of names) if (!boardText.has(n)) boardText.set(n, null)
+  if (names.length) boardsOf.set(v.id, names)
+}
+await Promise.all([...boardText.keys()].map(async (n) => boardText.set(n, await board(n))))
+for (const [id, names] of boardsOf) {
+  const kept = names.filter((n) => boardText.get(n) !== null)
+  boardsMissing += names.length - kept.length
+  if (kept.length) boardsOf.set(id, kept)
+  else boardsOf.delete(id)
+}
 
 // ---------------------------------------------------------------- assemble
 
@@ -320,8 +361,18 @@ if (previous && !FORCE) {
   }
 }
 
+// The boards are the index's alone (map.json's shape is fixed), so a change
+// to them alone is read from the index the last publish wrote.
+let previousBoards = null
+try {
+  const was = JSON.parse(readFileSync(INDEX, 'utf8'))
+  previousBoards = JSON.stringify(was.variants.filter((v) => v.signboards).map((v) => [v.id, v.signboards]))
+} catch {}
+const boards = JSON.stringify(variants.filter((v) => boardsOf.has(v.id)).map((v) => [v.id, boardsOf.get(v.id)]))
 const same =
-  previous && JSON.stringify({ variants: previous.variants, stops: previous.stops, links: previous.links }) === JSON.stringify(body)
+  previous &&
+  JSON.stringify({ variants: previous.variants, stops: previous.stops, links: previous.links }) === JSON.stringify(body) &&
+  previousBoards === boards
 const published_at = same ? previous.published_at : new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
 
 // The terms travel inside the file, so no copy can arrive without them. The
@@ -337,7 +388,15 @@ writeFileSync(OUT, file)
 const indexBody = {
   variants: variants.map(({ shape, ...v }) => {
     const { route, ...rest } = v
-    return { ...rest, overview: overviews.get(v.id) ?? null, metres: shape ? Math.round(lineLength(shape.coordinates) * 100) / 100 : null, route }
+    // Its signboards only when it has some: a direction without keeps the shape it had.
+    const signboards = boardsOf.get(v.id)
+    return {
+      ...rest,
+      overview: overviews.get(v.id) ?? null,
+      metres: shape ? Math.round(lineLength(shape.coordinates) * 100) / 100 : null,
+      ...(signboards ? { signboards } : {}),
+      route,
+    }
   }),
   stops,
   links,
@@ -370,6 +429,27 @@ for (const f of readdirSync(LINES)) {
   }
 }
 
+// The boards, beside the lines: written when changed, removed when no
+// direction shows them. Names are uuids, so a board's file never changes
+// under the same name — an edit in the studio is a new one.
+mkdirSync(SIGNBOARDS, { recursive: true })
+let boardsWritten = 0
+for (const [n, text] of boardText) {
+  if (text === null) continue
+  const path = join(SIGNBOARDS, n)
+  if (existsSync(path) && readFileSync(path, 'utf8') === text) continue
+  writeFileSync(path, text)
+  boardsWritten++
+}
+const boardFiles = new Set([...boardsOf.values()].flat())
+let boardsRemoved = 0
+for (const f of readdirSync(SIGNBOARDS)) {
+  if (f.endsWith('.svg') && !boardFiles.has(f)) {
+    rmSync(join(SIGNBOARDS, f))
+    boardsRemoved++
+  }
+}
+
 // ------------------------------------------------------------------ report
 
 for (const s of stats) console.log(`  ${s.name}: ${s.before} → ${s.after} points, within ${s.dev.toFixed(1)} m; overview ${s.overview}`)
@@ -383,4 +463,8 @@ const indexGz = gzipSync(Buffer.from(indexFile)).length
 console.log(
   `${previousIndex === indexFile ? 'Unchanged' : 'Wrote'} public/data/index.json: ${indexFile.length} bytes, ${indexGz} gzipped; ` +
     `lines/: ${lineFiles.size} file(s), ${linesWritten} written, ${linesRemoved} removed`,
+)
+console.log(
+  `signboards/: ${boardFiles.size} file(s), ${boardsWritten} written, ${boardsRemoved} removed` +
+    (boardsMissing ? `; ${boardsMissing} named but gone from the bucket, left out` : ''),
 )

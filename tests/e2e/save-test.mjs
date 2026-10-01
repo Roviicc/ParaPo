@@ -59,7 +59,7 @@ const tables = {
     control_points: v.shape ? [v.shape.coordinates[0], v.shape.coordinates.at(-1)] : [],
     segments: v.shape ? [{ snap: 'snapped', coordinates: v.shape.coordinates, streets: [] }] : [],
     reversed: v.reversed, confidence: v.confidence ?? 'drawn', borrowed_from: null, borrowed_part: null, borrowed_m: null,
-    created_at: now, updated_at: now,
+    signboards: [], created_at: now, updated_at: now,
   })),
   stop: m.stops.map((s) => ({ ...s, owner_id: OWNER, created_at: now })),
   route_stop: m.links.map((l) => ({ route_variant_id: l.route_variant_id, stop_id: l.stop_id, stop_sequence: l.stop_sequence })),
@@ -160,7 +160,7 @@ let seq = 0
 const newId = () => `00000000-0000-4000-8000-${String(++seq).padStart(12, '0')}`
 const fill = (table, r) =>
   table === 'route' ? { id: newId(), owner_id: OWNER, signboard: null, route_code: null, short_name: null, long_name: null, mode: 'jeepney', fare_note: null, fare_as_of: null, via: null, created_at: now, updated_at: now, ...r }
-  : table === 'route_variant' ? { id: newId(), owner_id: OWNER, direction_name: null, origin_terminal: null, destination_terminal: null, confidence: 'drawn', overview: null, borrowed_from: null, borrowed_part: null, borrowed_m: null, created_at: now, updated_at: now, ...r }
+  : table === 'route_variant' ? { id: newId(), owner_id: OWNER, direction_name: null, origin_terminal: null, destination_terminal: null, confidence: 'drawn', overview: null, borrowed_from: null, borrowed_part: null, borrowed_m: null, signboards: [], created_at: now, updated_at: now, ...r }
   : table === 'stop' ? { id: newId(), owner_id: OWNER, informal: null, aliases: [], note: null, created_at: now, ...r }
   : { ...r }
 
@@ -228,6 +228,26 @@ const serve = async (req) => {
   return answer(made)
 }
 
+// The signboards bucket (0010), as Storage answers: an upload (the file in a
+// form), the public read, and a delete by names.
+const bucket = new Map()
+const storage = async (r) => {
+  const req = r.request()
+  const u = new URL(req.url())
+  const name = decodeURIComponent(u.pathname.split('/').pop())
+  log.push({ method: req.method(), table: 'storage', url: req.url(), query: u.pathname, body: null })
+  if (req.method() === 'GET' && u.pathname.includes('/object/public/signboards/')) {
+    return bucket.has(name) ? r.fulfill({ status: 200, contentType: 'image/svg+xml', body: bucket.get(name) }) : r.fulfill({ status: 400, body: '{"error":"not_found"}' })
+  }
+  if (req.method() === 'DELETE') {
+    for (const n of JSON.parse(req.postData() ?? '{}').prefixes ?? []) bucket.delete(n)
+    return r.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+  }
+  const svg = (req.postDataBuffer()?.toString('utf8') ?? '').match(/<svg[\s\S]*<\/svg>/)?.[0] ?? ''
+  bucket.set(name, svg)
+  return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ Key: `signboards/${name}`, Id: name }) })
+}
+
 // ------------------------------------------------------------ the session
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url')
 const exp = Math.floor(Date.now() / 1000) + 6 * 3600
@@ -252,6 +272,7 @@ async function open(signedIn, path) {
     if (out.range) headers['content-range'] = out.range
     await r.fulfill({ status: out.status, contentType: 'application/json', headers, body: out.body === null ? '' : JSON.stringify(out.body) })
   })
+  await page.route(/\/storage\/v1\/object\//, storage)
   await page.route(/\/auth\/v1\/user/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) }))
   await page.route(/\/auth\/v1\//, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...session, user }) }))
   await page.route(/router\.project-osrm\.org|routing\.openstreetmap\.de/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 'NoRoute', routes: [] }) }))
@@ -405,6 +426,39 @@ check('  no row added or lost', tables.route_variant.length === rowsBefore)
 await page.waitForTimeout(1200)
 check('  and no return trip is offered for a route drawn both ways (2)', (await toast().count()) === 1 && (await returnTrip().count()) === 0)
 await dismissToasts()
+
+// ---- 5b. Signboards, per direction (0010, the owner's ask of 2026-10-01)
+const outRow = () => tables.route_variant.find((v) => v.id === outV?.id)
+const items = () => page.getByTestId('signboard-item')
+const upload = (name, text) => page.getByTestId('signboard-file').setInputFiles({ name, mimeType: 'image/svg+xml', buffer: Buffer.from(text) })
+await openCard(OUT[1])
+const editor = page.getByTestId('signboard-editor')
+check('the trip card has a Signboard for the direction on show, Papunta', (await editor.count()) === 1 && /Signboard · Papunta/.test(await editor.innerText()) && (await items().count()) === 0)
+n = log.length
+await upload('evil.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 98 40" onload="alert(1)"><script>alert(2)</script><rect width="98" height="40" fill="#111"/><a href="https://example.com"><text>X</text></a></svg>')
+await waitFor(async () => (await items().count()) === 1)
+const firstBoard = outRow()?.signboards?.[0]
+const stored = bucket.get(firstBoard) ?? ''
+check('  an upload lands in the bucket cleaned: no script, no handler, no link out', /^[0-9a-f-]{36}\.svg$/.test(firstBoard ?? '') && stored.includes('<rect width="98" height="40" fill="#111"/>') && !/script|onload|alert|example\.com/.test(stored), stored.slice(0, 160))
+check('  and is listed on the direction, file first and then the row', (await items().count()) === 1 && since(n).findIndex((x) => x.table === 'storage') < since(n).findIndex((x) => x.method === 'PATCH' && x.table === 'route_variant'), said(since(n)))
+await waitFor(async () => (await page.getByTestId('trip-signboard').count()) === 1)
+check('  the card above shows it as visitors will', (await page.getByTestId('trip-signboard').count()) === 1 && /\/storage\/v1\/object\/public\/signboards\//.test((await page.getByTestId('trip-signboard').getAttribute('src')) ?? ''))
+await upload('second.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 98 40"><rect width="98" height="40" fill="#222"/></svg>')
+await waitFor(async () => (await items().count()) === 2)
+const second = outRow()?.signboards?.[1]
+await page.getByRole('button', { name: 'Move signboard 2 earlier' }).click()
+await waitFor(async () => outRow()?.signboards?.[0] === second)
+check('  a second goes last, and ‹ moves it first', outRow()?.signboards?.join() === [second, firstBoard].join(), JSON.stringify(outRow()?.signboards))
+n = log.length
+await upload('note.svg', 'just words, not a drawing')
+await waitFor(async () => (await page.getByRole('alert').filter({ hasText: 'note.svg' }).count()) === 1)
+check('  a file that is not an SVG is refused in words, and nothing is sent', (await page.getByRole('alert').filter({ hasText: 'note.svg' }).count()) === 1 && writesSince(n).length === 0 && !since(n).some((x) => x.table === 'storage'), said(since(n)))
+await page.getByRole('button', { name: 'Remove signboard 1' }).click()
+await waitFor(async () => (await items().count()) === 1)
+check('  ✕ takes it off the direction and out of the bucket', outRow()?.signboards?.join() === firstBoard && !bucket.has(second), JSON.stringify(outRow()?.signboards))
+await page.getByRole('button', { name: 'Remove signboard 1' }).click()
+await waitFor(async () => (await items().count()) === 0 && (await page.getByTestId('trip-signboards').count()) === 0)
+check('  and the last one leaves none', outRow()?.signboards?.length === 0 && bucket.size === 0 && (await page.getByTestId('trip-signboards').count()) === 0, `${JSON.stringify(outRow()?.signboards)}; ${bucket.size} in the bucket; ${await page.getByTestId('trip-signboards').count()} row(s) on the card`)
 
 // ---- 6. Delete a direction, then draw it again
 await openCard(OUT[1])
