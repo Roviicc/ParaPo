@@ -3,13 +3,14 @@ import { STILL_BELOW_MPS, type Camera, type Fix } from './useLocator'
 
 /*
  * The visitor's dot has moods (the owner's ask, 2026-10-01: "add other
- * emotion ... sad, angry, happy"), each tied to something true of the
- * visitor's location, so the face says what the map knows; and neutral and
+ * emotion ... sad, angry, happy"; sad since dropped, "we remove the sad, only
+ * neutral, happy and angry"), each tied to something true of the visitor's
+ * location, so the face says what the map knows; and neutral and
  * happy have several faces each, so it never reads as one loop (his "make
  * more faces reaction to that"). The faces are drawn in locator.css.
  */
 
-export type Mood = 'neutral' | 'happy' | 'sad' | 'angry'
+export type Mood = 'neutral' | 'happy' | 'angry'
 
 /** One face of a mood: what locator.css draws for `data-face`. */
 export type Face =
@@ -22,7 +23,6 @@ export type Face =
   | 'hop'
   | 'squee'
   | 'wink-smile'
-  | 'droop'
   | 'glare'
   | 'boing'
   | 'huff'
@@ -57,15 +57,15 @@ export const SLEEPY_AFTER_MS = 60_000
  * With nothing going on, the dot's mood swings (the owner's ask, 2026-10-01:
  * "back and forth between neutral and happy ... then sometimes sad and
  * angry"): a face every AMBIENT_EVERY_MS from this list, half of them
- * neutral, nearly all the rest happy, one in forty each sad and cross —
- * those two for one turn only, where a run of taps holds cross as long as
- * it lasts, so that one still reads as real (halved from one
- * in twenty at the owner's "make neutral and happy more", the same day).
+ * neutral, nearly all the rest happy, one in forty cross — for one turn
+ * only, where a run of taps holds cross as long as it lasts, so that one
+ * still reads as real (halved from one in twenty at the owner's "make
+ * neutral and happy more", the same day; sad dropped later that day).
  */
 const AMBIENT_EVERY_MS = 5000
 const NEUTRAL_SWINGS = ['glance', 'glance', 'glance', 'glance', 'glance', 'glance', 'curious', 'curious', 'wink', 'surprised'] as const
 const HAPPY_SWINGS = ['smile', 'smile', 'hop', 'hop', 'squee', 'wink-smile', 'wink-smile', 'smile', 'hop'] as const
-const AMBIENT: readonly Face[] = [...NEUTRAL_SWINGS, ...NEUTRAL_SWINGS, ...HAPPY_SWINGS, ...HAPPY_SWINGS, 'droop', 'glare']
+const AMBIENT: readonly Face[] = [...NEUTRAL_SWINGS, ...NEUTRAL_SWINGS, ...HAPPY_SWINGS, ...HAPPY_SWINGS, 'glare']
 
 /** The mood each face wears: what `data-mood` says, for its breathing. */
 export const MOOD_OF: Record<Face, Mood> = {
@@ -79,7 +79,6 @@ export const MOOD_OF: Record<Face, Mood> = {
   squee: 'happy',
   'wink-smile': 'happy',
   boing: 'happy',
-  droop: 'sad',
   glare: 'angry',
   huff: 'angry',
 }
@@ -116,8 +115,8 @@ export function inATemper({ now, taps }: Pick<Signals, 'now' | 'taps'>): boolean
  * then a tap's own reaction, then glad as the visitor arrives, then glad on
  * the move. Never low for the location itself: an old fix (a browser sends
  * none while the visitor stands still) or a rough one (common indoors) made
- * it sad most of the time, so low is its swings' alone for now (the owner,
- * 2026-10-01: "can we drop the bad location for now").
+ * it sad most of the time (the owner, 2026-10-01: "can we drop the bad
+ * location for now"), and sad is gone altogether.
  */
 export function moodAt(s: Signals): Mood {
   const { now, fix, arrivedAt } = s
@@ -148,8 +147,6 @@ export function faceFor(mood: Mood, now: number, stillFor: number, tapped = fals
   switch (mood) {
     case 'angry':
       return 'glare'
-    case 'sad':
-      return 'droop'
     case 'happy':
       return pick(HAPPY, Math.floor(now / HAPPY_EVERY_MS))
     case 'neutral':

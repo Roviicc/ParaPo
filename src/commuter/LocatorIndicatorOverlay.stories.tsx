@@ -56,8 +56,6 @@ export const HappyHop = face('happy', 'hop')
 export const HappySquee = face('happy', 'squee')
 /** Happy: a smile and a wink. */
 export const HappyWinkSmile = face('happy', 'wink-smile')
-/** Sad, now and then in its mood swings: sorry eyes, sloping down to the outside, looking down. */
-export const SadDroop = face('sad', 'droop')
 /** Cross, at a run of taps: scowling eyes, sloping down to the middle, a shake. */
 export const AngryGlare = face('angry', 'glare')
 /** A tap on the button, glad: squashed, up with smiling eyes, landing with a wobble. */
@@ -75,7 +73,6 @@ const ALL: [Mood, Face][] = [
   ['happy', 'hop'],
   ['happy', 'squee'],
   ['happy', 'wink-smile'],
-  ['sad', 'droop'],
   ['angry', 'glare'],
   ['happy', 'boing'],
   ['angry', 'huff'],

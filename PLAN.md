@@ -3744,10 +3744,10 @@ move from 1 m/s; never low for the location itself (at first for a fix
 over 30 s old or rougher than 80 m, then rougher than 150 m: it was sad most
 of the time — a browser sends no fix while the visitor stands still, and
 80 m is common indoors — and the owner had it dropped, "for now");
-else neutral. Neutral mostly glances about as before, now and then curious,
+else neutral. Sad went altogether later the same day, a droop in its swings
+once (the owner: "we remove the sad, only neutral, happy and angry"). Neutral mostly glances about as before, now and then curious,
 winking or wide-eyed, and dozes after a minute standing still; glad smiles
-∩ ∩, hops, squeezes > < or winks, a new one every 2.5 s; low droops, its
-eyes sloping down to the outside; cross scowls, its eyes sloping down to
+∩ ∩, hops, squeezes > < or winks, a new one every 2.5 s; cross scowls, its eyes sloping down to
 the middle, and shakes (brows at first, taken off at the owner's ask the
 same day). All CSS
 on the dot (locator.css), morphing over a quarter second; held still for
@@ -3763,8 +3763,8 @@ shaking it off; never cross at the first tap. Each tap plays it afresh
 (`beat` redraws the dot); three quick taps still glare.
 Left to itself, its mood swings (the owner: "back and forth between
 neutral and happy ... then sometimes sad and angry"): a face every 5 s,
-about half neutral, nearly all the rest happy, one in forty each low and
-cross (one in twenty at first) — those for one turn only, where a run of
+about half neutral, nearly all the rest happy, one in forty cross (one in
+twenty at first) — for one turn only, where a run of
 taps holds cross as
 long as it lasts; each tap rolls the swings afresh, so after its
 reaction the dot comes back in another mood (the owner: "tapping may change
