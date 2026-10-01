@@ -136,7 +136,7 @@ function EndTitle({
       style={{ backgroundColor: look.line, color: look.arrow }}
     >
       {!head && (
-        <span aria-hidden className="size-5 shrink-0 *:size-full">
+        <span aria-hidden data-part="arrow" className="size-5 shrink-0 *:size-full">
           <CircleArrowRightIcon />
         </span>
       )}
