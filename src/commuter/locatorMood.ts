@@ -4,10 +4,10 @@ import { STILL_BELOW_MPS, type Camera, type Fix } from './useLocator'
 /*
  * The visitor's dot has moods (the owner's ask, 2026-10-01: "add other
  * emotion ... sad, angry, happy"; sad since dropped, "we remove the sad, only
- * neutral, happy and angry"), each tied to something true of the visitor's
- * location, so the face says what the map knows; and neutral and
- * happy have several faces each, so it never reads as one loop (his "make
- * more faces reaction to that"). The faces are drawn in locator.css.
+ * neutral, happy and angry"): glad as the visitor arrives or moves, a
+ * reaction to a tap, and left to itself its mood swings; and neutral and
+ * happy have several faces each, so it never reads as one loop (the owner's
+ * "make more faces reaction to that"). The faces are drawn in locator.css.
  */
 
 export type Mood = 'neutral' | 'happy' | 'angry'

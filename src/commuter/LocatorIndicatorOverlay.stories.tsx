@@ -34,7 +34,7 @@ export const ZoomedOut: Story = { args: { haloPx: 0, beamDeg: 30, scale: 0.54 } 
 
 /*
  * Its moods and faces (locatorMood.ts, the owner's ask of 2026-10-01): every
- * face it can wear, side by side, for him to look over; each a story too.
+ * face it can wear, side by side, for the owner to look over; each a story too.
  */
 const face = (mood: Mood, f: Face): Story => ({ args: { haloPx: 0, beamDeg: null, mood, face: f } })
 

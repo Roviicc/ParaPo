@@ -78,8 +78,8 @@ export default function CommuterApp() {
     offset: () =>
       map ? clearOfSheet(map.getContainer(), openSheet(), cards.snap) : [0, 0],
   })
-  // How the dot feels: glad as the location comes, low when it goes stale,
-  // a boing at a tap on the button or on the dot, now and then a huff (locatorMood).
+  // How the dot feels: glad as the location comes, a boing at a tap on the
+  // button or on the dot, now and then a huff (locatorMood).
   const { mood, face, beat, poke } = useLocatorMood(locator)
   const offline = useOffline()
   const age = useMapAge(saved.variants)

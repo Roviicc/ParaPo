@@ -34,8 +34,8 @@ type Props = {
   face?: Face
   /** Changed by each tap on the button: the dot is drawn afresh, so its reaction plays again. */
   beat?: number
-  /** Given, the dot is a button: a tap pokes it, and it reacts (locatorMood). */
-  onPoke?: () => void
+  /** The dot is a button, to be poked: LocatorOnMap hears the tap (markerTap.ts). */
+  pokeable?: boolean
 }
 
 /**
@@ -49,8 +49,8 @@ type Props = {
  * have. Figma's is 240 across; here the circle is the fix's metres, the beam
  * as drawn.
  */
-export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'neutral', face = 'glance', beat = 0, onPoke }: Props) {
-  const Dot = onPoke ? 'button' : 'div'
+export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'neutral', face = 'glance', beat = 0, pokeable = false }: Props) {
+  const Dot = pokeable ? 'button' : 'div'
   const halo = haloFor(haloPx, scale)
   const gradient = useId()
   return (
@@ -67,9 +67,9 @@ export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'ne
         {beamDeg !== null && (
           // From the dot's centre, drawn pointing south and turned to the
           // heading, in the border's blue as Figma's is. Figma's (3876:6051)
-          // leans 2.7 px to one side; here it is his size, made even (his
-          // ask, 2026-10-01), then cut to 7/10 of its length at the same
-          // spread (his "make it like 7/10 only", the same day): 59 long, 70
+          // leans 2.7 px to one side; here it is the owner's size, made even
+          // (their ask, 2026-10-01), then cut to 7/10 of its length at the
+          // same spread ("make it like 7/10 only", the same day): 59 long, 70
           // across at its end.
           <div
             className="absolute top-1/2 left-1/2 size-0 text-map-locator-indicator-overlay-border"
@@ -89,12 +89,12 @@ export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'ne
         {/* A button when it can be poked: the only part of the overlay that takes a tap. */}
         <Dot
           key={beat}
-          {...(onPoke ? { type: 'button' as const, 'aria-label': 'You are here', onClick: onPoke } : {})}
+          {...(pokeable ? { type: 'button' as const, 'aria-label': 'You are here' } : {})}
           data-mood={mood}
           data-face={face}
           className={
             'locator-dot absolute top-1/2 left-1/2 -translate-1/2 rounded-full bg-surface p-1 shadow-locator-dot-shadow' +
-            (onPoke ? ' pointer-events-auto cursor-pointer [-webkit-tap-highlight-color:transparent]' : '')
+            (pokeable ? ' pointer-events-auto cursor-pointer [-webkit-tap-highlight-color:transparent]' : '')
           }
         >
           <div className="relative size-6 overflow-clip rounded-full bg-brand-surface">
@@ -175,5 +175,5 @@ export function LocatorOnMap({
     el.dataset.scale = scale.toFixed(2)
     el.dataset.heading = heading === null ? '' : String(Math.round(heading))
   }, [el, fix.accuracy, haloPx, heading, scale])
-  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} beamDeg={heading} scale={scale} mood={mood} face={face} beat={beat} onPoke={onPoke} />, el)
+  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} beamDeg={heading} scale={scale} mood={mood} face={face} beat={beat} pokeable />, el)
 }
