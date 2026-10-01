@@ -3785,3 +3785,20 @@ stays — but a drag that starts on it still pans the map (`dragsPass`): it
 sits mid-screen, where a finger lands to pan (where-test caught the pan
 stopped dead) (the owner: "tapping this blue, could trigger that too").
 `locator-mood-test` 9, `locator-test` 16, `where-test` 38 → 43.
+
+**The camera at every height, 2026-10-01.** The owner's ask: "zooming out
+and zoom in when bottomsheet is low, middle and max", "the camera reset to
+overview". Whenever the sheet settles at another height, the camera takes
+in again what the card on show frames, in the map the sheet leaves
+(useHeightOverview): a trip's route; on the list, a picked card's routes or
+everything it lights; on a hotspot's card, a picked card's routes or else
+its place. Above Low it comes in closer; whatever the visitor did to the map
+since, the overview comes back. A whole route is now fitted at the sheet's
+own height (roomBeside), not Middle's. Max on a phone covers the whole map
+(the sheet from the top, 844 of 844), so there it is framed as at Middle,
+there to see as the sheet comes down. Going up, the camera zooms out no
+further than 5 km on the scale bar (the owner: "for scrolling up only";
+2.5 km at first, then "make it to 5km": too close from Middle up;
+`RAISED_FARTHEST_M`): a long route is cut at the edges, not shrunk; coming
+down, and as a card opens, the whole route; the visitor's own hand goes as
+far out as they like. `phone-test` 106 → 109.
