@@ -3567,3 +3567,14 @@ padding of its own — the 16 above its first row and below its last are
 those rows' (`pt-4` on TimelineTop, `pb-4` on TimelineBottomEndRoute), so a
 Pressed row fills to the card's edge. At rest it reads the same; at Low the
 origin's line still fits.
+
+**CommuterApp's clean-up, step 1, 2026-10-01.** The owner's ask: the
+components were getting messy, CommuterApp most (368 lines after the day's
+merges). First, what the lit routes wear on the map — the orange stretches,
+the chevrons and named ends, the babaan sides — is one hook, `useLitRides`
+(src/shared/map/), which CommuterApp and StudioApp had word for word; and
+the camera taking in a trip's whole route as it opens is `useTripOverview`
+(src/commuter/). Both called where the code they replace stood, so the
+map's layers come in the same order. Nothing a visitor or the owner sees
+changes. Next: the cards' state as one reducer with unit tests, then a
+`useCardStack` hook.

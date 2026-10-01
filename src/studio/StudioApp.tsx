@@ -12,17 +12,16 @@ import { EndTitles } from '../shared/map/EndTitles'
 import { useRideTo } from '../shared/map/rideTo'
 import type { Livery } from '../shared/model/liveries'
 import { lineOf, listVariants, loadStopsFromSupabase } from './data/live'
-import { directionEnds, isDrawn, type VariantRow } from '../shared/model/routes'
+import { isDrawn, type VariantRow } from '../shared/model/routes'
 import { sharingAnEnd } from '../shared/model/departures'
-import { routeTimeline, travelLine } from '../shared/model/ride'
+import { routeTimeline } from '../shared/model/ride'
 import { hotspotCount } from '../shared/model/places'
 import { stopLabel, stopRing, type StopRow } from '../shared/model/stops'
 import { getSupabase, supabaseConfigError } from './data/supabase'
-import { useDirectionArrows, useRideColours } from '../shared/map/directionArrows'
-import { useBabaanSides } from '../shared/geo/babaanSides'
+import { useRideColours } from '../shared/map/directionArrows'
+import { useLitRides } from '../shared/map/useLitRides'
 import { useLitLineColour } from '../shared/map/savedRoutesLayers'
 import { LIT_LINE, LIVERY_LINE } from '../shared/map/liveryLine'
-import { usePassStretches } from '../shared/geo/passStretches'
 import { useSavedRoutes } from '../shared/map/useSavedRoutes'
 import { useSavedStops } from '../shared/map/useSavedStops'
 import { CardActions } from './panels/CardActions'
@@ -134,22 +133,9 @@ function Workshop({
     onGlide: () => (map ? clearOfSheet(map.getContainer(), tripDock.current, snap) : [0, 0]),
   })
 
-  // Where a lit direction passes a hintuan, the line turns orange for that
-  // stretch: worked out on the full lines read, which every lit one's is.
-  const withLines = useMemo(() => saved.variants.filter((v) => saved.fullIds.has(v.id)), [saved.variants, saved.fullIds])
-  usePassStretches(map, withLines, stops.stops, saved.lit, draw.target.variantId)
-
-  // Which way the jeep goes, on what is lit only — the chosen direction, the
-  // Selected card's directions, or else a list's: chevrons
-  // flowing inside each line from where the ride starts, and each end a
-  // circle with its place's name.
-  const rides = useMemo(
-    () => saved.litVariants.map((v) => ({ line: travelLine(v, stops.stops), ...directionEnds(v) })),
-    [saved.litVariants, stops.stops],
-  )
-  useDirectionArrows(map, rides)
-  // The chosen direction's side of each hintuan it cuts across: its right.
-  useBabaanSides(map, saved.selected, stops.stops)
+  // What the lit routes wear on the map, as on the public map (useLitRides);
+  // none of the orange over the direction being redrawn.
+  const rides = useLitRides(map, saved, stops.stops, draw.target.variantId)
 
   // The pill counts routes, not directions: a route is two rows, one of them
   // perhaps an empty slot, and five routes once read "10 routes" (finding 7).
