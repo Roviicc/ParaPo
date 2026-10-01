@@ -92,3 +92,11 @@ test("a tap's reaction shows for a while, over arriving, under a run of taps; it
   assert.equal(faceFor('angry', T, 0), 'glare')
 })
 
+test('a tap rolls its mood swings afresh: after the reaction, often another face', () => {
+  const now = T + 123_456
+  const after = new Set(Array.from({ length: 30 }, (_, taps) => faceFor('neutral', now, 0, false, taps)))
+  assert.ok(after.size >= 5, `${after.size} faces over 30 taps at one moment`)
+  // Untapped, a moment's face holds still between renders.
+  assert.equal(faceFor('neutral', now, 0, false, 3), faceFor('neutral', now + 10, 0, false, 3))
+})
+

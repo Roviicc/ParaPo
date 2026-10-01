@@ -142,9 +142,12 @@ function pick<T>(list: readonly T[], slot: number): T {
 /**
  * The face for a mood at `now`. Neutral is the dot left to itself: its mood
  * swings (AMBIENT), and it dozes after `stillFor` ms standing still.
- * `tapped`: the mood is a tap's reaction — a boing, or a huff.
+ * `tapped`: the mood is a tap's reaction — a boing, or a huff. `taps`: how
+ * many times it has been tapped; each tap rolls its swings afresh, so after
+ * the reaction it comes back in another mood (the owner, 2026-10-01:
+ * "tapping may change the mood").
  */
-export function faceFor(mood: Mood, now: number, stillFor: number, tapped = false): Face {
+export function faceFor(mood: Mood, now: number, stillFor: number, tapped = false, taps = 0): Face {
   if (tapped && mood === 'happy') return 'boing'
   if (tapped && mood === 'angry') return 'huff'
   switch (mood) {
@@ -155,7 +158,7 @@ export function faceFor(mood: Mood, now: number, stillFor: number, tapped = fals
     case 'happy':
       return pick(HAPPY, Math.floor(now / HAPPY_EVERY_MS))
     case 'neutral':
-      return stillFor >= SLEEPY_AFTER_MS ? 'sleepy' : pick(AMBIENT, Math.floor(now / AMBIENT_EVERY_MS))
+      return stillFor >= SLEEPY_AFTER_MS ? 'sleepy' : pick(AMBIENT, Math.floor(now / AMBIENT_EVERY_MS) + taps * 7919)
   }
 }
 
@@ -214,7 +217,7 @@ export function useLocatorMood({ fix, camera, taps }: { fix: Fix | null; camera:
 
   const signals: Signals = { now, fix, arrivedAt: events.arrivedAt, taps: events.taps, reaction: events.reaction }
   const tapped = reacting(signals) && !inATemper(signals)
-  const face = faceFor(moodAt(signals), now, events.stillSince === null ? 0 : now - events.stillSince, tapped)
+  const face = faceFor(moodAt(signals), now, events.stillSince === null ? 0 : now - events.stillSince, tapped, events.count)
   return {
     // The mood the face shows: a neutral dot's swings included.
     mood: MOOD_OF[face],
