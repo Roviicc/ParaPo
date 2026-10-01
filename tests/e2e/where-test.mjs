@@ -154,7 +154,7 @@ check('with no compass read yet, a tap stays TrackedLocation, flat', (await mode
 // That tap had a reaction: a boing, or now and then a huff (the owner, 2026-10-01).
 const dotFace = () => overlay(page).locator('.locator-dot').first().getAttribute('data-face')
 check('  and the dot reacts to it: a boing, or a huff', ['boing', 'huff'].includes(await dotFace()), `face ${await dotFace()}`)
-// Three taps in a run: cross, its brows down, for a few seconds; then over it.
+// Three taps in a run: cross, scowling, for a few seconds; then over it.
 for (let i = 0; i < 3; i++) await button.click()
 check('three quick taps on the button: the dot is cross', (await until(async () => (await dotMood()) === 'angry', 1500)) , `mood ${await dotMood()}`)
 // Over it in 3 s; left to itself it may glare a moment longer, a 5 s turn of its mood swings.

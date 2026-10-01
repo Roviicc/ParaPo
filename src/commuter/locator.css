@@ -52,25 +52,20 @@
  * glance does, a smaller round about the middle (`translate`, adding to the
  * face's own place; the owner's ask the same day), but for the faces whose
  * eyes are shut or fixed: dozing, squeezed, and glaring.
- * Brows show only when sad or cross. A hop and a shake move the dot with
+ * Sad and cross show in the eyes' own shape, no brows (the owner, the same
+ * day): their tops slope down to the outside, or to the middle. A hop and a
+ * shake move the dot with
  * `transform`, which adds to the `translate` that centres it on the fix.
  */
 .locator-eyes,
-.locator-eye,
-.locator-brow {
+.locator-eye {
   transition:
     translate 0.25s ease-out,
     transform 0.25s ease-out,
     scale 0.25s ease-out,
-    rotate 0.25s ease-out,
-    opacity 0.2s ease-out,
     width 0.2s ease-out,
     height 0.2s ease-out,
     clip-path 0.2s ease-out;
-}
-.locator-brow {
-  opacity: 0;
-  scale: 0.5 1;
 }
 .locator-dot:not([data-face='glance']) .locator-eyes {
   animation: locator-look 9s ease-in-out infinite;
@@ -136,30 +131,40 @@
   scale: 1.1 0.25;
 }
 
-/* Sad: eyes down and smaller, brows raised at the middle; breathing slow. */
+/*
+ * Sad and cross eyes: a little wider, their tops cut on a slope — down to
+ * the outside, sorry; down to the middle, a scowl.
+ */
+.locator-dot:is([data-face='droop'], [data-face='glare'], [data-face='huff']) .locator-eye {
+  width: 5px;
+  border-radius: 35%;
+}
+.locator-dot[data-face='droop'] .locator-eye:nth-child(1),
+.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-eye:nth-child(2) {
+  clip-path: polygon(0 45%, 100% 0, 100% 100%, 0 100%);
+}
+.locator-dot[data-face='droop'] .locator-eye:nth-child(2),
+.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-eye:nth-child(1) {
+  clip-path: polygon(0 0, 100% 45%, 100% 100%, 0 100%);
+}
+
+/* Sad: sorry eyes, looking down; breathing slow. */
 .locator-dot[data-mood='sad'] {
   animation-duration: 3.2s;
 }
 .locator-dot[data-face='droop'] .locator-eyes { transform: translate(-4px, 1.5px); }
-.locator-dot[data-face='droop'] .locator-eye { scale: 0.85; }
-.locator-dot[data-face='droop'] .locator-brow { opacity: 1; scale: 1; }
-.locator-dot[data-face='droop'] .locator-brow:nth-child(3) { rotate: -22deg; }
-.locator-dot[data-face='droop'] .locator-brow:nth-child(4) { rotate: 22deg; }
 
-/* Cross: eyes narrowed, brows down at the middle, and a shake. */
+/* Cross: scowling eyes, narrowed, and a shake. */
 .locator-dot[data-face='glare'] {
   animation: locator-shake 0.45s ease-in-out 2;
 }
 .locator-dot:is([data-face='glare'], [data-face='huff']) .locator-eyes { transform: translate(-4px, 0.5px); }
-.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-eye { scale: 1 0.55; }
-.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-brow { opacity: 1; scale: 1; }
-.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-brow:nth-child(3) { rotate: 24deg; }
-.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-brow:nth-child(4) { rotate: -24deg; }
+.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-eye { scale: 1 0.8; }
 
 /*
  * A tap on the LocatorButton (the owner's ask, 2026-10-01): glad, a boing —
  * squashed, up with smiling eyes, landing with a wobble — or, now and then,
- * cross, a huff — puffed up, brows down, shaking it off. Each plays once a
+ * cross, a huff — puffed up, scowling, shaking it off. Each plays once a
  * tap (the dot is drawn afresh: `beat`), then it breathes again.
  */
 .locator-dot[data-face='boing'] {
@@ -227,6 +232,5 @@
   .locator-eye,
   .locator-dot[data-face] .locator-eye:nth-child(n) { animation: none; }
   .locator-eyes,
-  .locator-eye,
-  .locator-brow { transition: none; }
+  .locator-eye { transition: none; }
 }

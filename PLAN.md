@@ -3743,8 +3743,10 @@ location first comes, or the camera arrives on the visitor; low when the
 fix is over 30 s old or rougher than 80 m; glad on the move from 1 m/s;
 else neutral. Neutral mostly glances about as before, now and then curious,
 winking or wide-eyed, and dozes after a minute standing still; glad smiles
-∩ ∩, hops, squeezes > < or winks, a new one every 2.5 s; low droops, brows
-up at the middle; cross narrows its eyes, brows down, and shakes. All CSS
+∩ ∩, hops, squeezes > < or winks, a new one every 2.5 s; low droops, its
+eyes sloping down to the outside; cross scowls, its eyes sloping down to
+the middle, and shakes (brows at first, taken off at the owner's ask the
+same day). All CSS
 on the dot (locator.css), morphing over a quarter second; held still for
 reduced motion. Every face whose eyes are open still looks about — right,
 left, up, down, a smaller round about the middle (the owner's ask the same
@@ -3753,7 +3755,7 @@ long), and zoomed out it is a fifth bigger, 0.54 at the least (the owner,
 the same day). Straight to main this once, at the owner's say.
 And a tap on the button gets a reaction, for 2.5 s (the owner's ask, the
 same day): glad, a boing — squashed, up with smiling eyes, landing with a
-wobble — or, one tap in four, cross, a huff — puffed up, brows down,
+wobble — or, one tap in four, cross, a huff — puffed up, scowling,
 shaking it off; never cross at the first tap. Each tap plays it afresh
 (`beat` redraws the dot); three quick taps still glare.
 Left to itself, its mood swings (the owner: "back and forth between

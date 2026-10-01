@@ -98,13 +98,10 @@ export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'ne
           }
         >
           <div className="relative size-6 overflow-clip rounded-full bg-brand-surface">
-            {/* Its wandering eyes (3878:6071, 3878:6072, 2026-10-01), and the
-                brows its sad and cross faces raise over them (locator.css). */}
+            {/* Its wandering eyes (3878:6071, 3878:6072, 2026-10-01): every face is theirs (locator.css). */}
             <div aria-hidden className="locator-eyes absolute inset-0">
               <span className="locator-eye absolute top-[6.33px] left-[10.48px] h-1.5 w-1 rounded-full bg-surface" />
               <span className="locator-eye absolute top-[6.33px] left-[17.43px] h-1.5 w-1 rounded-full bg-surface" />
-              <span className="locator-brow absolute top-[3.6px] left-[9.98px] h-[1.4px] w-[5px] rounded-full bg-surface" />
-              <span className="locator-brow absolute top-[3.6px] left-[16.93px] h-[1.4px] w-[5px] rounded-full bg-surface" />
             </div>
           </div>
         </Dot>
