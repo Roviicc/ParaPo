@@ -155,8 +155,11 @@ export function HintuanCard({
   }, [shownKey])
 
   // Figma's "2 routes passes here" (the owner's of 2026-10-01; "… through"
-  // before), its verb agreeing with the count.
-  const count = `${shown.length} ${shown.length === 1 ? 'route passes' : 'routes pass'} here`
+  // before), its verb agreeing with the count. It counts the head routes,
+  // a card each, not their tails (the owner, 2026-10-01: "we're counting the
+  // head route only not tails").
+  const heads = drawnDepartures(routes, back).length
+  const count = `${heads} ${heads === 1 ? 'route passes' : 'routes pass'} here`
 
   return (
     <BottomSheet

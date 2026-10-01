@@ -329,6 +329,10 @@ for (const [i, p] of snapshot.polys.entries()) {
     // The pesos left the cards with the owner's State set (2026-09-29): the
     // trip's Expected fare carries them.
     check(`  and no pesos on any card`, places.every((t) => !t.includes('₱')), places.join(' | '))
+    // The counter counts the head routes, a card each, not their tails (the
+    // owner, 2026-10-01: "we're counting the head route only not tails").
+    const counted = await page.locator('[data-testid="card"] [data-testid="card-count"]').innerText()
+    check(`  the counter counts the cards, not their rows`, Number(counted.match(/\d+/)?.[0]) === places.length, `${counted}; ${places.length} cards`)
     // ⇄ only where both ways pass: a box passed one way only has nothing to flip to.
     const flip = page.locator('[data-testid="card-flip"]')
     check(`  and ⇄ offers the way back, or the box is passed one way only`, (await flip.count()) <= 1)
