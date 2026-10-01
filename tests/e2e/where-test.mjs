@@ -157,7 +157,8 @@ check('  and the dot reacts to it: a boing, or a huff', ['boing', 'huff'].includ
 // Three taps in a run: cross, its brows down, for a few seconds; then over it.
 for (let i = 0; i < 3; i++) await button.click()
 check('three quick taps on the button: the dot is cross', (await until(async () => (await dotMood()) === 'angry', 1500)) , `mood ${await dotMood()}`)
-check('  and gets over it', await until(async () => (await dotMood()) !== 'angry', 6000), `mood ${await dotMood()}`)
+// Over it in 3 s; left to itself it may glare a moment longer, a 5 s turn of its mood swings.
+check('  and gets over it', await until(async () => (await dotMood()) !== 'angry', 9000), `mood ${await dotMood()}`)
 
 // The visitor drags the map: it lets go. A tap comes back.
 const box = await page.locator('canvas').first().boundingBox()

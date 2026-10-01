@@ -3756,4 +3756,9 @@ same day): glad, a boing — squashed, up with smiling eyes, landing with a
 wobble — or, one tap in four, cross, a huff — puffed up, brows down,
 shaking it off; never cross at the first tap. Each tap plays it afresh
 (`beat` redraws the dot); three quick taps still glare.
+Left to itself, its mood swings (the owner: "back and forth between
+neutral and happy ... then sometimes sad and angry"): a face every 5 s,
+about half neutral, two in five happy, one in twenty each low and cross —
+those for one turn only, where a stale fix or a run of taps hold them as
+long as they last. `data-mood` follows the face shown (`MOOD_OF`).
 `locator-mood-test` 8, `locator-test` 16, `where-test` 38 → 42.

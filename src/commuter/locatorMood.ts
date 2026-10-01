@@ -57,9 +57,38 @@ export const MOVING_FROM_MPS = 1
 /** Sleepy, a neutral face, after standing still this long. */
 export const SLEEPY_AFTER_MS = 60_000
 
-/** How long each neutral face is held before another may come; mostly the wandering glance. */
-const NEUTRAL_EVERY_MS = 7000
-const NEUTRAL: readonly Face[] = ['glance', 'glance', 'curious', 'glance', 'wink', 'glance', 'surprised']
+/**
+ * With nothing going on, the dot's mood swings (the owner's ask, 2026-10-01:
+ * "back and forth between neutral and happy ... then sometimes sad and
+ * angry"): a face every AMBIENT_EVERY_MS from this list, half of them
+ * neutral, two in five happy, one in twenty each sad and cross — those two
+ * for one turn only, where a stale fix or a run of taps hold them as long as
+ * they last, so the real ones still read as real.
+ */
+const AMBIENT_EVERY_MS = 5000
+const AMBIENT: readonly Face[] = [
+  ...(['glance', 'glance', 'glance', 'glance', 'glance', 'glance', 'curious', 'curious', 'wink', 'surprised'] as const),
+  ...(['smile', 'smile', 'hop', 'hop', 'squee', 'wink-smile', 'wink-smile', 'smile'] as const),
+  'droop',
+  'glare',
+]
+
+/** The mood each face wears: what `data-mood` says, for its breathing. */
+export const MOOD_OF: Record<Face, Mood> = {
+  glance: 'neutral',
+  curious: 'neutral',
+  wink: 'neutral',
+  surprised: 'neutral',
+  sleepy: 'neutral',
+  smile: 'happy',
+  hop: 'happy',
+  squee: 'happy',
+  'wink-smile': 'happy',
+  boing: 'happy',
+  droop: 'sad',
+  glare: 'angry',
+  huff: 'angry',
+}
 /** Happy changes face more often: it is short-lived, or the visitor is moving. */
 const HAPPY_EVERY_MS = 2500
 const HAPPY: readonly Face[] = ['smile', 'hop', 'squee', 'wink-smile']
@@ -110,8 +139,9 @@ function pick<T>(list: readonly T[], slot: number): T {
 }
 
 /**
- * The face for a mood at `now`; neutral turns sleepy after `stillFor` ms
- * standing still. `tapped`: the mood is a tap's reaction — a boing, or a huff.
+ * The face for a mood at `now`. Neutral is the dot left to itself: its mood
+ * swings (AMBIENT), and it dozes after `stillFor` ms standing still.
+ * `tapped`: the mood is a tap's reaction — a boing, or a huff.
  */
 export function faceFor(mood: Mood, now: number, stillFor: number, tapped = false): Face {
   if (tapped && mood === 'happy') return 'boing'
@@ -124,7 +154,7 @@ export function faceFor(mood: Mood, now: number, stillFor: number, tapped = fals
     case 'happy':
       return pick(HAPPY, Math.floor(now / HAPPY_EVERY_MS))
     case 'neutral':
-      return stillFor >= SLEEPY_AFTER_MS ? 'sleepy' : pick(NEUTRAL, Math.floor(now / NEUTRAL_EVERY_MS))
+      return stillFor >= SLEEPY_AFTER_MS ? 'sleepy' : pick(AMBIENT, Math.floor(now / AMBIENT_EVERY_MS))
   }
 }
 
@@ -176,11 +206,12 @@ export function useLocatorMood({ fix, camera, taps }: { fix: Fix | null; camera:
   }, [fix])
 
   const signals: Signals = { now, fix, arrivedAt: events.arrivedAt, taps: events.taps, reaction: events.reaction }
-  const mood = moodAt(signals)
   const tapped = reacting(signals) && !inATemper(signals)
+  const face = faceFor(moodAt(signals), now, events.stillSince === null ? 0 : now - events.stillSince, tapped)
   return {
-    mood,
-    face: faceFor(mood, now, events.stillSince === null ? 0 : now - events.stillSince, tapped),
+    // The mood the face shows: a neutral dot's swings included.
+    mood: MOOD_OF[face],
+    face,
     beat: events.reaction?.at ?? 0,
   }
 }

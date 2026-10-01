@@ -9,6 +9,7 @@ import assert from 'node:assert/strict'
 import {
   ANGRY_FOR_MS,
   ANGRY_ODDS,
+  MOOD_OF,
   REACT_FOR_MS,
   HAPPY_FOR_MS,
   POOR_OVER_M,
@@ -55,15 +56,19 @@ test('cross at three taps within two seconds, for three seconds, over everything
   assert.equal(at(T + 700, { taps: [T, T + 600] }), 'neutral')
 })
 
-test('the faces: cross glares, low droops, glad and neutral take turns, neutral dozes when long still', () => {
+test('the faces: cross glares, low droops, glad takes turns, left to itself its mood swings, and it dozes when long still', () => {
   assert.equal(faceFor('angry', T, 0), 'glare')
   assert.equal(faceFor('sad', T, 0), 'droop')
   const happy = new Set(Array.from({ length: 40 }, (_, i) => faceFor('happy', i * 2500, 0)))
   assert.ok(happy.size >= 3, `happy wears ${[...happy]}`)
   for (const f of happy) assert.ok(['smile', 'hop', 'squee', 'wink-smile'].includes(f), f)
-  const neutral = Array.from({ length: 60 }, (_, i) => faceFor('neutral', i * 7000, 0))
-  assert.ok(new Set(neutral).size >= 3, `neutral wears ${[...new Set(neutral)]}`)
-  assert.ok(neutral.filter((f) => f === 'glance').length > neutral.length / 3, 'mostly the wandering glance')
+  // Left to itself, its mood swings: about half neutral, two in five happy, now and then low or cross.
+  const swings = Array.from({ length: 2000 }, (_, i) => MOOD_OF[faceFor('neutral', i * 5000, 0)])
+  const share = (m) => swings.filter((x) => x === m).length / swings.length
+  assert.ok(share('neutral') > 0.4 && share('neutral') < 0.6, `neutral ${share('neutral')}`)
+  assert.ok(share('happy') > 0.3 && share('happy') < 0.5, `happy ${share('happy')}`)
+  for (const m of ['sad', 'angry']) assert.ok(share(m) > 0.02 && share(m) < 0.09, `${m} ${share(m)}`)
+  assert.ok(new Set(Array.from({ length: 200 }, (_, i) => faceFor('neutral', i * 5000, 0))).size >= 8, 'many faces')
   assert.equal(faceFor('neutral', T, SLEEPY_AFTER_MS), 'sleepy')
   // The same moment, the same face: no flicker between renders.
   assert.equal(faceFor('happy', T + 100, 0), faceFor('happy', T + 200, 0))
