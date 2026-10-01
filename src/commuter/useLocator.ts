@@ -75,12 +75,14 @@ export const COMPASS_PITCH = 45
  * How big the dot and its beam are drawn at `zoom`, as Google Maps' stays
  * small zoomed out (the owner's ask, 2026-10-01: "at zoomed out it's 10/10
  * so big"): Figma's full size from street level in, shrinking with each
- * zoom out to SMALLEST at city level, and no smaller, so it is still seen.
+ * zoom out to SMALLEST at city level, and no smaller, so it is still seen —
+ * a fifth bigger than at first (0.45), the owner's "make it like 12/10"
+ * the same day.
  */
 export function indicatorScale(zoom: number): number {
   const FULL_FROM = 16
   const SMALLEST_AT = 12
-  const SMALLEST = 0.45
+  const SMALLEST = 0.54
   const t = Math.min(1, Math.max(0, (zoom - SMALLEST_AT) / (FULL_FROM - SMALLEST_AT)))
   return SMALLEST + (1 - SMALLEST) * t
 }
@@ -236,6 +238,8 @@ export type Locator = {
   noFix: boolean
   /** The button: ask, or move the camera on round. */
   tap: () => void
+  /** How many times the button has been tapped: the dot's mood reads it (locatorMood). */
+  taps: number
 }
 
 type Options = {
@@ -386,5 +390,5 @@ export function useLocator(map: MapLibreMap | null, { offset, snap, compass }: O
     [],
   )
 
-  return { status, fix, heading, compass: read, camera, mode: modeFor(camera, status === 'on' && !!fix), noFix, tap }
+  return { status, fix, heading, compass: read, camera, mode: modeFor(camera, status === 'on' && !!fix), noFix, tap, taps }
 }
