@@ -3500,3 +3500,11 @@ uses, which name what an exported function takes or returns; and
 HotspotPanel's alias and note state with no setter, which keeps a box's Also
 called and Note while those are off the form. Nothing a visitor or the owner
 sees changes.
+
+**The trip card's spacing, 2026-10-01.** The owner's RouteTripDetail
+(3778:3183, its latest): the trip card sits 12 under the header on a phone
+too (right under it since 3817:6007, 2026-09-30), and the card has no
+padding of its own — the 16 above its first row and below its last are
+those rows' (`pt-4` on TimelineTop, `pb-4` on TimelineBottomEndRoute), so a
+Pressed row fills to the card's edge. At rest it reads the same; at Low the
+origin's line still fits.

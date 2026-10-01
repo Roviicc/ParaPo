@@ -117,8 +117,8 @@ export function RouteTripDetail({
         />
       }
     >
-      {/* On a phone the card sits right under the header (the owner's 3817:6007, 2026-09-30); floating, 12 below it. */}
-      <div className="w-full px-3 @float:pt-3">
+      {/* 12 under the header, on a phone too (the owner's RouteTripDetail, 3778:3183, 2026-10-01; right under it there since 3817:6007 until then). */}
+      <div className="w-full px-3 pt-3">
         <TripTimeline
           livery={livery}
           routeOrigin={routeOrigin}
