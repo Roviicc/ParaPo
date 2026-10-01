@@ -3511,3 +3511,13 @@ padding for later moves. A card above Middle is measured at Middle and stays
 where it is: the route is framed for when it comes down. Keyed on the route,
 so SWITCH leaves the view alone. The shared link's own fit went: the trip's
 does it now.
+
+**The card stays where it settles, 2026-10-01.** The owner's ask: "since
+the card can settle anywhere, don't move the bottomsheet to the middle
+whenever a hintuan is picked". It takes back the ask of 2026-09-30 that
+brought a card at Max down to Middle as the camera glided. A hintuan or an
+end picked on a trip, on the public map and in the studio, and another box
+picked on a HintuanCard, now leave the card at its height. `makeRoom` went
+for `clearOfSheet` (BottomSheet.tsx): the camera puts the point above the
+card, or beside it in the corner, and a card above Middle is measured at
+Middle, so the point is there to see when it comes down.
