@@ -167,7 +167,7 @@ check('  a new fix moves the overlay, not the camera', Math.abs(after.longitude 
 // fix's metres, so zoomed out it shrinks under the dot and is gone.
 await page.evaluate(() => window.__map.jumpTo({ zoom: 12 }))
 await page.waitForTimeout(300)
-check('  zoomed out till the dot covers its circle, the circle is gone', (await attr(page, 'data-halo-px')) === '0' && (await overlay(page).locator('.rounded-full').count()) === 2, `${await attr(page, 'data-halo-px')} px`)
+check('  zoomed out till the dot covers its circle, the circle is gone', (await attr(page, 'data-halo-px')) === '0' && (await overlay(page).locator('[data-part="circle"]').count()) === 0, `${await attr(page, 'data-halo-px')} px`)
 check('  and the dot and cone are drawn smaller, as Google Maps\' are', (await attr(page, 'data-scale')) === '0.45', `scale ${await attr(page, 'data-scale')}`)
 // A fix indoors, 1 km out: the circle claims 80 m at most (the owner's call, 2026-10-01).
 await page.evaluate(() => window.__map.jumpTo({ zoom: 16 }))

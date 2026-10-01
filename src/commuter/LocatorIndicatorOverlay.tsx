@@ -47,6 +47,7 @@ export function LocatorIndicatorOverlay({ haloPx, coneDeg, scale = 1 }: Props) {
     <div className="pointer-events-none relative size-0">
       {halo > 0 && (
         <div
+          data-part="circle"
           className="absolute top-1/2 left-1/2 -translate-1/2 rounded-full border-[0.6px] border-map-locator-indicator-overlay-border/75 bg-map-locator-indicator-overlay-surface/15"
           style={{ width: halo, height: halo }}
         />
