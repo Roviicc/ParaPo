@@ -175,10 +175,11 @@ export default function CommuterApp() {
           height={height}
           // "Other routes": that route's trip in this one's place, ‹ still to
           // what this one was picked from; the camera takes it in as it opens.
-          // From Max, the sheet comes down to Middle, so the map shows it
-          // (the owner, 2026-10-01); the hintuans stay open or folded.
+          // The sheet goes to Middle from wherever it is, so the map shows it
+          // (the owner, 2026-10-01: from Max at first, then "not only max");
+          // the hintuans stay open or folded.
           onOtherRoute={(v) => {
-            if (height.snap === 'max') height.onSnap('middle')
+            if (height.snap !== 'middle') height.onSnap('middle')
             saved.select(v.id, { keepList: true })
           }}
         />

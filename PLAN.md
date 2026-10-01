@@ -3738,4 +3738,6 @@ looks different; a change to the row is made once.
 **Other routes from Max, 2026-10-01.** The owner: at Max, a tap on one of
 "Other routes" brings the sheet down to Middle, so the map shows the route
 it takes in; the hintuans stay open or folded as they were. `phone-test`
-105 → 106.
+105 → 106. Then from any height, not only Max (the owner, the
+same day: "not only max"); at Low the rows are out of sight, so in practice
+it is Max and Middle.
