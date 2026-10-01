@@ -257,8 +257,8 @@ await page.waitForTimeout(1200)
 const kept = await camera(page)
 check('  and the next fix leaves the camera where the app put it', Math.abs(kept.latitude - moved.latitude) < 1e-7, `${((kept.latitude - moved.latitude) / M_LAT).toFixed(1)} m moved`)
 
-// A route tapped: the dot looks at it — its eyes turn the way to it for three
-// seconds, then wander again (dotLook.ts; the owner's ask, 2026-10-01).
+// A route tapped: the dot gazes at it — its eyes turn the way to it for three
+// seconds, then wander again (dotGaze.ts; the owner's ask, 2026-10-01).
 const onLine = await page.evaluate(async () => {
   const m = window.__map
   const data = await m.getSource('saved-routes')?.getData()
@@ -270,21 +270,24 @@ const onLine = await page.evaluate(async () => {
   return at
 })
 if (!onLine) {
-  check('a route tapped: the dot looks at it', false, 'no route line on the map')
+  check('a route tapped: the dot gazes at it', false, 'no route line on the map')
 } else {
   await page.waitForTimeout(600)
   const [tx, ty] = await page.evaluate((c) => Object.values(window.__map.project(c)), onLine)
   await page.mouse.click(tx, ty)
   const dot = overlay(page).locator('.locator-dot').first()
-  const looked = await until(async () => !!(await dot.getAttribute('data-look')), 3000)
-  const [lx, ly] = ((await dot.getAttribute('data-look')) ?? '').split(',').map(Number)
+  const gazed = await until(async () => (await dot.getAttribute('data-gaze')) !== null, 3000)
+  const deg = Number(await dot.getAttribute('data-gaze'))
   const eyes = await dot.locator('.locator-eyes').evaluate((e) => ({ animation: getComputedStyle(e).animationName, translate: getComputedStyle(e).translate }))
+  const [ex, ey] = eyes.translate.split(' ').map((v) => parseFloat(v))
+  // Its eyes the way it gazes, 3.5 px out, the dot lying north up: x east, y south.
+  const want = [3.5 * Math.sin((deg * Math.PI) / 180), -3.5 * Math.cos((deg * Math.PI) / 180)]
   check(
-    'a route tapped: the dot looks at it, its eyes still and turned the way to it',
-    looked && Math.abs(Math.hypot(lx, ly) - 3.5) < 0.2 && eyes.animation === 'none' && eyes.translate !== 'none',
-    `look ${lx},${ly}; eyes ${JSON.stringify(eyes)}`,
+    'a route tapped: the dot gazes at it, its eyes still and turned that way',
+    gazed && eyes.animation === 'none' && Math.hypot(ex - want[0], (ey || 0) - want[1]) < 0.2,
+    `gaze ${deg}°; eyes ${JSON.stringify(eyes)}`,
   )
-  check('  and after three seconds they wander again', await until(async () => !(await dot.getAttribute('data-look')), 4500), `${await dot.getAttribute('data-look')}`)
+  check('  and after three seconds they wander again', await until(async () => (await dot.getAttribute('data-gaze')) === null, 4500), `${await dot.getAttribute('data-gaze')}`)
 }
 check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
 await page.close()

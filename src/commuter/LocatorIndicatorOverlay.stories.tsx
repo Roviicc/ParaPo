@@ -98,50 +98,73 @@ export const AllFaces: Story = {
 }
 
 /*
- * Looking at what was just picked (dotLook.ts, the owner's ask of
+ * Its gaze at what was just picked (dotGaze.ts, the owner's ask of
  * 2026-10-01): for three seconds after a route or a hintuan is picked, the
- * eyes turn the way to it, on the screen or off it; the face stays.
+ * eyes turn the way to it, on the screen or off it; the face stays. A gaze is
+ * a heading, degrees clockwise from north, as the beam's is.
  */
-const looking = (x: number, y: number, mood: Mood = 'neutral', f: Face = 'glance'): Story => ({
-  args: { haloPx: 0, beamDeg: null, mood, face: f, look: { x, y } },
+const gazing = (gazeDeg: number, mood: Mood = 'neutral', f: Face = 'glance'): Story => ({
+  args: { haloPx: 0, beamDeg: null, mood, face: f, gazeDeg },
 })
 
 /** At a route to the east. */
-export const LooksRight = looking(3.5, 0)
+export const GazesEast = gazing(90)
 /** At a route to the west. */
-export const LooksLeft = looking(-3.5, 0)
+export const GazesWest = gazing(270)
 /** At a hintuan to the north. */
-export const LooksUp = looking(0, -3.5)
+export const GazesNorth = gazing(0)
 /** At a hintuan to the south-west. */
-export const LooksDownLeft = looking(-2.5, 2.5)
-/** Glad, and looking: smiling eyes, turned to the route. */
-export const LooksWhileHappy = looking(3.5, 0, 'happy', 'smile')
-/** Cross, and looking: scowling eyes, turned to the route. */
-export const LooksWhileCross = looking(-3.5, 0, 'angry', 'glare')
+export const GazesSouthWest = gazing(225)
+/** Glad, and gazing: smiling eyes, turned to the route. */
+export const GazesWhileHappy = gazing(90, 'happy', 'smile')
+/** Cross, and gazing: scowling eyes, turned to the route. */
+export const GazesWhileCross = gazing(270, 'angry', 'glare')
 
-const WAYS: [string, number, number][] = [
-  ['north-west', -2.5, -2.5],
-  ['north', 0, -3.5],
-  ['north-east', 2.5, -2.5],
-  ['west', -3.5, 0],
-  ['wandering', 0, 0],
-  ['east', 3.5, 0],
-  ['south-west', -2.5, 2.5],
-  ['south', 0, 3.5],
-  ['south-east', 2.5, 2.5],
+const WAYS: [string, number | null][] = [
+  ['north-west', 315],
+  ['north', 0],
+  ['north-east', 45],
+  ['west', 270],
+  ['wandering', null],
+  ['east', 90],
+  ['south-west', 225],
+  ['south', 180],
+  ['south-east', 135],
 ]
 
-/** Every way it looks, three times the size, around the wandering eyes it goes back to. */
-export const AllLooks: Story = {
+/** Every way it gazes, three times the size, around the wandering eyes it goes back to. */
+export const AllGazes: Story = {
   args: { haloPx: 0, beamDeg: null },
   render: () => (
     <div className="grid grid-cols-3 gap-x-10 gap-y-12 p-10">
-      {WAYS.map(([name, x, y]) => (
+      {WAYS.map(([name, deg]) => (
         <div key={name} className="flex flex-col items-center gap-8">
           <div className="grid size-24 place-items-center" style={{ scale: 3 }}>
-            <LocatorIndicatorOverlay haloPx={0} beamDeg={null} look={name === 'wandering' ? null : { x, y }} />
+            <LocatorIndicatorOverlay haloPx={0} beamDeg={null} gazeDeg={deg} />
           </div>
           <span className="text-xs text-content-tertiary">{name}</span>
+        </div>
+      ))}
+    </div>
+  ),
+}
+
+/**
+ * Every face, gazing east: a face changes every few seconds, so on a phone
+ * each of these is met during a gaze — for the owner to look over.
+ */
+export const AllFacesGazing: Story = {
+  args: { haloPx: 0, beamDeg: null },
+  render: () => (
+    <div className="grid grid-cols-4 gap-x-10 gap-y-12 p-10">
+      {ALL.map(([m, f]) => (
+        <div key={f} className="flex flex-col items-center gap-8">
+          <div className="grid size-24 place-items-center" style={{ scale: 3 }}>
+            <LocatorIndicatorOverlay haloPx={0} beamDeg={null} mood={m} face={f} gazeDeg={90} />
+          </div>
+          <span className="text-xs text-content-tertiary">
+            {m} · {f}
+          </span>
         </div>
       ))}
     </div>

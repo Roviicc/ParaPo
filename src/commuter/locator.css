@@ -156,19 +156,19 @@
 .locator-dot:is([data-face='glare'], [data-face='huff']) .locator-eye { scale: 1 0.8; }
 
 /*
- * Looking at what was just picked (dotLook.ts; the owner's ask, 2026-10-01:
+ * Its gaze at what was just picked (dotGaze.ts; the owner's ask, 2026-10-01:
  * "when I tap the route it should look the route for maybe 3 sec"): the
- * eyes stop wandering and turn the way to it, `--look-x` and `--look-y`
- * from the middle (a `translate`, adding to the face's own place), then
- * wander again. The face stays; a glance or a wink comes to the middle first.
+ * eyes stop wandering and turn the way to it, `--gaze-x` and `--gaze-y` from
+ * the middle (a `translate`, adding to the face's own place), then wander
+ * again. The face stays; a glance or a wink comes to the middle first. One
+ * selector is enough: it outranks every face's `.locator-eyes` rule above,
+ * as specific and later.
  */
-.locator-dot[data-look] .locator-eyes,
-.locator-dot[data-look]:not([data-face='glance'], [data-face='wink']) .locator-eyes,
-.locator-dot[data-look]:is([data-face='sleepy'], [data-face='squee'], [data-face='glare'], [data-face='huff']) .locator-eyes {
+.locator-dot[data-gaze] .locator-eyes {
   animation: none;
-  translate: var(--look-x) var(--look-y);
+  translate: var(--gaze-x) var(--gaze-y);
 }
-.locator-dot[data-look]:is([data-face='glance'], [data-face='wink']) .locator-eyes {
+.locator-dot[data-gaze]:is([data-face='glance'], [data-face='wink']) .locator-eyes {
   transform: translate(-4px, 0);
 }
 
