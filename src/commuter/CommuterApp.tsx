@@ -19,7 +19,7 @@ import { Notices } from './Notices'
 import { TripCard } from '../shared/cards/TripCard'
 import { useMapAge, useOffline } from './status'
 import { useShareLink } from './useShareLink'
-import { useCardOverview, useHeightOverview, useSwitchOverview, useTripOverview, type Framed } from './useOverviews'
+import { useCameraBefore, useCardOverview, useHeightOverview, useSwitchOverview, useTripOverview, type Framed } from './useOverviews'
 import { Locator } from './Locator'
 import { LocatorOnMap } from './LocatorIndicatorOverlay'
 import { useLocator } from './useLocator'
@@ -65,6 +65,8 @@ export default function CommuterApp() {
   const openSheet = () => root.current?.querySelector<HTMLElement>('[data-floats]:not([hidden])') ?? null
   // A RouteCard picked, in the list or a hotspot's card: its routes whole.
   useCardOverview(map, saved.highlight, saved.variants, openSheet, cards.snap)
+  // …and on a hotspot's card, let go, the camera the visitor had before it.
+  const before = useCameraBefore(map)
   // SWITCH, on any card: the routes the other way round, whole.
   const [switches, setSwitches] = useState(0)
   const switched = () => setSwitches((n) => n + 1)
@@ -218,7 +220,12 @@ export default function CommuterApp() {
           key={placeKey(stops.selected)}
           routeCards={{
             selected: saved.highlight?.where === 'hotspot' ? saved.highlight.from : null,
-            onSelect: (p) => saved.highlightCard(p && { where: 'hotspot', ...p }),
+            onSelect: (p) => {
+              const pickedHere = saved.highlight?.where === 'hotspot'
+              if (!p && pickedHere) before.back()
+              else if (p && !pickedHere) before.keep()
+              saved.highlightCard(p && { where: 'hotspot', ...p })
+            },
             onShown: saved.showCard,
             // The other way round, the camera kept where it is (HintuanCard's onSwitch).
             onSwitch: (box) => box && stops.select(box),
