@@ -3501,6 +3501,65 @@ HotspotPanel's alias and note state with no setter, which keeps a box's Also
 called and Note while those are off the form. Nothing a visitor or the owner
 sees changes.
 
+**A trip opens on its whole route, 2026-10-01.** The owner's ask: a trip
+picked from a RouteCard zooms in or out to show the route's overview. Any
+trip opening now does it — from the route list, a hotspot's card, a tap on
+its line or a shared link — fitting the direction's line in the room the
+card leaves (`roomBeside` in BottomSheet.tsx: above it docked, beside it in
+the corner, 48 px from every edge), with `fitBounds`, which keeps no
+padding for later moves. A card above Middle is measured at Middle and stays
+where it is: the route is framed for when it comes down. Keyed on the route,
+so SWITCH leaves the view alone. The shared link's own fit went: the trip's
+does it now.
+
+**The card stays where it settles, 2026-10-01.** The owner's ask: "since
+the card can settle anywhere, don't move the bottomsheet to the middle
+whenever a hintuan is picked". It takes back the ask of 2026-09-30 that
+brought a card at Max down to Middle as the camera glided. A hintuan or an
+end picked on a trip, on the public map and in the studio, and another box
+picked on a HintuanCard, now leave the card at its height. `makeRoom` went
+for `clearOfSheet` (BottomSheet.tsx): the camera puts the point above the
+card, or beside it in the corner, and a card above Middle is measured at
+Middle, so the point is there to see when it comes down.
+
+**A place's name on the map opens it, 2026-10-01.** The owner's ask: the
+names beside the circles — a lit ride's Head and Tail (EndTitles), the
+picked hintuan's (HintuanPin) — are clickable, zooming in to the place and
+showing the routes connected to it. A tap opens the place's HintuanCard, the
+map flying in to it (zoom 16 at least) and lighting its routes, as a tap on
+its box does. An open trip steps behind it with whatever stood behind the
+trip, and the card's new ‹ brings it back as it was; a route picked on the
+card, or ✕, lets the trip go. The names are buttons only where the ride
+says which hotspot it ends at (`directionEndStops`), and a tap on one never
+reaches the map beneath: MapLibre hears its container before React hears
+the page, so `markerTap.ts` stops it on the marker itself. The circles still
+take no taps.
+
+**A HintuanCard row lets go, 2026-10-01.** The owner's ask: the Selected
+row of a HintuanCard can be deselected, and selected back. A tap on it lets
+it go: no row is Selected, the card stays open, and the routes under the
+rows are those through every box of the place (the owner's choice), lit on
+the map, SWITCH turning them round where they run both ways. On the map the
+box is drawn as one of its place's like the others (`boxMarks`' `letGo`).
+A tap on any row, the same one included, picks it again and goes there.
+
+**A RouteCard's row has a Pressed state, 2026-10-01.** The owner's
+RouteEndPointBar (3848:11928) gained State=Pressed: the row in
+Card/<livery>/Timeline/surface. Shown while the finger or the mouse is down
+on it (`:active`), the trip opening as it lets go — the owner's pick, a
+tap's feedback rather than a state kept while the trip is open. The phone's
+own tap highlight is off on the row, so the colour under the finger is the
+token's. Story: RowPressed, every livery, press and hold.
+
+**The trip's timeline rows have a Pressed state, 2026-10-01.** The owner's
+Timeline (3716:1894) gained State=Pressed on all four rows — where the trip
+leaves from, a hintuan, the fold, where it goes: the whole row in
+Card/<livery>/Timeline/surface, so the rail runs into it and only the dot's
+white shows. Shown while the finger or the mouse is down (`:active`), as the
+RouteCard's rows are; the phone's own tap highlight is off on them.
+`ROW_PRESSED` in liveryCard.ts, the RouteCard's rows' too. Story: RowPressed, every livery opened,
+a hintuan picked, press and hold.
+
 **The trip card's spacing, 2026-10-01.** The owner's RouteTripDetail
 (3778:3183, its latest): the trip card sits 12 under the header on a phone
 too (right under it since 3817:6007, 2026-09-30), and the card has no

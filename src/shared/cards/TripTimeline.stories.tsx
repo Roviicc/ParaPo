@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { fn, userEvent, within } from 'storybook/test'
 import { TripTimeline } from './TripTimeline'
+import { LIVERIES } from '../model/liveries'
 
 /**
  * A trip's card on its own, as RouteTripDetail insets it: one story a state,
@@ -101,3 +102,28 @@ export const OriginPicked: Story = { args: { endPicked: 'from' } }
 
 /** The destination picked from its row: its dot the Selected one. */
 export const DestinationPicked: Story = { args: { endPicked: 'to' } }
+
+/**
+ * Every row's State=Pressed (Timeline, 3716:1894): press and hold a row —
+ * where it leaves from, a hintuan (Pangarap is picked, so a Selected one
+ * too), the fold, where it goes — and it wears the rail's colour while the
+ * finger or the mouse is down. A browser state, `:active`, so there is
+ * nothing to set: hold it to see it, in each livery. Opened, so every row
+ * is there to hold.
+ */
+export const RowPressed: Story = {
+  args: { picked: 'h2', pickedPesos: '₱14' },
+  play: async ({ canvasElement }) => {
+    for (const fold of within(canvasElement).getAllByRole('button', { name: /more hintuans/ })) {
+      await userEvent.click(fold)
+      fold.blur()
+    }
+  },
+  render: (args) => (
+    <div className="flex flex-col gap-4">
+      {LIVERIES.map((livery) => (
+        <TripTimeline key={livery} {...args} livery={livery} />
+      ))}
+    </div>
+  ),
+}

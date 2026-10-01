@@ -24,8 +24,7 @@ export function useRideTo(
   opts: {
     /**
      * As a glide starts: where it puts the hintuan, or the end, from the
-     * map's centre, in pixels — clear of a card over the map, which may move
-     * out of the way as the camera does (makeRoom).
+     * map's centre, in pixels — clear of a card over the map (clearOfSheet).
      */
     onGlide?: () => [number, number]
   } = {},

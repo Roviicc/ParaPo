@@ -3,12 +3,17 @@
  * sheet). The marker's own element is MapLibre's to move, so the pop is on
  * the pill inside: up from its pointer, over the base duration with the
  * arriving ease (tokens.css, Motion). `prefers-reduced-motion` has it
- * simply there.
+ * simply there. A pill that opens its place takes taps; the rest of the
+ * marker never does.
  */
 .end-title {
   pointer-events: none;
 }
-.end-title > div {
+.end-title > button {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.end-title > * {
   transform-origin: center calc(100% + 11.5px);
   animation: end-title-pop var(--transition-duration-base) var(--ease-enter) both;
 }
@@ -17,5 +22,5 @@
   to { transform: scale(1); opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .end-title > div { animation: none; }
+  .end-title > * { animation: none; }
 }

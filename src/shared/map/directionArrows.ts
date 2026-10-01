@@ -52,10 +52,13 @@ const ENDS = LAYERS.endCircles
 const SAME_END_M = 150
 
 /** One lit ride: its line in travel order, and the places it runs from and to. */
-export type Ride = { line: LngLat[]; from: string; to: string }
+export type Ride = { line: LngLat[]; from: string; to: string; fromStop?: string | null; toStop?: string | null }
 
-/** An end of a lit ride: where it is, its place, and whether it is the one of its place that carries the name. */
-export type RideEnd = { end: 'from' | 'to'; name: string; named: boolean; at: LngLat }
+/**
+ * An end of a lit ride: where it is, its place, whether it is the one of its
+ * place that carries the name, and its hotspot, when the ride says which.
+ */
+export type RideEnd = { end: 'from' | 'to'; name: string; named: boolean; at: LngLat; stopId: string | null }
 
 /**
  * Where each lit ride starts and finishes, each place named once: two ends
@@ -70,13 +73,13 @@ export function rideEnds(rides: readonly Ride[]): RideEnd[] {
     .flatMap((r) =>
       (
         [
-          ['from', r.from, r.line[0]],
-          ['to', r.to, r.line[r.line.length - 1]],
+          ['from', r.from, r.line[0], r.fromStop ?? null],
+          ['to', r.to, r.line[r.line.length - 1], r.toStop ?? null],
         ] as const
-      ).map(([end, name, at]) => {
+      ).map(([end, name, at, stopId]) => {
         const first = !!name && !named.some((n) => n.name === name && haversine(n.at, at) < SAME_END_M)
         if (first) named.push({ name, at })
-        return { end, name, named: first, at }
+        return { end, name, named: first, at, stopId }
       }),
     )
 }
