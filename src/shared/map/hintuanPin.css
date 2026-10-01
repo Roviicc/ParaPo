@@ -10,6 +10,11 @@
 .hintuan-pin {
   pointer-events: none;
 }
+/* A name that opens its place takes taps; the circle never does. */
+button.hintuan-pin-title {
+  pointer-events: auto;
+  cursor: pointer;
+}
 /* The name beside it pops from its left edge, a beat after the circle. */
 .hintuan-pin-title {
   white-space: nowrap;

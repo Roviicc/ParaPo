@@ -10,7 +10,7 @@ import { RouteCardList } from '../shared/cards/RouteCardList'
 import { clearOfSheet, roomBeside } from '../shared/cards/BottomSheet'
 import type { Snap } from '../shared/cards/sheetGesture'
 import { useRideTo } from '../shared/map/rideTo'
-import { directionEnds, isDrawn, variantLine } from '../shared/model/routes'
+import { directionEndStops, directionEnds, isDrawn, variantLine } from '../shared/model/routes'
 import { routeTimeline, travelLine } from '../shared/model/ride'
 import { bboxOf } from '../shared/geo/geo'
 import { sharingAnEnd } from '../shared/model/departures'
@@ -61,7 +61,7 @@ export default function CommuterApp() {
   // flowing inside each line from where the ride starts, and each end a
   // circle with its place's name.
   const rides = useMemo(
-    () => saved.litVariants.map((v) => ({ line: travelLine(v, stops.stops), ...directionEnds(v) })),
+    () => saved.litVariants.map((v) => ({ line: travelLine(v, stops.stops), ...directionEnds(v), ...directionEndStops(v) })),
     [saved.litVariants, stops.stops],
   )
   useDirectionArrows(map, rides)
@@ -161,6 +161,35 @@ export default function CommuterApp() {
   const anyOpen = !!saved.selected || !!stops.selected || choosing
   if (!anyOpen && snap !== 'middle') setSnap('middle')
   const height = { snap, onSnap: setSnap }
+  // A place's name on the map tapped — an end of what is lit, or the picked
+  // hintuan's — opens its card, the map flying in to it and lighting the
+  // routes through it (the owner's ask, 2026-10-01). An open trip steps
+  // behind it, with whatever stood behind the trip, and the card's ‹ brings
+  // it back as it was; anything else that opens or closes lets that go.
+  const [tripBehind, setTripBehind] = useState<{ id: string; stopId: string | null } | null>(null)
+  if (tripBehind && (saved.selected || !stops.selected)) setTripBehind(null)
+  const openPlace = (stopId: string) => {
+    const t = saved.selected
+    // The card opens at the height the trip's is at, or a hotspot card's.
+    const dock = tripDock.current ?? hotspotDock.current
+    const offset = () => (map ? clearOfSheet(map.getContainer(), dock, snap) : ([0, 0] as [number, number]))
+    saved.highlightCard(null)
+    if (t) {
+      setTripBehind({ id: t.id, stopId: stops.selected?.id ?? null })
+      saved.select(null, { keepList: true })
+      stops.show(stopId, offset, { keepList: true })
+    } else {
+      saved.select(null)
+      stops.show(stopId, offset)
+    }
+  }
+  const backToTrip = tripBehind
+    ? () => {
+        stops.select(tripBehind.stopId, { keepList: true })
+        saved.select(tripBehind.id, { keepList: true })
+      }
+    : null
+
   const backToList = stops.selected
     ? () => saved.select(null, { keepList: true })
     : choosing
@@ -186,10 +215,17 @@ export default function CommuterApp() {
       {map && <WhereAmIButton where={where} coarse={coarse} />}
       {map && where.fix && <Walker map={map} fix={where.fix} pose={where.pose} facing={where.facing} />}
       {/* Each lit ride's ends, named over their circles. */}
-      {map && <EndTitles map={map} rides={rides} look={look} />}
+      {map && <EndTitles map={map} rides={rides} look={look} onPick={openPlace} />}
       {/* Keyed on the pick: another hintuan pops a fresh circle. */}
       {map && ride.pinAt && tripLivery && (
-        <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} label={ride.pickedLabel} livery={tripLivery} />
+        <HintuanPin
+          key={ride.pickedId}
+          map={map}
+          at={ride.pinAt}
+          label={ride.pickedLabel}
+          livery={tripLivery}
+          onPick={() => ride.pickedId && openPlace(ride.pickedId)}
+        />
       )}
 
       {/*
@@ -264,7 +300,10 @@ export default function CommuterApp() {
           variants={saved.variants}
           onSelectVariant={(v, livery) => {
             setWorn(livery ? { id: v.id, livery } : null)
-            saved.select(v.id, { keepList: true })
+            // Over a trip, another one lets that trip and what stood behind
+            // it go: this card is what its ‹ comes back to.
+            if (tripBehind) stops.select(stops.selected!.id)
+            saved.select(v.id, { keepList: !tripBehind })
           }}
           // Another box: the map goes there, the box clear of the card,
           // which stays at its height (the owner, 2026-10-01).
@@ -272,9 +311,11 @@ export default function CommuterApp() {
             saved.highlightCard(null)
             stops.show(id, () => (map ? clearOfSheet(map.getContainer(), hotspotDock.current, snap) : [0, 0]))
           }}
+          onBack={backToTrip}
           onClose={() => {
             saved.highlightCard(null)
-            stops.select(null)
+            if (tripBehind) closeAll()
+            else stops.select(null)
           }}
         />
       )}
@@ -288,7 +329,7 @@ export default function CommuterApp() {
       {choosing && (
         <RouteCardList
           key={choice.map((c) => c.id).join()}
-          hidden={!!saved.selected}
+          hidden={!!saved.selected || !!tripBehind}
           height={height}
           routes={saved.candidates}
           stops={stops.candidates}

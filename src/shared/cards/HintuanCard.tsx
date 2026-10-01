@@ -8,7 +8,7 @@ import { placeBoxes } from '../model/places'
 import type { VariantSummary } from '../model/routes'
 import { stopLabel, type StopKind, type StopSummary } from '../model/stops'
 import { BottomSheet, type SheetHeight } from './BottomSheet'
-import { CloseIcon, HintuanIcon, InformationIcon, JeepIcon, TerminalIcon } from './RouteIcons'
+import { ChevronLeftIcon, CloseIcon, HintuanIcon, InformationIcon, JeepIcon, TerminalIcon } from './RouteIcons'
 import { RouteCardStack, type PickedPlace } from './RouteCardStack'
 
 type Props = {
@@ -34,6 +34,8 @@ type Props = {
   /** Another box of the place picked — its row, or SWITCH moving to it: select it and go there. */
   onPickBox: (id: string) => void
   onClose: () => void
+  /** ‹, back to the trip whose name on the map opened the card; none, and no ‹. */
+  onBack?: (() => void) | null
   /** Kept but not shown, while a trip picked from it is on top: ‹ comes back to it as it was left. */
   hidden?: boolean
   /** Its height, shared with the trip opened from it (BottomSheet). */
@@ -83,6 +85,7 @@ export function HintuanCard({
   routeCards,
   onPickBox,
   onClose,
+  onBack,
   hidden,
   height,
   dockRef,
@@ -141,8 +144,10 @@ export function HintuanCard({
       hidden={hidden}
       height={height}
       header={
-        // RouteCardHeader/Variant3: the place's name, ⓘ and ✕.
+        // RouteCardHeader/Variant3: the place's name, ⓘ and ✕; ‹ before
+        // the name when a trip's name on the map opened it, as a trip has.
         <div data-testid="card-place" className="flex w-full items-center gap-2 bg-surface px-3 pb-4 pt-0 @float:pt-3">
+          {onBack && <IconButton variant="special" icon={<ChevronLeftIcon />} label="Back" tooltip="top" onClick={onBack} />}
           <p className="min-w-0 flex-1 truncate font-sn-pro text-2xl/8 font-black text-content-primary">{label}</p>
           <div className="flex shrink-0 items-center gap-2">
             <IconButton variant="special" icon={<InformationIcon />} label="About this place" tooltip="top" disabled />
