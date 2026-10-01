@@ -175,13 +175,15 @@ check(
 )
 
 // The visitor drags the map: it lets go. A tap comes back.
-const box = await page.locator('canvas').first().boundingBox()
-await page.mouse.move(box.x + 195, box.y + 400)
+const dotBox = await overlay(page).locator('button.locator-dot').boundingBox()
+const from = { x: dotBox.x + dotBox.width / 2, y: dotBox.y + dotBox.height / 2 }
+await page.mouse.move(from.x, from.y)
 await page.mouse.down()
-await page.mouse.move(box.x + 120, box.y + 300, { steps: 8 })
+await page.mouse.move(from.x - 75, from.y - 100, { steps: 8 })
 await page.mouse.up()
 await page.waitForTimeout(400)
-check('dragging the map lets go: TrackOwnLocation', (await mode()) === 'TrackOwnLocation', `${await mode()}`)
+// The drag starts on the visitor's dot, mid-screen: it pans all the same.
+check('dragging the map, from the dot itself, lets go: TrackOwnLocation', (await mode()) === 'TrackOwnLocation', `${await mode()}`)
 const dragged = await camera(page)
 p = north(p, 20)
 await ctx.setGeolocation({ ...p, accuracy: 10 })

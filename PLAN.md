@@ -3770,6 +3770,8 @@ long as they last; each tap rolls the swings afresh, so after its
 reaction the dot comes back in another mood (the owner: "tapping may change
 the mood"). `data-mood` follows the face shown (`MOOD_OF`). And the
 dot itself takes a tap, the same reaction as the button's and counted with
-its taps; the map beneath never hears it (markerTap.ts), and the camera
-stays (the owner: "tapping this blue, could trigger that too").
+its taps; the map beneath never hears the tap (markerTap.ts), and the camera
+stays — but a drag that starts on it still pans the map (`dragsPass`): it
+sits mid-screen, where a finger lands to pan (where-test caught the pan
+stopped dead) (the owner: "tapping this blue, could trigger that too").
 `locator-mood-test` 9, `locator-test` 16, `where-test` 38 → 43.

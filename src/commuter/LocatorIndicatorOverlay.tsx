@@ -159,11 +159,12 @@ export function LocatorOnMap({
     marker.setLngLat(fix.at)
   }, [marker, fix.at])
 
-  // The dot answers a tap itself, and the map beneath never hears it
-  // (markerTap.ts): no line opens, no pan starts, the camera stays.
+  // The dot answers a tap itself, and the map beneath never hears the tap
+  // (markerTap.ts): no line opens, the camera stays. A drag that starts on
+  // it still pans the map: it sits mid-screen, where a finger lands to pan.
   const poke = useRef(onPoke)
   poke.current = onPoke
-  useEffect(() => tapsOnItsButton(el, () => poke.current()), [el])
+  useEffect(() => tapsOnItsButton(el, () => poke.current(), { dragsPass: true }), [el])
 
   const haloPx = (2 * circleRadius(fix.accuracy)) / metresPerPixel(fix.at[1], zoom)
   const scale = indicatorScale(zoom)
