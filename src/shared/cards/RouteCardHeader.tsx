@@ -2,14 +2,22 @@ import { Button } from '../../design-system/primitives/Button'
 import { IconButton } from '../../design-system/primitives/IconButton'
 import { ChevronLeftIcon, CloseIcon, JeepIcon } from './RouteIcons'
 
+/**
+ * The word on SWITCH: the way that is showing — Papunta, there; Pabalik, the
+ * way back (the owner's ask, 2026-10-01: "instead of switch on the word").
+ * A tap turns it round, and the word with it.
+ */
+export const wayWord = (back: boolean) => (back ? 'Pabalik' : 'Papunta')
+
 type Props = {
   /** SWITCH: the other way round — every route in the list, or the trip's own. */
   onSwitch: () => void
   /** False when the other way round has nothing drawn to show; SWITCH then rests disabled. */
   switchable: boolean
   /**
-   * Whether the way back is what is showing: SWITCH is pressed then. Its
-   * name stays the word on it, so "tap SWITCH" finds it by voice too.
+   * Whether the way back is what is showing: SWITCH reads Pabalik and is
+   * pressed then (wayWord). Its name is the word on it, so "tap Papunta"
+   * finds it by voice too.
    */
   back: boolean
   onClose: () => void
@@ -72,7 +80,7 @@ export function RouteCardHeader({ routeCount, onBackToList, onSwitch, switchable
       <div className="flex shrink-0 items-center gap-3">
         <Button
           variant="special"
-          label="SWITCH"
+          label={wayWord(back)}
           data-testid={routeCount !== undefined ? 'chooser-flip' : 'card-switch'}
           aria-pressed={back}
           disabled={!switchable}

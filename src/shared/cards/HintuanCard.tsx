@@ -8,6 +8,7 @@ import { placeBoxes } from '../model/places'
 import type { VariantSummary } from '../model/routes'
 import { stopLabel, type StopKind, type StopSummary } from '../model/stops'
 import { BottomSheet, type SheetHeight } from './BottomSheet'
+import { wayWord } from './RouteCardHeader'
 import { ChevronLeftIcon, CloseIcon, HintuanIcon, InformationIcon, JeepIcon, TerminalIcon } from './RouteIcons'
 import { RouteCardStack, type PickedPlace } from './RouteCardStack'
 
@@ -248,7 +249,7 @@ export function HintuanCard({
               <Button
                 variant="special"
                 size="small"
-                label="SWITCH"
+                label={wayWord(back)}
                 data-testid="card-flip"
                 aria-pressed={back}
                 disabled={!switchTo}
