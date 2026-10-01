@@ -24,12 +24,28 @@ export type Face =
   | 'wink-smile'
   | 'droop'
   | 'glare'
+  | 'boing'
+  | 'huff'
 
 /** Taps on the LocatorButton this close together, three of them, make it cross. */
 export const ANGRY_TAPS = 3
 export const ANGRY_WITHIN_MS = 2000
 /** …and it stays cross this long after the third. */
 export const ANGRY_FOR_MS = 3000
+/**
+ * A tap on the LocatorButton gets a reaction, this long (the owner's ask,
+ * 2026-10-01: "if the user tapped the locator it should be happy then
+ * sometimes angry, make an animation for it"): glad, a boing; now and then,
+ * one tap in ANGRY_ODDS, cross, a huff. Never cross at the first tap.
+ */
+export const REACT_FOR_MS = 2500
+export const ANGRY_ODDS = 4
+
+/** How the dot takes a tap: the `count`th (from 1), with `roll` a random number in [0, 1). */
+export function reactionTo(count: number, roll: number): 'happy' | 'angry' {
+  return count > 1 && roll < 1 / ANGRY_ODDS ? 'angry' : 'happy'
+}
+
 /** Happy this long when the location first comes, or the camera arrives on the visitor. */
 export const HAPPY_FOR_MS = 3000
 /** Sad when the fix is this old… */
@@ -55,14 +71,32 @@ export type Signals = {
   arrivedAt: number | null
   /** When the LocatorButton was tapped, oldest first. */
   taps: readonly number[]
+  /** The last tap's reaction, and when (reactionTo). */
+  reaction?: { at: number; mood: 'happy' | 'angry' } | null
 }
 
-/** The mood for these signals, the strongest first: cross, then glad, then low, then glad on the move. */
-export function moodAt({ now, fix, arrivedAt, taps }: Signals): Mood {
+/** Whether a tap's reaction is showing at `now`. */
+export const reacting = ({ now, reaction }: Pick<Signals, 'now' | 'reaction'>): boolean =>
+  !!reaction && now >= reaction.at && now - reaction.at < REACT_FOR_MS
+
+/** Whether a run of ANGRY_TAPS quick taps has the dot cross at `now`. */
+export function inATemper({ now, taps }: Pick<Signals, 'now' | 'taps'>): boolean {
   for (let i = ANGRY_TAPS - 1; i < taps.length; i++) {
     const third = taps[i]
-    if (third - taps[i - ANGRY_TAPS + 1] <= ANGRY_WITHIN_MS && now - third < ANGRY_FOR_MS && now >= third) return 'angry'
+    if (third - taps[i - ANGRY_TAPS + 1] <= ANGRY_WITHIN_MS && now - third < ANGRY_FOR_MS && now >= third) return true
   }
+  return false
+}
+
+/**
+ * The mood for these signals, the strongest first: cross at a run of taps,
+ * then a tap's own reaction, then glad as the visitor arrives, then low,
+ * then glad on the move.
+ */
+export function moodAt(s: Signals): Mood {
+  const { now, fix, arrivedAt } = s
+  if (inATemper(s)) return 'angry'
+  if (reacting(s)) return s.reaction!.mood
   if (arrivedAt !== null && now >= arrivedAt && now - arrivedAt < HAPPY_FOR_MS) return 'happy'
   if (fix && (now - fix.time > STALE_AFTER_MS || fix.accuracy > POOR_OVER_M)) return 'sad'
   if (fix && fix.speed >= MOVING_FROM_MPS) return 'happy'
@@ -75,8 +109,13 @@ function pick<T>(list: readonly T[], slot: number): T {
   return list[((h ^ (h >>> 13)) >>> 0) % list.length]
 }
 
-/** The face for a mood at `now`; neutral turns sleepy after `stillFor` ms standing still. */
-export function faceFor(mood: Mood, now: number, stillFor: number): Face {
+/**
+ * The face for a mood at `now`; neutral turns sleepy after `stillFor` ms
+ * standing still. `tapped`: the mood is a tap's reaction — a boing, or a huff.
+ */
+export function faceFor(mood: Mood, now: number, stillFor: number, tapped = false): Face {
+  if (tapped && mood === 'happy') return 'boing'
+  if (tapped && mood === 'angry') return 'huff'
   switch (mood) {
     case 'angry':
       return 'glare'
@@ -95,14 +134,21 @@ export function faceFor(mood: Mood, now: number, stillFor: number): Face {
  * while there is a fix to wear a face, for a fix going stale and the faces
  * taking turns.
  */
-export function useLocatorMood({ fix, camera, taps }: { fix: Fix | null; camera: Camera; taps: number }): { mood: Mood; face: Face } {
+export function useLocatorMood({ fix, camera, taps }: { fix: Fix | null; camera: Camera; taps: number }): {
+  mood: Mood
+  face: Face
+  /** The last tap's time: a new one plays the reaction again, even with the face unchanged. */
+  beat: number
+} {
   const [now, setNow] = useState(() => Date.now())
   // What happened, and when: taps on the button, the visitor arriving, standing still since.
-  const [events, setEvents] = useState<{ taps: number[]; arrivedAt: number | null; stillSince: number | null }>({
-    taps: [],
-    arrivedAt: null,
-    stillSince: null,
-  })
+  const [events, setEvents] = useState<{
+    taps: number[]
+    count: number
+    reaction: Signals['reaction']
+    arrivedAt: number | null
+    stillSince: number | null
+  }>({ taps: [], count: 0, reaction: null, arrivedAt: null, stillSince: null })
   const seen = useRef({ taps, hadFix: !!fix, camera })
 
   // Read as they change, not on the tick: each is an event with a time.
@@ -110,8 +156,13 @@ export function useLocatorMood({ fix, camera, taps }: { fix: Fix | null; camera:
     const t = Date.now()
     const was = seen.current
     seen.current = { taps, hadFix: !!fix, camera }
+    const tapped = taps > was.taps
+    // Rolled here, with the tap, not while rendering: the reaction is the tap's.
+    const roll = Math.random()
     setEvents((e) => ({
-      taps: taps > was.taps ? [...e.taps.filter((x) => t - x < ANGRY_WITHIN_MS + ANGRY_FOR_MS), t] : e.taps,
+      taps: tapped ? [...e.taps.filter((x) => t - x < ANGRY_WITHIN_MS + ANGRY_FOR_MS), t] : e.taps,
+      count: tapped ? e.count + 1 : e.count,
+      reaction: tapped ? { at: t, mood: reactionTo(e.count + 1, roll) } : e.reaction,
       arrivedAt: (fix && !was.hadFix) || (fix && camera !== 'free' && was.camera === 'free') ? t : e.arrivedAt,
       stillSince: !fix || fix.speed >= STILL_BELOW_MPS ? null : (e.stillSince ?? t),
     }))
@@ -124,6 +175,12 @@ export function useLocatorMood({ fix, camera, taps }: { fix: Fix | null; camera:
     return () => window.clearInterval(id)
   }, [fix])
 
-  const mood = moodAt({ now, fix, arrivedAt: events.arrivedAt, taps: events.taps })
-  return { mood, face: faceFor(mood, now, events.stillSince === null ? 0 : now - events.stillSince) }
+  const signals: Signals = { now, fix, arrivedAt: events.arrivedAt, taps: events.taps, reaction: events.reaction }
+  const mood = moodAt(signals)
+  const tapped = reacting(signals) && !inATemper(signals)
+  return {
+    mood,
+    face: faceFor(mood, now, events.stillSince === null ? 0 : now - events.stillSince, tapped),
+    beat: events.reaction?.at ?? 0,
+  }
 }

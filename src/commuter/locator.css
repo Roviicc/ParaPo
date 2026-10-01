@@ -78,7 +78,8 @@
 }
 .locator-dot[data-face='sleepy'] .locator-eyes,
 .locator-dot[data-face='squee'] .locator-eyes,
-.locator-dot[data-face='glare'] .locator-eyes {
+.locator-dot[data-face='glare'] .locator-eyes,
+.locator-dot[data-face='huff'] .locator-eyes {
   animation: none;
 }
 .locator-dot:not([data-face='glance']) .locator-eye {
@@ -109,6 +110,7 @@
 .locator-dot[data-mood='happy'] .locator-eyes { transform: translate(-4px, 1px); }
 .locator-dot[data-face='smile'] .locator-eye,
 .locator-dot[data-face='hop'] .locator-eye,
+.locator-dot[data-face='boing'] .locator-eye,
 .locator-dot[data-face='wink-smile'] .locator-eye:nth-child(1) {
   width: 5px;
   height: 5px;
@@ -148,11 +150,28 @@
 .locator-dot[data-face='glare'] {
   animation: locator-shake 0.45s ease-in-out 2;
 }
-.locator-dot[data-face='glare'] .locator-eyes { transform: translate(-4px, 0.5px); }
-.locator-dot[data-face='glare'] .locator-eye { scale: 1 0.55; }
-.locator-dot[data-face='glare'] .locator-brow { opacity: 1; scale: 1; }
-.locator-dot[data-face='glare'] .locator-brow:nth-child(3) { rotate: 24deg; }
-.locator-dot[data-face='glare'] .locator-brow:nth-child(4) { rotate: -24deg; }
+.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-eyes { transform: translate(-4px, 0.5px); }
+.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-eye { scale: 1 0.55; }
+.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-brow { opacity: 1; scale: 1; }
+.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-brow:nth-child(3) { rotate: 24deg; }
+.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-brow:nth-child(4) { rotate: -24deg; }
+
+/*
+ * A tap on the LocatorButton (the owner's ask, 2026-10-01): glad, a boing —
+ * squashed, up with smiling eyes, landing with a wobble — or, now and then,
+ * cross, a huff — puffed up, brows down, shaking it off. Each plays once a
+ * tap (the dot is drawn afresh: `beat`), then it breathes again.
+ */
+.locator-dot[data-face='boing'] {
+  animation:
+    locator-boing 0.75s cubic-bezier(0.3, 0.7, 0.4, 1),
+    locator-breathe 1.4s ease-in-out 0.75s infinite;
+}
+.locator-dot[data-face='huff'] {
+  animation:
+    locator-huff 0.85s ease-in-out,
+    locator-breathe 2s ease-in-out 0.85s infinite;
+}
 
 @keyframes locator-look {
   0%, 14% { translate: 0 0; }
@@ -162,6 +181,23 @@
   61%, 72% { translate: 0 1.5px; }
   75%, 86% { translate: -2px -1px; }
   89%, 100% { translate: 0 0; }
+}
+@keyframes locator-boing {
+  0% { transform: translateY(0) scale(1, 1); }
+  14% { transform: translateY(1px) scale(1.18, 0.82); }
+  40% { transform: translateY(-6px) scale(0.9, 1.12); }
+  64% { transform: translateY(0) scale(1.1, 0.9); }
+  80% { transform: translateY(-1px) scale(0.97, 1.03); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+@keyframes locator-huff {
+  0% { transform: scale(1); }
+  16% { transform: scale(1.2); }
+  30% { transform: scale(1.18) translateX(-1.8px); }
+  44% { transform: scale(1.14) translateX(1.8px); }
+  58% { transform: scale(1.1) translateX(-1.4px); }
+  72% { transform: scale(1.05) translateX(1px); }
+  100% { transform: scale(1) translateX(0); }
 }
 @keyframes locator-wink {
   0%, 25%, 75%, 100% { scale: 1 1; }

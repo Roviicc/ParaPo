@@ -31,6 +31,8 @@ type Props = {
   /** How the dot feels, and the face it wears for it (locatorMood); neutral's glance by default. */
   mood?: Mood
   face?: Face
+  /** Changed by each tap on the button: the dot is drawn afresh, so its reaction plays again. */
+  beat?: number
 }
 
 /**
@@ -44,7 +46,7 @@ type Props = {
  * have. Figma's is 240 across; here the circle is the fix's metres, the beam
  * as drawn.
  */
-export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'neutral', face = 'glance' }: Props) {
+export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'neutral', face = 'glance', beat = 0 }: Props) {
   const halo = haloFor(haloPx, scale)
   const gradient = useId()
   return (
@@ -81,6 +83,7 @@ export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'ne
           </div>
         )}
         <div
+          key={beat}
           data-mood={mood}
           data-face={face}
           className="locator-dot absolute top-1/2 left-1/2 -translate-1/2 rounded-full bg-surface p-1 shadow-locator-dot-shadow"
@@ -115,12 +118,14 @@ export function LocatorOnMap({
   heading,
   mood,
   face,
+  beat,
 }: {
   map: MapLibreMap
   fix: Fix
   heading: number | null
   mood: Mood
   face: Face
+  beat: number
 }) {
   const [el] = useState(() => {
     const div = document.createElement('div')
@@ -154,5 +159,5 @@ export function LocatorOnMap({
     el.dataset.scale = scale.toFixed(2)
     el.dataset.heading = heading === null ? '' : String(Math.round(heading))
   }, [el, fix.accuracy, haloPx, heading, scale])
-  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} beamDeg={heading} scale={scale} mood={mood} face={face} />, el)
+  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} beamDeg={heading} scale={scale} mood={mood} face={face} beat={beat} />, el)
 }

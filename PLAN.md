@@ -3751,4 +3751,9 @@ left, up, down, a smaller round about the middle (the owner's ask the same
 day); dozing, squeezed and glaring eyes keep still. Its beam cut to 7/10 of its length at the same spread (59
 long), and zoomed out it is a fifth bigger, 0.54 at the least (the owner,
 the same day). Straight to main this once, at the owner's say.
-`locator-mood-test` 6, `locator-test` 16, `where-test` 38 → 41.
+And a tap on the button gets a reaction, for 2.5 s (the owner's ask, the
+same day): glad, a boing — squashed, up with smiling eyes, landing with a
+wobble — or, one tap in four, cross, a huff — puffed up, brows down,
+shaking it off; never cross at the first tap. Each tap plays it afresh
+(`beat` redraws the dot); three quick taps still glare.
+`locator-mood-test` 8, `locator-test` 16, `where-test` 38 → 42.

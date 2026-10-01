@@ -60,6 +60,10 @@ export const HappyWinkSmile = face('happy', 'wink-smile')
 export const SadDroop = face('sad', 'droop')
 /** Cross, at a run of taps: eyes narrowed, brows down at the middle, a shake. */
 export const AngryGlare = face('angry', 'glare')
+/** A tap on the button, glad: squashed, up with smiling eyes, landing with a wobble. */
+export const TapBoing = face('happy', 'boing')
+/** A tap on the button, now and then cross: puffed up, brows down, shaking it off. */
+export const TapHuff = face('angry', 'huff')
 
 const ALL: [Mood, Face][] = [
   ['neutral', 'glance'],
@@ -73,6 +77,8 @@ const ALL: [Mood, Face][] = [
   ['happy', 'wink-smile'],
   ['sad', 'droop'],
   ['angry', 'glare'],
+  ['happy', 'boing'],
+  ['angry', 'huff'],
 ]
 
 /** Every face at once, three times the size, named. */

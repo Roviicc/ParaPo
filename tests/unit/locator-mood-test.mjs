@@ -8,12 +8,15 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   ANGRY_FOR_MS,
+  ANGRY_ODDS,
+  REACT_FOR_MS,
   HAPPY_FOR_MS,
   POOR_OVER_M,
   SLEEPY_AFTER_MS,
   STALE_AFTER_MS,
   faceFor,
   moodAt,
+  reactionTo,
 } from '../../src/commuter/locatorMood.ts'
 
 const T = 1_000_000
@@ -65,3 +68,22 @@ test('the faces: cross glares, low droops, glad and neutral take turns, neutral 
   // The same moment, the same face: no flicker between renders.
   assert.equal(faceFor('happy', T + 100, 0), faceFor('happy', T + 200, 0))
 })
+
+test('a tap gets a reaction: glad, now and then cross, never cross at the first', () => {
+  assert.equal(reactionTo(1, 0), 'happy')
+  assert.equal(reactionTo(2, 0), 'angry')
+  assert.equal(reactionTo(2, 1 / ANGRY_ODDS), 'happy')
+  assert.equal(reactionTo(5, 0.99), 'happy')
+})
+
+test("a tap's reaction shows for a while, over arriving, under a run of taps; its faces a boing and a huff", () => {
+  const glad = { at: T, mood: 'happy' }
+  const cross = { at: T, mood: 'angry' }
+  assert.equal(at(T + 100, { reaction: cross, arrivedAt: T }), 'angry')
+  assert.equal(at(T + 100, { reaction: glad, fix: { ...good, accuracy: POOR_OVER_M + 1 } }), 'happy')
+  assert.equal(at(T + REACT_FOR_MS + 1, { reaction: cross }), 'neutral')
+  assert.equal(faceFor('happy', T, 0, true), 'boing')
+  assert.equal(faceFor('angry', T, 0, true), 'huff')
+  assert.equal(faceFor('angry', T, 0), 'glare')
+})
+
