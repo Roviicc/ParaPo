@@ -173,6 +173,9 @@ export default function CommuterApp() {
           endPicked={ride.endPicked}
           dockRef={tripDock}
           height={height}
+          // "Other routes": that route's trip in this one's place, ‹ still to
+          // what this one was picked from; the camera takes it in as it opens.
+          onOtherRoute={(v) => saved.select(v.id, { keepList: true })}
         />
       )}
 

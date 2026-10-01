@@ -1888,6 +1888,38 @@ if (!fannedOne) {
   await closeCard()
 }
 
+// ------------------------------------------- 5c. "Other routes" under a trip
+// The other drawn routes out of where a trip starts, one row each by where it
+// goes; a tap opens that route's trip in the card's place, its line alone
+// lit (the owner's RouteTripDetail, 3778:3183, 2026-10-01).
+const startOf = (d) => (d.reversed ? d.route?.tail_stop_id : d.route?.head_stop_id) ?? null
+const drawnDirection = (d) => (d.shape?.coordinates?.length ?? 0) > 1
+const othersOf = (d) => fileDirections.filter((o) => o.route_id !== d.route_id && drawnDirection(o) && !!startOf(d) && startOf(o) === startOf(d))
+const withOthers = fileDirections.find((d) => drawnDirection(d) && othersOf(d).length > 0)
+if (!withOthers) {
+  skip('a trip lists the other routes out of where it starts', published ? 'no two drawn routes leave one hotspot today' : 'the published file could not be read')
+} else {
+  const others = othersOf(withOthers)
+  await page.goto(`${BASE}/?r=${encodeURIComponent(withOthers.id)}`, { waitUntil: 'load' })
+  await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
+  await page.waitForTimeout(2000)
+  const rows = card().locator('[data-testid="trip-other-route"]')
+  const shown = await rows.evaluateAll((els) => els.map((e) => e.dataset.direction))
+  check(
+    `a trip, "${await tripLabel()}", lists the other routes out of where it starts`,
+    shown.length === others.length && others.every((o) => shown.includes(o.id)),
+    `${shown.length} row(s), want ${others.length}`,
+  )
+  const to = others[0]
+  const toName = (to.direction_name ?? '').split(' → ')[1] ?? ''
+  await rows.first().scrollIntoViewIfNeeded()
+  await buttonTap(card().locator(`[data-testid="trip-other-route"][data-direction="${to.id}"]`), async () => ((await litIds(page)) ?? []).join() === to.id)
+  const now = await tripLabel()
+  const lit = (await litIds(page)) ?? []
+  check('  a tap opens that route\'s trip in the card\'s place, its line alone lit', now.endsWith(toName) && lit.length === 1 && lit[0] === to.id, JSON.stringify({ trip: now, lit, want: to.id }))
+  await closeCard()
+}
+
 // -------------------------------------------- 6. the desktop control, ±5 px
 const desktop = await b.newContext({ viewport: { width: 1280, height: 800 } })
 const dpage = await desktop.newPage()

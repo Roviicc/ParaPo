@@ -1,4 +1,4 @@
-import { directionEnds, isDrawn, type RouteSummary, type VariantSummary } from './routes'
+import { directionEndStops, directionEnds, isDrawn, type RouteSummary, type VariantSummary } from './routes'
 
 /*
  * Choosing among directions: a route's two, those under a tap grouped by
@@ -94,4 +94,18 @@ export function sharingAnEnd<V extends VariantSummary>(all: readonly V[], of: V)
       (!!head && v.route.head_stop_id === head) ||
       (!!tail && v.route.tail_stop_id === tail),
   )
+}
+
+/**
+ * The other routes out of where `of` starts — the owner's "Other routes"
+ * under a trip (RouteTripDetail, 3778:3183, 2026-10-01): on Tala →
+ * Novaliches, Tala → SM Fairview, and another route making the same trip,
+ * if there is one. One direction each, drawn, leaving from the same hotspot
+ * as `of` does; its own route's way back is SWITCH, not another route. An
+ * old file's route may carry no ends; it then has none.
+ */
+export function otherRoutesFrom<V extends VariantSummary>(all: readonly V[], of: V): V[] {
+  const start = directionEndStops(of).fromStop
+  if (!start) return []
+  return all.filter((v) => v.route_id !== of.route_id && isDrawn(v) && directionEndStops(v).fromStop === start)
 }

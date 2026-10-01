@@ -10,7 +10,7 @@ import { SAME_HINTUAN_M, labelGroups, placeBoxes, placeSummary } from '../../src
 import { drawnFromTheEnd, timelineFor, hintuansAlong } from '../../src/shared/model/timeline.ts'
 import { variantLine } from '../../src/shared/model/routes.ts'
 import { rideCut, routeTimeline } from '../../src/shared/model/ride.ts'
-import { sharingAnEnd } from '../../src/shared/model/departures.ts'
+import { otherRoutesFrom, sharingAnEnd } from '../../src/shared/model/departures.ts'
 import { haversine, lineLength } from '../../src/shared/geo/geo.ts'
 import { fileURLToPath } from 'node:url'
 import { readPublished } from '../../scripts/checks/check-map-data.mjs'
@@ -221,4 +221,28 @@ test("a place's boxes on its HintuanCard: terminals first, then hintuans, in dra
   )
   // A place of one box: its name alone.
   assert.deepEqual(placeBoxes(other, [other, a]).map((r) => r.label), ['Bestlink'])
+})
+
+// "Other routes" under a trip (src/shared/model/departures.ts, otherRoutesFrom).
+/** As `both`, drawn: a line of two points each way. */
+const drawn = (id, head, tail) => both(id, head, tail).map((v) => ({ ...v, shape: { coordinates: [[0, 0], [1, 1]] } }))
+const OUT = [
+  ...drawn('talaNova', 'tala', 'nova'),
+  ...drawn('talaSm', 'tala', 'sm'), // out of Tala too
+  ...drawn('talaNova2', 'tala', 'nova'), // the same trip, another route
+  ...drawn('smTala', 'sm', 'tala'), // its way back starts at Tala
+  ...both('talaX', 'tala', 'x'), // out of Tala, but not drawn
+  ...drawn('novaBs', 'nova', 'bs'), // starts where the trip ends
+]
+
+test('other routes: one direction of each other drawn route leaving where the trip starts', () => {
+  assert.deepEqual(idsOf(otherRoutesFrom(OUT, OUT[0])), ['smTala-back', 'talaNova2', 'talaSm'])
+  assert.deepEqual(idsOf(otherRoutesFrom(OUT, OUT[1])), ['novaBs', 'talaNova2-back'], 'the way back starts at Novaliches')
+})
+
+test('other routes: none where none leave, or the file carries no ends', () => {
+  const far = [...OUT, ...drawn('far', 'x', 'y')]
+  assert.deepEqual(idsOf(otherRoutesFrom(far, far.at(-2))), [])
+  const old = [...drawn('a', undefined, undefined), ...drawn('b', undefined, undefined)]
+  assert.deepEqual(idsOf(otherRoutesFrom(old, old[0])), [])
 })
