@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { haversine, metresPerPixel, type LngLat } from '../shared/geo/geo'
+import type { Snap } from '../shared/cards/sheetGesture'
 import type { LocatorMode } from './LocatorButton'
 
 /**
@@ -191,7 +192,7 @@ type Options = {
   /** Where the visitor should sit from the map's centre, clear of an open card (clearOfSheet). */
   offset: () => [number, number]
   /** The open card's height: the camera keeps the visitor clear of it as it moves. */
-  snap: unknown
+  snap: Snap
   /** A phone, which may have a compass to turn the map by. */
   compass: boolean
 }
