@@ -1824,6 +1824,27 @@ if (!routeA) {
   const fill = Math.max((fb.right - fb.left) / (shareFramed.width - 96), (fb.bottom - fb.top) / (shareFramed.floor - shareFramed.map[0] - 96))
   check('  zoomed to fit it: the route fills the room along one side', fill > 0.8 && fill < 1.05, `${Math.round(fill * 100)}% at zoom ${shareFramed.zoom}`)
 
+  // The sheet at another height: the camera takes the route in again, in the
+  // map it leaves (the owner's ask, 2026-10-01) — at Max, the whole screen on
+  // a phone, as at Middle; in closer above Low; and back to the overview
+  // after the visitor has moved the map.
+  const toMax = await buttonTap(handle(), async () => (await sheetState()) === 'max')
+  const atMax = await framedAboveCard(r.bbox)
+  const toLow = toMax && (await buttonTap(handle(), async () => (await sheetState()) === 'low'))
+  const atLow = await framedAboveCard(r.bbox)
+  if (!toLow) skip('  the sheet at Max, then Low: the route taken in again in the map it leaves', `the handle would not go round: data-snap=${await sheetState()}`)
+  else {
+    check('  the sheet at Max: the route framed as at Middle, there as it comes down', Math.abs(atMax.zoom - shareFramed.zoom) < 0.05, `zoom ${atMax.zoom}, at Middle ${shareFramed.zoom}`)
+    check('  at Low: in closer, the whole route above the sheet', atLow.inside && atLow.zoom > shareFramed.zoom + 0.1, JSON.stringify(atLow))
+  }
+  await page.evaluate(() => {
+    const c = window.__map.getCenter()
+    window.__map.jumpTo({ center: [c.lng + 0.02, c.lat + 0.02], zoom: 16 })
+  })
+  await buttonTap(handle(), async () => (await sheetState()) === 'middle')
+  const back = await framedAboveCard(r.bbox)
+  check('  moved away, then back to Middle: the overview again', back.inside && Math.abs(back.zoom - shareFramed.zoom) < 0.05, JSON.stringify(back))
+
   // Opened by a link, no list is behind the trip: ‹ only where another route
   // sharing an end is drawn its way round (the owner's ask, 2026-09-29). No
   // Share button since the owner dropped it for now (2026-09-28) — the

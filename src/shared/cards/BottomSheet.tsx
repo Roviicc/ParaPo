@@ -379,20 +379,25 @@ export function clearOfDock(map: HTMLElement, dock: HTMLElement | null, snap?: S
 }
 
 /**
- * The height a sheet is measured at when the camera moves under it: its own,
- * or Middle when it is higher — the sheet stays put (the owner, 2026-10-01),
- * and what the camera brings in is there to see when it comes down.
+ * The height a sheet is measured at when the camera glides to a point under
+ * it: its own, or Middle when it is higher — the sheet stays put (the owner,
+ * 2026-10-01), and what the camera brings in is there to see when it comes
+ * down. A whole route fitted is framed at the sheet's own height (roomBeside).
  */
 const framedAt = (snap: Snap): Snap => (aboveMiddle(snap) ? 'middle' : snap)
 
 /** Between a route fitted whole and the map's edges, or the sheet's. */
 const FIT_MARGIN_PX = 48
+/** The least map a whole route is fitted into, the margins given up for it where the sheet leaves less. */
+const FIT_ROOM_MIN_PX = 48
 
 /**
- * The room a sheet leaves for a whole route the camera fits (a trip as it
- * opens), as MapLibre's fit padding: beside the sheet where it floats in the
- * corner, above it where it is docked along the bottom, at `framedAt`'s
- * height (the owner, 2026-10-01).
+ * The room a sheet leaves for a whole route the camera fits, as MapLibre's
+ * fit padding: beside the sheet where it floats in the corner, above it
+ * where it is docked along the bottom, at its own height (the owner,
+ * 2026-10-01: in close above Low, out above Middle). Where it leaves less
+ * than FIT_ROOM_MIN_PX — Max, on a phone the whole screen — at Middle's
+ * (`framedAt`), so the route is there to see as it comes down.
  */
 export function roomBeside(
   map: HTMLElement,
@@ -403,8 +408,16 @@ export function roomBeside(
   if (!dock || dock.hidden) return room
   const m = map.getBoundingClientRect()
   const d = dock.getBoundingClientRect()
-  if (d.right < m.right - 1) room.left += Math.max(0, d.right - m.left)
-  else room.bottom += showsAt(dock, framedAt(snap))
+  if (d.right < m.right - 1) {
+    room.left += Math.max(0, d.right - m.left)
+    return room
+  }
+  let shows = showsAt(dock, snap)
+  if (m.height - shows < FIT_ROOM_MIN_PX) shows = showsAt(dock, framedAt(snap))
+  // A thin strip above a tall sheet: the margins give way, so the route still fits.
+  const margin = Math.max(0, Math.min(FIT_MARGIN_PX, (m.height - shows - FIT_ROOM_MIN_PX) / 2))
+  room.top = margin
+  room.bottom = shows + margin
   return room
 }
 

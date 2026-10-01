@@ -1,6 +1,6 @@
 import { useEffect, useRef, type RefObject } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
-import { roomBeside } from '../shared/cards/BottomSheet'
+import { clearOfSheet, roomBeside } from '../shared/cards/BottomSheet'
 import type { Snap } from '../shared/cards/sheetGesture'
 import { bboxOf, type LngLat } from '../shared/geo/geo'
 import { APP_MOVE } from '../shared/map/MapView'
@@ -91,4 +91,38 @@ export function useSwitchOverview(
     // Only as SWITCH is pressed (see above).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, switches])
+}
+
+/** What a card frames: routes whole, or a place kept in view. */
+export type Framed = { lines: readonly (readonly LngLat[])[] } | { at: LngLat } | null
+
+/**
+ * The sheet settled at another height — Low, Middle, Max, or where a drag
+ * left it: the camera takes in again what the card on show frames, in what
+ * map the sheet leaves now (the owner's ask, 2026-10-01: "zooming out and
+ * zoom in when bottomsheet is low, middle and max"). Routes are fitted whole,
+ * in close above Low, out above Middle — and at Max, which on a phone covers
+ * the whole map, as at Middle (roomBeside); a place is brought into view at
+ * its zoom. Whatever the visitor did to the map since, the
+ * overview comes back (their "the camera reset to overview"). `frame` is
+ * read as the sheet settles; null, with no card on show, moves nothing.
+ */
+export function useHeightOverview(
+  map: MapLibreMap | null,
+  snap: Snap,
+  frame: () => Framed,
+  dock: () => HTMLElement | null,
+): void {
+  const last = useRef(snap)
+  const now = useRef({ frame, dock })
+  now.current = { frame, dock }
+  useEffect(() => {
+    if (last.current === snap) return
+    last.current = snap
+    const framed = now.current.frame()
+    if (!map || !framed) return
+    const sheet = now.current.dock()
+    if ('lines' in framed) overview(map, framed.lines, sheet, snap)
+    else map.easeTo({ center: framed.at, offset: clearOfSheet(map.getContainer(), sheet, snap), duration: 700 }, APP_MOVE)
+  }, [map, snap])
 }
