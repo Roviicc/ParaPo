@@ -100,11 +100,14 @@ export function rideEnds(rides: readonly Ride[]): RideEnd[] {
 const STEP_MS = 1000 / 15
 
 /**
- * Steps that came this late, this many in a row, and they rest where they
- * are, as when asked to keep still: on a phone that cannot draw the map four
- * times a second, each step took the whole frame and a tap waited seconds
- * for its turn (a GitHub runner, 2026-10-01: the trip card's buttons
- * answering five seconds late, 13 frames in 8 s; 51 ms with them still).
+ * Steps that came this late, one after another for this long, and they rest
+ * where they are, as when asked to keep still: on a phone that cannot draw
+ * the map four times a second, each step took the whole frame and a tap
+ * waited seconds for its turn (a GitHub runner, 2026-10-01: the trip card's
+ * buttons answering five seconds late, 13 frames in 8 s; 51 ms with them
+ * still). Counted in time, not steps: three slow steps were under a second,
+ * and a runner's short stall as tiles came in rested a flow that keeps up
+ * (visitor-test on #95, 2026-10-01); a phone that cannot keep up stays slow.
  *
  * For WARM_MS after they start, after the map zooms and after a hidden page
  * comes back, no step counts: a new view's first frames are its dearest —
@@ -116,7 +119,7 @@ const STEP_MS = 1000 / 15
  * pan, as the locator's camera makes each second, is the same view's.
  */
 const SLOW_STEP_MS = 4 * STEP_MS
-const SLOW_STEPS = 3
+const SLOW_FOR_MS = 2000
 const WARM_MS = 1500
 const AWAY_MS = 2000
 
@@ -220,6 +223,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     let flowed = 0
     let last = performance.now()
     let moving = false
+    /** How long the steps have come late, one after another. */
     let slow = 0
     let warmUntil = last + WARM_MS
     /** The zoom they rested at, or null while they flow; and the zoom the map last came to rest at. */
@@ -269,9 +273,9 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       }
       const gap = now - last
       if (gap > AWAY_MS) warmUntil = now + WARM_MS
-      slow = now < warmUntil ? 0 : gap > SLOW_STEP_MS ? slow + 1 : 0
+      slow = now < warmUntil ? 0 : gap > SLOW_STEP_MS ? slow + gap : 0
       // Too slow to flow: they rest where they are.
-      if (slow >= SLOW_STEPS) {
+      if (slow >= SLOW_FOR_MS) {
         restedAt = map.getZoom()
         return
       }
