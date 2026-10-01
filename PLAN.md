@@ -3766,7 +3766,7 @@ neutral and happy ... then sometimes sad and angry"): a face every 5 s,
 about half neutral, nearly all the rest happy, one in forty each low and
 cross (one in twenty at first) — those for one turn only, where a run of
 taps holds cross as
-long as they last; each tap rolls the swings afresh, so after its
+long as it lasts; each tap rolls the swings afresh, so after its
 reaction the dot comes back in another mood (the owner: "tapping may change
 the mood"). `data-mood` follows the face shown (`MOOD_OF`). And the
 dot itself takes a tap, the same reaction as the button's and counted with
