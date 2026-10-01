@@ -256,6 +256,36 @@ await ctx.setGeolocation({ ...p, accuracy: 10 })
 await page.waitForTimeout(1200)
 const kept = await camera(page)
 check('  and the next fix leaves the camera where the app put it', Math.abs(kept.latitude - moved.latitude) < 1e-7, `${((kept.latitude - moved.latitude) / M_LAT).toFixed(1)} m moved`)
+
+// A route tapped: the dot looks at it — its eyes turn the way to it for three
+// seconds, then wander again (dotLook.ts; the owner's ask, 2026-10-01).
+const onLine = await page.evaluate(async () => {
+  const m = window.__map
+  const data = await m.getSource('saved-routes')?.getData()
+  const f = data?.features.find((x) => x.geometry?.type === 'LineString' && x.geometry.coordinates.length > 1)
+  if (!f) return null
+  const [a, b] = f.geometry.coordinates
+  const at = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+  m.jumpTo({ center: at, zoom: 16 })
+  return at
+})
+if (!onLine) {
+  check('a route tapped: the dot looks at it', false, 'no route line on the map')
+} else {
+  await page.waitForTimeout(600)
+  const [tx, ty] = await page.evaluate((c) => Object.values(window.__map.project(c)), onLine)
+  await page.mouse.click(tx, ty)
+  const dot = overlay(page).locator('.locator-dot').first()
+  const looked = await until(async () => !!(await dot.getAttribute('data-look')), 3000)
+  const [lx, ly] = ((await dot.getAttribute('data-look')) ?? '').split(',').map(Number)
+  const eyes = await dot.locator('.locator-eyes').evaluate((e) => ({ animation: getComputedStyle(e).animationName, translate: getComputedStyle(e).translate }))
+  check(
+    'a route tapped: the dot looks at it, its eyes still and turned the way to it',
+    looked && Math.abs(Math.hypot(lx, ly) - 3.5) < 0.2 && eyes.animation === 'none' && eyes.translate !== 'none',
+    `look ${lx},${ly}; eyes ${JSON.stringify(eyes)}`,
+  )
+  check('  and after three seconds they wander again', await until(async () => !(await dot.getAttribute('data-look')), 4500), `${await dot.getAttribute('data-look')}`)
+}
 check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
 await page.close()
 await ctx.close()

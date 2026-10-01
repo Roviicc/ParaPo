@@ -1,9 +1,10 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
 import { metresPerPixel } from '../shared/geo/geo'
 import { tapsOnItsButton } from '../shared/map/markerTap'
 import './locator.css'
+import type { Look } from './dotLook'
 import type { Face, Mood } from './locatorMood'
 import { circleRadius, indicatorScale, type Fix } from './useLocator'
 
@@ -36,6 +37,8 @@ type Props = {
   beat?: number
   /** The dot is a button, to be poked: LocatorOnMap hears the tap (markerTap.ts). */
   pokeable?: boolean
+  /** Its eyes on what was just picked, in px from the middle (dotLook.ts); null: they wander. */
+  look?: Look | null
 }
 
 /**
@@ -49,7 +52,7 @@ type Props = {
  * have. Figma's is 240 across; here the circle is the fix's metres, the beam
  * as drawn.
  */
-export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'neutral', face = 'glance', beat = 0, pokeable = false }: Props) {
+export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'neutral', face = 'glance', beat = 0, pokeable = false, look = null }: Props) {
   const Dot = pokeable ? 'button' : 'div'
   const halo = haloFor(haloPx, scale)
   const gradient = useId()
@@ -92,6 +95,8 @@ export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'ne
           {...(pokeable ? { type: 'button' as const, 'aria-label': 'You are here' } : {})}
           data-mood={mood}
           data-face={face}
+          data-look={look ? `${look.x},${look.y}` : undefined}
+          style={look ? ({ '--look-x': `${look.x}px`, '--look-y': `${look.y}px` } as CSSProperties) : undefined}
           className={
             'locator-dot absolute top-1/2 left-1/2 -translate-1/2 rounded-full bg-surface p-1 shadow-locator-dot-shadow' +
             (pokeable ? ' pointer-events-auto cursor-pointer [-webkit-tap-highlight-color:transparent]' : '')
@@ -125,6 +130,7 @@ export function LocatorOnMap({
   mood,
   face,
   beat,
+  look = null,
   onPoke,
 }: {
   map: MapLibreMap
@@ -133,6 +139,8 @@ export function LocatorOnMap({
   mood: Mood
   face: Face
   beat: number
+  /** Where its eyes look, for a while after a pick (dotLook.ts). */
+  look?: Look | null
   /** A tap on the dot (locatorMood's `poke`). */
   onPoke: () => void
 }) {
@@ -175,5 +183,5 @@ export function LocatorOnMap({
     el.dataset.scale = scale.toFixed(2)
     el.dataset.heading = heading === null ? '' : String(Math.round(heading))
   }, [el, fix.accuracy, haloPx, heading, scale])
-  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} beamDeg={heading} scale={scale} mood={mood} face={face} beat={beat} pokeable />, el)
+  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} beamDeg={heading} scale={scale} mood={mood} face={face} beat={beat} look={look} pokeable />, el)
 }

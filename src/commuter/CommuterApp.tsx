@@ -24,6 +24,7 @@ import { Locator } from './Locator'
 import { LocatorOnMap } from './LocatorIndicatorOverlay'
 import { useLocator } from './useLocator'
 import { useLocatorMood } from './locatorMood'
+import { nearestOnLines, useDotLook } from './dotLook'
 import type { LngLat } from '../shared/geo/geo'
 import { variantLine } from '../shared/model/routes'
 
@@ -97,6 +98,16 @@ export default function CommuterApp() {
   // How the dot feels: glad as the location comes, a boing at a tap on the
   // button or on the dot, now and then a huff (locatorMood).
   const { mood, face, beat, poke } = useLocatorMood(locator)
+  // …and where it looks: at what was just picked, for three seconds — a
+  // hintuan on the trip card, a place, or the routes lit (dotLook.ts).
+  const eyes = useDotLook(locator.fix?.at ?? null, [
+    { key: ride.pickedId, at: () => ride.pinAt },
+    { key: stops.selected && placeKey(stops.selected), at: () => (stops.selected?.point.coordinates as LngLat | undefined) ?? null },
+    {
+      key: saved.litVariants.length ? saved.litVariants.map((v) => v.id).join() : null,
+      at: () => (locator.fix ? nearestOnLines(locator.fix.at, saved.litVariants.map(variantLine)) : null),
+    },
+  ])
   const offline = useOffline()
   const age = useMapAge(saved.variants)
   const needRefresh = useNeedRefresh()
@@ -125,7 +136,7 @@ export default function CommuterApp() {
       */}
       <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} />
       {map && <Locator locator={locator} docked={cards.open} />}
-      {map && locator.fix && <LocatorOnMap map={map} fix={locator.fix} heading={locator.heading} mood={mood} face={face} beat={beat} onPoke={poke} />}
+      {map && locator.fix && <LocatorOnMap map={map} fix={locator.fix} heading={locator.heading} mood={mood} face={face} beat={beat} look={eyes} onPoke={poke} />}
       {/* Each lit ride's ends, named over their circles; with no trip open, a tail opens its ride's. */}
       {map && (
         <EndTitles
