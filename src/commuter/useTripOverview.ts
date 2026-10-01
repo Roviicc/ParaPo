@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { roomBeside } from '../shared/cards/BottomSheet'
 import type { Snap } from '../shared/cards/sheetGesture'
@@ -60,4 +60,29 @@ export function useCardOverview(
     // Only as a card is picked (see above).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, key])
+}
+
+/**
+ * SWITCH pressed — on the route list, a hotspot's card or a trip: the camera
+ * takes in what is lit now, the routes the other way round, as a pick does
+ * (the owner's ask, 2026-10-01). `switches` counts the presses. What is lit
+ * is read a frame later: a hotspot's card says what it shows from its own
+ * effect, a render after the press.
+ */
+export function useSwitchOverview(
+  map: MapLibreMap | null,
+  lit: readonly VariantSummary[],
+  switches: number,
+  dock: () => HTMLElement | null,
+  snap: Snap,
+): void {
+  const litRef = useRef(lit)
+  litRef.current = lit
+  useEffect(() => {
+    if (!map || switches === 0) return
+    const frame = requestAnimationFrame(() => overview(map, litRef.current.map(variantLine), dock(), snap))
+    return () => cancelAnimationFrame(frame)
+    // Only as SWITCH is pressed (see above).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, switches])
 }
