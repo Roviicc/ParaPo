@@ -1,22 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { HintuanCard } from '../shared/cards/HintuanCard'
 import { placeKey } from '../shared/model/places'
 import { MAP_FILE_TOO_NEW, loadLine, loadStopsFromFile, loadVariantsFromFile } from './mapFile'
 import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
-import { APP_MOVE, METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
+import { METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
 import type { Livery } from '../shared/model/liveries'
 import { RouteCardList } from '../shared/cards/RouteCardList'
-import { clearOfSheet, roomBeside } from '../shared/cards/BottomSheet'
+import { clearOfSheet } from '../shared/cards/BottomSheet'
 import type { Snap } from '../shared/cards/sheetGesture'
 import { useRideTo } from '../shared/map/rideTo'
-import { directionEndStops, directionEnds, isDrawn, variantLine } from '../shared/model/routes'
-import { routeTimeline, travelLine } from '../shared/model/ride'
-import { bboxOf } from '../shared/geo/geo'
+import { isDrawn } from '../shared/model/routes'
+import { routeTimeline } from '../shared/model/ride'
 import { sharingAnEnd } from '../shared/model/departures'
-import { useDirectionArrows, useRideColours } from '../shared/map/directionArrows'
-import { usePassStretches } from '../shared/geo/passStretches'
-import { useBabaanSides } from '../shared/geo/babaanSides'
+import { useRideColours } from '../shared/map/directionArrows'
+import { useLitRides } from '../shared/map/useLitRides'
 import { useLitLineColour } from '../shared/map/savedRoutesLayers'
 import { useSavedRoutes } from '../shared/map/useSavedRoutes'
 import { LIT_LINE, LIVERY_LINE } from '../shared/map/liveryLine'
@@ -27,6 +25,7 @@ import { Notices } from './Notices'
 import { TripCard, useTripLivery } from '../shared/cards/TripCard'
 import { useMapAge, useOffline } from './status'
 import { useShareLink } from './useShareLink'
+import { useTripOverview } from './useTripOverview'
 import { Walker } from './Walker'
 import { WhereAmIButton } from './WhereAmI'
 import { useWhereAmI } from './useWhereAmI'
@@ -54,24 +53,8 @@ export default function CommuterApp() {
   if (letGoId && stops.selected?.id !== letGoId) setLetGoId(null)
   const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW
 
-  // Where a lit direction passes a hintuan, the line turns orange for that
-  // stretch: worked out on the full lines read — a lit direction's is asked
-  // for as it lights, and its orange comes with it — rather than on every
-  // overview at load. Offline, a line never read has none.
-  const withLines = useMemo(() => saved.variants.filter((v) => saved.fullIds.has(v.id)), [saved.variants, saved.fullIds])
-  usePassStretches(map, withLines, stops.stops, saved.lit)
-
-  // Which way the jeep goes, on what is lit only — the chosen direction, the
-  // Selected card's directions, or else a list's or a hotspot card's: chevrons
-  // flowing inside each line from where the ride starts, and each end a
-  // circle with its place's name.
-  const rides = useMemo(
-    () => saved.litVariants.map((v) => ({ line: travelLine(v, stops.stops), ...directionEnds(v), ...directionEndStops(v) })),
-    [saved.litVariants, stops.stops],
-  )
-  useDirectionArrows(map, rides)
-  // The chosen direction's side of each hintuan it cuts across: its right.
-  useBabaanSides(map, saved.selected, stops.stops)
+  // What the lit routes wear on the map, their ends named (useLitRides).
+  const rides = useLitRides(map, saved, stops.stops)
   // One height for the sheets that stand in for one another (below).
   const [snap, setSnap] = useState<Snap>('middle')
   // A hintuan picked on the trip card (the owner's Timeline State=Selected,
@@ -86,22 +69,7 @@ export default function CommuterApp() {
     onGlide: () => (map ? clearOfSheet(map.getContainer(), tripDock.current, snap) : [0, 0]),
   })
 
-  // A trip opened — from a card, a tap on its line, a shared link: the
-  // camera takes in its whole route, zooming in or out, clear of the card
-  // (the owner's ask, 2026-10-01). Keyed on the route, so SWITCH, which
-  // covers the same ground the other way, leaves the view as it is.
-  const tripRouteId = saved.selected?.route_id
-  useEffect(() => {
-    const trip = saved.selected
-    if (!map || !trip) return
-    const line = variantLine(trip)
-    if (line.length < 2) return
-    const [w, s, e, n] = bboxOf(line)
-    const padding = roomBeside(map.getContainer(), tripDock.current, snap)
-    map.fitBounds([[w, s], [e, n]], { padding, maxZoom: 16, duration: 700, linear: true }, APP_MOVE)
-    // Only as a trip opens: the card's height and the trip's own changes move nothing.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, tripRouteId])
+  useTripOverview(map, saved.selected, tripDock, snap)
 
   useShareLink(map, saved)
   // The visitor's own position, when they ask for it: a walking figure.
