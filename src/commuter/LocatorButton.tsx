@@ -2,10 +2,11 @@ import type { ComponentPropsWithoutRef } from 'react'
 
 /**
  * Figma's "Property 1" on LocatorButton (3870:5437), its values verbatim:
- * the camera somewhere else, the camera on the visitor, and the camera on
- * the visitor turned the way the phone faces.
+ * no location yet (LocationOff, the owner's of 2026-10-01: a tap asks for
+ * it), the camera somewhere else, the camera on the visitor, and the camera
+ * on the visitor turned the way the phone faces.
  */
-export type LocatorMode = 'TrackOwnLocation' | 'TrackedLocation' | 'TracksTheMapBasedOnCompassFacing'
+export type LocatorMode = 'LocationOff' | 'TrackOwnLocation' | 'TrackedLocation' | 'TracksTheMapBasedOnCompassFacing'
 
 type Props = Omit<
   ComponentPropsWithoutRef<'button'>,
@@ -25,6 +26,7 @@ type Props = Omit<
 /**
  * The owner's LocatorButton (3870:5437, 2026-10-01), in WhereAmI's place:
  * a 40 px Special pill showing where the camera is with the visitor —
+ * a struck-through compass while there is no location (LocationOff),
  * a blue dot when it is elsewhere (TrackOwnLocation), a black arrow when it
  * follows them (TrackedLocation), a blue arrow when it also turns with the
  * phone (TracksTheMapBasedOnCompassFacing). Pressed is
@@ -45,7 +47,9 @@ export function LocatorButton({ mode, heading = null, 'aria-label': label, ...re
         'outline-none focus-visible:ring-2 focus-visible:ring-brand-surface [-webkit-tap-highlight-color:transparent]'
       }
     >
-      {mode === 'TrackedLocation' ? (
+      {mode === 'LocationOff' ? (
+        <NavigationOffIcon />
+      ) : mode === 'TrackedLocation' ? (
         <NavigationIcon className="size-6 text-content-primary" heading={heading} />
       ) : (
         // The ring: Map/LocatorIndicatorOverlay/surface, 8 around what it holds.
@@ -66,6 +70,23 @@ export function LocatorButton({ mode, heading = null, 'aria-label': label, ...re
         className="pointer-events-none absolute inset-0 rounded-full shadow-special-button-rest group-active:shadow-special-button-pressed"
       />
     </button>
+  )
+}
+
+/** Figma's `navigation-off` (3872:6014), 28 px in 6 around, in Content/disabled. */
+function NavigationOffIcon() {
+  return (
+    <svg viewBox="0 0 28 28" fill="currentColor" aria-hidden className="size-7 text-content-disabled">
+      <path d="M10.0592 25.0378C10.2038 24.4763 10.7771 24.1379 11.3386 24.2824C12.1861 24.5004 13.0753 24.6173 13.9932 24.6173C14.9113 24.6173 15.8005 24.5004 16.6479 24.2824C17.2093 24.1379 17.7815 24.4765 17.9262 25.0378C18.0707 25.5993 17.7334 26.1726 17.172 26.3172C16.1551 26.5789 15.0895 26.7171 13.9932 26.7171C12.8971 26.7171 11.8315 26.5789 10.8145 26.3172C10.2531 26.1726 9.91469 25.5993 10.0592 25.0378Z" />
+      <path d="M13.9933 1.28288C15.0894 1.28288 16.155 1.42216 17.172 1.68392C17.7333 1.82858 18.0706 2.40082 17.9262 2.96224C17.7816 3.52383 17.2095 3.86216 16.6479 3.71761C15.8006 3.49955 14.9113 3.38379 13.9933 3.38379C13.0753 3.38379 12.186 3.49955 11.3386 3.71761C10.777 3.86215 10.2037 3.52384 10.0592 2.96224C9.91496 2.40089 10.2533 1.82854 10.8145 1.68392C11.8316 1.42216 12.8972 1.28288 13.9933 1.28288Z" />
+      <path d="M2.47355 16.1123C3.03207 15.9569 3.61111 16.2841 3.76668 16.8426C4.00151 17.6855 4.34561 18.5142 4.80461 19.3092C5.26358 20.1041 5.80882 20.8161 6.42131 21.4409C6.82726 21.855 6.82056 22.5194 6.40649 22.9254C5.9924 23.3314 5.32792 23.3247 4.92196 22.9106C4.18682 22.1607 3.53315 21.3078 2.98511 20.3585C2.43714 19.4093 2.02503 18.417 1.74325 17.4054C1.58789 16.8469 1.91504 16.2678 2.47355 16.1123Z" />
+      <path d="M21.5891 5.07454C22.0032 4.66865 22.6677 4.67533 23.0737 5.08936C23.717 5.74545 24.2976 6.48012 24.7997 7.28939L25.0105 7.64144L25.2087 7.99919C25.6587 8.83893 26.0058 9.70928 26.2524 10.5946C26.4078 11.1531 26.0806 11.7321 25.5221 11.8877C24.9635 12.0431 24.3845 11.7159 24.2289 11.1574C23.9941 10.3146 23.6499 9.48572 23.191 8.69075C22.7318 7.89557 22.1869 7.18387 21.5743 6.55908C21.1684 6.14501 21.1751 5.48051 21.5891 5.07454Z" />
+      <path d="M24.2289 16.8426C24.3845 16.2841 24.9636 15.957 25.5221 16.1123C26.0805 16.2679 26.4077 16.847 26.2524 17.4054C25.9705 18.4171 25.5574 19.4093 25.0094 20.3586C24.4613 21.3078 23.8087 22.1608 23.0737 22.9106C22.6677 23.3248 22.0032 23.3314 21.5891 22.9255C21.1751 22.5195 21.1684 21.855 21.5743 21.4409C22.1868 20.8161 22.7321 20.1041 23.191 19.3092C23.6499 18.5143 23.994 17.6856 24.2289 16.8426Z" />
+      <path d="M4.92196 5.08936C5.32792 4.6753 5.99241 4.66864 6.4065 5.07454C6.82056 5.4805 6.82722 6.14499 6.42131 6.55908C5.80869 7.18393 5.26365 7.89681 4.80461 8.69189C4.34572 9.48678 4.00147 10.3147 3.76669 11.1574C3.61111 11.7159 3.03207 12.0431 2.47356 11.8877C1.91504 11.7321 1.58786 11.1531 1.74325 10.5946C2.02503 9.58302 2.43713 8.59064 2.98511 7.64144C3.53317 6.69218 4.18679 5.83922 4.92196 5.08936Z" />
+      <path d="M8.76732 9.82444C8.95424 9.63751 9.25722 9.63751 9.44414 9.82444L17.8203 18.2006C18.0072 18.3875 18.0072 18.6905 17.8203 18.8774C17.6334 19.0643 17.3304 19.0643 17.1435 18.8774L8.76732 10.5013C8.5804 10.3143 8.5804 10.0114 8.76732 9.82444Z" />
+      <path d="M15.5028 16.5595L14.6671 18.5904C14.5608 18.8486 14.3092 19.0172 14.03 19.0172C13.714 19.0171 13.4383 18.8021 13.3616 18.4956L12.5189 15.125L9.14923 14.2827C8.84251 14.2061 8.62713 13.9305 8.62713 13.6143C8.62716 13.3352 8.79576 13.0835 9.05388 12.9772L11.0843 12.141L15.5028 16.5595Z" />
+      <path d="M17.2014 9.68424C17.6204 9.68424 17.9601 10.0239 17.9601 10.4429C17.9601 10.5419 17.9408 10.6401 17.9031 10.7317L15.996 15.3615L12.2823 11.6479L16.9126 9.74127C17.0042 9.70355 17.1024 9.68425 17.2014 9.68424Z" />
+    </svg>
   )
 }
 

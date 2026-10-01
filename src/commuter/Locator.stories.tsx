@@ -67,4 +67,4 @@ export const Wide: Story = { args: { wide: true, state: locator({ camera: 'track
 export const NoCard: Story = { args: { snap: null, state: locator({ camera: 'tracked', mode: 'TrackedLocation', heading: 30 }) } }
 
 /** The browser said no: a short note above the button. */
-export const Denied: Story = { args: { state: locator({ status: 'denied', fix: null }) } }
+export const Denied: Story = { args: { state: locator({ status: 'denied', fix: null, mode: 'LocationOff' }) } }

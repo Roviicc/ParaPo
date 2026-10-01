@@ -12,6 +12,8 @@ import type { LocatorMode } from './LocatorButton'
  * nothing stores it. Once on it stays on (the owner, 2026-10-01: no off, as
  * Google Maps has none); the button only moves the camera:
  *
+ *  - LocationOff, no location yet: a tap asks the browser for it, and its
+ *    first fix brings the camera as TrackOwnLocation's tap does.
  *  - TrackOwnLocation, the camera elsewhere — before the first tap, and the
  *    moment it moves off the visitor at all, by a finger or by the app. A
  *    tap brings it to them, about 1000 ft across.
@@ -51,9 +53,14 @@ export const COMPASS_ACROSS_M = 200 * 0.3048
 /** How far the compass view tilts: "slightly ... diagonally", as Google's does. */
 export const COMPASS_PITCH = 45
 
-/** The button's look for where the camera is, and whether there is a fix to be on. */
+/**
+ * The button's look for where the camera is, and whether there is a fix to
+ * be on: none yet — not asked, refused, asking, or no fix in — is
+ * LocationOff (the owner's, 2026-10-01), and a tap asks for it.
+ */
 export function modeFor(camera: Camera, located: boolean): LocatorMode {
-  if (!located || camera === 'free') return 'TrackOwnLocation'
+  if (!located) return 'LocationOff'
+  if (camera === 'free') return 'TrackOwnLocation'
   return camera === 'tracked' ? 'TrackedLocation' : 'TracksTheMapBasedOnCompassFacing'
 }
 

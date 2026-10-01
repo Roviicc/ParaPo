@@ -3611,8 +3611,9 @@ it straight away, the header's 12 being the gap (3778:3183, 3742:1049).
 LocatorIndicatorOverlay (3870:5247), its rules (3870:5408) and where it sits
 (ScreenLocationBehavior, 3870:5941) take "Where am I"'s place, and the
 walking figure's. The button shows where the camera is with the visitor:
-TrackOwnLocation, the camera elsewhere — before the first tap and at any
-move off them, a finger's or the app's; a tap brings it to them 1000 ft
+LocationOff (the owner's, later the same day) while there is no location —
+before the first tap, refused, or no fix in — a tap asking for it;
+TrackOwnLocation, the camera elsewhere — at any move off them, a finger's or the app's; a tap brings it to them 1000 ft
 across the map's shorter side, north up (TrackedLocation, its arrow turning
 the way the phone faces); the next tilts it 45°, 200 ft across, turned with
 the phone's compass (TracksTheMapBasedOnCompassFacing); the next puts north

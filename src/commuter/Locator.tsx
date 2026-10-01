@@ -11,6 +11,7 @@ type Props = {
 
 /** What each look says it will do, for a screen reader. */
 const LABEL = {
+  LocationOff: 'Turn on my location',
   TrackOwnLocation: 'Show where I am',
   TrackedLocation: 'Turn the map the way I face',
   TracksTheMapBasedOnCompassFacing: 'Put north up',

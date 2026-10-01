@@ -24,9 +24,10 @@ import { M_PER_DEG, metresPerPixel } from '../../src/shared/geo/geo.ts'
 const at = (east, north = 0) => [121.05 + east / (M_PER_DEG * Math.cos((14.7 * Math.PI) / 180)), 14.7 + north / M_PER_DEG]
 const fix = (point, time, accuracy = 5) => ({ at: point, accuracy, time })
 
-test('the button: TrackOwnLocation until there is a fix and the camera is on it', () => {
-  assert.equal(modeFor('tracked', false), 'TrackOwnLocation')
-  assert.equal(modeFor('compass', false), 'TrackOwnLocation')
+test('the button: LocationOff with no fix, TrackOwnLocation until the camera is on it', () => {
+  assert.equal(modeFor('free', false), 'LocationOff')
+  assert.equal(modeFor('tracked', false), 'LocationOff')
+  assert.equal(modeFor('compass', false), 'LocationOff')
   assert.equal(modeFor('free', true), 'TrackOwnLocation')
   assert.equal(modeFor('tracked', true), 'TrackedLocation')
   assert.equal(modeFor('compass', true), 'TracksTheMapBasedOnCompassFacing')

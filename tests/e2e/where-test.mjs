@@ -10,7 +10,7 @@
 //   PARAPO_NO_TILES=1 node tests/e2e/where-test.mjs   no basemap tiles (a sandbox)
 //   PARAPO_VIDEO=out/  node tests/e2e/where-test.mjs  also records the run as out/where-am-i.webm
 //
-// What it proves: the button shows TrackOwnLocation at the map's foot and
+// What it proves: the button shows LocationOff at the map's foot and
 // there is no overlay until asked; asking shows the overlay at the fix over
 // a circle the size of its accuracy, and brings the camera to it 1000 ft
 // across, north up (TrackedLocation); a walk turns the cone its way and the
@@ -108,10 +108,10 @@ await open(page)
 const button = page.locator('[data-testid="where"]')
 const mode = () => button.getAttribute('data-mode')
 check(
-  'the button is there, TrackOwnLocation, with no overlay on the map',
-  (await button.getAttribute('data-state')) === 'off' && (await mode()) === 'TrackOwnLocation' && (await overlay(page).count()) === 0,
+  'the button is there, LocationOff, with no overlay on the map',
+  (await button.getAttribute('data-state')) === 'off' && (await mode()) === 'LocationOff' && (await overlay(page).count()) === 0,
 )
-check('it says what it does', (await button.getAttribute('aria-label')) === 'Show where I am')
+check('it says what it does', (await button.getAttribute('aria-label')) === 'Turn on my location')
 const foot = await page.evaluate(() => {
   const b = document.querySelector('[data-testid="where"]').getBoundingClientRect()
   const m = window.__map.getContainer().getBoundingClientRect()
@@ -226,7 +226,7 @@ await open(page2)
 await page2.locator('[data-testid="where"]').click()
 const note = page2.locator('[data-testid="where-note"]')
 check('a browser that refuses: a note above the button, and no overlay', await until(async () => (await note.count()) === 1, 8000) && (await overlay(page2).count()) === 0, (await note.count()) ? await note.innerText() : 'no note')
-check('  the button stays TrackOwnLocation, to try after the setting changes', (await page2.locator('[data-testid="where"]').getAttribute('data-state')) === 'denied' && (await page2.locator('[data-testid="where"]').getAttribute('data-mode')) === 'TrackOwnLocation')
+check('  the button stays LocationOff, to try after the setting changes', (await page2.locator('[data-testid="where"]').getAttribute('data-state')) === 'denied' && (await page2.locator('[data-testid="where"]').getAttribute('data-mode')) === 'LocationOff')
 await ctx2.close()
 
 // ---------------------------------------------------------- no fix, ever
@@ -256,7 +256,7 @@ await open(page3)
 const where3 = page3.locator('[data-testid="where"]')
 await where3.click()
 const note3 = page3.locator('[data-testid="where-note"]')
-check('a GPS that only times out: a note, still asking, TrackOwnLocation', await until(async () => (await note3.count()) === 1, 8000) && (await where3.getAttribute('data-state')) === 'asking' && (await where3.getAttribute('data-mode')) === 'TrackOwnLocation', `${await where3.getAttribute('data-state')}; ${(await note3.count()) ? await note3.innerText() : 'no note'}`)
+check('a GPS that only times out: a note, still asking, LocationOff', await until(async () => (await note3.count()) === 1, 8000) && (await where3.getAttribute('data-state')) === 'asking' && (await where3.getAttribute('data-mode')) === 'LocationOff', `${await where3.getAttribute('data-state')}; ${(await note3.count()) ? await note3.innerText() : 'no note'}`)
 await where3.click()
 await page3.waitForTimeout(300)
 check('  a second tap starts no second watch', (await page3.evaluate(() => window.__watches)) === 1, `${await page3.evaluate(() => window.__watches)} watch(es)`)
