@@ -106,16 +106,18 @@ const STEP_MS = 1000 / 15
  * for its turn (a GitHub runner, 2026-10-01: the trip card's buttons
  * answering five seconds late, 13 frames in 8 s; 51 ms with them still).
  *
- * The first step after they start, after the map zooms and after a
- * hidden page comes back does not count: a new view's first frame is its
- * dearest, and says little of what the next ones will cost. A gap past
- * AWAY_MS is the page having been away, not a slow step. Rested, they try
- * again only once the map has zoomed a level or more — another view, another
- * cost; a pan, as the locator's camera makes each second, is the same view's.
+ * For WARM_MS after they start, after the map zooms and after a hidden page
+ * comes back, no step counts: a new view's first frames are its dearest —
+ * its tiles read and laid out — and say little of what the next ones will
+ * cost (a GitHub runner, 2026-10-01: a jump to street zoom drew a few slow
+ * frames, and the flow rested where it keeps up easily). A gap past AWAY_MS
+ * is the page having been away, not a slow step. Rested, they try again only
+ * once the map has zoomed a level or more — another view, another cost; a
+ * pan, as the locator's camera makes each second, is the same view's.
  */
 const SLOW_STEP_MS = 4 * STEP_MS
 const SLOW_STEPS = 3
-const WARM_STEPS = 1
+const WARM_MS = 1500
 const AWAY_MS = 2000
 
 /** Whether this browser has been asked to keep still. */
@@ -219,7 +221,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     let last = performance.now()
     let moving = false
     let slow = 0
-    let warm = WARM_STEPS
+    let warmUntil = last + WARM_MS
     /** The zoom they rested at, or null while they flow; and the zoom the map last came to rest at. */
     let restedAt: number | null = null
     let zoomAt = map.getZoom()
@@ -249,13 +251,13 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
         // Zoomed: the new view's first frames are warm-up, its count afresh.
         if (Math.abs(zoom - zoomAt) >= 1) {
           slow = 0
-          warm = WARM_STEPS
+          warmUntil = last + WARM_MS
         }
       } else if (Math.abs(zoom - restedAt) >= 1) {
         // Rested for being slow, and another view now: they try again.
         restedAt = null
         slow = 0
-        warm = WARM_STEPS
+        warmUntil = last + WARM_MS
         frame.current = requestAnimationFrame(tick)
       }
       zoomAt = zoom
@@ -266,9 +268,8 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
         return
       }
       const gap = now - last
-      if (gap > AWAY_MS) warm = WARM_STEPS
-      if (warm > 0) warm--
-      else slow = gap > SLOW_STEP_MS ? slow + 1 : 0
+      if (gap > AWAY_MS) warmUntil = now + WARM_MS
+      slow = now < warmUntil ? 0 : gap > SLOW_STEP_MS ? slow + 1 : 0
       // Too slow to flow: they rest where they are.
       if (slow >= SLOW_STEPS) {
         restedAt = map.getZoom()
