@@ -369,14 +369,25 @@ for (const [i, p] of snapshot.polys.entries()) {
       check(`  ‹ on the trip goes back to the hotspot's card, lit again`, again.kind === 'hotspot' && again.text === opened && (await stopsLit()).includes(p.id), `card ${again.kind}; lit ${JSON.stringify(await stopsLit())}`)
       const relit = await litNow()
       check(`  ‹ comes back to its cards at rest, every route lit again`, (await page.locator('[data-testid="card"] [data-testid="card-origin"][data-state="selected"]').count()) === 0 && sameIds(relit, shownIds), `${relit.length} lit of ${shownIds.length}`)
-      // Picked, a second tap lets it go.
+      // Picked, a second tap lets it go — and the camera, after the pick's
+      // overview, goes back to where the visitor had it (the owner, 2026-10-01).
+      const view = () => page.evaluate(() => {
+        const m = window.__map
+        const c = m.getCenter()
+        return { lng: c.lng, lat: c.lat, zoom: m.getZoom() }
+      })
+      const camBefore = await view()
       await name.click()
       await page.waitForTimeout(250)
       const repicked = (await firstCard.getAttribute('data-state')) === 'selected'
+      await page.waitForTimeout(700)
       await name.click()
       await page.waitForTimeout(250)
       const letGo = await litNow()
       check(`  a second tap on a picked card lets it go: every route lit again`, repicked && (await firstCard.getAttribute('data-state')) === 'rest' && sameIds(letGo, shownIds), `picked ${repicked}; ${letGo.length} lit`)
+      await page.waitForTimeout(800)
+      const camAfter = await view()
+      check(`  and the camera goes back to where it was before the pick`, Math.abs(camAfter.zoom - camBefore.zoom) < 0.01 && Math.abs(camAfter.lng - camBefore.lng) < 1e-6 && Math.abs(camAfter.lat - camBefore.lat) < 1e-6, JSON.stringify({ camBefore, camAfter }))
       // ✕ closes it, a picked card and all: nothing stays lit.
       await name.click()
       await page.waitForTimeout(250)

@@ -158,3 +158,29 @@ export function useHeightOverview(
     else map.easeTo({ center: framed.at, offset: clearOfSheet(map.getContainer(), sheet, snap), duration: 700 }, APP_MOVE)
   }, [map, snap])
 }
+
+type Camera = { center: LngLat; zoom: number; bearing: number; pitch: number }
+
+/**
+ * A hotspot's RouteCard picked and let go: the camera goes back to where the
+ * visitor had it before the pick's overview (the owner, 2026-10-01:
+ * "deselecting head route … should go back to original camera of the user,
+ * after the overview"). `keep` as a card is picked with none picked yet — so
+ * moving between cards keeps the camera from before them all — and `back`
+ * as it is let go.
+ */
+export function useCameraBefore(map: MapLibreMap | null) {
+  const kept = useRef<Camera | null>(null)
+  return {
+    keep: () => {
+      if (!map) return
+      const c = map.getCenter()
+      kept.current = { center: [c.lng, c.lat], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() }
+    },
+    back: () => {
+      const was = kept.current
+      kept.current = null
+      if (map && was) map.easeTo({ ...was, duration: 700 }, APP_MOVE)
+    },
+  }
+}
