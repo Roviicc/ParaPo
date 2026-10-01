@@ -3617,8 +3617,9 @@ across the map's shorter side, north up (TrackedLocation, its arrow turning
 the way the phone faces); the next tilts it 45°, 200 ft across, turned with
 the phone's compass (TracksTheMapBasedOnCompassFacing); the next puts north
 up again, and round. Once on, location stays on — no off, the owner's call;
-with a mouse there is no compass, and a tap on TrackedLocation only comes
-back to the visitor. On the map the visitor is a blue dot with a cone the
+with a mouse, or a phone whose compass has given nothing (Safari's prompt
+refused, no magnetometer), a tap on TrackedLocation only comes back to the
+visitor. On the map the visitor is a blue dot with a cone the
 way they face and the circle the fix is good to, a new token,
 Map/LocatorIndicatorOverlay/surface (blue/600 at 15%). The button sits 12
 above the open card's sheet at the right edge, following it from Middle
@@ -3627,5 +3628,5 @@ its top is, `--dock-y`, on the page's `data-dock-host`); with no card, at
 the map's foot; where the card floats in the corner, bottom right, clear of
 the credit line. The walker, its sheets in `public/figure/` and its CSS are
 gone (the masters stay in `docs/figure/`). `where-test` is rewritten for it
-(27 → 33), `locator-test` replaces `where-am-i-test`.
+(27 → 34), `locator-test` replaces `where-am-i-test`.
 

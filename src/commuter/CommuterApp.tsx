@@ -65,6 +65,7 @@ export default function CommuterApp() {
   const root = useRef<HTMLDivElement>(null)
   const locator = useLocator(map, {
     compass: coarse,
+    snap: cards.snap,
     offset: () =>
       map ? clearOfSheet(map.getContainer(), root.current?.querySelector<HTMLElement>('[data-floats]:not([hidden])') ?? null, cards.snap) : [0, 0],
   })
@@ -90,7 +91,7 @@ export default function CommuterApp() {
         (2026-09-29).
       */}
       <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} />
-      {map && <Locator locator={locator} docked={cards.open} compass={coarse} />}
+      {map && <Locator locator={locator} docked={cards.open} />}
       {map && locator.fix && <LocatorOnMap map={map} fix={locator.fix} heading={locator.heading} />}
       {/* Each lit ride's ends, named over their circles. */}
       {map && <EndTitles map={map} rides={rides} look={look} onPick={openPlace} />}

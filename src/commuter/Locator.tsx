@@ -7,8 +7,6 @@ type Props = {
   locator: State
   /** A card is open: the button sits on its sheet rather than at the map's foot. */
   docked: boolean
-  /** A phone, whose compass TrackedLocation's tap turns on; elsewhere that tap only comes back to the visitor. */
-  compass: boolean
 }
 
 /** What each look says it will do, for a screen reader. */
@@ -31,8 +29,8 @@ const LABEL = {
  * Denied or unavailable: a short note above it, and the button stays as it
  * was, to try again once the browser's setting is changed.
  */
-export function Locator({ locator, docked, compass }: Props) {
-  const { status, noFix, mode, heading, tap } = locator
+export function Locator({ locator, docked }: Props) {
+  const { status, noFix, mode, heading, compass, tap } = locator
   const [note, setNote] = useState<string | null>(null)
 
   useEffect(() => {
@@ -60,6 +58,7 @@ export function Locator({ locator, docked, compass }: Props) {
       style={{ translate: `0 ${y}` }}
     >
       <div className="pointer-events-auto absolute right-[calc(0.75rem+env(safe-area-inset-right))] bottom-full mb-3 flex flex-col items-end gap-1 @float:right-3 @float:bottom-10 @float:mb-0">
+        {/* The note's look is WhereAmI's, raw palette and all: no Figma design for it yet (the owner's to draw, 2026-10-01). */}
         {note && (
           <p
             role="status"

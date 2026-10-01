@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
 import { metresPerPixel } from '../shared/geo/geo'
@@ -14,6 +14,9 @@ export const CONE_DRAWN_DEG = 147.6
 const DOT_PX = 32
 /** A circle past this is the whole screen anyway, and a DOM element that big costs. */
 const HALO_MAX_PX = 1600
+
+/** The circle as drawn: never under the dot, never past HALO_MAX_PX. */
+const haloFor = (px: number) => Math.round(Math.min(HALO_MAX_PX, Math.max(DOT_PX, px)))
 
 type Props = {
   /** The accuracy circle's width: the fix's 68 % radius, twice, in pixels. */
@@ -32,7 +35,8 @@ type Props = {
  * cone 70 long; here the circle is the fix's, the cone stays as drawn.
  */
 export function LocatorIndicatorOverlay({ haloPx, coneDeg }: Props) {
-  const halo = Math.round(Math.min(HALO_MAX_PX, Math.max(DOT_PX, haloPx)))
+  const halo = haloFor(haloPx)
+  const gradient = useId()
   return (
     <div className="pointer-events-none relative size-0">
       <div
@@ -46,14 +50,14 @@ export function LocatorIndicatorOverlay({ haloPx, coneDeg }: Props) {
         >
           <svg viewBox="0 0 99.8046 70" className="absolute top-1/2 left-[28.71%] h-17.5 w-[99.8px]" aria-hidden>
             <defs>
-              <linearGradient id="locator-cone" x1="29.8046" y1="3.05551" x2="54.8732" y2="70" gradientUnits="userSpaceOnUse">
+              <linearGradient id={gradient} x1="29.8046" y1="3.05551" x2="54.8732" y2="70" gradientUnits="userSpaceOnUse">
                 <stop stopColor="currentColor" />
                 <stop offset="1" stopColor="currentColor" stopOpacity="0" />
               </linearGradient>
             </defs>
             <path
               d="M99.8046 0C99.8046 11.7907 96.8263 23.3905 91.146 33.7228C85.4658 44.0551 77.2677 52.7852 67.3124 59.103C57.3572 65.4208 45.9674 69.1215 34.1999 69.8619C22.4324 70.6022 10.6686 68.3581 8.2676e-07 63.3379L29.8046 0H99.8046Z"
-              fill="url(#locator-cone)"
+              fill={`url(#${gradient})`}
             />
           </svg>
         </div>
@@ -70,7 +74,8 @@ export function LocatorIndicatorOverlay({ haloPx, coneDeg }: Props) {
  * costs the map nothing to move (an animated layer kept MapLibre repainting
  * the whole map, 2026-09-25). Its circle grows and shrinks with the zoom;
  * its cone points the way they face on the screen, the map's own turn
- * taken off.
+ * taken off. It faces the screen, not the ground: tilted (the compass
+ * view), the circle stays round, sized for the ground at the visitor.
  */
 export function LocatorOnMap({ map, fix, heading }: { map: MapLibreMap; fix: Fix; heading: number | null }) {
   const [el] = useState(() => {
@@ -102,7 +107,7 @@ export function LocatorOnMap({ map, fix, heading }: { map: MapLibreMap; fix: Fix
   // For the suites (where-test): what the overlay was drawn from.
   useEffect(() => {
     el.dataset.accuracyM = String(Math.round(fix.accuracy))
-    el.dataset.haloPx = String(Math.round(Math.min(HALO_MAX_PX, Math.max(DOT_PX, haloPx))))
+    el.dataset.haloPx = String(haloFor(haloPx))
     el.dataset.heading = heading === null ? '' : String(Math.round(heading))
   }, [el, fix.accuracy, haloPx, heading])
   return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} coneDeg={heading === null ? null : heading - view.bearing} />, el)

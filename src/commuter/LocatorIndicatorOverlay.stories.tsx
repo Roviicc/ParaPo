@@ -22,7 +22,7 @@ export const AsDrawn: Story = { args: { haloPx: 240, coneDeg: CONE_DRAWN_DEG } }
 /** Facing up the screen. */
 export const FacingUp: Story = { args: { haloPx: 240, coneDeg: 0 } }
 
-/** No heading yet — standing still, no compass: no cone. */
+/** No heading yet — no compass, and the fixes have shown none: no cone. */
 export const NoHeading: Story = { args: { haloPx: 240, coneDeg: null } }
 
 /** A good fix zoomed out: the circle never shrinks under the dot. */

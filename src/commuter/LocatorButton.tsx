@@ -31,11 +31,14 @@ type Props = Omit<
  * InnerShadow/SpecialButtonPressed while touched, nothing else changing,
  * as drawn; no hover is drawn, so none.
  */
-export function LocatorButton({ mode, heading = null, ...rest }: Props) {
+export function LocatorButton({ mode, heading = null, 'aria-label': label, ...rest }: Props) {
   return (
     <button
       type="button"
       {...rest}
+      aria-label={label}
+      // No Tooltip here, as IconButton has: a mouse's hover hint is the browser's.
+      title={label}
       data-mode={mode}
       className={
         'group relative grid size-10 shrink-0 place-items-center rounded-full bg-surface-tertiary ' +

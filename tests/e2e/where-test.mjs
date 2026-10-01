@@ -19,6 +19,7 @@
 // (TracksTheMapBasedOnCompassFacing), and turns with it; the next puts north
 // up again, and the next tilts again; an app camera move lets go; a browser
 // that refuses says so; a GPS with no fix says so without a second watch;
+// with no compass read, TrackedLocation's tap only comes back;
 // and with a mouse there is no compass, the button sitting bottom right.
 import { chromium } from 'playwright'
 import { mkdirSync, renameSync, readdirSync } from 'node:fs'
@@ -149,6 +150,9 @@ for (let i = 1; i <= 4; i++) {
 check('a walk turns the cone its way (east)', await until(async () => apart(Number(await attr(page, 'data-heading')), 90) < 10), `heading ${await attr(page, 'data-heading')}`)
 await page.waitForTimeout(700)
 check('  and the camera follows', (await centred(page, p)) < 4, `${(await centred(page, p)).toFixed(1)} px off`)
+await button.click()
+await page.waitForTimeout(900)
+check('with no compass read yet, a tap stays TrackedLocation, flat', (await mode()) === 'TrackedLocation' && (await camera(page)).pitch < 0.5, `${await mode()}, pitch ${(await camera(page)).pitch.toFixed(1)}`)
 
 // The visitor drags the map: it lets go. A tap comes back.
 const box = await page.locator('canvas').first().boundingBox()
@@ -164,13 +168,13 @@ await ctx.setGeolocation({ ...p, accuracy: 10 })
 await page.waitForTimeout(1200)
 const after = await camera(page)
 check('  a new fix moves the overlay, not the camera', Math.abs(after.longitude - dragged.longitude) < 1e-7 && Math.abs(after.latitude - dragged.latitude) < 1e-7 && (await overlay(page).count()) === 1)
+// The phone's compass, facing east-south-east.
+await face(page, 120)
 await button.click()
 await page.waitForTimeout(1200)
 check('  a tap comes back: TrackedLocation, on the fix', (await mode()) === 'TrackedLocation' && (await centred(page, p)) < 4, `${await mode()}, ${(await centred(page, p)).toFixed(1)} px off`)
 check('  its label offers the compass', (await button.getAttribute('aria-label')) === 'Turn the map the way I face')
 
-// The compass: facing east-south-east.
-await face(page, 120)
 await button.click()
 await page.waitForTimeout(1200)
 cam = await camera(page)

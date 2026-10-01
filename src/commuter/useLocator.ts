@@ -35,7 +35,7 @@ export type Fix = {
   accuracy: number
   /** Metres a second, the browser's or derived from the last fixes. */
   speed: number
-  /** Degrees clockwise from north, from the fixes, or null when standing still. */
+  /** Degrees clockwise from north, from the fixes; null until they have shown one. */
   heading: number | null
   time: number
 }
@@ -56,7 +56,7 @@ export function modeFor(camera: Camera, located: boolean): LocatorMode {
   return camera === 'tracked' ? 'TrackedLocation' : 'TracksTheMapBasedOnCompassFacing'
 }
 
-/** Where a tap takes the camera: to the visitor; then round, tracked ⇄ compass, where there is a compass. */
+/** Where a tap takes the camera: to the visitor; then round, tracked ⇄ compass, once the phone's compass has been read. */
 export function afterTap(camera: Camera, compass: boolean): Camera {
   return camera === 'tracked' && compass ? 'compass' : 'tracked'
 }
@@ -167,6 +167,13 @@ export type Locator = {
   fix: Fix | null
   /** The way the visitor faces: the phone's compass, else the way the fixes go. Null: unknown. */
   heading: number | null
+  /**
+   * The phone's compass has been read: TrackedLocation's tap turns the map
+   * by it. Not merely a touch screen — Safari's prompt refused, Firefox, a
+   * tablet with no magnetometer give none, and the map would tilt with
+   * nothing to turn by (the ds-reviewer, 2026-10-01).
+   */
+  compass: boolean
   camera: Camera
   /** The button's look (LocatorButton's Property 1). */
   mode: LocatorMode
@@ -183,11 +190,13 @@ export type Locator = {
 type Options = {
   /** Where the visitor should sit from the map's centre, clear of an open card (clearOfSheet). */
   offset: () => [number, number]
-  /** A phone, with a compass to turn the map by. */
+  /** The open card's height: the camera keeps the visitor clear of it as it moves. */
+  snap: unknown
+  /** A phone, which may have a compass to turn the map by. */
   compass: boolean
 }
 
-export function useLocator(map: MapLibreMap | null, { offset, compass }: Options): Locator {
+export function useLocator(map: MapLibreMap | null, { offset, snap, compass }: Options): Locator {
   const [status, setStatus] = useState<LocatorStatus>('off')
   const [fix, setFix] = useState<Fix | null>(null)
   const [camera, setCamera] = useState<Camera>('free')
@@ -203,11 +212,16 @@ export function useLocator(map: MapLibreMap | null, { offset, compass }: Options
 
   const phone = useCompass(compass && status === 'on')
   const heading = phone ?? fix?.heading ?? null
+  const read = phone !== null
+  const readRef = useRef(read)
+  readRef.current = read
 
   const tap = useCallback(() => {
     setTaps((n) => n + 1)
     if (watchRef.current !== null) {
-      setCamera((c) => afterTap(c, compass))
+      // Each tap is a gesture Safari's prompt may need: asked again until it is answered.
+      if (compass && !readRef.current) askForCompass()
+      setCamera((c) => afterTap(c, readRef.current))
       return
     }
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -286,12 +300,15 @@ export function useLocator(map: MapLibreMap | null, { offset, compass }: Options
   // would otherwise stop the zoom halfway. A finger zooming lets go first,
   // so the zoom is never the visitor's to keep.
   const lastTaps = useRef(taps)
-  // The heading turns only the compass view: north stays up otherwise.
+  // The heading turns only the compass view: north stays up otherwise. And
+  // the card's height: the visitor stays clear of it as it moves.
   const turn = camera === 'compass' ? heading : null
+  const lastSnap = useRef(snap)
   useEffect(() => {
     if (!map || !fix || camera === 'free') return
-    const tapped = lastTaps.current !== taps
+    const tapped = lastTaps.current !== taps || lastSnap.current !== snap
     lastTaps.current = taps
+    lastSnap.current = snap
     const c = map.getContainer()
     const across = camera === 'compass' ? COMPASS_ACROSS_M : TRACKED_ACROSS_M
     map.easeTo({
@@ -302,7 +319,7 @@ export function useLocator(map: MapLibreMap | null, { offset, compass }: Options
       offset: offsetRef.current(),
       duration: tapped ? 800 : 400,
     })
-  }, [map, fix, camera, turn, taps])
+  }, [map, fix, camera, turn, taps, snap])
 
   useEffect(
     () => () => {
@@ -311,5 +328,5 @@ export function useLocator(map: MapLibreMap | null, { offset, compass }: Options
     [],
   )
 
-  return { status, fix, heading, camera, mode: modeFor(camera, status === 'on' && !!fix), noFix, tap }
+  return { status, fix, heading, compass: read, camera, mode: modeFor(camera, status === 'on' && !!fix), noFix, tap }
 }
