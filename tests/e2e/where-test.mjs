@@ -12,10 +12,10 @@
 //
 // What it proves: the button shows LocationOff at the map's foot and
 // there is no overlay until asked; asking shows the overlay at the fix over
-// a circle the size of its accuracy, and brings the camera to it 1000 ft
-// across, north up (TrackedLocation); a walk turns the cone its way and the
+// a circle the size of its accuracy, and brings the camera to it 200 m on the scale bar
+// across, north up (TrackedLocation); a walk turns the beam its way and the
 // camera follows; a drag lets go (TrackOwnLocation) and a tap comes back; the
-// next tap tilts the camera 200 ft across, turned the way the compass says
+// next tap tilts the camera, 200 m on the bar, turned the way the compass says
 // (TracksTheMapBasedOnCompassFacing), and turns with it; the next puts north
 // up again, and the next tilts again; an app camera move lets go; a browser
 // that refuses says so; a GPS with no fix says so without a second watch;
@@ -37,7 +37,6 @@ const M_LAT = 1 / 111_000
 const M_LNG = 1 / (111_000 * Math.cos((P0.latitude * Math.PI) / 180))
 const east = (p, m) => ({ longitude: p.longitude + m * M_LNG, latitude: p.latitude })
 const north = (p, m) => ({ longitude: p.longitude, latitude: p.latitude + m * M_LAT })
-const FT = 0.3048
 
 const b = await chromium.launch()
 const stubTiles = (page) => NO_TILES && bareStyle(page)
@@ -66,13 +65,9 @@ const centred = async (page, p) => {
   const s = await onScreen(page, p)
   return Math.hypot(s.x - s.w / 2, s.y - s.h / 2)
 }
-/** The zoom at which `metres` span the map's shorter side here: the app's zoomShowing, measured independently. */
+/** The zoom at which the map's scale bar reads `metres` per 100 px here: the app's zoomForScale, worked out independently. */
 const zoomFor = (page, metres) =>
-  page.evaluate(([metres, lat]) => {
-    const c = window.__map.getContainer()
-    const px = Math.min(c.clientWidth, c.clientHeight)
-    return Math.log2((40075016.686 * Math.cos((lat * Math.PI) / 180) * px) / (512 * metres))
-  }, [metres, P0.latitude])
+  page.evaluate(([metres, lat]) => Math.log2((40075016.686 * Math.cos((lat * Math.PI) / 180) * 100) / (512 * metres)), [metres, P0.latitude])
 const apart = (a, b) => Math.abs(((((a - b) % 360) + 540) % 360) - 180)
 const until = async (cond, ms = 6000) => {
   const end = Date.now() + ms
@@ -134,10 +129,10 @@ const measuredMpp = () =>
   }, [P0.longitude, P0.latitude])
 const haloPx = Number(await attr(page, 'data-halo-px'))
 const mpp = await measuredMpp()
-check('  its circle is the accuracy in pixels at this zoom', Math.abs(haloPx - (2 * 30) / mpp) <= 3, `${haloPx} px for 60 m, ${mpp.toFixed(2)} m/px`)
+check('  its circle is the accuracy, 40 m at the least, in pixels at this zoom', Math.abs(haloPx - (2 * 40) / mpp) <= 3, `${haloPx} px for 80 m across, ${mpp.toFixed(2)} m/px`)
 let cam = await camera(page)
-const trackedZoom = await zoomFor(page, 1000 * FT)
-check('  the camera came to it, 1000 ft across, north up', (await centred(page, P0)) < 4 && Math.abs(cam.zoom - trackedZoom) < 0.05 && cam.pitch < 0.5 && Math.abs(cam.bearing) < 0.5, `${(await centred(page, P0)).toFixed(1)} px off, zoom ${cam.zoom.toFixed(2)} for ${trackedZoom.toFixed(2)}, pitch ${cam.pitch.toFixed(1)}, bearing ${cam.bearing.toFixed(1)}`)
+const trackedZoom = await zoomFor(page, 200)
+check('  the camera came to it from the city, further out than 2 km on the scale bar: in to 200 m, north up', (await centred(page, P0)) < 4 && Math.abs(cam.zoom - trackedZoom) < 0.05 && cam.pitch < 0.5 && Math.abs(cam.bearing) < 0.5, `${(await centred(page, P0)).toFixed(1)} px off, zoom ${cam.zoom.toFixed(2)} for ${trackedZoom.toFixed(2)}, pitch ${cam.pitch.toFixed(1)}, bearing ${cam.bearing.toFixed(1)}`)
 check('  the button: TrackedLocation', (await mode()) === 'TrackedLocation' && (await button.getAttribute('data-state')) === 'on', `${await mode()}`)
 
 // A walk east at 2 m/s: one fix a second.
@@ -147,7 +142,7 @@ for (let i = 1; i <= 4; i++) {
   await ctx.setGeolocation({ ...p, accuracy: 10 })
   await page.waitForTimeout(1000)
 }
-check('a walk turns the cone its way (east)', await until(async () => apart(Number(await attr(page, 'data-heading')), 90) < 10), `heading ${await attr(page, 'data-heading')}`)
+check('a walk turns the beam its way (east)', await until(async () => apart(Number(await attr(page, 'data-heading')), 90) < 10), `heading ${await attr(page, 'data-heading')}`)
 await page.waitForTimeout(700)
 check('  and the camera follows', (await centred(page, p)) < 4, `${(await centred(page, p)).toFixed(1)} px off`)
 await button.click()
@@ -172,19 +167,32 @@ check('  a new fix moves the overlay, not the camera', Math.abs(after.longitude 
 // fix's metres, so zoomed out it shrinks under the dot and is gone.
 await page.evaluate(() => window.__map.jumpTo({ zoom: 12 }))
 await page.waitForTimeout(300)
-check('  zoomed out till the dot covers its circle, the circle is gone', (await attr(page, 'data-halo-px')) === '0' && (await overlay(page).locator('.rounded-full').count()) === 2, `${await attr(page, 'data-halo-px')} px`)
+check('  zoomed out till the dot covers its circle, the circle is gone', (await attr(page, 'data-halo-px')) === '0' && (await overlay(page).locator('[data-part="circle"]').count()) === 0, `${await attr(page, 'data-halo-px')} px`)
+check('  and the dot and beam are drawn smaller, as Google Maps\' are', (await attr(page, 'data-scale')) === '0.45', `scale ${await attr(page, 'data-scale')}`)
+// A fix indoors, 1 km out: the circle claims 80 m at most (the owner's call, 2026-10-01).
+await page.evaluate(() => window.__map.jumpTo({ zoom: 16 }))
+await ctx.setGeolocation({ ...p, accuracy: 1000 })
+await page.waitForTimeout(1200)
+const capMpp = await page.evaluate(([lng, lat]) => {
+  const east = 100 / (111319.49079 * Math.cos((lat * Math.PI) / 180))
+  const a = window.__map.project([lng, lat]), b = window.__map.project([lng + east, lat])
+  return 100 / Math.hypot(b.x - a.x, b.y - a.y)
+}, [p.longitude, p.latitude])
+const capped = Number(await attr(page, 'data-halo-px'))
+check('  a fix 1 km out draws an 80 m circle, no more', (await attr(page, 'data-accuracy-m')) === '1000' && Math.abs(capped - 160 / capMpp) <= 3, `${capped} px for 160 m across`)
 // The phone's compass, facing east-south-east.
 await face(page, 120)
 await button.click()
 await page.waitForTimeout(1200)
 check('  a tap comes back: TrackedLocation, on the fix', (await mode()) === 'TrackedLocation' && (await centred(page, p)) < 4, `${await mode()}, ${(await centred(page, p)).toFixed(1)} px off`)
+check('  at the zoom it was at, under 2 km on the scale bar: the height is the visitor\'s', Math.abs((await camera(page)).zoom - 16) < 0.05, `zoom ${(await camera(page)).zoom.toFixed(2)}`)
 check('  its label offers the compass', (await button.getAttribute('aria-label')) === 'Turn the map the way I face')
 
 await button.click()
 await page.waitForTimeout(1200)
 cam = await camera(page)
-const compassZoom = await zoomFor(page, 200 * FT)
-check('the next tap tilts the camera, 200 ft across, turned the way the phone faces', (await mode()) === 'TracksTheMapBasedOnCompassFacing' && Math.abs(cam.zoom - compassZoom) < 0.05 && Math.abs(cam.pitch - 45) < 0.5 && apart(cam.bearing, 120) < 1, `${await mode()}, zoom ${cam.zoom.toFixed(2)} for ${compassZoom.toFixed(2)}, pitch ${cam.pitch.toFixed(1)}, bearing ${cam.bearing.toFixed(1)}`)
+const compassZoom = await zoomFor(page, 200)
+check('the next tap tilts the camera, 200 m on the scale bar, turned the way the phone faces', (await mode()) === 'TracksTheMapBasedOnCompassFacing' && Math.abs(cam.zoom - compassZoom) < 0.05 && Math.abs(cam.pitch - 45) < 0.5 && apart(cam.bearing, 120) < 1, `${await mode()}, zoom ${cam.zoom.toFixed(2)} for ${compassZoom.toFixed(2)}, pitch ${cam.pitch.toFixed(1)}, bearing ${cam.bearing.toFixed(1)}`)
 check('  still on the fix', (await centred(page, p)) < 4, `${(await centred(page, p)).toFixed(1)} px off`)
 check("  the overlay's heading is the compass's", apart(Number(await attr(page, 'data-heading')), 120) < 1, `${await attr(page, 'data-heading')}`)
 await face(page, 200)
@@ -197,7 +205,7 @@ check('  a shiver under 3° leaves it be', apart((await camera(page)).bearing, 2
 await button.click()
 await page.waitForTimeout(1200)
 cam = await camera(page)
-check('the next tap puts north up again: TrackedLocation, 1000 ft, flat', (await mode()) === 'TrackedLocation' && Math.abs(cam.zoom - trackedZoom) < 0.05 && cam.pitch < 0.5 && Math.abs(cam.bearing) < 0.5, `${await mode()}, zoom ${cam.zoom.toFixed(2)}, pitch ${cam.pitch.toFixed(1)}, bearing ${cam.bearing.toFixed(1)}`)
+check('the next tap puts north up again: TrackedLocation at the zoom it had, flat', (await mode()) === 'TrackedLocation' && Math.abs(cam.zoom - 16) < 0.05 && cam.pitch < 0.5 && Math.abs(cam.bearing) < 0.5, `${await mode()}, zoom ${cam.zoom.toFixed(2)}, pitch ${cam.pitch.toFixed(1)}, bearing ${cam.bearing.toFixed(1)}`)
 check("  its arrow turned the way the phone faces", /rotate:\s*200deg/.test((await button.locator('svg').first().getAttribute('style')) ?? ''), `${await button.locator('svg').first().getAttribute('style')}`)
 await button.click()
 await page.waitForTimeout(1200)

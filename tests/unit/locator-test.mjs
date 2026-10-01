@@ -8,15 +8,21 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  COMPASS_ACROSS_M,
-  TRACKED_ACROSS_M,
+  ACCURACY_MAX_M,
+  ACCURACY_MIN_M,
+  COMPASS_SCALE_M,
+  SCALE_PX,
+  TRACKED_SCALE_M,
+  circleRadius,
   afterTap,
   apart,
   bearing,
   compassHeading,
   modeFor,
   motionFrom,
-  zoomShowing,
+  indicatorScale,
+  trackedZoom,
+  zoomForScale,
 } from '../../src/commuter/useLocator.ts'
 import { M_PER_DEG, metresPerPixel } from '../../src/shared/geo/geo.ts'
 
@@ -44,14 +50,15 @@ test('a tap with no compass (a laptop) stays tracked: it only comes back to the 
   assert.equal(afterTap('tracked', false), 'tracked')
 })
 
-test('zoom: 1000 ft across a phone is street level, 200 ft some 2.3 zooms closer', () => {
-  const tracked = zoomShowing(TRACKED_ACROSS_M, 14.7, 390)
-  const compass = zoomShowing(COMPASS_ACROSS_M, 14.7, 390)
-  // Measured back with the map's own scale: the span comes out as asked.
-  assert.ok(Math.abs(metresPerPixel(14.7, tracked) * 390 - TRACKED_ACROSS_M) < 0.01)
-  assert.ok(Math.abs(compass - tracked - Math.log2(5)) < 1e-9)
-  assert.ok(tracked > 16 && tracked < 17.5, `${tracked}`)
-  assert.ok(compass < 22, `${compass}: within MapLibre's zoom`)
+test('zoom: the scale bar reads 200 m per 100 px tracked and in the compass view; the circle 40 to 80 m', () => {
+  const tracked = zoomForScale(TRACKED_SCALE_M, 14.7)
+  // Measured back with the map's own scale: 100 px come out as asked.
+  assert.ok(Math.abs(metresPerPixel(14.7, tracked) * SCALE_PX - TRACKED_SCALE_M) < 0.01)
+  assert.equal(zoomForScale(COMPASS_SCALE_M, 14.7), tracked)
+  assert.ok(tracked > 15 && tracked < 15.5, `${tracked}`)
+  assert.equal(circleRadius(3), ACCURACY_MIN_M)
+  assert.equal(circleRadius(60), 60)
+  assert.equal(circleRadius(1000), ACCURACY_MAX_M)
 })
 
 test("compass: Safari's own heading, else an absolute alpha turned round, and the screen's turn added", () => {
@@ -124,3 +131,25 @@ test('motion: a move within the jitter keeps the last heading, whatever its spee
   const east = motionFrom([fix(at(0), 0, 40), fix(at(12), 4_000, 40)], 200)
   assert.ok(apart(east.heading, 90) < 0.05, `${east.heading}°`)
 })
+
+test('the dot and cone: full size from street level, smaller zoomed out, never under 45 %', () => {
+  assert.equal(indicatorScale(18), 1)
+  assert.equal(indicatorScale(16), 1)
+  assert.ok(Math.abs(indicatorScale(14) - 0.725) < 1e-9, `${indicatorScale(14)}`)
+  assert.equal(indicatorScale(12), 0.45)
+  assert.equal(indicatorScale(8), 0.45)
+  for (let z = 8; z < 18; z += 0.5) assert.ok(indicatorScale(z) <= indicatorScale(z + 0.5), `grows with zoom at ${z}`)
+})
+
+test("a tap to the visitor keeps the map's zoom, unless it is further out than 2 km", () => {
+  const far = zoomForScale(2000, 14.7)
+  const street = zoomForScale(200, 14.7)
+  // The scale bar at 2 km or under: the visitor's height stays.
+  assert.equal(trackedZoom(16, 14.7), 16)
+  assert.equal(trackedZoom(far, 14.7), far)
+  assert.equal(trackedZoom(19, 14.7), 19)
+  // Further out (the city at 11): in to 200 m.
+  assert.equal(trackedZoom(far - 0.01, 14.7), street)
+  assert.equal(trackedZoom(11, 14.7), street)
+})
+

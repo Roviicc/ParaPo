@@ -3643,6 +3643,44 @@ day: the HintuanCardRouteCounter is 24 in from the card's edges (32 before),
 through" before), the verb still agreeing with the count. The first
 RouteCard under it leaves 36 above its title (24).
 
+**The locator's overlay, smaller and honest, 2026-10-01.** The owner, trying
+it on a phone: the dot and its cone were as big zoomed out as at street
+level ("10/10 so big"), and a fix indoors drew a circle across the map. Now,
+as Google Maps': the dot and cone are Figma's size from zoom 16 in, shrinking
+with each zoom out to 45 % at 12 and no smaller (`indicatorScale`); the
+circle is the fix's real accuracy, capped at 150 m (the owner's pick of the
+two, the same day). `where-test` gains both (35 → 37), `locator-test` the
+scale (14).
+
+**The locator's camera and overlay, second pass, 2026-10-01.** The owner's
+rules of the afternoon: a tap on TrackOwnLocation no longer changes the
+camera's height — it goes to the visitor at the zoom the map is at — unless
+the map shows more than 2 km across, when it comes in to 200 m; the
+compass view is 100 m across (1000 and 200 ft before); and back from it,
+TrackedLocation's own zoom (`trackedZoom`). His second LocatorIndicatorOverlay
+(3870:5247): a 0.6 hairline round the circle in a new token,
+Map/LocatorIndicatorOverlay/border (blue/800 at 75%); the dot lifted by a
+new LocatorDotShadow and breathing, 1 → 1.15 over 2 s (locator.css, still
+for reduced motion); and a beam in the cone's place — 32 at the dot, 86 at
+its end, 84 long — drawn even where Figma's leans (his ask: "make it
+consistent"). `where-test` 38, `locator-test` 15.
+
+**The locator, read off the scale bar, 2026-10-01.** The owner reads the
+camera's height off the map's scale bar, so the rules are in its terms now
+(metres per 100 px; metres across the screen before, which the bar showed
+as some 50 and 20): a tap to the visitor keeps the zoom while the bar reads
+2 km or less, and comes in to 200 m from further out; the compass view is
+200 m too. The accuracy circle is held between 40 and 80 m (150 m at most
+before: "too large").
+
+**The locator's colours and its wandering eyes, 2026-10-01.** The owner's
+third pass at LocatorIndicatorOverlay (3870:5247): the circle in blue/300 at
+15% (blue/600 before), its hairline and the beam in blue/600 at 75% (the
+border was blue/800); and two white eyes on the dot, which glance about —
+dart, hold, dart on, an 11 s run of glances — and blink on a 5.3 s beat, so
+the two drift apart and never read as a loop (locator.css; still for
+reduced motion).
+
 **A picked RouteCard's overview, 2026-10-01.** The owner's ask: a RouteCard
 picked — its name tapped, in the route list or on a hotspot's card — brings
 the camera to its routes whole, zooming in or out, clear of the sheet, as
@@ -3653,4 +3691,3 @@ next ask the same day: on the route list, a
 hotspot's card or a trip, a press takes the camera to what is lit after it
 — the routes the other way round, whole (`useSwitchOverview`, all three in `useOverviews.ts`; a trip's SWITCH
 had left the view as it was).
-

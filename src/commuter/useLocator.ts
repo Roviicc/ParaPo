@@ -14,14 +14,15 @@ import type { LocatorMode } from './LocatorButton'
  *
  *  - LocationOff, no location yet: a tap asks the browser for it, and its
  *    first fix brings the camera as TrackOwnLocation's tap does.
- *  - TrackOwnLocation, the camera elsewhere — before the first tap, and the
- *    moment it moves off the visitor at all, by a finger or by the app. A
- *    tap brings it to them, about 1000 ft across.
+ *  - TrackOwnLocation, the camera elsewhere — the moment it moves off the
+ *    visitor at all, by a finger or by the app. A tap brings it to them at
+ *    the zoom it is at; from further out than 2 km on the scale bar, in to
+ *    200 m (trackedZoom).
  *  - TrackedLocation, the camera on them, north up, following each fix. A
  *    tap turns on the compass.
- *  - TracksTheMapBasedOnCompassFacing, the camera tilted, about 200 ft
- *    across, turned the way the phone faces. A tap goes back to
- *    TrackedLocation's view, and the next to this again.
+ *  - TracksTheMapBasedOnCompassFacing, the camera tilted, 200 m on the bar,
+ *    turned the way the phone faces. A tap goes back to TrackedLocation's
+ *    view, at its zoom, and the next to this again.
  *
  * With no compass to read (a laptop: the owner, 2026-10-01) a tap on
  * TrackedLocation brings the camera back to the visitor instead.
@@ -46,12 +47,43 @@ export type Fix = {
 /** Below this the GPS's own heading is noise: a slow shuffle, or drift while still. */
 export const STILL_BELOW_MPS = 0.5
 
-/** What TrackedLocation shows across the map's shorter side: "zoom to 1000ft". */
-export const TRACKED_ACROSS_M = 1000 * 0.3048
-/** And TracksTheMapBasedOnCompassFacing: "zoom to 200ft". */
-export const COMPASS_ACROSS_M = 200 * 0.3048
+/**
+ * The camera's "height", as the owner reads it (2026-10-01): the map's scale
+ * bar, metres per SCALE_PX on the screen. A tap to the visitor keeps the
+ * zoom the map is at — "it must not change the camera view height" —
+ * unless the bar reads more than FAR_SCALE_M, when it comes in to
+ * TRACKED_SCALE_M; the compass view is COMPASS_SCALE_M. Metres across the
+ * screen before (200 and 100, and 1000 and 200 ft before that), which read
+ * on the bar as some 50 and 20.
+ */
+export const SCALE_PX = 100
+export const TRACKED_SCALE_M = 200
+export const COMPASS_SCALE_M = 200
+export const FAR_SCALE_M = 2000
+
+/**
+ * The accuracy circle shows the fix's own radius, held between these (the
+ * owner's, 2026-10-01; capped at 150 before): a fix indoors or off the wifi
+ * can say 1 km, and a good one 3 m — a circle under the dot.
+ */
+export const ACCURACY_MIN_M = 40
+export const ACCURACY_MAX_M = 80
 /** How far the compass view tilts: "slightly ... diagonally", as Google's does. */
 export const COMPASS_PITCH = 45
+
+/**
+ * How big the dot and its beam are drawn at `zoom`, as Google Maps' stays
+ * small zoomed out (the owner's ask, 2026-10-01: "at zoomed out it's 10/10
+ * so big"): Figma's full size from street level in, shrinking with each
+ * zoom out to SMALLEST at city level, and no smaller, so it is still seen.
+ */
+export function indicatorScale(zoom: number): number {
+  const FULL_FROM = 16
+  const SMALLEST_AT = 12
+  const SMALLEST = 0.45
+  const t = Math.min(1, Math.max(0, (zoom - SMALLEST_AT) / (FULL_FROM - SMALLEST_AT)))
+  return SMALLEST + (1 - SMALLEST) * t
+}
 
 /**
  * The button's look for where the camera is, and whether there is a fix to
@@ -69,10 +101,21 @@ export function afterTap(camera: Camera, compass: boolean): Camera {
   return camera === 'tracked' && compass ? 'compass' : 'tracked'
 }
 
-/** The zoom at which `metres` span `px` screen pixels at this latitude. */
-export function zoomShowing(metres: number, lat: number, px: number): number {
-  return Math.log2((metresPerPixel(lat, 0) * px) / metres)
+/**
+ * The zoom a tap to the visitor keeps: the map's own, unless its scale bar
+ * reads more than FAR_SCALE_M, when it comes in to TRACKED_SCALE_M.
+ */
+export function trackedZoom(current: number, lat: number): number {
+  return current < zoomForScale(FAR_SCALE_M, lat) ? zoomForScale(TRACKED_SCALE_M, lat) : current
 }
+
+/** The zoom at which SCALE_PX screen pixels are `metres` at this latitude: the scale bar reading that. */
+export function zoomForScale(metres: number, lat: number): number {
+  return Math.log2((metresPerPixel(lat, 0) * SCALE_PX) / metres)
+}
+
+/** The accuracy circle's radius for a fix this good. */
+export const circleRadius = (accuracy: number) => Math.min(ACCURACY_MAX_M, Math.max(ACCURACY_MIN_M, accuracy))
 
 /** Compass bearing from a to b, degrees clockwise from north. */
 export function bearing(a: LngLat, b: LngLat): number {
@@ -224,8 +267,16 @@ export function useLocator(map: MapLibreMap | null, { offset, snap, compass }: O
   const readRef = useRef(read)
   readRef.current = read
 
+  // TrackedLocation's zoom, chosen as the camera comes to the visitor from
+  // elsewhere (trackedZoom) and kept through the compass view and back.
+  // Null: to be chosen at the next fix.
+  const trackedZoomRef = useRef<number | null>(null)
+  const cameraRef = useRef(camera)
+  cameraRef.current = camera
+
   const tap = useCallback(() => {
     setTaps((n) => n + 1)
+    if (cameraRef.current === 'free') trackedZoomRef.current = null
     if (watchRef.current !== null) {
       // Each tap is a gesture Safari's prompt may need: asked again until it is answered.
       if (compass && !readRef.current) askForCompass()
@@ -306,7 +357,7 @@ export function useLocator(map: MapLibreMap | null, { offset, snap, compass }: O
   // The camera on the visitor: each fix, each turn of the phone, each tap.
   // The whole view every time, not only the centre: a fix arriving mid-glide
   // would otherwise stop the zoom halfway. A finger zooming lets go first,
-  // so the zoom is never the visitor's to keep.
+  // so the zoom is the one the tap chose.
   const lastTaps = useRef(taps)
   // The heading turns only the compass view: north stays up otherwise. And
   // the card's height: the visitor stays clear of it as it moves.
@@ -317,11 +368,10 @@ export function useLocator(map: MapLibreMap | null, { offset, snap, compass }: O
     const tapped = lastTaps.current !== taps || lastSnap.current !== snap
     lastTaps.current = taps
     lastSnap.current = snap
-    const c = map.getContainer()
-    const across = camera === 'compass' ? COMPASS_ACROSS_M : TRACKED_ACROSS_M
+    trackedZoomRef.current ??= trackedZoom(map.getZoom(), fix.at[1])
     map.easeTo({
       center: fix.at,
-      zoom: zoomShowing(across, fix.at[1], Math.min(c.clientWidth, c.clientHeight)),
+      zoom: camera === 'compass' ? zoomForScale(COMPASS_SCALE_M, fix.at[1]) : trackedZoomRef.current,
       pitch: camera === 'compass' ? COMPASS_PITCH : 0,
       bearing: camera === 'compass' ? (turn ?? map.getBearing()) : 0,
       offset: offsetRef.current(),
