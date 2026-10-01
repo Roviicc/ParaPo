@@ -4,25 +4,18 @@ import type { MapLibreMap } from 'maplibre-gl'
 import { HotspotCard } from '../shared/cards/HotspotCard'
 import { MapView } from '../shared/map/MapView'
 import { RouteCardList } from '../shared/cards/RouteCardList'
-import { TripCard, useTripLivery } from '../shared/cards/TripCard'
-import { clearOfSheet } from '../shared/cards/BottomSheet'
-import type { Snap } from '../shared/cards/sheetGesture'
-import { isChoosing, sharedSnap, tripBack } from '../shared/cards/cardStack'
+import { TripCard } from '../shared/cards/TripCard'
+import { useCardStack } from '../shared/cards/useCardStack'
 import { HintuanPin } from '../shared/map/HintuanPin'
 import { EndTitles } from '../shared/map/EndTitles'
 import { useRideTo } from '../shared/map/rideTo'
-import type { Livery } from '../shared/model/liveries'
 import { lineOf, listVariants, loadStopsFromSupabase } from './data/live'
 import { isDrawn, type VariantRow } from '../shared/model/routes'
-import { sharingAnEnd } from '../shared/model/departures'
 import { routeTimeline } from '../shared/model/ride'
 import { hotspotCount } from '../shared/model/places'
 import { stopLabel, stopRing, type StopRow } from '../shared/model/stops'
 import { getSupabase, supabaseConfigError } from './data/supabase'
-import { useRideColours } from '../shared/map/directionArrows'
 import { useLitRides } from '../shared/map/useLitRides'
-import { useLitLineColour } from '../shared/map/savedRoutesLayers'
-import { LIT_LINE, LIVERY_LINE } from '../shared/map/liveryLine'
 import { useSavedRoutes } from '../shared/map/useSavedRoutes'
 import { useSavedStops } from '../shared/map/useSavedStops'
 import { CardActions } from './panels/CardActions'
@@ -123,15 +116,16 @@ function Workshop({
     // While a trip is open, the map lights only the trip, as on the public map.
     muted: !!saved.selected,
   })
-  // One height for the sheets that stand in for one another (below).
-  const [snap, setSnap] = useState<Snap>('middle')
+  // The route list, a hotspot's card and the trip opened from either, as on
+  // the public map (useCardStack).
+  const cards = useCardStack(map, saved, stops)
   // A hintuan picked on the trip card: the camera gliding there clear of the
   // card and a circle popping up on it, the route left whole — the public
   // map's (the owner, 2026-09-30: "most of the interaction of public map
   // should be in studio"), the card staying at its height (clearOfSheet).
   const tripDock = useRef<HTMLDivElement>(null)
   const ride = useRideTo(map, saved.selected, stops.stops, {
-    onGlide: () => (map ? clearOfSheet(map.getContainer(), tripDock.current, snap) : [0, 0]),
+    onGlide: cards.clearOf(tripDock),
   })
 
   // What the lit routes wear on the map, as on the public map (useLitRides);
@@ -224,41 +218,7 @@ function Workshop({
     }
   }
 
-  // One click, several saved things: the route list shows them all. It
-  // stays behind a trip picked from it, hidden, for the trip's ‹ — and so
-  // does a hotspot's card — as on the public map.
-  const choice = [...saved.candidates, ...stops.candidates]
-  const choosing = isChoosing(saved.candidates, stops.candidates)
-  const closeAll = () => {
-    saved.select(null)
-    stops.select(null)
-  }
-  // The trip's colour, and what is lit wearing it: the public map's
-  // (CommuterApp.tsx says how, and why a card never changes colour).
-  const [worn, setWorn] = useState<{ id: string; livery: Livery } | null>(null)
-  const tripLivery = useTripLivery(saved.selected, worn, choosing || !!stops.selected)
-  const look = tripLivery ? LIVERY_LINE[tripLivery] : saved.highlight ? LIVERY_LINE[saved.highlight.livery] : LIT_LINE
-  useLitLineColour(map, look.line)
-  useRideColours(map, look)
-  // The trip's ‹: back to what it was picked from, or to its route with those
-  // sharing an end; the public map's.
-  const trip = saved.selected
-  const back = tripBack(trip, saved.variants, !!stops.selected || choosing)
-  const backToList =
-    back === 'behind'
-      ? () => saved.select(null, { keepList: true })
-      : back === 'fan' && trip
-        ? () => {
-            stops.select(null)
-            saved.openList(sharingAnEnd(saved.variants, trip), trip.reversed)
-          }
-        : null
-  // One height for the sheets that stand in for one another, back to Middle
-  // with nothing open; the public map's.
-  const anyOpen = !!saved.selected || !!stops.selected || choosing
-  const resting = sharedSnap(snap, anyOpen)
-  if (resting !== snap) setSnap(resting)
-  const height = { snap, onSnap: setSnap }
+  const { choice, choosing, closeAll, tripLivery, look, height } = cards
 
   // "Draw the return trip" only while the route still has a way undrawn: after
   // an edit of a route drawn both ways it once started a drawing whose save
@@ -312,7 +272,7 @@ function Workshop({
           variants={saved.variants}
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
           livery={tripLivery}
-          onBackToList={backToList}
+          onBackToList={cards.backFromTrip}
           onSwitch={(v) => saved.select(v.id, { keepList: true })}
           onClose={closeAll}
           picked={ride.pickedId}
@@ -375,10 +335,7 @@ function Workshop({
           stop={stops.selected}
           linkedVariantIds={stops.linkedVariantIds(stops.selected.id)}
           variants={saved.variants}
-          onSelectVariant={(v, livery) => {
-            setWorn(livery ? { id: v.id, livery } : null)
-            saved.select(v.id, { keepList: true })
-          }}
+          onSelectVariant={cards.openTrip}
           stops={stops.stops}
           onPickSibling={(id) => {
             saved.highlightCard(null)
@@ -401,10 +358,7 @@ function Workshop({
               />
             )
           }
-          onClose={() => {
-            saved.highlightCard(null)
-            stops.select(null)
-          }}
+          onClose={cards.closeStop}
         />
       )}
 
@@ -424,14 +378,8 @@ function Workshop({
           onFlip={saved.flip}
           selected={saved.highlight?.where === 'list' ? saved.highlight.from : null}
           onSelect={(p) => saved.highlightCard(p && { where: 'list', ...p })}
-          onRoute={(v, livery) => {
-            setWorn({ id: v.id, livery })
-            saved.select(v.id, { keepList: true })
-          }}
-          onStop={(s) => {
-            saved.select(null)
-            stops.select(s.id)
-          }}
+          onRoute={cards.openTrip}
+          onStop={(s) => cards.openStop(s.id)}
           onClose={closeAll}
         />
       )}

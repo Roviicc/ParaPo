@@ -5,6 +5,7 @@ import type { StopLink, StopSummary } from '../model/stops'
 import { useSavedStopsLayers } from './savedStopsLayers'
 import { boxMarks, placeHull } from './stopsShown'
 import { useStopTaps } from './stopTaps'
+import { letGoHolds } from '../cards/cardStack'
 
 /**
  * Every saved hotspot, drawn for everyone as a shaded outline in its kind's
@@ -23,7 +24,7 @@ import { useStopTaps } from './stopTaps'
 export function useSavedStops<S extends StopSummary>(
   map: MapLibreMap | null,
   load: () => Promise<{ stops: S[]; links: StopLink[] }>,
-  opts: { drawing?: boolean; hiddenStopId?: string | null; muted?: boolean; letGoId?: string | null } = {},
+  opts: { drawing?: boolean; hiddenStopId?: string | null; muted?: boolean } = {},
 ) {
   const muted = opts.muted ?? false
   const [stops, setStops] = useState<S[]>([])
@@ -36,6 +37,11 @@ export function useSavedStops<S extends StopSummary>(
    * half of the same tap.
    */
   const [candidates, setCandidates] = useState<S[]>([])
+  /**
+   * The box whose Selected row its card let go (the owner's ask, 2026-10-01):
+   * no box is the one until a row is picked again (letGoHolds).
+   */
+  const [letGoId, setLetGoId] = useState<string | null>(null)
 
   /**
    * Choosing one hotspot answers the question the chooser was asking — unless
@@ -44,6 +50,7 @@ export function useSavedStops<S extends StopSummary>(
    */
   const select = useCallback((id: string | null, opts: { keepList?: boolean } = {}) => {
     setSelectedId(id)
+    setLetGoId(null)
     if (!opts.keepList) setCandidates([])
   }, [])
 
@@ -77,8 +84,12 @@ export function useSavedStops<S extends StopSummary>(
 
   // What a tap marks, and the place wash (stopsShown.ts).
   // The chosen box let go on its card (HintuanCard's `deselected`): its place's boxes all alike.
-  const letGo = !!selectedId && opts.letGoId === selectedId
-  const marks = useMemo(() => boxMarks(stops, selectedId, candidates, muted, letGo), [stops, selectedId, candidates, muted, letGo])
+  // Another box — a row, a tap on the map — or the card closed: the next
+  // one opens with its box Selected.
+  if (letGoId !== null && !letGoHolds(letGoId, selectedId)) setLetGoId(null)
+  const letGone = letGoHolds(letGoId, selectedId)
+  const letGo = useCallback(() => setLetGoId(selectedId), [selectedId])
+  const marks = useMemo(() => boxMarks(stops, selectedId, candidates, muted, letGone), [stops, selectedId, candidates, muted, letGone])
   const hull = useMemo(() => placeHull(stops, selectedId, muted), [stops, selectedId, muted])
 
   // ----------------------------------------------------------------- layers
@@ -125,5 +136,19 @@ export function useSavedStops<S extends StopSummary>(
     [stops, select, map],
   )
 
-  return { stops, links, error, reload, selected, select, show, candidates, linkedVariantIds, stopsAlong }
+  return {
+    stops,
+    links,
+    error,
+    reload,
+    selected,
+    select,
+    show,
+    candidates,
+    linkedVariantIds,
+    stopsAlong,
+    /** The selected box let go on its card: no row Selected until one is picked. */
+    letGone,
+    letGo,
+  }
 }
