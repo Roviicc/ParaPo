@@ -3642,3 +3642,12 @@ day: the HintuanCardRouteCounter is 24 in from the card's edges (32 before),
 (24), the count in Black, and it reads "… here" ("2 routes pass here"; "…
 through" before), the verb still agreeing with the count. The first
 RouteCard under it leaves 36 above its title (24).
+
+**A picked RouteCard's overview, 2026-10-01.** The owner's ask: a RouteCard
+picked — its name tapped, in the route list or on a hotspot's card — brings
+the camera to its routes whole, zooming in or out, clear of the sheet, as
+a trip's row does for its trip (`useCardOverview`, beside
+`useTripOverview`, sharing its fit). Keyed on the card and what it shows: let
+go, or SWITCH turning the list round, the view stays until another card is
+picked.
+

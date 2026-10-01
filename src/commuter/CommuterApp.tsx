@@ -19,7 +19,7 @@ import { Notices } from './Notices'
 import { TripCard } from '../shared/cards/TripCard'
 import { useMapAge, useOffline } from './status'
 import { useShareLink } from './useShareLink'
-import { useTripOverview } from './useTripOverview'
+import { useCardOverview, useTripOverview } from './useTripOverview'
 import { Locator } from './Locator'
 import { LocatorOnMap } from './LocatorIndicatorOverlay'
 import { useLocator } from './useLocator'
@@ -57,17 +57,21 @@ export default function CommuterApp() {
   const hotspotDock = useRef<HTMLDivElement>(null)
   const ride = useRideTo(map, saved.selected, stops.stops, { onGlide: cards.clearOf(tripDock) })
   useTripOverview(map, saved.selected, tripDock, cards.snap)
+  // The page, and the card's sheet on show in it, for what the camera keeps clear of.
+  const root = useRef<HTMLDivElement>(null)
+  const openSheet = () => root.current?.querySelector<HTMLElement>('[data-floats]:not([hidden])') ?? null
+  // A RouteCard picked, in the list or a hotspot's card: its routes whole.
+  useCardOverview(map, saved.highlight, saved.variants, openSheet, cards.snap)
 
   useShareLink(map, saved)
   // The visitor's own position, when they ask for it, and the camera with
   // them (the owner's LocatorButton, 2026-10-01): kept clear of the card on
   // show, as a picked hintuan is.
-  const root = useRef<HTMLDivElement>(null)
   const locator = useLocator(map, {
     compass: coarse,
     snap: cards.snap,
     offset: () =>
-      map ? clearOfSheet(map.getContainer(), root.current?.querySelector<HTMLElement>('[data-floats]:not([hidden])') ?? null, cards.snap) : [0, 0],
+      map ? clearOfSheet(map.getContainer(), openSheet(), cards.snap) : [0, 0],
   })
   const offline = useOffline()
   const age = useMapAge(saved.variants)

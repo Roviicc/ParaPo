@@ -812,14 +812,14 @@ const closeCard = async () => {
  * its whole route, clear of the card (the owner's ask, 2026-10-01). `inside`
  * is every corner on the map and above the card, 2 px either way.
  */
-const framedAboveCard = async (bbox) =>
+const framedAboveCard = async (bbox, sheet = 'card') =>
   page.evaluate(
-    ([w, s, e, n]) =>
+    ([[w, s, e, n], sheet]) =>
       new Promise((done) => {
         const m = window.__map
         const read = () => {
           const c = m.getCanvas().getBoundingClientRect()
-          const d = document.querySelector('[data-testid="card"]')?.getBoundingClientRect()
+          const d = document.querySelector(`[data-testid="${sheet}"]:not([hidden])`)?.getBoundingClientRect()
           const nw = m.project([w, n])
           const se = m.project([e, s])
           const box = { left: c.left + nw.x, top: c.top + nw.y, right: c.left + se.x, bottom: c.top + se.y }
@@ -831,7 +831,7 @@ const framedAboveCard = async (bbox) =>
         else read()
         setTimeout(read, 5000)
       }),
-    bbox,
+    [bbox, sheet],
   )
 // The owner's two looks for the lines (2026-09-29): every one opaque in
 // Map/RouteLine/surface-default, the lit ones drawn over them in
@@ -1197,6 +1197,14 @@ if (!shared) {
   const pickedIds = (await wanted.count()) ? await directionsIn(wantedCard) : []
   const litPicked = (await litIds(page)) ?? []
   check('  a tap on a card off its rows selects it, opening no trip', (await isPicked()) && (await trip().count()) === 0, `Selected ${await isPicked()}; trip open ${(await trip().count()) > 0}`)
+  // The camera takes in its routes whole, as a trip's row does (the owner, 2026-10-01).
+  const pickedLines = snapshot.routes.filter((r) => pickedIds.includes(r.id))
+  if (pickedLines.length) {
+    const framedPick = await framedAboveCard(bboxOf(pickedLines.flatMap((r) => r.coords)), 'chooser')
+    check('  and the camera takes in its routes whole, above the list', framedPick.inside, JSON.stringify(framedPick))
+  } else {
+    skip('  and the camera takes in its routes whole, above the list', 'no line on the map for its routes today')
+  }
   const seenPicked = await rideLook(page)
   check("  its routes in the card's colour, chevrons and end circles too", wears(seenPicked, LOOKS?.byLivery[cardColour]), `${cardColour}: ${JSON.stringify(seenPicked)}`)
   // Narrower than the list only where the list has other cards.
