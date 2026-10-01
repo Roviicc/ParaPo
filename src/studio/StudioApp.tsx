@@ -20,6 +20,8 @@ import { useSavedRoutes } from '../shared/map/useSavedRoutes'
 import { useSavedStops } from '../shared/map/useSavedStops'
 import { CardActions } from './panels/CardActions'
 import { RouteFacts } from './panels/RouteFacts'
+import { SignboardEditor } from './panels/SignboardEditor'
+import { signboardUrl } from './data/signboards'
 import { AuthDialogs } from './auth/AuthDialogs'
 import { AccountPill } from './panels/AccountPill'
 import { NewButtons } from './panels/NewButtons'
@@ -282,37 +284,43 @@ function Workshop({
           endPicked={ride.endPicked}
           dockRef={tripDock}
           height={height}
+          signboardUrl={signboardUrl}
           extras={
-            <RouteFacts
-              variant={saved.selected}
-              actions={
-                userId !== null &&
-                userId === saved.selected.owner_id && (
-                  <CardActions
-                    editLabel="Edit route"
-                    onEdit={() => {
-                      const v = saved.selected
-                      if (!v) return
-                      closeAll()
-                      void opening(v, draw.load)
-                    }}
-                    onDelete={() => {
-                      if (saved.selected) void onDelete(saved.selected)
-                    }}
-                    onExtend={
-                      isDrawn(saved.selected)
-                        ? () => {
-                            const v = saved.selected
-                            if (!v) return
-                            closeAll()
-                            void opening(v, draw.startExtend)
-                          }
-                        : undefined
-                    }
-                  />
-                )
-              }
-            />
+            <>
+              <RouteFacts
+                variant={saved.selected}
+                actions={
+                  userId !== null &&
+                  userId === saved.selected.owner_id && (
+                    <CardActions
+                      editLabel="Edit route"
+                      onEdit={() => {
+                        const v = saved.selected
+                        if (!v) return
+                        closeAll()
+                        void opening(v, draw.load)
+                      }}
+                      onDelete={() => {
+                        if (saved.selected) void onDelete(saved.selected)
+                      }}
+                      onExtend={
+                        isDrawn(saved.selected)
+                          ? () => {
+                              const v = saved.selected
+                              if (!v) return
+                              closeAll()
+                              void opening(v, draw.startExtend)
+                            }
+                          : undefined
+                      }
+                    />
+                  )
+                }
+              />
+              {userId !== null && userId === saved.selected.owner_id && (
+                <SignboardEditor variant={saved.selected} onChanged={() => void saved.reload()} />
+              )}
+            </>
           }
         />
       )}

@@ -241,8 +241,8 @@ if (existsSync(swPath)) {
     sw.includes('/^\\/(\\?.*)?$/') && sw.includes('/^\\/studio(\\/|$)/'),
   )
   check(
-    'sw.js caches /data/index.json NetworkFirst (stamping what it serves from the store), the lines under /data/lines/, and OpenFreeMap tiles CacheFirst',
-    sw.includes('/data/index.json') && sw.includes('/data/lines/') && sw.includes('map-lines') && sw.includes('x-parapo-served-from') && sw.includes('tiles.openfreemap.org') && sw.includes('map-file') && sw.includes('basemap-tiles'),
+    'sw.js caches /data/index.json NetworkFirst (stamping what it serves from the store), the lines under /data/lines/, the signboards under /data/signboards/, and OpenFreeMap tiles CacheFirst',
+    sw.includes('/data/index.json') && sw.includes('/data/lines/') && sw.includes('map-lines') && sw.includes('/data/signboards/') && sw.includes('x-parapo-served-from') && sw.includes('tiles.openfreemap.org') && sw.includes('map-file') && sw.includes('basemap-tiles'),
   )
   // With `skipWaiting: false` Workbox calls skipWaiting() once, inside the
   // handler for the page's SKIP_WAITING message — never on its own.

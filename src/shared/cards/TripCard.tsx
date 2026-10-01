@@ -77,6 +77,7 @@ export function TripCard({
   dockRef,
   height,
   onOtherRoute,
+  signboardUrl = publishedSignboard,
   extras,
 }: {
   variant: VariantSummary
@@ -100,6 +101,8 @@ export function TripCard({
   height: SheetHeight
   /** A row of "Other routes" tapped: that direction's trip in this one's place. Without it, no rows. */
   onOtherRoute?: (variant: VariantSummary) => void
+  /** Where a signboard's file is read: beside the published map, or the studio's bucket. */
+  signboardUrl?: (name: string) => string
   /** Under the tiles, the studio's alone: its facts and its Edit, Extend and Delete. */
   extras?: ReactNode
 }) {
@@ -137,6 +140,7 @@ export function TripCard({
       }}
       onBackToList={onBackToList}
       onClose={onClose}
+      signboards={(variant.signboards ?? []).map(signboardUrl)}
       otherRoutes={others.map((v) => ({ id: v.id, to: directionEnds(v).to }))}
       onOtherRoute={(id) => {
         const v = others.find((o) => o.id === id)
@@ -155,3 +159,6 @@ function faresFor(mode: Parameters<typeof rideFare>[0], metres: number): Fares |
   const discounted = rideFare(mode, metres, date, 'discounted')
   return regular && discounted ? { regular, discounted } : undefined
 }
+
+/** A board as the publish writes it, beside the map's own files. */
+const publishedSignboard = (name: string) => `/data/signboards/${encodeURIComponent(name)}`
