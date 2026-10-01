@@ -31,12 +31,17 @@ export function SignboardEditor({
   const heading = useId()
   const way = variant.reversed ? 'Pabalik' : 'Papunta'
 
-  // Another direction, or the list read again.
+  // Another direction, or the list read again: the boards as they stand.
   const listed = (variant.signboards ?? []).join('\n')
   useEffect(() => {
     setNames(listed ? listed.split('\n') : [])
-    setProblem(null)
   }, [variant.id, listed])
+  // A problem stays until the next change or another direction: the list read
+  // again after an earlier change can land after it, and took it away unread
+  // (save-test on a GitHub runner, 2026-10-01).
+  useEffect(() => {
+    setProblem(null)
+  }, [variant.id])
 
   const run = async (change: (now: readonly string[]) => Promise<string[]>) => {
     setBusy(true)
