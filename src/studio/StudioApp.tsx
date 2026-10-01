@@ -7,6 +7,7 @@ import { RouteCardList } from '../shared/cards/RouteCardList'
 import { TripCard, useTripLivery } from '../shared/cards/TripCard'
 import { clearOfSheet } from '../shared/cards/BottomSheet'
 import type { Snap } from '../shared/cards/sheetGesture'
+import { isChoosing, sharedSnap, tripBack } from '../shared/cards/cardStack'
 import { HintuanPin } from '../shared/map/HintuanPin'
 import { EndTitles } from '../shared/map/EndTitles'
 import { useRideTo } from '../shared/map/rideTo'
@@ -227,7 +228,7 @@ function Workshop({
   // stays behind a trip picked from it, hidden, for the trip's ‹ — and so
   // does a hotspot's card — as on the public map.
   const choice = [...saved.candidates, ...stops.candidates]
-  const choosing = choice.length > 1
+  const choosing = isChoosing(saved.candidates, stops.candidates)
   const closeAll = () => {
     saved.select(null)
     stops.select(null)
@@ -242,20 +243,21 @@ function Workshop({
   // The trip's ‹: back to what it was picked from, or to its route with those
   // sharing an end; the public map's.
   const trip = saved.selected
-  const fan = trip ? sharingAnEnd(saved.variants, trip) : []
+  const back = tripBack(trip, saved.variants, !!stops.selected || choosing)
   const backToList =
-    stops.selected || choosing
+    back === 'behind'
       ? () => saved.select(null, { keepList: true })
-      : trip && fan.filter((v) => v.reversed === trip.reversed && isDrawn(v)).length > 1
+      : back === 'fan' && trip
         ? () => {
             stops.select(null)
-            saved.openList(fan, trip.reversed)
+            saved.openList(sharingAnEnd(saved.variants, trip), trip.reversed)
           }
         : null
   // One height for the sheets that stand in for one another, back to Middle
   // with nothing open; the public map's.
   const anyOpen = !!saved.selected || !!stops.selected || choosing
-  if (!anyOpen && snap !== 'middle') setSnap('middle')
+  const resting = sharedSnap(snap, anyOpen)
+  if (resting !== snap) setSnap(resting)
   const height = { snap, onSnap: setSnap }
 
   // "Draw the return trip" only while the route still has a way undrawn: after

@@ -9,8 +9,8 @@ import type { Livery } from '../shared/model/liveries'
 import { RouteCardList } from '../shared/cards/RouteCardList'
 import { clearOfSheet } from '../shared/cards/BottomSheet'
 import type { Snap } from '../shared/cards/sheetGesture'
+import { isChoosing, letGoHolds, sharedSnap, tripBack, tripBehindHolds } from '../shared/cards/cardStack'
 import { useRideTo } from '../shared/map/rideTo'
-import { isDrawn } from '../shared/model/routes'
 import { routeTimeline } from '../shared/model/ride'
 import { sharingAnEnd } from '../shared/model/departures'
 import { useRideColours } from '../shared/map/directionArrows'
@@ -50,7 +50,7 @@ export default function CommuterApp() {
   // While a trip is open, the map lights only the trip (the owner, 2026-09-29).
   const stops = useSavedStops(map, loadStopsFromFile, { muted: !!saved.selected, letGoId })
   // Another box, or the card closed: the next card opens with its box Selected.
-  if (letGoId && stops.selected?.id !== letGoId) setLetGoId(null)
+  if (letGoId && !letGoHolds(letGoId, stops.selected?.id ?? null)) setLetGoId(null)
   const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW
 
   // What the lit routes wear on the map, their ends named (useLitRides).
@@ -85,7 +85,7 @@ export default function CommuterApp() {
   // stays behind a trip picked from it, hidden, for the trip's ‹ — and so
   // does a hotspot's card (the owner, 2026-09-29).
   const choice = [...saved.candidates, ...stops.candidates]
-  const choosing = choice.length > 1
+  const choosing = isChoosing(saved.candidates, stops.candidates)
   // ✕ on the list or a trip: everything the tap opened closes.
   const closeAll = () => {
     saved.select(null)
@@ -123,7 +123,7 @@ export default function CommuterApp() {
   // the trip's way — both his calls the same day. With nothing else drawn
   // that way round, there is nothing to go back to.
   const trip = saved.selected
-  const fan = trip ? sharingAnEnd(saved.variants, trip) : []
+  const back = tripBack(trip, saved.variants, !!stops.selected || choosing)
 
   // One height for the sheets that stand in for one another — the route
   // list, a hotspot's card and the trip opened from either: a pick and ‹
@@ -132,7 +132,8 @@ export default function CommuterApp() {
   // medium too"). With nothing open it goes back to Middle, where every
   // sheet opens.
   const anyOpen = !!saved.selected || !!stops.selected || choosing
-  if (!anyOpen && snap !== 'middle') setSnap('middle')
+  const resting = sharedSnap(snap, anyOpen)
+  if (resting !== snap) setSnap(resting)
   const height = { snap, onSnap: setSnap }
   // A place's name on the map tapped — an end of what is lit, or the picked
   // hintuan's — opens its card, the map flying in to it and lighting the
@@ -140,7 +141,7 @@ export default function CommuterApp() {
   // behind it, with whatever stood behind the trip, and the card's ‹ brings
   // it back as it was; anything else that opens or closes lets that go.
   const [tripBehind, setTripBehind] = useState<{ id: string; stopId: string | null } | null>(null)
-  if (tripBehind && (saved.selected || !stops.selected)) setTripBehind(null)
+  if (tripBehind && !tripBehindHolds(!!saved.selected, !!stops.selected)) setTripBehind(null)
   const openPlace = (stopId: string) => {
     const t = saved.selected
     // The card opens at the height the trip's is at, or a hotspot card's.
@@ -163,14 +164,13 @@ export default function CommuterApp() {
       }
     : null
 
-  const backToList = stops.selected
-    ? () => saved.select(null, { keepList: true })
-    : choosing
+  const backToList =
+    back === 'behind'
       ? () => saved.select(null, { keepList: true })
-      : trip && fan.filter((v) => v.reversed === trip.reversed && isDrawn(v)).length > 1
+      : back === 'fan' && trip
         ? () => {
             stops.select(null)
-            saved.openList(fan, trip.reversed)
+            saved.openList(sharingAnEnd(saved.variants, trip), trip.reversed)
           }
         : null
 
@@ -280,7 +280,7 @@ export default function CommuterApp() {
           }}
           // Its Selected row tapped again: no box is the one until a row is
           // picked (the owner, 2026-10-01).
-          deselected={letGoId === stops.selected.id}
+          deselected={letGoHolds(letGoId, stops.selected.id)}
           onDeselect={() => {
             saved.highlightCard(null)
             setLetGoId(stops.selected?.id ?? null)

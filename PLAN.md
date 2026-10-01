@@ -3578,3 +3578,13 @@ the camera taking in a trip's whole route as it opens is `useTripOverview`
 map's layers come in the same order. Nothing a visitor or the owner sees
 changes. Next: the cards' state as one reducer with unit tests, then a
 `useCardStack` hook.
+
+**CommuterApp's clean-up, step 2, 2026-10-01.** The rules the cards over
+the map keep with one another — when the route list asks, what a trip's ‹
+goes back to, the shared height going back to Middle with nothing open, a
+trip behind a place's card and a row let go holding only as long as they
+should — are plain functions in `src/shared/cards/cardStack.ts`, with their
+unit test (`card-stack-test`, 7). CommuterApp and StudioApp, which had the
+list, the ‹ and the height inline word for word, both call them; each call
+stands where its expression stood, so nothing a visitor or the owner sees
+changes. Next: the state and actions themselves in one hook.
