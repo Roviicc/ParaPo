@@ -5,6 +5,7 @@ import type { StopLink, StopSummary } from '../model/stops'
 import { useSavedStopsLayers } from './savedStopsLayers'
 import { boxMarks, placeHull } from './stopsShown'
 import { useStopTaps } from './stopTaps'
+import { letGoHolds } from '../cards/cardStack'
 
 /**
  * Every saved hotspot, drawn for everyone as a shaded outline in its kind's
@@ -36,11 +37,21 @@ export function useSavedStops<S extends StopSummary>(
    * half of the same tap.
    */
   const [candidates, setCandidates] = useState<S[]>([])
+  /**
+   * The box whose Selected row its card let go (the owner's ask, 2026-10-01):
+   * no box is the one until a row is picked again (letGoHolds).
+   */
+  const [letGoId, setLetGoId] = useState<string | null>(null)
 
-  /** Choosing one hotspot answers the question the chooser was asking. */
-  const select = useCallback((id: string | null) => {
+  /**
+   * Choosing one hotspot answers the question the chooser was asking — unless
+   * `keepList`: a place opened over a trip keeps the list behind the trip,
+   * for its ‹ to find whole.
+   */
+  const select = useCallback((id: string | null, opts: { keepList?: boolean } = {}) => {
     setSelectedId(id)
-    setCandidates([])
+    setLetGoId(null)
+    if (!opts.keepList) setCandidates([])
   }, [])
 
   const drawingRef = useRef(opts.drawing ?? false)
@@ -72,7 +83,13 @@ export function useSavedStops<S extends StopSummary>(
   }, [reload])
 
   // What a tap marks, and the place wash (stopsShown.ts).
-  const marks = useMemo(() => boxMarks(stops, selectedId, candidates, muted), [stops, selectedId, candidates, muted])
+  // The chosen box let go on its card (HintuanCard's `deselected`): its place's boxes all alike.
+  // Another box — a row, a tap on the map — or the card closed: the next
+  // one opens with its box Selected.
+  if (letGoId !== null && !letGoHolds(letGoId, selectedId)) setLetGoId(null)
+  const letGone = letGoHolds(letGoId, selectedId)
+  const letGo = useCallback(() => setLetGoId(selectedId), [selectedId])
+  const marks = useMemo(() => boxMarks(stops, selectedId, candidates, muted, letGone), [stops, selectedId, candidates, muted, letGone])
   const hull = useMemo(() => placeHull(stops, selectedId, muted), [stops, selectedId, muted])
 
   // ----------------------------------------------------------------- layers
@@ -110,14 +127,28 @@ export function useSavedStops<S extends StopSummary>(
   const show = useCallback(
     // `offset`, asked as the flight starts: where the box should land from
     // the map's centre, clear of a card over the map (the HintuanCard's rows).
-    (id: string, offset?: () => [number, number]) => {
+    (id: string, offset?: () => [number, number], opts?: { keepList?: boolean }) => {
       const s = stops.find((x) => x.id === id)
-      select(id)
+      select(id, opts)
       if (s && map)
         map.flyTo({ center: s.point.coordinates, zoom: Math.max(map.getZoom(), 16), offset: offset?.() ?? [0, 0] }, APP_MOVE)
     },
     [stops, select, map],
   )
 
-  return { stops, links, error, reload, selected, select, show, candidates, linkedVariantIds, stopsAlong }
+  return {
+    stops,
+    links,
+    error,
+    reload,
+    selected,
+    select,
+    show,
+    candidates,
+    linkedVariantIds,
+    stopsAlong,
+    /** The selected box let go on its card: no row Selected until one is picked. */
+    letGone,
+    letGo,
+  }
 }

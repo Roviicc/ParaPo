@@ -21,6 +21,8 @@ export function boxMarks(
   selectedId: string | null,
   candidates: readonly StopSummary[],
   muted: boolean,
+  /** The chosen box let go on its card: one of its place's boxes like the rest, none pressed. */
+  letGo = false,
 ): Map<string, BoxMark> {
   const chosen = muted ? undefined : stops.find((s) => s.id === selectedId)
   const siblings = chosen ? siblingsOf(chosen, stops).map((s) => s.id) : []
@@ -28,7 +30,7 @@ export function boxMarks(
   const now = new Map<string, BoxMark>()
   for (const id of lit) now.set(id, 'lit')
   for (const id of siblings) now.set(id, now.has(id) ? 'lit+sibling' : 'sibling')
-  if (chosen) now.set(chosen.id, 'chosen')
+  if (chosen) now.set(chosen.id, letGo ? 'sibling' : 'chosen')
   return now
 }
 

@@ -1,8 +1,9 @@
-import { useState, type ReactNode, type Ref } from "react";
+import { useId, useState, type ReactNode, type Ref } from "react";
 import { kmLabel } from "../geo/geo";
 import { RouteCardHeader } from "./RouteCardHeader";
 import { BottomSheet, type SheetHeight } from "./BottomSheet";
 import { ReloadIcon } from "./RouteIcons";
+import { RouteEndPointBar } from "./RouteEndPointBar";
 import { TripTimeline, type TripTimelineProps } from "./TripTimeline";
 
 /** A ride's pesos both ways: `₱26` regular, and its discounted price — students, seniors, PWDs. */
@@ -37,6 +38,13 @@ type Props = Omit<TripTimelineProps, "pickedPesos"> & {
   dockRef?: Ref<HTMLDivElement>;
   /** Its height, shared with the list or card it was opened from (BottomSheet). */
   height?: SheetHeight;
+  /**
+   * Figma's "Other routes" under the tiles: the other routes out of where
+   * this trip starts, each by where it goes. Empty or omitted, none is shown.
+   */
+  otherRoutes?: readonly { id: string; to: string }[];
+  /** A row tapped: that route's trip in this one's place. */
+  onOtherRoute?: (id: string) => void;
   /** Under the tiles: what only the studio shows — its facts and its Edit, Extend and Delete. */
   children?: ReactNode;
 };
@@ -64,6 +72,11 @@ type Props = Omit<TripTimelineProps, "pickedPesos"> & {
  * fare rule prices has no Expected fare tile, and Kilometer takes the row
  * (the owner kept that default, 2026-09-29: nothing is drawn for it).
  *
+ * Under the tiles, "Other routes" (his of 2026-10-01): a row per other
+ * route out of where the trip starts, each by where it goes, as a
+ * RouteCard's rows are; a tap opens that route's trip in this one's place.
+ * With none, there is no heading either.
+ *
  * The card and its rail are TripTimeline's.
  */
 export function RouteTripDetail({
@@ -88,6 +101,8 @@ export function RouteTripDetail({
   onClose,
   dockRef,
   height,
+  otherRoutes = [],
+  onOtherRoute,
   children,
 }: Props) {
   const [own, setOwn] = useState(false);
@@ -98,6 +113,7 @@ export function RouteTripDetail({
   // than back. It turns over `turn`, gentle at 6/10 as fast (his "it's fast",
   // the same day).
   const [turns, setTurns] = useState(0);
+  const othersHeading = useId();
   const shown = picked && pickedFare ? pickedFare : fare;
   const shownMetres = picked && pickedMetres !== undefined ? pickedMetres : metres;
   return (
@@ -117,8 +133,8 @@ export function RouteTripDetail({
         />
       }
     >
-      {/* On a phone the card sits right under the header (the owner's 3817:6007, 2026-09-30); floating, 12 below it. */}
-      <div className="w-full px-3 @float:pt-3">
+      {/* Right under the header, whose 12 below is the gap (the owner's RouteTripDetail, 3778:3183, 2026-10-01). */}
+      <div className="w-full px-3">
         <TripTimeline
           livery={livery}
           routeOrigin={routeOrigin}
@@ -171,6 +187,26 @@ export function RouteTripDetail({
           </button>
         )}
       </div>
+      {otherRoutes.length > 0 && (
+        <section data-testid="trip-other-routes" aria-labelledby={othersHeading} className="flex w-full flex-col gap-2 px-3 pt-2 pb-4 font-sn-pro">
+          <h3 id={othersHeading} className="text-sm/5 font-medium text-content-tertiary">
+            Other routes
+          </h3>
+          <ul>
+            {otherRoutes.map((r) => (
+              <li key={r.id}>
+                <RouteEndPointBar
+                  routeDirection={r.to}
+                  on="surface"
+                  data-testid="trip-other-route"
+                  data-direction={r.id}
+                  onClick={() => onOtherRoute?.(r.id)}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {children}
     </BottomSheet>
   );

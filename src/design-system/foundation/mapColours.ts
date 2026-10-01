@@ -21,6 +21,8 @@ export const MAP_COLOURS = {
   'Map/HotspotsCard/Hintuan/border-primary': '#0d542b', // green/900
   'Map/HotspotsCard/Terminal/surface': '#0069a8', // sky/700
   'Map/HotspotsCard/Terminal/border-primary': '#024a70', // sky/900
+  'Map/LocatorIndicatorOverlay/surface': '#8ec5ff', // blue/300, at 15%
+  'Map/LocatorIndicatorOverlay/border': '#155dfc', // blue/600, at 75%
 } as const satisfies Record<`Map/${string}`, `#${string}`>
 
 /**
@@ -31,6 +33,8 @@ export const MAP_OPACITY = {
   'Map/OverlayCard/Hintuan/surface': 0.3,
   'Map/OverlayCard/Hintuan/surface-selected': 0.6,
   'Map/OverlayCard/Terminal/surface': 0.25,
+  'Map/LocatorIndicatorOverlay/surface': 0.15,
+  'Map/LocatorIndicatorOverlay/border': 0.75,
 } as const satisfies Partial<Record<keyof typeof MAP_COLOURS, number>>
 
 /**
@@ -53,8 +57,8 @@ export const CARD_COLOURS = {
  * the value it has always had: colours no Figma variable names yet. One file
  * for every colour the map's painters paint, so
  * tests/unit/map-colours-test.mjs can fail on a colour written in any other
- * of their .ts files (stage 9 of the clean-up, 2026-09-29). The map's two
- * stylesheets (hintuanPin.css, walker.css) are not read by it; their few raw
+ * of their .ts files (stage 9 of the clean-up, 2026-09-29). The map's
+ * stylesheet (hintuanPin.css) is not read by it; its few raw
  * colours wait on the owner's list. Each is the owner's to name
  * in Figma; until then the key says what it paints, and moving one to a
  * Map/… token is changing only this file.

@@ -5,6 +5,7 @@ import { CARD_SURFACE, CARD_TEXT, TIMELINE_SURFACE } from '../cards/liveryCard'
 import { TimelineDot } from '../cards/TripTimeline'
 import type { LngLat } from '../geo/geo'
 import type { Livery } from '../model/liveries'
+import { tapsOnItsButton } from './markerTap'
 import './hintuanPin.css'
 
 type Props = {
@@ -15,6 +16,8 @@ type Props = {
   label?: string | null
   /** The trip's colour: the circle is ringed in its rail's. */
   livery: Livery
+  /** Given, the name is a button that opens the hintuan's place (EndTitles does the same for the ends). */
+  onPick?: () => void
 }
 
 /**
@@ -25,17 +28,19 @@ type Props = {
  * TimelineDot, Selected, in the trip's livery, so the map and the card
  * point at the same place the same way.
  *
- * A DOM marker, like the walker: the pop is a CSS animation that costs the
- * map nothing, and it takes no taps, so a tap on it reaches the line or the
- * box beneath. The caller keys it on the pick, so another hintuan pops a
+ * A DOM marker, like the visitor's own (LocatorIndicatorOverlay): the pop
+ * is a CSS animation that costs the map nothing, and it takes no taps, so
+ * a tap on it reaches the line or the box beneath. The caller keys it on the pick, so another hintuan pops a
  * fresh circle.
  *
  * Beside it, its name (the owner's SelectedHintuanRouteTitle, Figma
  * 3847:11777, 2026-09-30): a pill in the trip card's surface and words,
  * 10px right of the circle and centred on it, so the circle stays on the
- * point the marker is anchored to.
+ * point the marker is anchored to. Given `onPick`, the name is a button
+ * that opens the hintuan's place (the owner's ask, 2026-10-01); the circle
+ * still takes no taps.
  */
-export function HintuanPin({ map, at, label, livery }: Props) {
+export function HintuanPin({ map, at, label, livery, onPick }: Props) {
   const [el] = useState(() => {
     const div = document.createElement('div')
     div.className = 'hintuan-pin'
@@ -60,13 +65,20 @@ export function HintuanPin({ map, at, label, livery }: Props) {
     marker.current?.setLngLat(at)
   }, [at])
 
+  // Read as the tap comes: a fresh function each render binds nothing anew.
+  const pick = useRef(onPick)
+  pick.current = onPick
+  useEffect(() => tapsOnItsButton(el, () => pick.current?.()), [el])
+
   el.dataset.livery = livery
+  const Title = onPick ? 'button' : 'div'
   // Popped, and untucked from a rail it has none of, by hintuanPin.css.
   return createPortal(
     <>
       <TimelineDot rail={TIMELINE_SURFACE[livery]} selected />
       {label && (
-        <div
+        <Title
+          {...(onPick ? { type: 'button' as const, 'aria-label': `${label}: the routes there` } : {})}
           data-testid="hintuan-pin-title"
           className={
             'hintuan-pin-title absolute left-full top-1/2 ml-2.5 max-w-56 truncate rounded-full px-2 py-1 ' +
@@ -77,7 +89,7 @@ export function HintuanPin({ map, at, label, livery }: Props) {
           }
         >
           {label}
-        </div>
+        </Title>
       )}
     </>,
     el,

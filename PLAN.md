@@ -3482,3 +3482,255 @@ with the arriving ease, still under reduced motion — and it goes with the
 pick. `useRideTo`'s `dots` option became `cut`: the studio keeps the cut
 and its get-off circles (group-test still checks them); the public map
 passes `cut: false` and reads `pinAt`.
+
+**Dead code, 2026-10-01.** Section 6.4 of the review, a part of it no
+stage took, found again on today's tree with TypeScript's find-references
+over `src/`, `tests/` and `scripts/`, and the suites' in-page imports read
+by hand. Two functions nothing called are gone from `ring.ts`:
+`firstVertexInside`, which `firstTouchIndex` replaced, and
+`lineIntersectsRing`. Thirteen values only their own file uses are no longer
+exported: `LINES_URL`, `detailStyle`, `styleTransform`, `roadWidthAt`,
+`LIT_EXTRA`, `tap.ts`'s `coarsePointer`, `tapBox` and `idsInOrder`,
+`groupByRoute`, `listStops`, `listStopLinks`, `DRAFT_KEY` and
+`SNAP_RADIUS_M` (the draft key's string is still the contract the suites
+read). "Where am I"'s `poseFor`, `facingFor`, `bearing` and `motionFrom`
+keep their exports and have the unit test they were exported for
+(`where-am-i-test`, 9 tests). Left as they are: 22 types only their own file
+uses, which name what an exported function takes or returns; and
+HotspotPanel's alias and note state with no setter, which keeps a box's Also
+called and Note while those are off the form. Nothing a visitor or the owner
+sees changes.
+
+**A trip opens on its whole route, 2026-10-01.** The owner's ask: a trip
+picked from a RouteCard zooms in or out to show the route's overview. Any
+trip opening now does it — from the route list, a hotspot's card, a tap on
+its line or a shared link — fitting the direction's line in the room the
+card leaves (`roomBeside` in BottomSheet.tsx: above it docked, beside it in
+the corner, 48 px from every edge), with `fitBounds`, which keeps no
+padding for later moves. A card above Middle is measured at Middle and stays
+where it is: the route is framed for when it comes down. Keyed on the route,
+so SWITCH leaves the view alone. The shared link's own fit went: the trip's
+does it now.
+
+**The card stays where it settles, 2026-10-01.** The owner's ask: "since
+the card can settle anywhere, don't move the bottomsheet to the middle
+whenever a hintuan is picked". It takes back the ask of 2026-09-30 that
+brought a card at Max down to Middle as the camera glided. A hintuan or an
+end picked on a trip, on the public map and in the studio, and another box
+picked on a HintuanCard, now leave the card at its height. `makeRoom` went
+for `clearOfSheet` (BottomSheet.tsx): the camera puts the point above the
+card, or beside it in the corner, and a card above Middle is measured at
+Middle, so the point is there to see when it comes down.
+
+**A place's name on the map opens it, 2026-10-01.** The owner's ask: the
+names beside the circles — a lit ride's Head and Tail (EndTitles), the
+picked hintuan's (HintuanPin) — are clickable, zooming in to the place and
+showing the routes connected to it. A tap opens the place's HintuanCard, the
+map flying in to it (zoom 16 at least) and lighting its routes, as a tap on
+its box does. An open trip steps behind it with whatever stood behind the
+trip, and the card's new ‹ brings it back as it was; a route picked on the
+card, or ✕, lets the trip go. The names are buttons only where the ride
+says which hotspot it ends at (`directionEndStops`), and a tap on one never
+reaches the map beneath: MapLibre hears its container before React hears
+the page, so `markerTap.ts` stops it on the marker itself. The circles still
+take no taps.
+
+**A HintuanCard row lets go, 2026-10-01.** The owner's ask: the Selected
+row of a HintuanCard can be deselected, and selected back. A tap on it lets
+it go: no row is Selected, the card stays open, and the routes under the
+rows are those through every box of the place (the owner's choice), lit on
+the map, SWITCH turning them round where they run both ways. On the map the
+box is drawn as one of its place's like the others (`boxMarks`' `letGo`).
+A tap on any row, the same one included, picks it again and goes there.
+
+**A RouteCard's row has a Pressed state, 2026-10-01.** The owner's
+RouteEndPointBar (3848:11928) gained State=Pressed: the row in
+Card/<livery>/Timeline/surface. Shown while the finger or the mouse is down
+on it (`:active`), the trip opening as it lets go — the owner's pick, a
+tap's feedback rather than a state kept while the trip is open. The phone's
+own tap highlight is off on the row, so the colour under the finger is the
+token's. Story: RowPressed, every livery, press and hold.
+
+**The trip's timeline rows have a Pressed state, 2026-10-01.** The owner's
+Timeline (3716:1894) gained State=Pressed on all four rows — where the trip
+leaves from, a hintuan, the fold, where it goes: the whole row in
+Card/<livery>/Timeline/surface, so the rail runs into it and only the dot's
+white shows. Shown while the finger or the mouse is down (`:active`), as the
+RouteCard's rows are; the phone's own tap highlight is off on them.
+`ROW_PRESSED` in liveryCard.ts, the RouteCard's rows' too. Story: RowPressed, every livery opened,
+a hintuan picked, press and hold.
+
+**The trip card's spacing, 2026-10-01.** The owner's RouteTripDetail
+(3778:3183, its latest): the trip card sits 12 under the header on a phone
+too (right under it since 3817:6007, 2026-09-30), and the card has no
+padding of its own — the 16 above its first row and below its last are
+those rows' (`pt-4` on TimelineTop, `pb-4` on TimelineBottomEndRoute), so a
+Pressed row fills to the card's edge. At rest it reads the same; at Low the
+origin's line still fits.
+
+**CommuterApp's clean-up, step 1, 2026-10-01.** The owner's ask: the
+components were getting messy, CommuterApp most (368 lines after the day's
+merges). First, what the lit routes wear on the map — the orange stretches,
+the chevrons and named ends, the babaan sides — is one hook, `useLitRides`
+(src/shared/map/), which CommuterApp and StudioApp had word for word; and
+the camera taking in a trip's whole route as it opens is `useTripOverview`
+(src/commuter/). Both called where the code they replace stood, so the
+map's layers come in the same order. Nothing a visitor or the owner sees
+changes. Next: the cards' state as one reducer with unit tests, then a
+`useCardStack` hook.
+
+**CommuterApp's clean-up, step 2, 2026-10-01.** The rules the cards over
+the map keep with one another — when the route list asks, what a trip's ‹
+goes back to, the shared height going back to Middle with nothing open, a
+trip behind a place's card and a row let go holding only as long as they
+should — are plain functions in `src/shared/cards/cardStack.ts`, with their
+unit test (`card-stack-test`, 7). CommuterApp and StudioApp, which had the
+list, the ‹ and the height inline word for word, both call them; each call
+stands where its expression stood, so nothing a visitor or the owner sees
+changes. Next: the state and actions themselves in one hook.
+
+**CommuterApp's clean-up, step 3, 2026-10-01.** The cards' state and what
+their buttons do to one another are one hook, `useCardStack`
+(src/shared/cards/): the list and what it lists, the shared height, the
+colour a trip opens in and what is lit wearing it, a trip stepped behind a
+place's card, and the actions — open a trip from a card, open a hotspot from
+the list, ✕, a trip's ‹, a place's name, the place card's ‹. Both apps use
+it, so the studio's cards keep doing what the public map's do. A box's row
+let go is the stops hook's own now (`stops.letGo()`, `stops.letGone`),
+cleared as before when another box is picked or the card closes.
+CommuterApp is 214 lines (368 before the clean-up), StudioApp 491 (556).
+Nothing a visitor or the owner sees changes.
+
+**Low and the sheets' spacing, 2026-10-01.** The owner's frames of the
+day: Low is 129 (3869:5195; 137 before); the HandleNotch has 8 above its bar
+and 4 below (8 both before); RouteCardHeader leaves 12 below it over the
+list and over a trip alike (16 and 8 before), and the trip's card follows
+it straight away, the header's 12 being the gap (3778:3183, 3742:1049).
+
+**The LocatorButton, 2026-10-01.** The owner's LocatorButton (3870:5437),
+LocatorIndicatorOverlay (3870:5247), its rules (3870:5408) and where it sits
+(ScreenLocationBehavior, 3870:5941) take "Where am I"'s place, and the
+walking figure's. The button shows where the camera is with the visitor:
+LocationOff (the owner's, later the same day) while there is no location —
+before the first tap, refused, or no fix in — a tap asking for it;
+TrackOwnLocation, the camera elsewhere — at any move off them, a finger's or the app's; a tap brings it to them 1000 ft
+across the map's shorter side, north up (TrackedLocation, its arrow turning
+the way the phone faces); the next tilts it 45°, 200 ft across, turned with
+the phone's compass (TracksTheMapBasedOnCompassFacing); the next puts north
+up again, and round. Once on, location stays on — no off, the owner's call;
+with a mouse, or a phone whose compass has given nothing (Safari's prompt
+refused, no magnetometer), a tap on TrackedLocation only comes back to the
+visitor. On the map the visitor is a blue dot with a cone the
+way they face and the circle the fix is good to — its metres on the ground,
+gone once zoomed out under the dot, the whole overlay lying flat and turning
+with the map, as Google Maps' does (the owner's screenshots, the same day) —
+in a new token,
+Map/LocatorIndicatorOverlay/surface (blue/600 at 15%). The button sits 12
+above the open card's sheet at the right edge, following it from Middle
+down to Low and staying at Middle's place above that (BottomSheet says where
+its top is, `--dock-y`, on the page's `data-dock-host`); with no card, at
+the map's foot; where the card floats in the corner, bottom right, clear of
+the credit line. The walker, its sheets in `public/figure/` and its CSS are
+gone (the masters stay in `docs/figure/`). `where-test` is rewritten for it
+(27 → 35), `locator-test` replaces `where-am-i-test`.
+The button is 48 across (the owner's change the same afternoon; 40 at first):
+4 more padding round each look's icon, the icons as they were.
+
+**The HintuanCard's counter, 2026-10-01.** The owner's 3854:12690 of the
+day: the HintuanCardRouteCounter is 24 in from the card's edges (32 before),
+12 above and below, 16 before the jeep and 12 after SWITCH; the jeep 20
+(24), the count in Black, and it reads "… here" ("2 routes pass here"; "…
+through" before), the verb still agreeing with the count. The first
+RouteCard under it leaves 36 above its title (24).
+
+**The locator's overlay, smaller and honest, 2026-10-01.** The owner, trying
+it on a phone: the dot and its cone were as big zoomed out as at street
+level ("10/10 so big"), and a fix indoors drew a circle across the map. Now,
+as Google Maps': the dot and cone are Figma's size from zoom 16 in, shrinking
+with each zoom out to 45 % at 12 and no smaller (`indicatorScale`); the
+circle is the fix's real accuracy, capped at 150 m (the owner's pick of the
+two, the same day). `where-test` gains both (35 → 37), `locator-test` the
+scale (14).
+
+**The locator's camera and overlay, second pass, 2026-10-01.** The owner's
+rules of the afternoon: a tap on TrackOwnLocation no longer changes the
+camera's height — it goes to the visitor at the zoom the map is at — unless
+the map shows more than 2 km across, when it comes in to 200 m; the
+compass view is 100 m across (1000 and 200 ft before); and back from it,
+TrackedLocation's own zoom (`trackedZoom`). His second LocatorIndicatorOverlay
+(3870:5247): a 0.6 hairline round the circle in a new token,
+Map/LocatorIndicatorOverlay/border (blue/800 at 75%); the dot lifted by a
+new LocatorDotShadow and breathing, 1 → 1.15 over 2 s (locator.css, still
+for reduced motion); and a beam in the cone's place — 32 at the dot, 86 at
+its end, 84 long — drawn even where Figma's leans (his ask: "make it
+consistent"). `where-test` 38, `locator-test` 15.
+
+**The locator, read off the scale bar, 2026-10-01.** The owner reads the
+camera's height off the map's scale bar, so the rules are in its terms now
+(metres per 100 px; metres across the screen before, which the bar showed
+as some 50 and 20): a tap to the visitor keeps the zoom while the bar reads
+2 km or less, and comes in to 200 m from further out; the compass view is
+200 m too. The accuracy circle is held between 40 and 80 m (150 m at most
+before: "too large").
+
+**The locator's colours and its wandering eyes, 2026-10-01.** The owner's
+third pass at LocatorIndicatorOverlay (3870:5247): the circle in blue/300 at
+15% (blue/600 before), its hairline and the beam in blue/600 at 75% (the
+border was blue/800); and two white eyes on the dot, which glance about —
+dart, hold, dart on, an 11 s run of glances — and blink on a 5.3 s beat, so
+the two drift apart and never read as a loop (locator.css; still for
+reduced motion).
+
+**A picked RouteCard's overview, 2026-10-01.** The owner's ask: a RouteCard
+picked — its name tapped, in the route list or on a hotspot's card — brings
+the camera to its routes whole, zooming in or out, clear of the sheet, as
+a trip's row does for its trip (`useCardOverview`, beside
+`useTripOverview`, sharing its fit). Keyed on the card and what it shows: let
+go, the view stays until another card is picked. SWITCH too, the owner's
+next ask the same day: on the route list, a
+hotspot's card or a trip, a press takes the camera to what is lit after it
+— the routes the other way round, whole (`useSwitchOverview`, all three in `useOverviews.ts`; a trip's SWITCH
+had left the view as it was).
+
+**The end pills' Head and Tail Route, 2026-10-01.** The owner's new variants
+of SelectedHintuanRouteTitle (3848:12135), read as the RouteCard reads:
+where a ride starts — the top of its timeline, the card's title — is the
+Head Route; where it goes — one of the card's rows — is the Tail Route, led
+by the rows' circled arrow. Both 14 px medium, as the plain name is (the
+Head Route's 16 px, and a semibold, tried and taken back the same day). A place
+two rides share keeps the name of the first to reach it, so a trip's
+change of ride is the earlier ride's tail; SWITCH turns the rides round,
+and the head with them. `phone-test` checks each pill's look.
+
+**A tail's name opens its trip, 2026-10-01.** The owner's ask: with no trip
+open — the route list, a picked card, a hotspot's card — a Tail Route's
+pill is a button that opens its ride's RouteTripDetail, its line lit, as
+the card's row of the same arrow does; in the picked card's colour, if
+one is. Only where one lit ride alone goes: where two go, the place's own
+card lists both, so the tap opens that, as before (`rideEnds` now carries
+each named end's directions). With a trip open, the pills open their
+places as they did. `phone-test` 100 → 102.
+
+**A trip's "Other routes", 2026-10-01.** The owner's RouteTripDetail
+(3778:3183) gained a section under the tiles: the other routes out of where
+the trip starts — on Tala → Novaliches, Tala → SM Fairview, and another
+route making the same trip if one does — a row each, by where it goes, the
+RouteCard's arrow before it; none, no section. A tap opens that route's
+trip in the card's place, its line lit and the camera taking it in; ‹ still
+goes back to what the first trip was picked from. One direction per route,
+drawn, leaving the same hotspot (`otherRoutesFrom`); its own way back is
+SWITCH's. No "via" on the rows for now: the signboard will tell two routes
+to one place apart, later (the owner, the same day). The rows hover and
+press as the fare tile does (surface-tertiary, then -quaternary): Figma
+draws no state for them yet. The owner's second pass the same day: 24 above
+the heading (16 before), the rows rounded full. And another route keeps the
+card as it was — the hintuans open if they were ("don't shrink it"), the
+sheet at its height: the trip card is no longer keyed on its route, so it
+stays one card while a trip is open, as SWITCH always kept it.
+`phone-test` 102 → 105; `timeline-test` 20 → 22.
+
+**RouteEndPointBar, 2026-10-01.** The owner's .RouteEndPointBar (3656:132)
+was written twice — a RouteCard's rows and a trip's "Other routes" — and is
+one component now (`RouteEndPointBar`), on a livery (pressing to the card's
+timeline colour) or on the sheet's surface (rounded, pressing grey). Nothing
+looks different; a change to the row is made once.

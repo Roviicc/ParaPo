@@ -51,11 +51,16 @@ const ENDS = LAYERS.endCircles
 /** Two ends of one name closer than this are one place, and named once: Tala, where two rides start. */
 const SAME_END_M = 150
 
-/** One lit ride: its line in travel order, and the places it runs from and to. */
-export type Ride = { line: LngLat[]; from: string; to: string }
+/** One lit ride: its direction, its line in travel order, and the places it runs from and to. */
+export type Ride = { id?: string; line: LngLat[]; from: string; to: string; fromStop?: string | null; toStop?: string | null }
 
-/** An end of a lit ride: where it is, its place, and whether it is the one of its place that carries the name. */
-export type RideEnd = { end: 'from' | 'to'; name: string; named: boolean; at: LngLat }
+/**
+ * An end of a lit ride: where it is, its place, whether it is the one of its
+ * place that carries the name, its hotspot, when the ride says which, and
+ * the directions of every lit ride that ends there, this way round
+ * (`rides`, on the named one only: the rest are empty).
+ */
+export type RideEnd = { end: 'from' | 'to'; name: string; named: boolean; at: LngLat; stopId: string | null; rides: string[] }
 
 /**
  * Where each lit ride starts and finishes, each place named once: two ends
@@ -64,19 +69,21 @@ export type RideEnd = { end: 'from' | 'to'; name: string; named: boolean; at: Ln
  * the named ones.
  */
 export function rideEnds(rides: readonly Ride[]): RideEnd[] {
-  const named: { name: string; at: LngLat }[] = []
+  const named: RideEnd[] = []
   return rides
     .filter((r) => r.line.length > 1)
     .flatMap((r) =>
       (
         [
-          ['from', r.from, r.line[0]],
-          ['to', r.to, r.line[r.line.length - 1]],
+          ['from', r.from, r.line[0], r.fromStop ?? null],
+          ['to', r.to, r.line[r.line.length - 1], r.toStop ?? null],
         ] as const
-      ).map(([end, name, at]) => {
-        const first = !!name && !named.some((n) => n.name === name && haversine(n.at, at) < SAME_END_M)
-        if (first) named.push({ name, at })
-        return { end, name, named: first, at }
+      ).map(([end, name, at, stopId]) => {
+        const same = name ? named.find((n) => n.name === name && haversine(n.at, at) < SAME_END_M) : undefined
+        if (same && same.end === end && r.id) same.rides.push(r.id)
+        const e: RideEnd = { end, name, named: !!name && !same, at, stopId, rides: !same && r.id ? [r.id] : [] }
+        if (e.named) named.push(e)
+        return e
       }),
     )
 }

@@ -390,3 +390,24 @@ export const SheetMiddleLongName: Story = {
     await expect(origin.getBoundingClientRect().height).toBeGreaterThan(32)
   },
 }
+
+/**
+ * "Other routes" under the tiles (the owner's RouteTripDetail, 3778:3183,
+ * 2026-10-01): the other routes out of where the trip starts, each by where
+ * it goes; a tap opens that route's trip in this one's place. With none,
+ * as in every story above, the section is not there.
+ */
+export const OtherRoutes: Story = {
+  args: {
+    otherRoutes: [
+      { id: 'tala-sm', to: 'SM Fairview' },
+      { id: 'tala-bs', to: 'Bagong Silang Kanan 5 Phase 3 Package 2 Terminal' },
+    ],
+    onOtherRoute: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('button', { name: 'SM Fairview' }))
+    await expect(args.onOtherRoute).toHaveBeenCalledWith('tala-sm')
+  },
+}

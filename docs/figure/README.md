@@ -1,5 +1,10 @@
 # The walker
 
+**Retired 2026-10-01.** The owner's LocatorIndicatorOverlay (Figma 3870:5247)
+took its place: a blue dot, a heading cone and the accuracy circle
+(`src/commuter/LocatorIndicatorOverlay.tsx`). `public/figure/` went with it;
+the masters stay here.
+
 The figure that stands for the visitor on the public map when they ask
 "Where am I" (`src/commuter/whereAmI.ts`, `Walker.tsx`). Drawn by the
 owner with an image generator on 2026-09-26 from the prompts below; the

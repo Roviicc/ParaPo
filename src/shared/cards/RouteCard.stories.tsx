@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import { RouteCard } from './RouteCard'
+import { LIVERIES } from '../model/liveries'
 
 const meta = {
   title: 'Shared/RouteCard',
@@ -94,6 +95,22 @@ export const SelectedRowsOpen: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Tala', pressed: true }))
     await expect(args.onSelect).toHaveBeenCalledTimes(1)
   },
+}
+
+/**
+ * A row's State=Pressed (RouteEndPointBar, 3848:11928): press and hold a row
+ * — it wears Card/<livery>/Timeline/surface while the finger or the mouse is
+ * down, and opens its trip as it lets go. A browser state, `:active`, so
+ * there is nothing to set: hold it to see it, in each livery.
+ */
+export const RowPressed: Story = {
+  render: (args) => (
+    <div className="flex flex-col gap-4">
+      {LIVERIES.map((livery) => (
+        <RouteCard key={livery} {...args} livery={livery} routeOrigin={livery} />
+      ))}
+    </div>
+  ),
 }
 
 /** One place, several ways out: a row each, each its own target. */

@@ -303,7 +303,7 @@ for (const [i, p] of snapshot.polys.entries()) {
   const own = await page.evaluate((id) => {
     const rows = [...document.querySelectorAll('[data-testid="card"] [data-testid="card-box"]')]
     const row = rows.find((r) => r.dataset.box === id)
-    return { rows: rows.length, pressed: rows.filter((r) => r.getAttribute('aria-current') === 'true').map((r) => r.dataset.box), kind: row?.dataset.kind ?? null }
+    return { rows: rows.length, pressed: rows.filter((r) => r.getAttribute('aria-pressed') === 'true').map((r) => r.dataset.box), kind: row?.dataset.kind ?? null }
   }, p.id)
   check(
     `  its row Selected, the one pressed of its place's ${own.rows}, a ${p.kind}'s`,
@@ -578,6 +578,37 @@ if (PART === 1) {
       check('  the card runs from where its direction leaves to where it goes', !!from && !!to && top === from && bottom === to, `"${label}": top "${top}", bottom "${bottom}"`)
       const litIds = (await page.evaluate(() => window.__lit('saved-routes'))) ?? []
       check('  exactly one direction is lit', litIds.length === 1, JSON.stringify(litIds))
+      // On a desktop too, the trip opens on its whole route (the owner's ask,
+      // 2026-10-01): every corner of its line on the map, beside the card
+      // floating in the corner, none under it.
+      const framed = await page.evaluate(
+        (id) =>
+          new Promise((done) => {
+            const m = window.__map
+            const read = async () => {
+              const { loadMapFile } = await import('/src/commuter/mapFile.ts')
+              const { variantLine } = await import('/src/shared/model/routes.ts')
+              const v = (await loadMapFile()).variants.find((x) => x.id === id)
+              const line = v ? variantLine(v) : []
+              const c = m.getCanvas().getBoundingClientRect()
+              const card = document.querySelector('[data-testid="card"]').getBoundingClientRect()
+              const pts = line.map((p) => m.project(p)).map((q) => ({ x: c.left + q.x, y: c.top + q.y }))
+              const box = {
+                left: Math.min(...pts.map((q) => q.x)),
+                right: Math.max(...pts.map((q) => q.x)),
+                top: Math.min(...pts.map((q) => q.y)),
+                bottom: Math.max(...pts.map((q) => q.y)),
+              }
+              const onMap = box.left >= c.left - 2 && box.right <= c.right + 2 && box.top >= c.top - 2 && box.bottom <= c.bottom + 2
+              const besideCard = box.left >= card.right - 2
+              done({ points: pts.length, onMap, besideCard, box: Object.fromEntries(Object.entries(box).map(([k, x]) => [k, Math.round(x)])), cardRight: Math.round(card.right), zoom: +m.getZoom().toFixed(2) })
+            }
+            if (m.isMoving()) m.once('moveend', () => setTimeout(read, 50))
+            else setTimeout(read, 800)
+          }),
+        litIds[0],
+      )
+      check('  the camera takes in the whole route, beside the card in the corner', framed.points > 1 && framed.onMap && framed.besideCard, JSON.stringify(framed))
       // The chevrons: flowing along the lit direction, each cut to exactly
       // the lit line's width. Measured on screen, across the chevron's own
       // axis (outer tip to inner tip); the line's width comes from
@@ -608,6 +639,11 @@ if (PART === 1) {
       // a second apart finds them moved, in about fifteen redraws.
       const where = () =>
         page.evaluate(async () => ((await window.__src('direction-arrows'))?.features ?? []).map((f) => f.geometry.coordinates[0][0].map((v) => v.toFixed(7)).join()).join('|'))
+      // The trip opens on its whole route (the owner's ask, 2026-10-01); the
+      // flow is counted back where the tap was, close in, as before: a
+      // runner drawing without a GPU manages a few frames a second on the
+      // whole route, and the flow steps on frames.
+      await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 17 }), clean)
       await page.waitForTimeout(3200)
       const flowA = await where()
       const sets = await page.evaluate(
