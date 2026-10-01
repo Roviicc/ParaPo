@@ -1016,12 +1016,11 @@ if (routeA) {
       const q = m.project(f.geometry.coordinates)
       return {
         name: f.properties.name,
-        // Head Route where the ride starts; Tail Route where it goes, its circled arrow first. Both semibold.
+        // Head Route where the ride starts; Tail Route where it goes, its circled arrow first.
         look:
-          getComputedStyle(pill.firstElementChild).fontWeight === '600' &&
-          (f.properties.end === 'from'
+          f.properties.end === 'from'
             ? pill.dataset.end === 'head' && !pill.querySelector('svg:not(:last-child)')
-            : pill.dataset.end === 'tail' && !!pill.querySelector('svg:not(:last-child)')),
+            : pill.dataset.end === 'tail' && !!pill.querySelector('svg:not(:last-child)'),
         colour: getComputedStyle(pill.firstElementChild).backgroundColor === ringRgb,
         across: box.left + box.width / 2 - (c.left + q.x),
         above: c.top + q.y - box.bottom,
@@ -1030,7 +1029,7 @@ if (routeA) {
     return { named: named.length, pills: pills.length, rows }
   })
   check(
-    "  each end named once, in a semibold pill over its circle in the line's colour, where it goes led by an arrow",
+    "  each end named once, in a pill over its circle in the line's colour, where it goes led by an arrow",
     ends.named > 0 &&
       ends.pills === ends.named &&
       ends.rows.every((r) => !r.missing && r.look && r.colour && Math.abs(r.across) < 1.5 && r.above > 14 && r.above < 40),

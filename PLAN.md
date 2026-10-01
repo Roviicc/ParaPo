@@ -3696,8 +3696,8 @@ had left the view as it was).
 of SelectedHintuanRouteTitle (3848:12135), read as the RouteCard reads:
 where a ride starts — the top of its timeline, the card's title — is the
 Head Route; where it goes — one of the card's rows — is the Tail Route, led
-by the rows' circled arrow. Both semibold, 14 px (the Head Route's 16 px of
-the first pass taken back the same day). A place
+by the rows' circled arrow. Both 14 px medium, as the plain name is (the
+Head Route's 16 px, and a semibold, tried and taken back the same day). A place
 two rides share keeps the name of the first to reach it, so a trip's
 change of ride is the earlier ride's tail; SWITCH turns the rides round,
 and the head with them. `phone-test` checks each pill's look.
