@@ -188,13 +188,15 @@ export function useLocatorMood({ fix, camera, taps }: { fix: Fix | null; camera:
     const t = Date.now()
     const was = seen.current
     seen.current = { taps: touches, hadFix: !!fix, camera }
-    const tapped = touches > was.taps
+    // Taps quicker than a render come in one batch: each counts, or three
+    // quick ones on a slow phone could read as two and never make it cross.
+    const tapped = Math.max(0, touches - was.taps)
     // Rolled here, with the tap, not while rendering: the reaction is the tap's.
     const roll = Math.random()
     setEvents((e) => ({
-      taps: tapped ? [...e.taps.filter((x) => t - x < ANGRY_WITHIN_MS + ANGRY_FOR_MS), t] : e.taps,
-      count: tapped ? e.count + 1 : e.count,
-      reaction: tapped ? { at: t, mood: reactionTo(e.count + 1, roll) } : e.reaction,
+      taps: tapped ? [...e.taps.filter((x) => t - x < ANGRY_WITHIN_MS + ANGRY_FOR_MS), ...Array<number>(tapped).fill(t)] : e.taps,
+      count: e.count + tapped,
+      reaction: tapped ? { at: t, mood: reactionTo(e.count + tapped, roll) } : e.reaction,
       arrivedAt: (fix && !was.hadFix) || (fix && camera !== 'free' && was.camera === 'free') ? t : e.arrivedAt,
       stillSince: !fix || fix.speed >= STILL_BELOW_MPS ? null : (e.stillSince ?? t),
     }))
