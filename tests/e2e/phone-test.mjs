@@ -1019,8 +1019,8 @@ if (routeA) {
         // Head Route where the ride starts; Tail Route where it goes, its circled arrow first.
         look:
           f.properties.end === 'from'
-            ? pill.dataset.end === 'head' && !pill.querySelector('svg:not(:last-child)')
-            : pill.dataset.end === 'tail' && !!pill.querySelector('svg:not(:last-child)'),
+            ? pill.dataset.end === 'head' && !pill.querySelector('[data-part="arrow"]')
+            : pill.dataset.end === 'tail' && !!pill.querySelector('[data-part="arrow"]'),
         colour: getComputedStyle(pill.firstElementChild).backgroundColor === ringRgb,
         across: box.left + box.width / 2 - (c.left + q.x),
         above: c.top + q.y - box.bottom,
