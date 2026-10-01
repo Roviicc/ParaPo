@@ -570,7 +570,8 @@ const tripChecks = async () => {
       const c = m.getCanvas().getBoundingClientRect()
       const q = at && m.project(at)
       // The rail's colour: the card's Card/<livery>/Timeline/surface.
-      const dot = trip?.querySelector('[class*="timeline-surface"]')
+      // Its plain class: a row's Pressed carries the same name behind `active:`.
+      const dot = trip && [...trip.querySelectorAll('*')].find((e) => [...e.classList].some((c) => /^bg-card-[a-z]+-timeline-surface$/.test(c)))
       return {
         lit: (await window.__lit('saved-routes')) ?? [],
         rest: ((await window.__src('ride-rest'))?.features ?? []).length,

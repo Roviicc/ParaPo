@@ -3550,3 +3550,12 @@ on it (`:active`), the trip opening as it lets go — the owner's pick, a
 tap's feedback rather than a state kept while the trip is open. The phone's
 own tap highlight is off on the row, so the colour under the finger is the
 token's. Story: RowPressed, every livery, press and hold.
+
+**The trip's timeline rows have a Pressed state, 2026-10-01.** The owner's
+Timeline (3716:1894) gained State=Pressed on all four rows — where the trip
+leaves from, a hintuan, the fold, where it goes: the whole row in
+Card/<livery>/Timeline/surface, so the rail runs into it and only the dot's
+white shows. Shown while the finger or the mouse is down (`:active`), as the
+RouteCard's rows are; the phone's own tap highlight is off on them.
+`ROW_PRESSED` in liveryCard.ts, the RouteCard's rows' too. Story: RowPressed, every livery opened,
+a hintuan picked, press and hold.
