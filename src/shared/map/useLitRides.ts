@@ -40,7 +40,7 @@ export function useLitRides(
   // flowing inside each line from where the ride starts, and each end a
   // circle with its place's name and, where the route says, its hotspot.
   const rides = useMemo(
-    () => saved.litVariants.map((v) => ({ line: travelLine(v, stops), ...directionEnds(v), ...directionEndStops(v) })),
+    () => saved.litVariants.map((v) => ({ id: v.id, line: travelLine(v, stops), ...directionEnds(v), ...directionEndStops(v) })),
     [saved.litVariants, stops],
   )
   useDirectionArrows(map, rides)

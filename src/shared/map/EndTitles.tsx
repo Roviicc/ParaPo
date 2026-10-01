@@ -30,7 +30,12 @@ import './endTitles.css'
  * Given `onPick`, a pill whose ride says which hotspot it ends at is a
  * button: a tap opens that place (the owner's ask, 2026-10-01), and the map
  * beneath never hears it (markerTap.ts). Without one, or a hotspot, it takes
- * no taps, and a tap on it reaches the line or the box beneath. How a
+ * no taps, and a tap on it reaches the line or the box beneath.
+ *
+ * Given `onTrip`, a Tail Route that one lit ride alone goes to opens that
+ * ride's trip instead (the owner's ask, 2026-10-01): its RouteTripDetail,
+ * its line lit, as the card's row of the same arrow does. Where two rides
+ * go, the place's own card lists both, so the tap opens that. How a
  * focused or pressed pill looks is the owner's to design; until then it is
  * the browser's own focus ring.
  */
@@ -39,27 +44,34 @@ export function EndTitles({
   rides,
   look,
   onPick,
+  onTrip,
 }: {
   map: MapLibreMap
   rides: readonly Ride[]
   look: LineLook
   onPick?: (stopId: string) => void
+  /** A direction's trip to open, from the one ride a tail names. */
+  onTrip?: (variantId: string) => void
 }) {
   return (
     <>
       {rideEnds(rides)
         .filter((e) => e.named)
-        .map(({ end, name, at, stopId }) => (
-          <EndTitle
-            key={`${name}@${at.join(',')}`}
-            map={map}
-            at={at}
-            name={name}
-            head={end === 'from'}
-            look={look}
-            onPick={onPick && stopId ? () => onPick(stopId) : undefined}
-          />
-        ))}
+        .map(({ end, name, at, stopId, rides: here }) => {
+          const trip = onTrip && end === 'to' && here.length === 1 ? here[0] : null
+          return (
+            <EndTitle
+              key={`${name}@${at.join(',')}`}
+              map={map}
+              at={at}
+              name={name}
+              head={end === 'from'}
+              look={look}
+              opens={trip ? 'trip' : 'place'}
+              onPick={trip ? () => onTrip?.(trip) : onPick && stopId ? () => onPick(stopId) : undefined}
+            />
+          )
+        })}
     </>
   )
 }
@@ -80,6 +92,7 @@ function EndTitle({
   name,
   head,
   look,
+  opens,
   onPick,
 }: {
   map: MapLibreMap
@@ -88,6 +101,8 @@ function EndTitle({
   /** Where the ride starts (Head Route), or where it goes (Tail Route). */
   head: boolean
   look: LineLook
+  /** What a tap opens: the ride's trip, or the place's card. */
+  opens: 'trip' | 'place'
   onPick?: () => void
 }) {
   const [el] = useState(() => {
@@ -125,10 +140,11 @@ function EndTitle({
 
   el.dataset.name = name
   el.dataset.end = head ? 'head' : 'tail'
+  el.dataset.opens = onPick ? opens : ''
   const Pill = onPick ? 'button' : 'div'
   return createPortal(
     <Pill
-      {...(onPick ? { type: 'button' as const, 'aria-label': `${name}: the routes there` } : {})}
+      {...(onPick ? { type: 'button' as const, 'aria-label': opens === 'trip' ? `${name}: the trip there` : `${name}: the routes there` } : {})}
       className={
         'relative flex max-w-56 items-center gap-1 rounded-full py-1 text-sm/5 font-medium ' +
         (head ? 'px-2' : 'pr-2 pl-1')

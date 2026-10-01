@@ -1254,6 +1254,31 @@ if (!shared) {
     if (trip3.picked) check('  and lets the picked hintuan go', await noPickLeft())
     const seenRest = await rideLook(page)
     check('  and its lines are the selected blue again', wears(seenRest, LOOKS?.lit), JSON.stringify(seenRest))
+    // A Tail Route one lit ride alone goes to opens that ride's trip, its
+    // line lit (the owner's ask, 2026-10-01); ‹ back to the list.
+    const tails = page.locator('[data-testid="end-title"][data-opens="trip"] button')
+    if ((await tails.count()) === 0) {
+      skip("  a tap on a tail's name opens its ride's trip", 'no tail on the list today is one ride\'s alone')
+    } else {
+      const tail = tails.first()
+      const tailName = await tail.evaluate((b) => b.closest('[data-testid="end-title"]').dataset.name)
+      const tailAt = await page.evaluate(
+        async (n) => ((await window.__src('direction-ends'))?.features ?? []).find((f) => f.properties.named && f.properties.name === n)?.geometry.coordinates,
+        tailName,
+      )
+      if (tailAt) await jumpTo(page, tailAt)
+      await tail.click()
+      await page.waitForFunction(() => document.querySelectorAll('[data-testid="card"]:not([hidden]) [data-testid="trip"]').length === 1, null, { timeout: 4000 }).catch(() => {})
+      const tripName = await tripLabel()
+      const litTrip = (await litIds(page)) ?? []
+      check(
+        "  a tap on a tail's name opens its ride's trip, its line alone lit",
+        tripName.includes(tailName) && litTrip.length === 1 && listedIds.includes(litTrip[0]) && !(await listShown()),
+        JSON.stringify({ tail: tailName, trip: tripName, lit: litTrip }),
+      )
+      await buttonTap(card().getByRole('button', { name: 'Back' }), listShown)
+      check('  and its ‹ goes back to the list', await listShown())
+    }
     // Picked, then a tap on the map where the list opened: a fresh list,
     // nothing Selected, every route it lists lit.
     await buttonTap(wantedName, isPicked)

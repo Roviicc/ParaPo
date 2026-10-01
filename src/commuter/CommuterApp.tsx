@@ -84,6 +84,11 @@ export default function CommuterApp() {
   // A place's name on the map: its card opens at the height the trip's is
   // at, or a hotspot card's.
   const openPlace = (stopId: string) => cards.openPlace(stopId, tripDock.current ? tripDock : hotspotDock)
+  // A tail's name with no trip open: its ride's trip, in the colour of the card picked, if one is.
+  const openRide = (id: string) => {
+    const v = saved.variants.find((x) => x.id === id)
+    if (v) cards.openTrip(v, saved.highlight?.livery)
+  }
   const { tripLivery, look, height } = cards
 
   return (
@@ -101,8 +106,16 @@ export default function CommuterApp() {
       <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} />
       {map && <Locator locator={locator} docked={cards.open} />}
       {map && locator.fix && <LocatorOnMap map={map} fix={locator.fix} heading={locator.heading} />}
-      {/* Each lit ride's ends, named over their circles. */}
-      {map && <EndTitles map={map} rides={rides} look={look} onPick={openPlace} />}
+      {/* Each lit ride's ends, named over their circles; with no trip open, a tail opens its ride's. */}
+      {map && (
+        <EndTitles
+          map={map}
+          rides={rides}
+          look={look}
+          onPick={openPlace}
+          onTrip={saved.selected ? undefined : openRide}
+        />
+      )}
       {/* Keyed on the pick: another hintuan pops a fresh circle. */}
       {map && ride.pinAt && tripLivery && (
         <HintuanPin
