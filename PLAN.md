@@ -3500,3 +3500,13 @@ uses, which name what an exported function takes or returns; and
 HotspotPanel's alias and note state with no setter, which keeps a box's Also
 called and Note while those are off the form. Nothing a visitor or the owner
 sees changes.
+
+**The card stays where it settles, 2026-10-01.** The owner's ask: "since
+the card can settle anywhere, don't move the bottomsheet to the middle
+whenever a hintuan is picked". It takes back the ask of 2026-09-30 that
+brought a card at Max down to Middle as the camera glided. A hintuan or an
+end picked on a trip, on the public map and in the studio, and another box
+picked on a HintuanCard, now leave the card at its height. `makeRoom` went
+for `clearOfSheet` (BottomSheet.tsx): the camera puts the point above the
+card, or beside it in the corner, and a card above Middle is measured at
+Middle, so the point is there to see when it comes down.

@@ -7,7 +7,7 @@ import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
 import { METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
 import type { Livery } from '../shared/model/liveries'
 import { RouteCardList } from '../shared/cards/RouteCardList'
-import { clearOfDock, makeRoom } from '../shared/cards/BottomSheet'
+import { clearOfSheet } from '../shared/cards/BottomSheet'
 import type { Snap } from '../shared/cards/sheetGesture'
 import { useRideTo } from '../shared/map/rideTo'
 import { directionEnds, isDrawn } from '../shared/model/routes'
@@ -71,13 +71,13 @@ export default function CommuterApp() {
   // A hintuan picked on the trip card (the owner's Timeline State=Selected,
   // 2026-09-29): the camera gliding there clear of the card, and a circle
   // popping up on it — the route left whole, no get-off circles (the
-  // owner's ask of 2026-09-30: "now I don't want to cut the route"). At
-  // Max, the card comes down to Middle as the camera glides (makeRoom).
+  // owner's ask of 2026-09-30: "now I don't want to cut the route"). The
+  // card stays at its height (clearOfSheet).
   const tripDock = useRef<HTMLDivElement>(null)
   // The HintuanCard's, for a picked box to land clear of it.
   const hotspotDock = useRef<HTMLDivElement>(null)
   const ride = useRideTo(map, saved.selected, stops.stops, {
-    onGlide: () => (map ? makeRoom(map.getContainer(), tripDock.current, { snap, onSnap: setSnap }) : [0, 0]),
+    onGlide: () => (map ? clearOfSheet(map.getContainer(), tripDock.current, snap) : [0, 0]),
   })
 
   useShareLink(map, saved)
@@ -248,12 +248,11 @@ export default function CommuterApp() {
             setWorn(livery ? { id: v.id, livery } : null)
             saved.select(v.id, { keepList: true })
           }}
-          // Another box: the card comes down to Middle as the map goes
-          // there, the box clear of it (the owner, 2026-09-30).
+          // Another box: the map goes there, the box clear of the card,
+          // which stays at its height (the owner, 2026-10-01).
           onPickBox={(id) => {
             saved.highlightCard(null)
-            setSnap('middle')
-            stops.show(id, () => (map ? clearOfDock(map.getContainer(), hotspotDock.current, 'middle') : [0, 0]))
+            stops.show(id, () => (map ? clearOfSheet(map.getContainer(), hotspotDock.current, snap) : [0, 0]))
           }}
           onClose={() => {
             saved.highlightCard(null)

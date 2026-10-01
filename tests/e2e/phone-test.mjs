@@ -647,32 +647,31 @@ const tripChecks = async () => {
       !(await isPicked()) && (await pill.count()) === 0 && letGo.pins === 0 && letGo.lit.length === 1 && (await tile('trip-fare')) === fare && (await tile('trip-km')) === km,
       `${letGo.pins} circle(s), ${letGo.lit.length} lit; tiles "${await tile('trip-km')}", "${await tile('trip-fare')}", the whole "${km}", "${fare}"`,
     )
-    // At Max the card covers the map, and the glide would go on out of
-    // sight: a hintuan picked there brings the card down to Middle as the
-    // camera glides (the owner's ask, 2026-09-30), the hintuan landing above
-    // where the card stops, not where it started. Let go again after, for
-    // the ends below.
+    // At Max the card stays at Max (the owner's ask, 2026-10-01: "since the
+    // card can settle anywhere, don't move the bottomsheet to the middle"),
+    // the hintuan landing above where Middle would be, there to see when the
+    // card comes down. Let go again after, for the ends below.
     await buttonTap(handle(), async () => (await sheetState()) === 'max')
     if ((await sheetState()) !== 'max') {
-      skip('  picked at Max, the card comes down to Middle as the camera glides there', `the card would not rise to Max: data-snap=${await sheetState()}`)
+      skip('  picked at Max, the card stays at Max, the hintuan above where Middle would be', `the card would not rise to Max: data-snap=${await sheetState()}`)
     } else {
       await pickButton.scrollIntoViewIfNeeded()
       await buttonTap(pickButton, isPicked)
       await page.waitForTimeout(200)
       await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
-      const lowered = await sheetState()
+      const stayed = await sheetState()
       const spot = pickWant
         ? await page.evaluate((at) => {
             const m = window.__map
             const c = m.getCanvas().getBoundingClientRect()
             const q = m.project(at)
-            return { y: c.top + q.y, top: c.top, cardTop: document.querySelector('[data-testid="card"]').getBoundingClientRect().top }
+            return { y: c.top + q.y, top: c.top, cardTop: c.bottom - Math.round(c.height * 0.45) }
           }, pickWant.at)
         : null
       check(
-        '  picked at Max, the card comes down to Middle as the camera glides there, the hintuan above it',
-        (await isPicked()) && lowered === 'middle' && (!spot || (spot.y > spot.top + 16 && spot.y < spot.cardTop - 16)),
-        `data-snap=${lowered}; ${spot ? `the hintuan at ${Math.round(spot.y)}, the map ${Math.round(spot.top)}–${Math.round(spot.cardTop)} above the card` : 'not measured'}`,
+        '  picked at Max, the card stays at Max, the hintuan above where Middle would be',
+        (await isPicked()) && stayed === 'max' && (!spot || (spot.y > spot.top + 16 && spot.y < spot.cardTop - 16)),
+        `data-snap=${stayed}; ${spot ? `the hintuan at ${Math.round(spot.y)}, the map ${Math.round(spot.top)}–${Math.round(spot.cardTop)} above Middle` : 'not measured'}`,
       )
       await pickButton.scrollIntoViewIfNeeded()
       await buttonTap(pickButton, async () => !(await isPicked()))
@@ -1258,13 +1257,13 @@ if (!inside) {
   )
   check(`  no chooser for one thing`, (await chooser.count()) === 0)
   // Another box of its place, from its row: that row Selected, the card
-  // down to Middle from Max, and the map gone there, the box clear of the
-  // card (the owner's HintuanCard, 2026-09-30).
+  // staying at Max (the owner, 2026-10-01), and the map gone there, the box
+  // above where Middle would be (the owner's HintuanCard, 2026-09-30).
   const otherRow = card().first().locator(`[data-testid="card-box"]:not([data-box="${poly.id}"])`)
   const otherId = (await otherRow.count()) ? await otherRow.first().getAttribute('data-box') : null
   const otherPoly = otherId && snapshot.polys.find((o) => o.id === otherId)
   if (!otherPoly) {
-    skip('  another box from its row: Selected, the card at Middle, the map there', `"${poly.name}" is its place's only box`)
+    skip('  another box from its row: Selected, the card staying at Max, the map there', `"${poly.name}" is its place's only box`)
   } else {
     await buttonTap(handle(), async () => (await sheetState()) === 'max')
     const from = await sheetState()
@@ -1274,14 +1273,13 @@ if (!inside) {
     const at = await project(page, centroidOf(otherPoly.ring))
     const edges = await page.evaluate(() => {
       const c = window.__map.getCanvas().getBoundingClientRect()
-      const d = document.querySelector('[data-testid="card"]').getBoundingClientRect()
-      return { top: c.top, cardTop: d.top }
+      return { top: c.top, cardTop: c.bottom - Math.round(c.height * 0.45) }
     })
     const y = edges.top + at[1]
     check(
-      '  another box from its row: Selected, the card down to Middle, the map there above it',
-      (await pressedBox()) === otherId && (await sheetState()) === 'middle' && y > edges.top && y < edges.cardTop,
-      `from ${from}: ${await pressedBox()} pressed (want ${otherId}), data-snap=${await sheetState()}; the box at ${Math.round(y)}, the card from ${Math.round(edges.cardTop)}`,
+      '  another box from its row: Selected, the card staying at Max, the map there above where Middle would be',
+      (await pressedBox()) === otherId && (await sheetState()) === from && y > edges.top && y < edges.cardTop,
+      `from ${from}: ${await pressedBox()} pressed (want ${otherId}), data-snap=${await sheetState()}; the box at ${Math.round(y)}, Middle from ${Math.round(edges.cardTop)}`,
     )
   }
   await closeCard()

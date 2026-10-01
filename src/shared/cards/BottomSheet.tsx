@@ -374,17 +374,14 @@ function showsAt(sheet: HTMLElement, snap: Snap): number {
 
 /**
  * The camera is about to glide to a point on the map — a hintuan picked on
- * a trip, or one of its ends. A sheet docked at Max, or left higher than
- * Middle, comes down to Middle as the camera moves, so the move is seen (the owner's ask,
- * 2026-09-30: "if the bottomSheet is at max, then they click hintuan, the
- * bottomSheet must move to middle, while the camera is dragging"); lower, or
- * floating in a corner, it stays. Returns where the point should sit
- * (clearOfDock): clear of the sheet where it stops, not where it starts.
+ * a trip, one of its ends, another box of a place. The sheet stays at the
+ * height it was left at (the owner's ask, 2026-10-01: "since the card can
+ * settle anywhere, don't move the bottomsheet to the middle"; until then
+ * Max came down to Middle). Returns where the point should sit
+ * (clearOfDock): above the sheet, or beside it in the corner; a sheet higher
+ * than Middle is measured at Middle, so the point is there to see when it
+ * comes down.
  */
-export function makeRoom(map: HTMLElement, dock: HTMLElement | null, height: SheetHeight): [number, number] {
-  const m = map.getBoundingClientRect()
-  const docked = !!dock && !dock.hidden && dock.getBoundingClientRect().right >= m.right - 1
-  if (!docked || !aboveMiddle(height.snap)) return clearOfDock(map, dock)
-  height.onSnap('middle')
-  return clearOfDock(map, dock, 'middle')
+export function clearOfSheet(map: HTMLElement, dock: HTMLElement | null, snap: Snap): [number, number] {
+  return clearOfDock(map, dock, aboveMiddle(snap) ? 'middle' : snap)
 }
