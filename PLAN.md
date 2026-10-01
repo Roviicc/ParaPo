@@ -3613,4 +3613,3 @@ day: the HintuanCardRouteCounter is 24 in from the card's edges (32 before),
 (24), the count in Black, and it reads "… here" ("2 routes pass here"; "…
 through" before), the verb still agreeing with the count. The first
 RouteCard under it leaves 36 above its title (24).
-
