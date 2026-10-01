@@ -1,12 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { BEAM_DRAWN_DEG, LocatorIndicatorOverlay } from './LocatorIndicatorOverlay'
+import type { Face, Mood } from './locatorMood'
 
 const meta = {
   title: 'Commuter/LocatorIndicatorOverlay',
   component: LocatorIndicatorOverlay,
   decorators: [
     (Story) => (
-      <div className="grid h-80 w-80 place-items-center overflow-clip bg-neutral-200">
+      <div className="grid min-h-80 min-w-80 place-items-center overflow-clip bg-neutral-200">
         <Story />
       </div>
     ),
@@ -29,4 +30,69 @@ export const NoHeading: Story = { args: { haloPx: 240, beamDeg: null } }
 export const TightFix: Story = { args: { haloPx: 12, beamDeg: 300 } }
 
 /** Zoomed out to the city: the dot and beam at their smallest, as Google Maps' (indicatorScale). */
-export const ZoomedOut: Story = { args: { haloPx: 0, beamDeg: 30, scale: 0.45 } }
+export const ZoomedOut: Story = { args: { haloPx: 0, beamDeg: 30, scale: 0.54 } }
+
+/*
+ * Its moods and faces (locatorMood.ts, the owner's ask of 2026-10-01): every
+ * face it can wear, side by side, for the owner to look over; each a story too.
+ */
+const face = (mood: Mood, f: Face): Story => ({ args: { haloPx: 0, beamDeg: null, mood, face: f } })
+
+/** Neutral, mostly: the wandering glance, as drawn. */
+export const NeutralGlance = face('neutral', 'glance')
+/** Neutral: a curious look up, one eye wider. */
+export const NeutralCurious = face('neutral', 'curious')
+/** Neutral: a wink. */
+export const NeutralWink = face('neutral', 'wink')
+/** Neutral: wide-eyed. */
+export const NeutralSurprised = face('neutral', 'surprised')
+/** Neutral, a minute standing still: dozing. */
+export const NeutralSleepy = face('neutral', 'sleepy')
+/** Happy: smiling eyes. */
+export const HappySmile = face('happy', 'smile')
+/** Happy: smiling, hopping. */
+export const HappyHop = face('happy', 'hop')
+/** Happy: squeezed > <. */
+export const HappySquee = face('happy', 'squee')
+/** Happy: a smile and a wink. */
+export const HappyWinkSmile = face('happy', 'wink-smile')
+/** Cross, at a run of taps: scowling eyes, sloping down to the middle, a shake. */
+export const AngryGlare = face('angry', 'glare')
+/** A tap on the button, glad: squashed, up with smiling eyes, landing with a wobble. */
+export const TapBoing = face('happy', 'boing')
+/** A tap on the button, now and then cross: puffed up, scowling, shaking it off. */
+export const TapHuff = face('angry', 'huff')
+
+const ALL: [Mood, Face][] = [
+  ['neutral', 'glance'],
+  ['neutral', 'curious'],
+  ['neutral', 'wink'],
+  ['neutral', 'surprised'],
+  ['neutral', 'sleepy'],
+  ['happy', 'smile'],
+  ['happy', 'hop'],
+  ['happy', 'squee'],
+  ['happy', 'wink-smile'],
+  ['angry', 'glare'],
+  ['happy', 'boing'],
+  ['angry', 'huff'],
+]
+
+/** Every face at once, three times the size, named. */
+export const AllFaces: Story = {
+  args: { haloPx: 0, beamDeg: null },
+  render: () => (
+    <div className="grid grid-cols-4 gap-x-10 gap-y-12 p-10">
+      {ALL.map(([m, f]) => (
+        <div key={f} className="flex flex-col items-center gap-8">
+          <div className="grid size-24 place-items-center" style={{ scale: 3 }}>
+            <LocatorIndicatorOverlay haloPx={0} beamDeg={null} mood={m} face={f} />
+          </div>
+          <span className="text-xs text-content-tertiary">
+            {m} · {f}
+          </span>
+        </div>
+      ))}
+    </div>
+  ),
+}

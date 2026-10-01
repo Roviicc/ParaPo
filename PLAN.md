@@ -3741,3 +3741,47 @@ it takes in; the hintuans stay open or folded as they were. `phone-test`
 105 → 106. Then from any height, not only Max (the owner, the
 same day: "not only max"); at Low the rows are out of sight, so in practice
 it is Max and Middle.
+
+**The locator dot's moods, 2026-10-01.** The owner's ask: "add other
+emotion ... sad, angry, happy", and more faces for neutral and happy. Each
+mood is tied to something true (locatorMood.ts, the strongest first): cross
+for 3 s at three taps on the button within 2 s; glad for 3 s as the
+location first comes, or the camera arrives on the visitor; glad on the
+move from 1 m/s; never low for the location itself (at first for a fix
+over 30 s old or rougher than 80 m, then rougher than 150 m: it was sad most
+of the time — a browser sends no fix while the visitor stands still, and
+80 m is common indoors — and the owner had it dropped, "for now");
+else neutral. Sad went altogether later the same day, a droop in its swings
+once (the owner: "we remove the sad, only neutral, happy and angry"). Neutral mostly glances about as before, now and then curious,
+winking or wide-eyed, and dozes after a minute standing still; glad smiles
+∩ ∩, hops, squeezes > < or winks, a new one every 2.5 s; cross scowls, its eyes sloping down to
+the middle, and shakes (brows at first, taken off at the owner's ask the
+same day). All CSS
+on the dot (locator.css), morphing over a quarter second; held still for
+reduced motion. Every face whose eyes are open still looks about — right,
+left, up, down, a smaller round about the middle (the owner's ask the same
+day); dozing, squeezed and glaring eyes keep still. A wink holds the glance still where it is and
+shuts the one eye once: no jump to the middle, no looking about (the
+owner, the same day: "more fluid", and no "looking left right bottom and
+down"). Its beam cut to 7/10 of its length at the same spread (59
+long), and zoomed out it is a fifth bigger, 0.54 at the least (the owner,
+the same day). Straight to main this once, at the owner's say.
+And a tap on the button gets a reaction, for 2.5 s (the owner's ask, the
+same day): glad, a boing — squashed, up with smiling eyes, landing with a
+wobble — or, one tap in four, cross, a huff — puffed up, scowling,
+shaking it off; never cross at the first tap. Each tap plays it afresh
+(`beat` redraws the dot); three quick taps still glare.
+Left to itself, its mood swings (the owner: "back and forth between
+neutral and happy ... then sometimes sad and angry"): a face every 5 s,
+about half neutral, nearly all the rest happy, one in forty cross (one in
+twenty at first) — for one turn only, where a run of
+taps holds cross as
+long as it lasts; each tap rolls the swings afresh, so after its
+reaction the dot comes back in another mood (the owner: "tapping may change
+the mood"). `data-mood` follows the face shown (`MOOD_OF`). And the
+dot itself takes a tap, the same reaction as the button's and counted with
+its taps; the map beneath never hears the tap (markerTap.ts), and the camera
+stays — but a drag that starts on it still pans the map (`dragsPass`): it
+sits mid-screen, where a finger lands to pan (where-test caught the pan
+stopped dead) (the owner: "tapping this blue, could trigger that too").
+`locator-mood-test` 9, `locator-test` 16, `where-test` 38 → 43.
