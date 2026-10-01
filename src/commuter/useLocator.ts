@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
-import { haversine, metresPerPixel, type LngLat } from '../shared/geo/geo'
+import { haversine, zoomForScale, type LngLat } from '../shared/geo/geo'
 import type { Snap } from '../shared/cards/sheetGesture'
 import type { LocatorMode } from './LocatorButton'
 
@@ -49,14 +49,13 @@ export const STILL_BELOW_MPS = 0.5
 
 /**
  * The camera's "height", as the owner reads it (2026-10-01): the map's scale
- * bar, metres per SCALE_PX on the screen. A tap to the visitor keeps the
+ * bar, metres per SCALE_PX on the screen (geo.ts). A tap to the visitor keeps the
  * zoom the map is at — "it must not change the camera view height" —
  * unless the bar reads more than FAR_SCALE_M, when it comes in to
  * TRACKED_SCALE_M; the compass view is COMPASS_SCALE_M. Metres across the
  * screen before (200 and 100, and 1000 and 200 ft before that), which read
  * on the bar as some 50 and 20.
  */
-export const SCALE_PX = 100
 export const TRACKED_SCALE_M = 200
 export const COMPASS_SCALE_M = 200
 export const FAR_SCALE_M = 2000
@@ -111,10 +110,6 @@ export function trackedZoom(current: number, lat: number): number {
   return current < zoomForScale(FAR_SCALE_M, lat) ? zoomForScale(TRACKED_SCALE_M, lat) : current
 }
 
-/** The zoom at which SCALE_PX screen pixels are `metres` at this latitude: the scale bar reading that. */
-export function zoomForScale(metres: number, lat: number): number {
-  return Math.log2((metresPerPixel(lat, 0) * SCALE_PX) / metres)
-}
 
 /** The accuracy circle's radius for a fix this good. */
 export const circleRadius = (accuracy: number) => Math.min(ACCURACY_MAX_M, Math.max(ACCURACY_MIN_M, accuracy))

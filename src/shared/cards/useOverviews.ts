@@ -1,12 +1,11 @@
 import { useEffect, useRef, type RefObject } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
-import { clearOfSheet, roomBeside } from '../shared/cards/BottomSheet'
-import { shownAt, type Snap } from '../shared/cards/sheetGesture'
-import { bboxOf, type LngLat } from '../shared/geo/geo'
-import { APP_MOVE } from '../shared/map/MapView'
-import type { Highlight } from '../shared/map/useSavedRoutes'
-import { variantLine, type VariantSummary } from '../shared/model/routes'
-import { zoomForScale } from './useLocator'
+import { clearOfSheet, roomBeside } from './BottomSheet'
+import { shownAt, type Snap } from './sheetGesture'
+import { bboxOf, zoomForScale, type LngLat } from '../geo/geo'
+import { APP_MOVE } from '../map/MapView'
+import type { Highlight } from '../map/useSavedRoutes'
+import { variantLine, type VariantSummary } from '../model/routes'
 
 /*
  * The camera taking in routes whole — a trip opened, a RouteCard picked,
