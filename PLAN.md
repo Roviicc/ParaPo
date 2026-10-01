@@ -3740,7 +3740,10 @@ emotion ... sad, angry, happy", and more faces for neutral and happy. Each
 mood is tied to something true (locatorMood.ts, the strongest first): cross
 for 3 s at three taps on the button within 2 s; glad for 3 s as the
 location first comes, or the camera arrives on the visitor; low when the
-fix is over 30 s old or rougher than 80 m; glad on the move from 1 m/s;
+fix is rougher than 150 m (at first also over 30 s old or rougher than
+80 m, which made it sad most of the time: a browser sends no fix while the
+visitor stands still, and 80 m is common indoors — the owner's "why it sad
+most of the time"); glad on the move from 1 m/s;
 else neutral. Neutral mostly glances about as before, now and then curious,
 winking or wide-eyed, and dozes after a minute standing still; glad smiles
 ∩ ∩, hops, squeezes > < or winks, a new one every 2.5 s; low droops, its
@@ -3760,8 +3763,9 @@ shaking it off; never cross at the first tap. Each tap plays it afresh
 (`beat` redraws the dot); three quick taps still glare.
 Left to itself, its mood swings (the owner: "back and forth between
 neutral and happy ... then sometimes sad and angry"): a face every 5 s,
-about half neutral, two in five happy, one in twenty each low and cross —
-those for one turn only, where a stale fix or a run of taps hold them as
+about half neutral, nearly all the rest happy, one in forty each low and
+cross (one in twenty at first) — those for one turn only, where a rough fix
+or a run of taps hold them as
 long as they last. `data-mood` follows the face shown (`MOOD_OF`). And the
 dot itself takes a tap, the same reaction as the button's and counted with
 its taps; the map beneath never hears it (markerTap.ts), and the camera

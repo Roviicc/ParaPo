@@ -1,6 +1,6 @@
 // The visitor's dot's moods (src/commuter/locatorMood.ts, the owner's ask of
 // 2026-10-01): cross at a run of taps, glad as the location comes or the
-// camera arrives and on the move, low when the fix is stale or rough, and
+// camera arrives and on the move, low when the fix is really rough, and
 // otherwise neutral; and the faces each wears.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/locator-mood-test.mjs
@@ -14,7 +14,6 @@ import {
   HAPPY_FOR_MS,
   POOR_OVER_M,
   SLEEPY_AFTER_MS,
-  STALE_AFTER_MS,
   faceFor,
   moodAt,
   reactionTo,
@@ -40,8 +39,9 @@ test('happy on the move, from walking pace', () => {
   assert.equal(at(T, { fix: { ...good, speed: 0.6 } }), 'neutral')
 })
 
-test('sad when the fix goes stale or rough, over being on the move', () => {
-  assert.equal(at(T + STALE_AFTER_MS + 1), 'sad')
+test('sad when the fix is really rough, over being on the move; never for an old fix of a visitor standing still', () => {
+  assert.equal(at(T + 10 * 60_000), 'neutral')
+  assert.equal(at(T, { fix: { ...good, accuracy: 120 } }), 'neutral')
   assert.equal(at(T, { fix: { ...good, accuracy: POOR_OVER_M + 1 } }), 'sad')
   assert.equal(at(T, { fix: { ...good, accuracy: POOR_OVER_M + 1, speed: 2 } }), 'sad')
 })
@@ -62,12 +62,12 @@ test('the faces: cross glares, low droops, glad takes turns, left to itself its 
   const happy = new Set(Array.from({ length: 40 }, (_, i) => faceFor('happy', i * 2500, 0)))
   assert.ok(happy.size >= 3, `happy wears ${[...happy]}`)
   for (const f of happy) assert.ok(['smile', 'hop', 'squee', 'wink-smile'].includes(f), f)
-  // Left to itself, its mood swings: about half neutral, two in five happy, now and then low or cross.
+  // Left to itself, its mood swings: about half neutral, nearly all the rest happy, now and then low or cross.
   const swings = Array.from({ length: 2000 }, (_, i) => MOOD_OF[faceFor('neutral', i * 5000, 0)])
   const share = (m) => swings.filter((x) => x === m).length / swings.length
   assert.ok(share('neutral') > 0.4 && share('neutral') < 0.6, `neutral ${share('neutral')}`)
-  assert.ok(share('happy') > 0.3 && share('happy') < 0.5, `happy ${share('happy')}`)
-  for (const m of ['sad', 'angry']) assert.ok(share(m) > 0.02 && share(m) < 0.09, `${m} ${share(m)}`)
+  assert.ok(share('happy') > 0.38 && share('happy') < 0.55, `happy ${share('happy')}`)
+  for (const m of ['sad', 'angry']) assert.ok(share(m) > 0.005 && share(m) < 0.05, `${m} ${share(m)}`)
   assert.ok(new Set(Array.from({ length: 200 }, (_, i) => faceFor('neutral', i * 5000, 0))).size >= 8, 'many faces')
   assert.equal(faceFor('neutral', T, SLEEPY_AFTER_MS), 'sleepy')
   // The same moment, the same face: no flicker between renders.

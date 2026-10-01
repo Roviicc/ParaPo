@@ -56,7 +56,7 @@ export const HappyHop = face('happy', 'hop')
 export const HappySquee = face('happy', 'squee')
 /** Happy: a smile and a wink. */
 export const HappyWinkSmile = face('happy', 'wink-smile')
-/** Sad, the fix stale or rough: sorry eyes, sloping down to the outside, looking down. */
+/** Sad, the fix really rough: sorry eyes, sloping down to the outside, looking down. */
 export const SadDroop = face('sad', 'droop')
 /** Cross, at a run of taps: scowling eyes, sloping down to the middle, a shake. */
 export const AngryGlare = face('angry', 'glare')

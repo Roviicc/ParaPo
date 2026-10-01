@@ -48,10 +48,13 @@ export function reactionTo(count: number, roll: number): 'happy' | 'angry' {
 
 /** Happy this long when the location first comes, or the camera arrives on the visitor. */
 export const HAPPY_FOR_MS = 3000
-/** Sad when the fix is this old… */
-export const STALE_AFTER_MS = 30_000
-/** …or this rough, in metres. */
-export const POOR_OVER_M = 80
+/**
+ * Sad when the fix is this rough, in metres: really lost. Not for an old fix
+ * — a browser sends none while the visitor stands still, so "stale" was
+ * most of the time — nor at 80 m, common indoors (the owner, 2026-10-01:
+ * "why it sad most of the time").
+ */
+export const POOR_OVER_M = 150
 /** Happy on the move from walking pace up, in metres a second. */
 export const MOVING_FROM_MPS = 1
 /** Sleepy, a neutral face, after standing still this long. */
@@ -61,17 +64,15 @@ export const SLEEPY_AFTER_MS = 60_000
  * With nothing going on, the dot's mood swings (the owner's ask, 2026-10-01:
  * "back and forth between neutral and happy ... then sometimes sad and
  * angry"): a face every AMBIENT_EVERY_MS from this list, half of them
- * neutral, two in five happy, one in twenty each sad and cross — those two
- * for one turn only, where a stale fix or a run of taps hold them as long as
- * they last, so the real ones still read as real.
+ * neutral, nearly all the rest happy, one in forty each sad and cross —
+ * those two for one turn only, where a rough fix or a run of taps hold them
+ * as long as they last, so the real ones still read as real (halved from one
+ * in twenty at the owner's "make neutral and happy more", the same day).
  */
 const AMBIENT_EVERY_MS = 5000
-const AMBIENT: readonly Face[] = [
-  ...(['glance', 'glance', 'glance', 'glance', 'glance', 'glance', 'curious', 'curious', 'wink', 'surprised'] as const),
-  ...(['smile', 'smile', 'hop', 'hop', 'squee', 'wink-smile', 'wink-smile', 'smile'] as const),
-  'droop',
-  'glare',
-]
+const NEUTRAL_SWINGS = ['glance', 'glance', 'glance', 'glance', 'glance', 'glance', 'curious', 'curious', 'wink', 'surprised'] as const
+const HAPPY_SWINGS = ['smile', 'smile', 'hop', 'hop', 'squee', 'wink-smile', 'wink-smile', 'smile', 'hop'] as const
+const AMBIENT: readonly Face[] = [...NEUTRAL_SWINGS, ...NEUTRAL_SWINGS, ...HAPPY_SWINGS, ...HAPPY_SWINGS, 'droop', 'glare']
 
 /** The mood each face wears: what `data-mood` says, for its breathing. */
 export const MOOD_OF: Record<Face, Mood> = {
@@ -127,7 +128,7 @@ export function moodAt(s: Signals): Mood {
   if (inATemper(s)) return 'angry'
   if (reacting(s)) return s.reaction!.mood
   if (arrivedAt !== null && now >= arrivedAt && now - arrivedAt < HAPPY_FOR_MS) return 'happy'
-  if (fix && (now - fix.time > STALE_AFTER_MS || fix.accuracy > POOR_OVER_M)) return 'sad'
+  if (fix && fix.accuracy > POOR_OVER_M) return 'sad'
   if (fix && fix.speed >= MOVING_FROM_MPS) return 'happy'
   return 'neutral'
 }
@@ -161,7 +162,7 @@ export function faceFor(mood: Mood, now: number, stillFor: number, tapped = fals
 /**
  * The dot's mood and face, from the locator: its fix, its camera, and the
  * taps on its button (`taps`, counted by useLocator). Ticks once a second
- * while there is a fix to wear a face, for a fix going stale and the faces
+ * while there is a fix to wear a face, for the faces
  * taking turns.
  */
 export function useLocatorMood({ fix, camera, taps }: { fix: Fix | null; camera: Camera; taps: number }): {
