@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Livery } from '../model/liveries'
-import { BLOB_PLACE, CARD_BLOB, CARD_SHADOW, CARD_SURFACE, CARD_TEXT, TIMELINE_PILL, TIMELINE_PRESSED, TIMELINE_SURFACE } from './liveryCard'
+import { BLOB_PLACE, CARD_BLOB, CARD_SHADOW, CARD_SURFACE, CARD_TEXT, ROW_PRESSED, TIMELINE_PILL, TIMELINE_SURFACE } from './liveryCard'
 import { ChevronDownIcon, CircleArrowRightIcon } from './RouteIcons'
 
 export type TripTimelineProps = {
@@ -95,7 +95,7 @@ export function TripTimeline({
   const folds = hintuans.length > 1
   const rail = TIMELINE_SURFACE[livery]
   // Every row's Pressed: the rail's colour, while the finger is down.
-  const pressed = TIMELINE_PRESSED[livery]
+  const pressed = ROW_PRESSED[livery]
 
   return (
     <div
@@ -189,7 +189,7 @@ function TimelineTop({
   onTap,
 }: {
   rail: string
-  /** TIMELINE_PRESSED's classes for the card's livery. */
+  /** ROW_PRESSED's classes for the card's livery. */
   pressed: string
   routeOrigin: string
   selected: boolean
@@ -240,7 +240,7 @@ function TimelineHintuan({
 }: {
   id: string
   rail: string
-  /** TIMELINE_PRESSED's classes for the card's livery. */
+  /** ROW_PRESSED's classes for the card's livery. */
   pressed: string
   label: string
   shown: boolean
@@ -301,7 +301,7 @@ function TimelineDisclosure({
   onToggle,
 }: {
   rail: string
-  /** TIMELINE_PRESSED's classes for the card's livery. */
+  /** ROW_PRESSED's classes for the card's livery. */
   pressed: string
   open: boolean
   count: number
@@ -350,7 +350,7 @@ function TimelineBottomEndRoute({
   onTap,
 }: {
   rail: string
-  /** TIMELINE_PRESSED's classes for the card's livery. */
+  /** ROW_PRESSED's classes for the card's livery. */
   pressed: string
   routeDirection: string
   selected: boolean

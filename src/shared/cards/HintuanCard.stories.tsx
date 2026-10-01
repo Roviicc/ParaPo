@@ -72,14 +72,24 @@ const links: Record<string, string[]> = {
   h3: [],
 }
 
-/** Picks another box as the public map does: that row Selected, the Selected RouteCard let go. */
+/**
+ * Picks another box as the public map does: that row Selected, the Selected
+ * RouteCard let go. The Selected row tapped lets it go, as the map does too.
+ */
 function Picking(props: ComponentProps<typeof HintuanCard>) {
   const [stop, setStop] = useState(props.stop)
   const [selected, setSelected] = useState<string | null>(null)
+  const [deselected, setDeselected] = useState(props.deselected ?? false)
   return (
     <HintuanCard
       {...props}
       stop={stop}
+      deselected={deselected}
+      onDeselect={() => {
+        props.onDeselect?.()
+        setSelected(null)
+        setDeselected(true)
+      }}
       routeCards={{
         ...props.routeCards,
         selected,
@@ -91,6 +101,7 @@ function Picking(props: ComponentProps<typeof HintuanCard>) {
       onPickBox={(id) => {
         props.onPickBox(id)
         setSelected(null)
+        setDeselected(false)
         setStop(stops.find((s) => s.id === id) ?? stop)
       }}
     />
@@ -133,7 +144,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 const selectedRow = (canvas: HTMLElement) =>
-  within(canvas).getAllByTestId('card-box').find((b) => b.getAttribute('aria-current') === 'true')
+  within(canvas).getAllByTestId('card-box').find((b) => b.getAttribute('aria-pressed') === 'true')
 
 /**
  * Figma's Default: the terminal tapped, pressed in; the terminal first, then
@@ -172,6 +183,37 @@ export const PickARow: Story = {
     await expect(canvas.getByTestId('card-count').textContent).toBe('1 route passes through')
   },
 }
+
+/**
+ * The Selected row tapped again lets it go: no row Selected, and the routes
+ * through every box of the place — SM Fairview Main's one becomes the
+ * place's two each way, SWITCH turning them round where they stand; a tap
+ * on the row picks it back (the owner's ask, 2026-10-01).
+ */
+export const LetGoAndPickBack: Story = {
+  args: { stop: main, onDeselect: fn() },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    const row = () => canvas.getAllByTestId('card-box').find((b) => b.dataset.box === 'h2')!
+    await expect(canvas.getByTestId('card-count').textContent).toBe('1 route passes through')
+    await userEvent.click(row())
+    await expect(args.onDeselect).toHaveBeenCalledOnce()
+    await expect(selectedRow(canvasElement)).toBeUndefined()
+    await expect(canvas.getByTestId('card-count').textContent).toBe('2 routes pass through')
+    await userEvent.click(canvas.getByTestId('card-flip'))
+    await expect(args.onPickBox).not.toHaveBeenCalled()
+    await expect(canvas.getByTestId('card-flip').getAttribute('aria-pressed')).toBe('true')
+    await userEvent.click(row())
+    await expect(args.onPickBox).toHaveBeenCalledWith('h2')
+    await expect(selectedRow(canvasElement)?.textContent).toBe('SM Fairview Main')
+  },
+}
+
+/** Let go, at rest: no row pressed, the routes through the whole place. */
+export const LetGo: Story = { args: { stop: main, deselected: true } }
+
+/** Let go, on a phone. */
+export const LetGoPhone: Story = { args: { stop: main, deselected: true }, parameters: { phone: true } }
 
 /**
  * SWITCH at a box passed one way only: the other way round, at the nearest
@@ -224,3 +266,12 @@ export const OneBox: Story = {
 
 /** On a phone: a bottom sheet at Middle. */
 export const Phone: Story = { args: { stop: teraccess2 }, parameters: { phone: true } }
+
+/** Opened from a trip's name for the place on the map: ‹ goes back to the trip. */
+export const OverATrip: Story = {
+  args: { onBack: fn() },
+  play: async ({ args, canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Back' }))
+    await expect(args.onBack).toHaveBeenCalledOnce()
+  },
+}

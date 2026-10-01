@@ -94,12 +94,14 @@ export const TIMELINE_SURFACE = {
 } satisfies Record<Livery, string>
 
 /**
- * A timeline row Pressed (the owner's Timeline State=Pressed, 3716:1894,
- * 2026-10-01): while the finger is down, the whole row in the rail's colour,
- * so the rail runs into it and only the dot's white shows. The phone's own
- * tap highlight is off, so the colour under the finger is the token's.
+ * A row Pressed, while the finger is down on it: the whole row in the card's
+ * Card/<livery>/Timeline/surface — a RouteCard's row (RouteEndPointBar,
+ * 3848:11928) and every row of the trip's timeline, where the rail runs into
+ * it and only the dot's white shows (Timeline, 3716:1894; both the owner's,
+ * 2026-10-01). The phone's own tap highlight is off, so the colour under the
+ * finger is the token's.
  */
-export const TIMELINE_PRESSED = {
+export const ROW_PRESSED = {
   red: 'active:bg-card-red-timeline-surface [-webkit-tap-highlight-color:transparent]',
   orange: 'active:bg-card-orange-timeline-surface [-webkit-tap-highlight-color:transparent]',
   yellow: 'active:bg-card-yellow-timeline-surface [-webkit-tap-highlight-color:transparent]',

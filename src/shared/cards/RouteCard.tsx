@@ -1,5 +1,5 @@
 import type { Livery } from '../model/liveries'
-import { BLOB_PLACE, CARD_BLOB, CARD_SHADOW, CARD_SHADOW_SELECTED, CARD_SURFACE, CARD_TEXT } from './liveryCard'
+import { BLOB_PLACE, CARD_BLOB, CARD_SHADOW, CARD_SHADOW_SELECTED, CARD_SURFACE, CARD_TEXT, ROW_PRESSED } from './liveryCard'
 import { CircleArrowRightIcon } from './RouteIcons'
 
 /**
@@ -17,6 +17,12 @@ import { CircleArrowRightIcon } from './RouteIcons'
  * around its rows — selects it, or lets it go (the owner's picks, the same
  * day). Which card is Selected, one at a time, is the caller's to keep. The
  * pesos left the card with this set: the trip's Expected fare carries them.
+ *
+ * A row's State (RouteEndPointBar, 3848:11928, 2026-10-01): Rest, or Pressed
+ * — while the finger is down on it, the row in the card's timeline colour,
+ * Card/<livery>/Timeline/surface; the trip opens as it lets go (the owner's
+ * pick, the same day: a tap's feedback, not kept once the trip is open;
+ * ROW_PRESSED, shared with the trip's timeline).
  */
 
 export type EndPoint = {
@@ -85,7 +91,7 @@ export function RouteCard({ livery, state, routeOrigin, endPoints, onSelect, onP
               data-testid={`${testId}-item`}
               data-direction={e.id}
               onClick={() => onPick(e.id)}
-              className="relative flex w-full items-center gap-1 px-4 py-2 text-left text-base/6 font-medium"
+              className={'relative flex w-full items-center gap-1 px-4 py-2 text-left text-base/6 font-medium ' + ROW_PRESSED[livery]}
             >
               <span aria-hidden className="size-6 shrink-0 *:size-full">
                 <CircleArrowRightIcon />
