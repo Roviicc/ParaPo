@@ -3691,3 +3691,13 @@ next ask the same day: on the route list, a
 hotspot's card or a trip, a press takes the camera to what is lit after it
 — the routes the other way round, whole (`useSwitchOverview`, all three in `useOverviews.ts`; a trip's SWITCH
 had left the view as it was).
+
+**The end pills' Head and Tail Route, 2026-10-01.** The owner's new variants
+of SelectedHintuanRouteTitle (3848:12135), read as the RouteCard reads:
+where a ride starts — the top of its timeline, the card's title — is the
+Head Route; where it goes — one of the card's rows — is the Tail Route, led
+by the rows' circled arrow. Both 14 px medium, as the plain name is (the
+Head Route's 16 px, and a semibold, tried and taken back the same day). A place
+two rides share keeps the name of the first to reach it, so a trip's
+change of ride is the earlier ride's tail; SWITCH turns the rides round,
+and the head with them. `phone-test` checks each pill's look.

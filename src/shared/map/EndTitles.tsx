@@ -6,6 +6,7 @@ import { rideEnds, type Ride } from './directionArrows'
 import type { LineLook } from './liveryLine'
 import { litWidthAt } from './lineStyle'
 import { tapsOnItsButton } from './markerTap'
+import { CircleArrowRightIcon } from '../cards/RouteIcons'
 import './endTitles.css'
 
 /**
@@ -14,6 +15,12 @@ import './endTitles.css'
  * circle, its pointer at the circle, in place of the plain name the map
  * wrote beside it. The pill wears what is lit: the line's colour, and the
  * chevrons' white — near-black on yellow — for its words, as a card's are.
+ *
+ * Its Head and Tail Route variants (2026-10-01) read as the RouteCard does: where a ride starts, the top of its timeline,
+ * is the card's title; where it goes is one of the card's rows, so its pill
+ * leads with the rows' circled arrow. A place two rides share is named by
+ * the first to reach it (`rideEnds`), so a trip's change of ride is the
+ * earlier ride's tail, as it sits under the start on the timeline.
  *
  * DOM markers, like the picked hintuan's circle (HintuanPin): a pill with a
  * pointer is a box and a triangle, which a map symbol would need
@@ -42,12 +49,13 @@ export function EndTitles({
     <>
       {rideEnds(rides)
         .filter((e) => e.named)
-        .map(({ name, at, stopId }) => (
+        .map(({ end, name, at, stopId }) => (
           <EndTitle
             key={`${name}@${at.join(',')}`}
             map={map}
             at={at}
             name={name}
+            head={end === 'from'}
             look={look}
             onPick={onPick && stopId ? () => onPick(stopId) : undefined}
           />
@@ -70,12 +78,15 @@ function EndTitle({
   map,
   at,
   name,
+  head,
   look,
   onPick,
 }: {
   map: MapLibreMap
   at: LngLat
   name: string
+  /** Where the ride starts (Head Route), or where it goes (Tail Route). */
+  head: boolean
   look: LineLook
   onPick?: () => void
 }) {
@@ -113,14 +124,23 @@ function EndTitle({
   useEffect(() => tapsOnItsButton(el, () => pick.current?.()), [el])
 
   el.dataset.name = name
+  el.dataset.end = head ? 'head' : 'tail'
   const Pill = onPick ? 'button' : 'div'
   return createPortal(
     <Pill
       {...(onPick ? { type: 'button' as const, 'aria-label': `${name}: the routes there` } : {})}
-      className="relative block max-w-56 rounded-full px-2 py-1 text-center text-sm/5 font-medium"
+      className={
+        'relative flex max-w-56 items-center gap-1 rounded-full py-1 text-sm/5 font-medium ' +
+        (head ? 'px-2' : 'pr-2 pl-1')
+      }
       style={{ backgroundColor: look.line, color: look.arrow }}
     >
-      <span className="block truncate">{name}</span>
+      {!head && (
+        <span aria-hidden data-part="arrow" className="size-5 shrink-0 *:size-full">
+          <CircleArrowRightIcon />
+        </span>
+      )}
+      <span className="min-w-0 truncate">{name}</span>
       {/* Figma's Arrow, turned to point down at the circle. */}
       <svg
         aria-hidden
