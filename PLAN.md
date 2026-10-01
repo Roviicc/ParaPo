@@ -3559,3 +3559,11 @@ white shows. Shown while the finger or the mouse is down (`:active`), as the
 RouteCard's rows are; the phone's own tap highlight is off on them.
 `ROW_PRESSED` in liveryCard.ts, the RouteCard's rows' too. Story: RowPressed, every livery opened,
 a hintuan picked, press and hold.
+
+**The trip card's spacing, 2026-10-01.** The owner's RouteTripDetail
+(3778:3183, its latest): the trip card sits 12 under the header on a phone
+too (right under it since 3817:6007, 2026-09-30), and the card has no
+padding of its own — the 16 above its first row and below its last are
+those rows' (`pt-4` on TimelineTop, `pb-4` on TimelineBottomEndRoute), so a
+Pressed row fills to the card's edge. At rest it reads the same; at Low the
+origin's line still fits.

@@ -102,7 +102,7 @@ export function TripTimeline({
       data-testid="trip"
       data-livery={livery}
       className={
-        'relative isolate flex w-full flex-col overflow-clip rounded-2xl border-y-[0.6px] py-4 font-sn-pro ' +
+        'relative isolate flex w-full flex-col overflow-clip rounded-2xl border-y-[0.6px] font-sn-pro ' +
         CARD_SURFACE[livery] +
         ' ' +
         CARD_TEXT[livery]
@@ -173,7 +173,12 @@ export function TimelineDot({ rail, selected = false }: { rail: string; selected
   )
 }
 
-/** The rail's column, 24 wide, as tall as its row. */
+/**
+ * The rail's column, 24 wide, as tall as its row's content. The card has no
+ * padding of its own: the 16 above the first row and below the last are
+ * theirs (the owner's RouteTripDetail, 3778:3183, 2026-10-01), so a row
+ * Pressed fills to the card's edge, the rail starting under that padding.
+ */
 const STICK = 'flex w-6 shrink-0 flex-col items-center self-stretch'
 
 /**
@@ -197,7 +202,7 @@ function TimelineTop({
 }) {
   return (
     <li data-testid="trip-origin" data-state={selected ? 'selected' : 'rest'}>
-      <button type="button" aria-pressed={selected} onClick={onTap} className={'flex w-full items-center pl-4 text-left ' + pressed}>
+      <button type="button" aria-pressed={selected} onClick={onTap} className={'flex w-full items-center pt-4 pl-4 text-left ' + pressed}>
         <span aria-hidden className={STICK}>
           <TimelineDot rail={rail} selected={selected} />
           <span className={'min-h-px w-2 flex-1 ' + rail} />
@@ -358,7 +363,7 @@ function TimelineBottomEndRoute({
 }) {
   return (
     <li data-testid="trip-destination" data-state={selected ? 'selected' : 'rest'}>
-      <button type="button" aria-pressed={selected} onClick={onTap} className={'flex w-full items-center pl-4 text-left ' + pressed}>
+      <button type="button" aria-pressed={selected} onClick={onTap} className={'flex w-full items-center pb-4 pl-4 text-left ' + pressed}>
         <span aria-hidden className={STICK}>
           <span className={'-mb-0.5 h-5 w-2 shrink-0 ' + rail} />
           <TimelineDot rail={rail} selected={selected} />
