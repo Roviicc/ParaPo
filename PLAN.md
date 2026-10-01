@@ -3710,3 +3710,21 @@ one is. Only where one lit ride alone goes: where two go, the place's own
 card lists both, so the tap opens that, as before (`rideEnds` now carries
 each named end's directions). With a trip open, the pills open their
 places as they did. `phone-test` 100 → 102.
+
+**A trip's "Other routes", 2026-10-01.** The owner's RouteTripDetail
+(3778:3183) gained a section under the tiles: the other routes out of where
+the trip starts — on Tala → Novaliches, Tala → SM Fairview, and another
+route making the same trip if one does — a row each, by where it goes, the
+RouteCard's arrow before it; none, no section. A tap opens that route's
+trip in the card's place, its line lit and the camera taking it in; ‹ still
+goes back to what the first trip was picked from. One direction per route,
+drawn, leaving the same hotspot (`otherRoutesFrom`); its own way back is
+SWITCH's. No "via" on the rows for now: the signboard will tell two routes
+to one place apart, later (the owner, the same day). The rows hover and
+press as the fare tile does (surface-tertiary, then -quaternary): Figma
+draws no state for them yet. The owner's second pass the same day: 24 above
+the heading (16 before), the rows rounded full. And another route keeps the
+card as it was — the hintuans open if they were ("don't shrink it"), the
+sheet at its height: the trip card is no longer keyed on its route, so it
+stays one card while a trip is open, as SWITCH always kept it.
+`phone-test` 102 → 105; `timeline-test` 20 → 22.

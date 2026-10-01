@@ -1888,6 +1888,47 @@ if (!fannedOne) {
   await closeCard()
 }
 
+// ------------------------------------------- 5c. "Other routes" under a trip
+// The other drawn routes out of where a trip starts, one row each by where it
+// goes; a tap opens that route's trip in the card's place, its line alone
+// lit (the owner's RouteTripDetail, 3778:3183, 2026-10-01).
+const startOf = (d) => (d.reversed ? d.route?.tail_stop_id : d.route?.head_stop_id) ?? null
+const drawnDirection = (d) => (d.shape?.coordinates?.length ?? 0) > 1
+const othersOf = (d) => fileDirections.filter((o) => o.route_id !== d.route_id && drawnDirection(o) && !!startOf(d) && startOf(o) === startOf(d))
+const withOthers = fileDirections.find((d) => drawnDirection(d) && othersOf(d).length > 0)
+if (!withOthers) {
+  skip('a trip lists the other routes out of where it starts', published ? 'no two drawn routes leave one hotspot today' : 'the published file could not be read')
+} else {
+  const others = othersOf(withOthers)
+  await page.goto(`${BASE}/?r=${encodeURIComponent(withOthers.id)}`, { waitUntil: 'load' })
+  await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
+  await page.waitForTimeout(2000)
+  const rows = card().locator('[data-testid="trip-other-route"]')
+  const shown = await rows.evaluateAll((els) => els.map((e) => e.dataset.direction))
+  check(
+    `a trip, "${await tripLabel()}", lists the other routes out of where it starts`,
+    shown.length === others.length && others.every((o) => shown.includes(o.id)),
+    `${shown.length} row(s), want ${others.length}`,
+  )
+  const to = others[0]
+  const toName = (to.direction_name ?? '').split(' → ')[1] ?? ''
+  // Opened first: another route leaves the hintuans as they were, not folded
+  // (the owner, 2026-10-01: "don't shrink it").
+  const tripFold = card().locator('[data-testid="trip-fold"]')
+  const openedFold = (await tripFold.count()) > 0 && (await buttonTap(tripFold, async () => (await tripFold.first().getAttribute('aria-expanded')) === 'true'))
+  await rows.first().scrollIntoViewIfNeeded()
+  await buttonTap(card().locator(`[data-testid="trip-other-route"][data-direction="${to.id}"]`), async () => ((await litIds(page)) ?? []).join() === to.id)
+  const now = await tripLabel()
+  const lit = (await litIds(page)) ?? []
+  check('  a tap opens that route\'s trip in the card\'s place, its line alone lit', now.endsWith(toName) && lit.length === 1 && lit[0] === to.id, JSON.stringify({ trip: now, lit, want: to.id }))
+  if (!openedFold || (await tripFold.count()) === 0) {
+    skip('  its hintuans left open, as they were', openedFold ? 'the other route has no hintuans to fold' : 'this trip has no hintuans to fold')
+  } else {
+    check('  its hintuans left open, as they were', (await tripFold.first().getAttribute('aria-expanded')) === 'true', `aria-expanded ${await tripFold.first().getAttribute('aria-expanded')}`)
+  }
+  await closeCard()
+}
+
 // -------------------------------------------- 6. the desktop control, ±5 px
 const desktop = await b.newContext({ viewport: { width: 1280, height: 800 } })
 const dpage = await desktop.newPage()
@@ -1925,8 +1966,13 @@ if (!routeA) {
   await dpage.mouse.click(box.x + anchor[0] + perp[0] * 4, box.y + anchor[1] + perp[1] * 4)
   await dpage.waitForTimeout(500)
   check('a mouse click 4 px beside the line selects it', (await dCard.count()) > 0, `card count ${await dCard.count()}`)
-  await dpage.getByRole('button', { name: 'Close' }).first().click({ timeout: 1500 }).catch(() => {})
-  await dpage.waitForTimeout(300)
+  // Its ✕, sent straight to the button: a pointer click waits for nothing
+  // to lie over it, and the trip's framing can bring an end's name there.
+  await dCard.getByRole('button', { name: 'Close', exact: true }).first().dispatchEvent('click').catch(() => {})
+  const closed = await dpage
+    .waitForFunction(() => document.querySelectorAll('[data-testid="card"]').length === 0, null, { timeout: 3000 })
+    .then(() => true)
+    .catch(() => false)
 
   // The box and the hit line add up: a ±5 px box around a line drawn 18 px wide
   // reaches 5 + 9 = 14 px from the centre — the mouse tolerance the map always
@@ -1934,12 +1980,17 @@ if (!routeA) {
   const hitWidth = await dpage.evaluate(() =>
     window.__map.getLayer('saved-routes-hit') ? window.__map.getPaintProperty('saved-routes-hit', 'line-width') : null,
   )
-  await dpage.mouse.click(box.x + anchor[0] + perp[0] * 20, box.y + anchor[1] + perp[1] * 20)
+  // The trip the first click opened moved the camera to take it in: back to
+  // the vertex, measured again, so the 20 px are 20 px from the line.
+  await jumpTo(dpage, routeA.point)
+  const anchor2 = await project(dpage, routeA.point)
+  const perp2 = await perpendicular(dpage, routeA.point, neighbour, routeA.route.coords, 20)
+  await dpage.mouse.click(box.x + anchor2[0] + perp2[0] * 20, box.y + anchor2[1] + perp2[1] * 20)
   await dpage.waitForTimeout(500)
   check(
     'a mouse click 20 px away does not — the fine box is ±5 px on an 18 px hit line',
     (await dCard.count()) === 0,
-    `card count ${await dCard.count()}; saved-routes-hit is ${hitWidth} px wide, so a ±5 px box reaches ${5 + Number(hitWidth) / 2} px`,
+    `card count ${await dCard.count()} (the first one closed: ${closed}); saved-routes-hit is ${hitWidth} px wide, so a ±5 px box reaches ${5 + Number(hitWidth) / 2} px`,
   )
 }
 

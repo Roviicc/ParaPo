@@ -6,7 +6,7 @@ import { lineLength } from '../geo/geo'
 import { manilaDate, rideFare } from '../model/fares'
 import { liveriesFor, type Livery } from '../model/liveries'
 import { directionEnds, isDrawn, variantLine, type VariantSummary } from '../model/routes'
-import { otherDirection } from '../model/departures'
+import { otherDirection, otherRoutesFrom } from '../model/departures'
 import type { Timeline } from '../model/timeline'
 
 /**
@@ -76,6 +76,7 @@ export function TripCard({
   endPicked,
   dockRef,
   height,
+  onOtherRoute,
   extras,
 }: {
   variant: VariantSummary
@@ -97,6 +98,8 @@ export function TripCard({
   dockRef: Ref<HTMLDivElement>
   /** Its sheet's height, shared with the list or card behind it (BottomSheet). */
   height: SheetHeight
+  /** A row of "Other routes" tapped: that direction's trip in this one's place. Without it, no rows. */
+  onOtherRoute?: (variant: VariantSummary) => void
   /** Under the tiles, the studio's alone: its facts and its Edit, Extend and Delete. */
   extras?: ReactNode
 }) {
@@ -108,6 +111,7 @@ export function TripCard({
   // and its Expected fare.
   const metres = variant.metres ?? lineLength(variantLine(variant))
   const [fareKind, setFareKind] = useFareKind()
+  const others = onOtherRoute ? otherRoutesFrom(variants, variant) : []
   return (
     <RouteTripDetail
       livery={livery}
@@ -133,6 +137,11 @@ export function TripCard({
       }}
       onBackToList={onBackToList}
       onClose={onClose}
+      otherRoutes={others.map((v) => ({ id: v.id, to: directionEnds(v).to }))}
+      onOtherRoute={(id) => {
+        const v = others.find((o) => o.id === id)
+        if (v) onOtherRoute?.(v)
+      }}
     >
       {extras}
     </RouteTripDetail>
