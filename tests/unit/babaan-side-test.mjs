@@ -58,7 +58,7 @@ test('the two directions of the committed map share each box they both cut', () 
   let cut = 0
   for (const v of file.variants.filter((v) => v.shape)) {
     const line = v.shape.coordinates
-    for (const { stop } of hintuansAlong(line, file.stops)) {
+    for (const { stop } of hintuansAlong(line, file.stops, v.route)) {
       const ring = stopRing(stop)
       const right = rightOfLine(ring, line)
       if (!right) continue

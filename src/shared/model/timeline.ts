@@ -1,6 +1,7 @@
 import { haversine, type LngLat } from '../geo/geo'
 import { passIndex } from '../geo/pass'
 import { placeKey } from './places'
+import { servedBy, type ServedRoute } from './routes'
 import { stopLabel, stopRing, type StopKind, type StopSummary } from './stops'
 
 /*
@@ -11,12 +12,14 @@ import { stopLabel, stopRing, type StopKind, type StopSummary } from './stops'
 /**
  * The hintuans a line passes, in the order it reaches them. `index` is
  * where along the line, which is what `route_stop.stop_sequence` stores.
- * Terminals are not listed: a route's ends come from the route itself.
+ * Terminals are not listed: a route's ends come from the route itself, and
+ * neither are the hintuans this route does not stop at (`servedBy`): the
+ * jeep hintuans under a train's track, the stations over a jeep's road.
  */
-export function hintuansAlong<S extends StopSummary>(line: LngLat[], stops: readonly S[]): { stop: S; index: number }[] {
+export function hintuansAlong<S extends StopSummary>(line: LngLat[], stops: readonly S[], route: ServedRoute): { stop: S; index: number }[] {
   const along: { stop: S; index: number }[] = []
   for (const stop of stops) {
-    if (stop.kind !== 'hintuan' || !stop.area) continue
+    if (stop.kind !== 'hintuan' || !stop.area || !servedBy(stop, route)) continue
     const index = passIndex(line, stopRing(stop))
     if (index >= 0) along.push({ stop, index })
   }

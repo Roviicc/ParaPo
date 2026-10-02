@@ -58,7 +58,7 @@ import { gzipSync } from 'node:zlib'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { OVERVIEW_M, lineLength, overviewOf, pointToSegmentM, round6, roundLngLat, simplifyLine } from '../../src/shared/geo/geo.ts'
-import { directionName, routeName } from '../../src/shared/model/routes.ts'
+import { directionName, isRail, routeName } from '../../src/shared/model/routes.ts'
 import { stopLabel } from '../../src/shared/model/stops.ts'
 import { MAP_FILE_SCHEMA } from '../../src/commuter/mapFile.ts'
 import { cleanSignboardSvg } from '../../src/shared/model/signboardSvg.ts'
@@ -224,9 +224,9 @@ function maxDeviation(original, simplified) {
 const [variantRows, stopRows, linkRows] = await Promise.all([
   rest(
     'route_variant?select=id,route_id,direction_name,origin_terminal,destination_terminal,shape,confidence,reversed,signboards,' +
-      'route:route(id,signboard,long_name,mode,fare_note,head_stop_id,tail_stop_id,via)&order=id.asc',
+      'route:route(id,signboard,route_code,long_name,mode,fare_note,head_stop_id,tail_stop_id,via)&order=id.asc',
   ),
-  rest('stop?select=id,name,informal,aliases,kind,point,area,note,created_at&order=id.asc'),
+  rest('stop?select=id,name,informal,aliases,kind,point,area,note,created_at,line&order=id.asc'),
   rest('route_stop?select=route_variant_id,stop_id,stop_sequence&order=route_variant_id.asc,stop_sequence.asc,stop_id.asc'),
 ])
 
@@ -314,6 +314,9 @@ const variants = variantRows.map((v) => {
       tail_stop_id: v.route.tail_stop_id,
       via: v.route.via,
       name,
+      // The train line (0011), only on a train's: every other route's file
+      // stays byte for byte what it was.
+      ...(v.route.route_code && isRail(v.route.mode) ? { route_code: v.route.route_code } : {}),
     },
   }
 })
@@ -328,7 +331,18 @@ const stops = stopRows.map((s) => ({
   area: roundGeometry(s.area),
   note: s.note,
   created_at: s.created_at,
+  // A station's line (0011), only on a station.
+  ...(s.line ? { line: s.line } : {}),
 }))
+
+// A train line changes what the file means to an app installed before
+// servedBy: it would paint a jeep's stretches at the stations over its road,
+// and the train's at every jeep hintuan under the track. That is a new shape
+// (src/commuter/mapFile.ts): the import's PR bumps MAP_FILE_SCHEMA and keeps
+// trains out of the old shapes, and lifts this, before any train is published.
+if (MAP_FILE_SCHEMA <= 2 && (variantRows.some((v) => isRail(v.route?.mode)) || stops.some((s) => s.line))) {
+  fail('FAIL  train lines or stations need a new map-file shape (MAP_FILE_SCHEMA above 2, at a new path); not publishing.')
+}
 
 const links = linkRows.map((l) => ({
   route_variant_id: l.route_variant_id,
