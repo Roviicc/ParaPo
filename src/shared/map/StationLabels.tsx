@@ -13,16 +13,20 @@ import './hintuanPin.css'
 /** The scale bar's width (MapView's ScaleControl, MapLibre's default maxWidth). */
 const SCALE_PX = 100
 
+/** How much ground the scale bar's width may span with the names still on: 1.5 km. */
+const NAMES_UNTIL_M = 1500
+
 /**
- * Whether the names show: until the scale bar reads 1 km — the owner's ask
- * of 2026-10-02, "as zoomed out to 1km it will be removed". Measured the way
- * the bar measures itself: the ground across its width, at the map's middle
- * height, which reads 1 km from 1,000 m. Further out, the dots alone, so
- * the pills never pile up.
+ * Whether the names show: until the ground across the scale bar's width
+ * is 1.5 km — the owner's asks of 2026-10-02, first "as zoomed out to 1km
+ * it will be removed", then "try 1500". Measured the way the bar measures
+ * itself, across its width at the map's middle height; the bar reads 1 km
+ * from 1,000 m to 2,000 m, so the names go halfway through its 1 km.
+ * Further out, the dots alone, so the pills never pile up.
  */
 function namesShow(map: MapLibreMap): boolean {
   const y = map.getContainer().clientHeight / 2
-  return haversine(map.unproject([0, y]).toArray(), map.unproject([SCALE_PX, y]).toArray()) < 1000
+  return haversine(map.unproject([0, y]).toArray(), map.unproject([SCALE_PX, y]).toArray()) < NAMES_UNTIL_M
 }
 
 /**
@@ -35,7 +39,7 @@ function namesShow(map: MapLibreMap): boolean {
  * the dot and its name are one colour, as the owner asked.
  *
  * The two ends are left to their end titles (EndTitles), and a picked
- * station to its HintuanPin. Once the scale bar reads 1 km only the
+ * station to its HintuanPin. Past 1.5 km across the scale bar only the
  * dots show, smaller. Given `onPick`, a name is a button that opens the station's
  * place, as the picked hintuan's is; the dot takes no taps.
  */
