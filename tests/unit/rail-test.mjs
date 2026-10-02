@@ -9,6 +9,7 @@ import assert from 'node:assert/strict'
 import { MODES, RAIL_LINES, isRail, servedBy } from '../../src/shared/model/routes.ts'
 import { hintuansAlong } from '../../src/shared/model/timeline.ts'
 import { rideCut } from '../../src/shared/model/ride.ts'
+import { linksThrough } from '../../src/studio/data/stopsGeometry.ts'
 
 const JEEP = { mode: 'jeepney', route_code: null }
 const LRT1 = { mode: 'lrt', route_code: 'LRT-1' }
@@ -70,8 +71,7 @@ test("the ride-to cut of a place shared by a jeep hintuan and a station keeps to
 
 // The studio's links when a hintuan is saved (stopsGeometry.ts, linksThrough):
 // the one place that writes a box's route list, by the same rule.
-test('a saved box is linked only to the directions that stop at it', async () => {
-  const { linksThrough } = await import('../../src/studio/data/stopsGeometry.ts')
+test('a saved box is linked only to the directions that stop at it', () => {
   const dir = (id, route) => ({ id, route, shape: { type: 'LineString', coordinates: LINE } })
   const variants = [dir('jeep', JEEP), dir('lrt', LRT1), dir('mrt', MRT3)]
   const ring = ringAt(0.01).coordinates[0]

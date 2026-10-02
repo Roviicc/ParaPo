@@ -4,7 +4,8 @@ import { variantLine, type VariantRow } from '../../shared/model/routes'
 import { PASS_WITHIN_M } from '../../shared/geo/pass'
 import { parseAliases, stopLabel, type StopRow } from '../../shared/model/stops'
 import { linesOf } from '../data/live'
-import { linksThrough, saveStop, variantsStartingIn } from '../data/stopsWrite'
+import { saveStop } from '../data/stopsWrite'
+import { linksThrough, variantsStartingIn } from '../data/stopsGeometry'
 import type { Drawing } from '../drawing/useDrawing'
 
 type Props = {

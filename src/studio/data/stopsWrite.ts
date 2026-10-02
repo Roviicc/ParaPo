@@ -7,11 +7,7 @@ import { linksThrough } from './stopsGeometry'
 import { requireSupabase } from './supabase'
 import { readAll } from './readAll'
 
-export { linksThrough, variantsStartingIn } from './stopsGeometry'
-
 const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim())
-
-// ------------------------------------------------------------------ writes
 
 export type SaveStopInput = {
   stopId: string | null
