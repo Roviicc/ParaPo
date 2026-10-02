@@ -399,7 +399,7 @@ const FIT_MARGIN_PX = 48
  * stand over their circles (EndTitles), and a route starting at the top of
  * the room kept its name in the margin but put the badge under the map's edge.
  */
-const FIT_BADGE_PX = 28
+const FIT_BADGE_PX = 32
 /** The least map a whole route is fitted into, the margins given up for it where the sheet leaves less. */
 const FIT_ROOM_MIN_PX = 48
 

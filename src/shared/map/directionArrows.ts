@@ -51,8 +51,21 @@ const ENDS = LAYERS.endCircles
 /** Two ends of one name closer than this are one place, and named once: Tala, where two rides start. */
 const SAME_END_M = 150
 
-/** One lit ride: its direction, its line in travel order, and the places it runs from and to. */
-export type Ride = { id?: string; line: LngLat[]; from: string; to: string; fromStop?: string | null; toStop?: string | null }
+/**
+ * One lit ride: its direction, its line in travel order, and the places it
+ * runs from and to; `flow`, where its chevrons stop short of the line's end
+ * — the stretch to a picked hintuan, where the ride now ends (the owner's
+ * SelectedHintuanRouteTitle, 2026-10-02) — the line and its ends staying whole.
+ */
+export type Ride = {
+  id?: string
+  line: LngLat[]
+  flow?: LngLat[]
+  from: string
+  to: string
+  fromStop?: string | null
+  toStop?: string | null
+}
 
 /**
  * An end of a lit ride: where it is, its place, whether it is the one of its
@@ -151,7 +164,7 @@ export function useRideColours(map: MapLibreMap | null, look: LineLook) {
  * unchanged (a memo), or the flow restarts.
  */
 export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride[]): void {
-  const lines = useMemo(() => rides.map((r) => r.line), [rides])
+  const lines = useMemo(() => rides.map((r) => r.flow ?? r.line), [rides])
   const hitReady = useLayerReady(map, ROUTES_HIT_LAYER)
   useEffect(() => {
     // Over the lit line and its orange stretches, under the hit area and the
