@@ -1012,16 +1012,18 @@ if (routeA) {
     const rows = named.map((f) => {
       const pill = pills.find((p) => p.dataset.name === f.properties.name)
       if (!pill) return { name: f.properties.name, missing: true }
-      const box = pill.firstElementChild.getBoundingClientRect()
+      const namePill = pill.querySelector('[data-part="name"]')
+      const badge = pill.querySelector('[data-part="badge"]')?.textContent.trim()
+      const box = namePill.getBoundingClientRect()
       const q = m.project(f.geometry.coordinates)
       return {
         name: f.properties.name,
         // Head Route where the ride starts; Tail Route where it goes, its circled arrow first.
         look:
           f.properties.end === 'from'
-            ? pill.dataset.end === 'head' && !pill.querySelector('[data-part="arrow"]')
-            : pill.dataset.end === 'tail' && !!pill.querySelector('[data-part="arrow"]'),
-        colour: getComputedStyle(pill.firstElementChild).backgroundColor === ringRgb,
+            ? pill.dataset.end === 'head' && !pill.querySelector('[data-part="arrow"]') && badge === 'Start'
+            : pill.dataset.end === 'tail' && !!pill.querySelector('[data-part="arrow"]') && badge === 'End',
+        colour: getComputedStyle(namePill).backgroundColor === ringRgb,
         across: box.left + box.width / 2 - (c.left + q.x),
         above: c.top + q.y - box.bottom,
       }
@@ -1029,7 +1031,7 @@ if (routeA) {
     return { named: named.length, pills: pills.length, rows }
   })
   check(
-    "  each end named once, in a pill over its circle in the line's colour, where it goes led by an arrow",
+    "  each end named once, in a pill over its circle in the line's colour, where it goes led by an arrow, Start or End over it",
     ends.named > 0 &&
       ends.pills === ends.named &&
       ends.rows.every((r) => !r.missing && r.look && r.colour && Math.abs(r.across) < 1.5 && r.above > 14 && r.above < 40),
@@ -1258,7 +1260,22 @@ if (!shared) {
     // line lit (the owner's ask, 2026-10-01); ‹ back to the list. The card
     // picked first: the list's routes may all end at one place (the way
     // back), and a tail two rides share opens the place instead.
+    // Start and End over the ends only in a card's colour: the list's routes
+    // in the selected blue keep their plain names, a picked card's are
+    // badged (the owner's ask, 2026-10-02).
+    const badges = () =>
+      page.evaluate(() => {
+        const titles = [...document.querySelectorAll('[data-testid="end-title"]')]
+        return { titles: titles.length, badged: titles.filter((t) => t.querySelector('[data-part="badge"]')).length }
+      })
+    const inBlue = await badges()
+    check('  in the selected blue, the ends are named without Start or End', inBlue.titles > 0 && inBlue.badged === 0, JSON.stringify(inBlue))
     await buttonTap(wantedName, isPicked)
+    await page
+      .waitForFunction(() => [...document.querySelectorAll('[data-testid="end-title"]')].every((t) => t.querySelector('[data-part="badge"]')), null, { timeout: 2000 })
+      .catch(() => {})
+    const inCard = await badges()
+    check("  a picked card's ends wear Start or End, every one", inCard.titles > 0 && inCard.badged === inCard.titles, JSON.stringify(inCard))
     const tails = page.locator('[data-testid="end-title"][data-opens="trip"] button')
     if ((await tails.count()) === 0) {
       skip("  a tap on a tail's name opens its ride's trip", 'no tail of the picked card is one ride\'s alone')

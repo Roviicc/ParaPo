@@ -105,6 +105,8 @@ export function useCardStack<V extends VariantSummary, S extends { id: string }>
     clearOf,
     tripLivery,
     look,
+    /** What is lit wears a card's colour — the open trip's or the picked card's — not the list's blue. */
+    inCardColour: look !== LIT_LINE,
     /** A trip stepped behind a place's card: the list behind it stays hidden. */
     tripBehind: !!tripBehind,
 

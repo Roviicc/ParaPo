@@ -86,7 +86,7 @@ export default function CommuterApp() {
   const age = useMapAge(saved.variants)
   const needRefresh = useNeedRefresh()
 
-  const { tripLivery, look, height } = cards
+  const { tripLivery, look, inCardColour, height } = cards
 
   return (
     // `data-directions`: how many the map file brought, for the suites on a
@@ -109,6 +109,7 @@ export default function CommuterApp() {
           map={map}
           rides={rides}
           look={look}
+          badged={inCardColour}
           onPick={openPlace}
           onTrip={saved.selected ? undefined : openRide}
         />
