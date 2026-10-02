@@ -1,6 +1,7 @@
 import { useEffect, useRef, type RefObject } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { clearOfSheet, roomBeside } from './BottomSheet'
+import type { Framed } from './cardStack'
 import { shownAt, type Snap } from './sheetGesture'
 import { bboxOf, zoomForScale, type LngLat } from '../geo/geo'
 import { APP_MOVE } from '../map/MapView'
@@ -118,9 +119,6 @@ export function useSwitchOverview(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, switches])
 }
-
-/** What a card frames: routes whole, or a place kept in view. */
-export type Framed = { lines: readonly (readonly LngLat[])[] } | { at: LngLat } | null
 
 /**
  * The sheet settled at another height — Low, Middle, Max, or where a drag

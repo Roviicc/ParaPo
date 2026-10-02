@@ -1,5 +1,6 @@
+import type { LngLat } from '../geo/geo'
 import { sharingAnEnd } from '../model/departures'
-import { isDrawn, type VariantSummary } from '../model/routes'
+import { isDrawn, variantLine, type VariantSummary } from '../model/routes'
 import type { Snap } from './sheetGesture'
 
 /*
@@ -58,4 +59,28 @@ export function tripBehindHolds(tripOpen: boolean, placeOpen: boolean): boolean 
  */
 export function letGoHolds(letGoId: string | null, selectedId: string | null): boolean {
   return letGoId !== null && letGoId === selectedId
+}
+
+/** What a card frames: routes whole, or a place kept in view. */
+export type Framed = { lines: readonly (readonly LngLat[])[] } | { at: LngLat } | null
+
+/**
+ * What the card on show frames as the sheet settles at another height
+ * (useHeightOverview): an open trip, its route; a place's card, the routes
+ * of the RouteCard picked on it, else the place; the route list, the picked
+ * card's routes, else what it lights (`lit`); nothing open, nothing. `picked`
+ * is the picked card's directions, null with no card picked.
+ */
+export function framedBy(
+  trip: VariantSummary | null,
+  placeAt: LngLat | null,
+  choosing: boolean,
+  picked: readonly VariantSummary[] | null,
+  lit: readonly VariantSummary[],
+): Framed {
+  const card = picked && { lines: picked.map(variantLine) }
+  if (trip) return { lines: [variantLine(trip)] }
+  if (placeAt) return card ?? { at: placeAt }
+  if (choosing) return card ?? { lines: lit.map(variantLine) }
+  return null
 }

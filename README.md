@@ -88,7 +88,7 @@ with warnings, and closed by the first run with nothing to report.
 | --- | --- |
 | `src/commuter/` | the public map: its shell, the published-file reader (`mapFile.ts`), "Where am I" and the service worker |
 | `src/studio/` | the editor: `StudioApp.tsx`, then `auth/` (sign-in, passwords, the session), `data/` (the Supabase client, reads and writes), `drawing/` (drawing, snapping, borrowing), `panels/` (save, hotspot, the card's actions) |
-| `src/shared/` | what both draw: `model/` (routes, stops, fares, liveries — no React, no MapLibre), `geo/` (geometry), `map/` (the map and what is painted on it, the routes and hotspots hooks), `cards/` (the cards, sheets and timelines, with their stories), `styles/` (the one stylesheet) |
+| `src/shared/` | what both draw: `model/` (routes, stops, fares, liveries — no React, no MapLibre), `geo/` (geometry), `map/` (the map and what is painted on it, the routes and hotspots hooks), `cards/` (the cards, sheets and timelines, with their stories; `useCardStack`, which card is up, and `useCardCamera`, the camera with them: the map and the cards together, for both apps), `styles/` (the one stylesheet) |
 | `src/design-system/` | the tokens, fonts and primitives (foundation ← primitives) |
 | `public/data/` | the published map, every version kept in history: `index.json`, a line per direction in `lines/`, and the older single file `map.json` for apps not yet updated |
 | `supabase/migrations/` | the schema and its policies, in order |
