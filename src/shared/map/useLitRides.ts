@@ -7,11 +7,13 @@ import { directionEndStops, directionEnds, type VariantSummary } from '../model/
 import type { StopSummary } from '../model/stops'
 import type { LngLat } from '../geo/geo'
 import { useDirectionArrows, type Ride } from './directionArrows'
+import { useStationDots } from './stationDots'
 
 /**
  * What a lit route wears on the map, in both apps: its orange stretches
  * where it passes a hintuan, its chevrons and end circles, and the chosen
- * direction's side of each hintuan it cuts across. Returns the rides, for
+ * direction's side of each hintuan it cuts across, or a chosen train's
+ * stations as dots with their names. Returns the rides, for
  * the names over their ends (EndTitles). Split from CommuterApp and
  * StudioApp, which each had it word for word (2026-10-01).
  */
@@ -56,5 +58,7 @@ export function useLitRides(
   useDirectionArrows(map, rides)
   // The chosen direction's side of each hintuan it cuts across: its right.
   useBabaanSides(map, saved.selected, stops)
+  // A chosen train line's stations, named along it.
+  useStationDots(map, saved.selected, stops)
   return rides
 }

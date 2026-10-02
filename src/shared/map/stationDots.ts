@@ -1,28 +1,27 @@
 import { useEffect } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { MAP_PAINT } from '../../design-system/foundation/mapColours'
+import { isRail, type VariantSummary } from '../model/routes'
 import { stopLabel, type StopSummary } from '../model/stops'
 import { LAYERS, useLayerReady } from './layers'
 
 /*
- * A train line's stations as a metro map draws them: a dot on the line at
- * each station, its name beside it — the owner's ask of 2026-10-02. Far out,
- * where a station's box is a speck and its name not yet shown; from the zoom
- * the boxes' own names show (NAMES_FROM, savedStopsLayers.ts), the box and
- * its name take over. Not a thing to tap: the box is. Neutral until the
- * owner designs it — white with the basemap's own station grey.
+ * The selected train line's stations as a metro map draws them: a dot on
+ * the line at each station, its name beside it — the owner's asks of
+ * 2026-10-02, for the selected line only. Up to the zoom the boxes' own
+ * names show (NAMES_FROM, savedStopsLayers.ts); from there the box and its
+ * name take over. Not a thing to tap: the box is. Neutral until the owner
+ * designs it — white with the basemap's own station grey.
  */
 
 const SRC = 'station-dots'
 const DOT = 'station-dots-circle'
 const NAME = 'station-dots-name'
-/** As far out as a line's stations are told apart: Metro Manila fits the screen. */
-const DOTS_FROM = 11
 /** Where the boxes' names take over (savedStopsLayers.ts NAMES_FROM, 16.5 less 1.2 times the ground). */
 const DOTS_UNTIL = 16.5 - Math.log2(1.2)
 const INK = MAP_PAINT['Paint/basemap-transit']
 
-export function useStationDots(map: MapLibreMap | null, stops: readonly StopSummary[], hiddenStopId: string | null | undefined): void {
+export function useStationDots(map: MapLibreMap | null, selected: VariantSummary | null, stops: readonly StopSummary[]): void {
   // Over the lines, under their tap area, as the arrows are.
   const hitReady = useLayerReady(map, LAYERS.routesHit)
   useEffect(() => {
@@ -33,13 +32,12 @@ export function useStationDots(map: MapLibreMap | null, stops: readonly StopSumm
         id: DOT,
         type: 'circle',
         source: SRC,
-        minzoom: DOTS_FROM,
         maxzoom: DOTS_UNTIL,
         paint: {
           'circle-color': MAP_PAINT['Paint/casing'],
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], DOTS_FROM, 3, 15, 5] as never,
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 3, 15, 5] as never,
           'circle-stroke-color': INK,
-          'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], DOTS_FROM, 1.5, 15, 2] as never,
+          'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 11, 1.5, 15, 2] as never,
         },
       },
       LAYERS.routesHit,
@@ -50,7 +48,6 @@ export function useStationDots(map: MapLibreMap | null, stops: readonly StopSumm
       id: NAME,
       type: 'symbol',
       source: SRC,
-      minzoom: 12,
       maxzoom: DOTS_UNTIL,
       layout: {
         'text-field': ['get', 'name'],
@@ -69,15 +66,19 @@ export function useStationDots(map: MapLibreMap | null, stops: readonly StopSumm
   useEffect(() => {
     const src = map?.getSource(SRC) as GeoJSONSource | undefined
     if (!src) return
+    // A train's stations are its line's (servedBy): both directions stop at each.
+    const line = selected && isRail(selected.route?.mode) ? (selected.route.route_code ?? null) : null
+    // The two ends carry their names already, over their end circles (EndTitles): a dot, no second name.
+    const ends = new Set([selected?.route?.head_stop_id, selected?.route?.tail_stop_id])
     src.setData({
       type: 'FeatureCollection',
       features: stops
-        .filter((s) => s.line && s.id !== hiddenStopId)
+        .filter((s) => line !== null && s.line === line)
         .map((s) => ({
           type: 'Feature' as const,
-          properties: { id: s.id, name: stopLabel(s) },
+          properties: { id: s.id, name: ends.has(s.id) ? '' : stopLabel(s) },
           geometry: s.point,
         })),
     })
-  }, [map, stops, hiddenStopId, hitReady])
+  }, [map, selected, stops, hitReady])
 }
