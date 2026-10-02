@@ -491,6 +491,9 @@ check('  a second goes last, and ‹ moves it first', outRow()?.signboards?.join
 n = log.length
 await upload('note.svg', 'just words, not a drawing')
 await waitFor(async () => (await page.getByRole('alert').filter({ hasText: 'note.svg' }).count()) === 1)
+// The list read again after the move above may land after the refusal: it
+// must leave the words where they are (a GitHub runner, 2026-10-01).
+await page.waitForTimeout(800)
 check('  a file that is not an SVG is refused in words, and nothing is sent', (await page.getByRole('alert').filter({ hasText: 'note.svg' }).count()) === 1 && writesSince(n).length === 0 && !since(n).some((x) => x.table === 'storage'), said(since(n)))
 await page.getByRole('button', { name: 'Remove signboard 1' }).click()
 await waitFor(async () => (await items().count()) === 1)
