@@ -433,7 +433,18 @@ export function useDrawing(
       () => ({ points: cpRef, segments: segRef, area: areaRef, picking: pickingRef, join: joinRef, follow: followRef }),
       [],
     ),
-    { setPicking, addPoint, insertPoint, deletePoint, toggleSegment, resolveGaps, writePoints, writeSegments, markStandIn },
+    {
+      setPicking,
+      addPoint,
+      insertPoint,
+      deletePoint,
+      toggleSegment,
+      resolveGaps,
+      writePoints,
+      writeSegments,
+      markStandIn,
+      isStandIn,
+    },
   )
 
   // -------------------------------------------------------------- rendering
