@@ -1280,8 +1280,16 @@ if (!shared) {
       again ? `card count ${await card().count()}; picked before ${pickedForTrip}, now ${await isPicked()}; ${litBack.length} lit` : 'the list did not come back',
     )
     if (trip3.picked) check('  and lets the picked hintuan go', await noPickLeft())
+    // A list of one card wears that card's colour; of several, the
+    // selected blue (the owner's asks, 2026-09-29 and 2026-10-02).
+    const listCards = chooser.first().locator('[data-testid="chooser-origin"]')
+    const oneCard = (await listCards.count()) === 1 ? await listCards.first().getAttribute('data-livery') : null
     const seenRest = await rideLook(page)
-    check('  and its lines are the selected blue again', wears(seenRest, LOOKS?.lit), JSON.stringify(seenRest))
+    check(
+      oneCard ? "  and its lines are its one card's colour again" : '  and its lines are the selected blue again',
+      wears(seenRest, oneCard ? LOOKS?.byLivery[oneCard] : LOOKS?.lit),
+      `${oneCard ?? 'blue'}: ${JSON.stringify(seenRest)}`,
+    )
     // A Tail Route one lit ride alone goes to opens that ride's trip, its
     // line lit (the owner's ask, 2026-10-01); ‹ back to the list. The card
     // picked first: the list's routes may all end at one place (the way
@@ -1295,7 +1303,11 @@ if (!shared) {
         return { titles: titles.length, badged: titles.filter((t) => t.querySelector('[data-part="badge"]')).length }
       })
     const inBlue = await badges()
-    check('  in the selected blue, the ends are named without Start or End', inBlue.titles > 0 && inBlue.badged === 0, JSON.stringify(inBlue))
+    check(
+      oneCard ? "  in its one card's colour, the ends wear Start or End" : '  in the selected blue, the ends are named without Start or End',
+      inBlue.titles > 0 && inBlue.badged === (oneCard ? inBlue.titles : 0),
+      JSON.stringify(inBlue),
+    )
     await buttonTap(wantedName, isPicked)
     await page
       .waitForFunction(() => [...document.querySelectorAll('[data-testid="end-title"]')].every((t) => t.querySelector('[data-part="badge"]')), null, { timeout: 2000 })

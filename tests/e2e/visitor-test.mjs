@@ -567,8 +567,16 @@ if (PART !== 1) {
       const relit = await litNow()
       const stillSelected = await chooser.locator('[data-state="selected"]').count()
       check('  ‹ brings it back at rest: no card picked, every route lit', stillSelected === 0 && sameIds(relit, listed), `${stillSelected} Selected; ${relit.length} lit, ${listed.length} listed`)
+      // A list of one card wears that card's colour; of several, the
+      // selected blue (the owner's asks, 2026-09-29 and 2026-10-02).
+      const listCards = chooser.first().locator('[data-testid="chooser-origin"]')
+      const oneCard = (await listCards.count()) === 1 ? await listCards.first().getAttribute('data-livery') : null
       const seenRest = await rideLook(page)
-      check('  in the selected blue again', wears(seenRest, LOOKS?.lit), JSON.stringify(seenRest))
+      check(
+        oneCard ? "  in its one card's colour again" : '  in the selected blue again',
+        wears(seenRest, oneCard ? LOOKS?.byLivery[oneCard] : LOOKS?.lit),
+        `${oneCard ?? 'blue'}: ${JSON.stringify(seenRest)}`,
+      )
       // Picked, a second tap lets it go.
       await name.click()
       await page.waitForTimeout(250)
