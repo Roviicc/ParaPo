@@ -1,4 +1,5 @@
-import { pesoRange } from './fares'
+import { manilaDate, pesoRange } from './fares'
+import { isRailLine, type RailLine } from './routes'
 
 /**
  * The train fares, station to station: LRT-1, LRT-2 and MRT-3 — the owner's
@@ -16,8 +17,6 @@ import { pesoRange } from './fares'
  * charge everyone half "until further notice", and the two halves do not
  * stack: a discounted rider pays the same as anyone.
  */
-
-export type RailLine = 'LRT-1' | 'LRT-2' | 'MRT-3'
 
 /** One ride's two fares, in centavos. */
 export type RailFare = { card: number; ticket: number }
@@ -168,13 +167,11 @@ export function stationIndex(line: RailLine, name: string): number {
   return STATIONS[line].findIndex((names) => names.some((n) => key(n) === k))
 }
 
-export const isRailLine = (code: string | null | undefined): code is RailLine => code === 'LRT-1' || code === 'LRT-2' || code === 'MRT-3'
-
 const up5 = (pesos: number) => Math.ceil(pesos / 5) * 5
 
 /**
- * The fare between two stations on Fri Oct  2 17:34:24 UTC 2026, regular or discounted, in
- * centavos; undefined for a station the table does not know, the same
+ * The fare between two stations on `date` (YYYY-MM-DD, Manila), regular or
+ * discounted, in centavos; undefined for a station the table does not know, the same
  * station twice, or a date before the fare it would need.
  */
 export function railFare(
@@ -215,7 +212,14 @@ export function railFareText(fare: RailFare): string {
   return pesoRange(fare.card, fare.ticket)
 }
 
-/** Every station of a line, by its stop name: what the map data check holds the map to. */
-export function railStations(line: RailLine): string[] {
-  return STATIONS[line].map(([label]) => label)
+/**
+ * A train ride's pesos for the fare tile, regular and discounted, between two
+ * stations as the timeline names them; undefined for a route of no train
+ * line, a missing end, or a station the table does not know.
+ */
+export function railFares(line: string | null | undefined, from: string | undefined, to: string | undefined, date = manilaDate()): { regular: string; discounted: string } | undefined {
+  if (!isRailLine(line) || !from || !to) return undefined
+  const regular = railFare(line, from, to, date)
+  const discounted = railFare(line, from, to, date, 'discounted')
+  return regular && discounted ? { regular: railFareText(regular), discounted: railFareText(discounted) } : undefined
 }

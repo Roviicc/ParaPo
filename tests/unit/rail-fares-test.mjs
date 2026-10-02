@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { HALF_FARE_FROM, railFare, railFareText, railStations, stationIndex } from '../../src/shared/model/railFares.ts'
+import { DISCOUNT_FROM, HALF_FARE_FROM, railFare, railFareText, railFares, stationIndex } from '../../src/shared/model/railFares.ts'
 
 const official = JSON.parse(readFileSync(new URL('./fixtures/rail-fares-official.json', import.meta.url), 'utf8'))
 const BEFORE_HALF = '2026-01-15'
@@ -77,6 +77,7 @@ test('no fare for the same station, a station the table lacks, or before the tab
   assert.equal(railFare('LRT-1', 'EDSA', 'Cubao', NOW), undefined)
   assert.equal(railFare('LRT-1', 'EDSA', 'Baclaran', '2025-01-01'), undefined)
   assert.equal(railFare('LRT-1', 'EDSA', 'Baclaran', '2025-06-01', 'discounted'), undefined)
+  assert.ok('2025-06-01' < DISCOUNT_FROM)
 })
 
 test('the card writes card to ticket, in whole pesos', () => {
@@ -86,7 +87,7 @@ test('the card writes card to ticket, in whole pesos', () => {
 })
 
 test('the map’s stop names and their other names all find their station', () => {
-  // As the OpenStreetMap import named them (scripts/import/rail-osm-build.mjs): the stop name, then the sign's.
+  // As the map names them: the stop name, then its other names (aliases).
   const named = {
     'LRT-1': ['Fernando Poe Jr.', 'Balintawak', 'Monumento', 'Yamaha Monumento', '5th Avenue', 'R. Papa', 'Abad Santos', 'Blumentritt', 'Tayuman', 'Bambang', 'Doroteo Jose', 'Carriedo', 'Central Terminal', 'United Nations', 'Pedro Gil', 'Quirino', 'Vito Cruz', 'Gil Puyat', 'Libertad', 'EDSA', 'Baclaran', 'Redemptorist-Aseana', 'MIA Road', 'PITX', 'Ninoy Aquino Avenue', 'Dr. Santos'],
     'LRT-2': ['Antipolo', 'Marikina-Pasig', 'Santolan', 'Katipunan', 'Anonas', 'Cubao', 'Araneta Center - Cubao', 'Betty Go - Belmonte', 'Gilmore', 'J. Ruiz', 'V. Mapa', 'Pureza', 'Legarda', 'Recto'],
@@ -94,6 +95,15 @@ test('the map’s stop names and their other names all find their station', () =
   }
   for (const [line, names] of Object.entries(named)) {
     for (const n of names) assert.ok(stationIndex(line, n) >= 0, `${line} ${n}`)
-    assert.equal(railStations(line).length, official[line].stations.length)
+    assert.equal(stationIndex(line, official[line].stations.at(-1)), official[line].stations.length - 1)
   }
+})
+
+test('the fare tile: both fares as text, or none for a route of no line, a missing end or an unknown station', () => {
+  assert.deepEqual(railFares('LRT-2', 'Recto', 'Antipolo', NOW), { regular: '₱16–18', discounted: '₱16–18' })
+  assert.deepEqual(railFares('LRT-1', 'Dr. Santos', 'Fernando Poe Jr.', NOW), { regular: '₱52–55', discounted: '₱26–28' })
+  assert.equal(railFares('PNR', 'Recto', 'Antipolo', NOW), undefined)
+  assert.equal(railFares(null, 'Recto', 'Antipolo', NOW), undefined)
+  assert.equal(railFares('LRT-2', 'Recto', undefined, NOW), undefined)
+  assert.equal(railFares('LRT-2', 'Recto', 'Nowhere', NOW), undefined)
 })

@@ -34,6 +34,8 @@ export const RAIL_MODES: readonly TransportMode[] = ['lrt', 'mrt']
 
 /** The lines a route_code or a station's `line` may name; 0011 holds `stop.line` to them. */
 export const RAIL_LINES = ['LRT-1', 'LRT-2', 'MRT-3'] as const
+export type RailLine = (typeof RAIL_LINES)[number]
+export const isRailLine = (code: string | null | undefined): code is RailLine => (RAIL_LINES as readonly string[]).includes(code ?? '')
 
 export const isRail = (mode: TransportMode | null | undefined): boolean => !!mode && RAIL_MODES.includes(mode)
 

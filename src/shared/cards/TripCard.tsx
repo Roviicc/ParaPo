@@ -6,7 +6,7 @@ import { lineLength } from '../geo/geo'
 import { manilaDate, rideFare } from '../model/fares'
 import { liveriesFor, type Livery } from '../model/liveries'
 import { directionEnds, isDrawn, isRail, variantLine, type VariantSummary } from '../model/routes'
-import { isRailLine, railFare, railFareText } from '../model/railFares'
+import { railFares } from '../model/railFares'
 import { otherDirection, otherRoutesFrom } from '../model/departures'
 import type { Timeline } from '../model/timeline'
 
@@ -123,7 +123,7 @@ export function TripCard({
       pickedMetres={pickedMetres}
       discounted={fareKind === 'discounted'}
       onDiscounted={(d) => setFareKind(d ? 'discounted' : 'regular')}
-      fare={faresFor(variant, metres, timeline.from?.label, timeline.to?.label)}
+      fare={isRail(variant.route?.mode) ? railFares(variant.route.route_code, timeline.from?.label, timeline.to?.label) : faresFor(variant.route?.mode, metres)}
       routeOrigin={from}
       hintuans={timeline.between}
       picked={picked}
@@ -153,23 +153,11 @@ export function TripCard({
   )
 }
 
-/**
- * A ride's pesos, regular and discounted, for the fare tile; undefined when
- * no fare prices it. A jeep's by the metres ridden; a train's by the two
- * stations, from its line's table (railFares.ts), named as the timeline
- * names them.
- */
-function faresFor(variant: VariantSummary, metres: number, from?: string, to?: string): Fares | undefined {
+/** A ride's pesos, regular and discounted, for the fare tile; undefined when no fare rule prices it. A train's are by its stations (railFares). */
+function faresFor(mode: Parameters<typeof rideFare>[0], metres: number): Fares | undefined {
   const date = manilaDate()
-  if (isRail(variant.route?.mode)) {
-    const line = variant.route.route_code
-    if (!isRailLine(line) || !from || !to) return undefined
-    const regular = railFare(line, from, to, date)
-    const discounted = railFare(line, from, to, date, 'discounted')
-    return regular && discounted ? { regular: railFareText(regular), discounted: railFareText(discounted) } : undefined
-  }
-  const regular = rideFare(variant.route?.mode, metres, date)
-  const discounted = rideFare(variant.route?.mode, metres, date, 'discounted')
+  const regular = rideFare(mode, metres, date)
+  const discounted = rideFare(mode, metres, date, 'discounted')
   return regular && discounted ? { regular, discounted } : undefined
 }
 
@@ -177,9 +165,9 @@ function faresFor(variant: VariantSummary, metres: number, from?: string, to?: s
 function pickedFareFor(variant: VariantSummary, pickedMetres: number | undefined, timeline: Timeline, picked: string | null): Fares | undefined {
   if (isRail(variant.route?.mode)) {
     const row = picked ? timeline.between.find((r) => r.id === picked) : undefined
-    return row ? faresFor(variant, 0, timeline.from?.label, row.label) : undefined
+    return row ? railFares(variant.route.route_code, timeline.from?.label, row.label) : undefined
   }
-  return pickedMetres === undefined ? undefined : faresFor(variant, pickedMetres)
+  return pickedMetres === undefined ? undefined : faresFor(variant.route?.mode, pickedMetres)
 }
 
 /** A board as the publish writes it, beside the map's own files. */

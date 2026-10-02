@@ -90,10 +90,10 @@ export function checkMapData(file) {
     if (s.area && stopRing(s).length < 3) problems.push(`hotspot "${label}" (${s.id}) has a box with fewer than 3 corners`)
     if (s.kind === 'hintuan' && !s.area) warnings.push(`hintuan "${label}" has no box, so no line can pass it and no timeline will list it`)
     if (s.line != null && s.kind !== 'hintuan') problems.push(`hotspot "${label}" (${s.id}) is a ${s.kind} with a train line; a station is a hintuan`)
-    if (s.line != null && !RAIL_LINES.includes(s.line)) problems.push(`hotspot "${label}" (${s.id}) is a station of "${s.line}", which is not a train line`)
-    // A station is priced by its name (railFares.ts): one the table does not know has no fare on the card.
-    else if (s.line != null && stationIndex(s.line, label) < 0 && !s.aliases?.some((a) => stationIndex(s.line, a) >= 0)) {
-      warnings.push(`station "${label}" is not in the ${s.line} fare table, so a ride to or from it shows no fare`)
+    if (s.line != null) {
+      if (!RAIL_LINES.includes(s.line)) problems.push(`hotspot "${label}" (${s.id}) is a station of "${s.line}", which is not a train line`)
+      // A station is priced by the name the card shows (railFares.ts): one the table does not know has no fare.
+      else if (stationIndex(s.line, label) < 0) warnings.push(`station "${label}" is not in the ${s.line} fare table, so a ride to or from it shows no fare`)
     }
   }
 
@@ -121,6 +121,13 @@ export function checkMapData(file) {
     if (!tail) problems.push(`${name}: its route's tail hotspot ${v.route?.tail_stop_id} is not in the file`)
     if (isRail(v.route?.mode) && !RAIL_LINES.includes(v.route?.route_code)) {
       problems.push(`${name}: a train route whose line ("${v.route?.route_code ?? ''}") is not a train line, so it stops at no station`)
+    } else if (isRail(v.route?.mode)) {
+      // The whole ride is priced from end to end by the ends' names (railFares.ts).
+      for (const end of [head, tail]) {
+        if (end && stationIndex(v.route.route_code, stopLabel(end)) < 0) {
+          warnings.push(`${name}: ends at "${stopLabel(end)}", which is not in the ${v.route.route_code} fare table, so its card shows no fare`)
+        }
+      }
     }
     const line = v.shape?.coordinates
     if (v.shape && (!Array.isArray(line) || line.length < 2)) problems.push(`${name}: a line with fewer than 2 points`)
