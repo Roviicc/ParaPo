@@ -3,6 +3,7 @@ import type { MapLibreMap } from 'maplibre-gl'
 import { APP_MOVE } from './MapView'
 import type { StopLink, StopSummary } from '../model/stops'
 import { useSavedStopsLayers } from './savedStopsLayers'
+import { useStationDots } from './stationDots'
 import { boxMarks, placeHull } from './stopsShown'
 import { useStopTaps } from './stopTaps'
 import { letGoHolds } from '../cards/cardStack'
@@ -94,6 +95,7 @@ export function useSavedStops<S extends StopSummary>(
   // ----------------------------------------------------------------- layers
 
   useSavedStopsLayers(map, stops, opts.hiddenStopId, marks, hull)
+  useStationDots(map, stops, opts.hiddenStopId)
 
   // ----------------------------------------------------------------- events
 
