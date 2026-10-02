@@ -13,6 +13,7 @@ import { useLitRides } from '../shared/map/useLitRides'
 import { useSavedRoutes } from '../shared/map/useSavedRoutes'
 import { useSavedStops } from '../shared/map/useSavedStops'
 import { HintuanPin } from '../shared/map/HintuanPin'
+import { StationLabels } from '../shared/map/StationLabels'
 import { EndTitles } from '../shared/map/EndTitles'
 import { Notices } from './Notices'
 import { TripCard } from '../shared/cards/TripCard'
@@ -117,6 +118,10 @@ export default function CommuterApp() {
           onPick={openPlace}
           onTrip={saved.selected ? undefined : openRide}
         />
+      )}
+      {/* A selected train line's stations, named along it (RouteLineLabel). */}
+      {map && saved.selected && tripLivery && (
+        <StationLabels map={map} selected={saved.selected} stops={stops.stops} livery={tripLivery} pickedId={ride.pickedId} onPick={openPlace} />
       )}
       {/* Keyed on the pick: another hintuan pops a fresh circle. */}
       {map && ride.pinAt && tripLivery && (
