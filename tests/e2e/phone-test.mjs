@@ -989,9 +989,18 @@ if (routeA) {
   check('  the camera takes in the whole route, above the card', framed.inside, JSON.stringify(framed))
   const routeEnds = r.signboard.split(' – ').map((e) => e.replace(/ via .*$/, ''))
   check("  its ends are the route's two ends", routeEnds.length === 2 && routeEnds.every((e) => text.includes(e)), r.signboard)
-  // Dropped by the owner for now, to design later (2026-09-28).
-  const gone = ['Length', 'Mode', 'Status', 'Share', 'Signboard'].filter((s) => text.includes(s))
-  check("  the old card's extras are gone: no Length, Mode, Status, Share or signboard", text !== '' && gone.length === 0, gone.join(', '))
+  // Dropped by the owner for now, to design later (2026-09-28). The words
+  // signboard went with them; the boards uploaded in the studio came back
+  // as pictures under their own heading (3919:11355), left out here.
+  const extras = await card()
+    .first()
+    .evaluate((c) => {
+      const k = c.cloneNode(true)
+      k.querySelector('[data-testid="trip-signboards"]')?.remove()
+      return k.textContent
+    })
+  const gone = ['Length', 'Mode', 'Status', 'Share', 'Signboard'].filter((s) => extras.includes(s))
+  check("  the old card's extras are gone: no Length, Mode, Status, Share or signboard words", text !== '' && gone.length === 0, gone.join(', '))
 
   // The tap opens the route's drawn outbound, whichever direction was under the finger (2026-09-22).
   const sameRoute = snapshot.routes.filter((o) => o.routeId === r.routeId).map((o) => o.id)
