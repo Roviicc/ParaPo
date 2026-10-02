@@ -261,7 +261,7 @@ function Workshop({
       {map && !draw.drawing && <EndTitles map={map} rides={rides} look={look} badged={inCardColour} />}
       {/* A selected train line's stations, named along it (RouteLineLabel). */}
       {map && !draw.drawing && saved.selected && tripLivery && (
-        <StationLabels map={map} selected={saved.selected} stops={stops.stops} livery={tripLivery} pickedId={ride.pickedId} />
+        <StationLabels map={map} selected={saved.selected} stops={stops.stops} livery={tripLivery} pickedId={ride.pickedId} onPick={ride.pick} />
       )}
       {/* Keyed on the pick: another hintuan pops a fresh circle. */}
       {map && !draw.drawing && ride.pinAt && tripLivery && (

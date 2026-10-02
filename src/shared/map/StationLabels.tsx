@@ -40,8 +40,8 @@ function namesShow(map: MapLibreMap): boolean {
  *
  * The two ends are left to their end titles (EndTitles), and a picked
  * station to its HintuanPin. Once the scale bar reads 3 km only the
- * dots show, smaller. Given `onPick`, a name is a button that opens the station's
- * place, as the picked hintuan's is; the dot takes no taps.
+ * dots show, smaller. Given `onPick`, the dot and its name are one button,
+ * which picks the station.
  */
 export function StationLabels({
   map,
@@ -112,24 +112,25 @@ function StationLabel({
   // Further out, a smaller dot (hintuanPin.css), so the stations read as beads, not a wall.
   el.toggleAttribute('data-far', !named)
   const label = stopLabel(stop)
-  const Title = onPick ? 'button' : 'div'
+  // The dot and its name are one tap (the owner's ask, 2026-10-02): one button around both.
+  const Tap = onPick ? 'button' : 'div'
   return createPortal(
-    <>
+    <Tap
+      {...(onPick ? { type: 'button' as const, 'aria-label': label } : {})}
+      className="station-label-tap relative flex rounded-full"
+    >
       <TimelineDot rail={CARD_SURFACE[livery]} />
       {named && (
-        <Title
-          {...(onPick ? { type: 'button' as const, 'aria-label': `${label}: the routes there` } : {})}
-          className="hintuan-pin-title absolute left-full top-1/2 ml-2.5 flex max-w-56"
-        >
+        <span className="hintuan-pin-title absolute left-full top-1/2 ml-2.5 flex max-w-56">
           <span
             data-testid="station-label-title"
             className={'max-w-full truncate rounded-full px-2 py-1 text-sm/5 font-medium shadow-selected-hintuan-route-title ' + CARD_SURFACE[livery] + ' ' + CARD_TEXT[livery]}
           >
             {label}
           </span>
-        </Title>
+        </span>
       )}
-    </>,
+    </Tap>,
     el,
   )
 }
