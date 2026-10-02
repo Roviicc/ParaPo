@@ -154,10 +154,10 @@ export function useSaveFacts({
 
   const name = head && tail ? routeName(stopLabel(head), stopLabel(tail), via) : ''
   const direction = head && tail ? directionName(stopLabel(head), stopLabel(tail), reversed) : ''
-  // The snapped geometry, not the control points: a box between two clicks
-  // still counts, and this is the line the save will check.
   // The line a train runs is its route's (route_code); a new route has none yet.
   const routeCode = (existing?.route ?? parent)?.route_code ?? null
+  // The snapped geometry, not the control points: a box between two clicks
+  // still counts, and this is the line the save will check.
   const preview = useMemo(() => {
     const line = joinSegments(draw.segments)
     const along = hintuansAlong(line, stops, { mode, route_code: routeCode }).map((a) => a.stop)
