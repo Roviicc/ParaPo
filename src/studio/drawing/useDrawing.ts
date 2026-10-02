@@ -9,6 +9,7 @@ import { readDraft, useDraftSaving } from './draft'
 import { useDrawLayers, useDrawRendering } from './drawLayers'
 import { useDrawEvents } from './useDrawEvents'
 import { useGapResolver } from './gapResolver'
+import { coarsePointer } from '../../shared/map/tap'
 
 /**
  * The drawing tool: a route's control points and the road between them, or a
@@ -48,6 +49,15 @@ export type Picking = { variant: VariantDrawing; spot: LineSpot | null }
 
 export type Drawing = ReturnType<typeof useDrawing>
 
+/** See `followOffer` in useDrawing. */
+export type FollowOffer = { ids: string[]; at: LngLat; point: LngLat }
+
+/** What the point bar's Delete keeps, to put back. */
+type Undone = { points: LngLat[]; segments: Segment[]; join: LngLat | null; connected: { spot: LngLat; end: LngLat } | null }
+
+/** How long Put back is offered after the point bar's Delete. */
+const PUT_BACK_MS = 6000
+
 export function useDrawing(
   map: MapLibreMap | null,
   opts: {
@@ -74,6 +84,18 @@ export function useDrawing(
   const [borrow, setBorrow] = useState<Borrow | null>(null)
   /** Non-null while choosing where a new route leaves a saved direction. */
   const [picking, setPicking] = useState<Picking | null>(null)
+  /** The point a finger tapped, whose bar of actions is open (PointBar.tsx). */
+  const [selected, setSelected] = useState<number | null>(null)
+  /**
+   * The drawing as it was before the point bar's Delete, and as Delete left
+   * it: Put back restores `before` while the drawing is still `after`.
+   */
+  const [deleted, setDeleted] = useState<{ before: Undone; after: LngLat[] } | null>(null)
+  /**
+   * A finger tap that added a point on a saved line offers to follow that
+   * line instead: the lines under it, where, and the point the tap added.
+   */
+  const [followOffer, setFollowOffer] = useState<FollowOffer | null>(null)
 
   // Map event handlers are registered once and must always see current state,
   // so every mutator updates these refs synchronously.
@@ -98,6 +120,7 @@ export function useDrawing(
   borrowRef.current = borrow
   const followRef = useRef(opts.onFollow)
   followRef.current = opts.onFollow
+  const selectedRef = useRef<number | null>(null)
   /**
    * The first and last points a right-click added by joining a saved line.
    * While the last is still the drawing's last, Undo takes the whole join
@@ -109,10 +132,21 @@ export function useDrawing(
   const gaps = useGapResolver(useMemo(() => ({ points: cpRef, segments: segRef, area: areaRef }), []), setSegments)
   const { writeSegments, resolveGaps, isStandIn, markStandIn } = gaps
 
-  const writePoints = useCallback((pts: LngLat[]) => {
-    cpRef.current = pts
-    setControlPoints(pts)
+  const select = useCallback((i: number | null) => {
+    selectedRef.current = i
+    setSelected(i)
   }, [])
+
+  // A point added or taken away moves every index after it, so a selection
+  // lasts only while the drawing keeps its number of points.
+  const writePoints = useCallback(
+    (pts: LngLat[]) => {
+      if (pts.length !== cpRef.current.length) select(null)
+      cpRef.current = pts
+      setControlPoints(pts)
+    },
+    [select],
+  )
 
   const addPoint = useCallback(
     async (point: LngLat) => {
@@ -217,9 +251,48 @@ export function useDrawing(
     writeSegments(segRef.current.slice(0, -1))
   }, [deletePoint, writePoints, writeSegments])
 
+  /** The point bar's Delete: the selected point goes, and can be put back for a while. */
+  const deleteSelected = useCallback(() => {
+    const i = selectedRef.current
+    if (i === null) return
+    const before = { points: cpRef.current, segments: segRef.current, join: joinRef.current, connected: connectedRef.current }
+    void deletePoint(i)
+    setDeleted({ before, after: cpRef.current })
+  }, [deletePoint])
+
+  const putBack = useCallback(() => {
+    if (!deleted || cpRef.current !== deleted.after) return
+    const { points, segments, join, connected } = deleted.before
+    writePoints(points)
+    writeSegments(segments)
+    joinRef.current = join
+    connectedRef.current = connected
+    setDeleted(null)
+  }, [deleted, writePoints, writeSegments])
+
+  // Put back is offered for a few seconds after the Delete.
+  useEffect(() => {
+    if (!deleted) return
+    const t = setTimeout(() => setDeleted(null), PUT_BACK_MS)
+    return () => clearTimeout(t)
+  }, [deleted])
+
+  /** Take the follow offer: the point the tap added goes, and the line is followed from there. */
+  const takeFollowOffer = useCallback(() => {
+    const o = followOffer
+    setFollowOffer(null)
+    if (!o) return
+    const i = cpRef.current.indexOf(o.point)
+    if (i !== cpRef.current.length - 1) return
+    void deletePoint(i)
+    followRef.current?.(o.ids, o.at)
+  }, [followOffer, deletePoint])
+
   const reset = useCallback(() => {
     writePoints([])
     writeSegments([])
+    setDeleted(null)
+    setFollowOffer(null)
     setBorrow(null)
     setPicking(null)
     pickingRef.current = null
@@ -313,7 +386,12 @@ export function useDrawing(
   const joinGate = useCallback((): { go: boolean; problem: string | null } => {
     if (areaRef.current || pickingRef.current) return { go: false, problem: null }
     if (cpRef.current.length === 0) {
-      return { go: false, problem: 'Draw from where the jeep starts first, then right-click the line it joins.' }
+      return {
+        go: false,
+        problem: coarsePointer()
+          ? 'Draw from where the jeep starts first, then tap the line it joins and follow it.'
+          : 'Draw from where the jeep starts first, then right-click the line it joins.',
+      }
     }
     if (joinRef.current || borrowRef.current) {
       return { go: false, problem: 'This drawing already follows part of another line. One per drawing, for now.' }
@@ -430,10 +508,31 @@ export function useDrawing(
     map,
     drawing,
     useMemo(
-      () => ({ points: cpRef, segments: segRef, area: areaRef, picking: pickingRef, join: joinRef, follow: followRef }),
+      () => ({
+        points: cpRef,
+        segments: segRef,
+        area: areaRef,
+        picking: pickingRef,
+        join: joinRef,
+        borrow: borrowRef,
+        follow: followRef,
+        selected: selectedRef,
+      }),
       [],
     ),
-    { setPicking, addPoint, insertPoint, deletePoint, toggleSegment, resolveGaps, writePoints, writeSegments, markStandIn },
+    {
+      setPicking,
+      addPoint,
+      insertPoint,
+      deletePoint,
+      toggleSegment,
+      resolveGaps,
+      writePoints,
+      writeSegments,
+      markStandIn,
+      select,
+      setFollowOffer,
+    },
   )
 
   // -------------------------------------------------------------- rendering
@@ -452,7 +551,7 @@ export function useDrawing(
     [segments, isStandIn],
   )
 
-  useDrawRendering(map, { segments, controlPoints, area, uTurns, picking })
+  useDrawRendering(map, { segments, controlPoints, area, uTurns, picking, selected })
 
   return {
     drawing,
@@ -488,5 +587,15 @@ export function useDrawing(
     insertPoint,
     deletePoint,
     toggleSegment,
+    /** The point a finger tapped, or null; its bar is PointBar.tsx. */
+    selected,
+    select,
+    deleteSelected,
+    /** Whether the last Delete can still be put back. */
+    canPutBack: deleted !== null && controlPoints === deleted.after,
+    putBack,
+    /** The lines a finger tap just added a point on, while that point is still the last. */
+    followOffer: followOffer && controlPoints[controlPoints.length - 1] === followOffer.point ? followOffer : null,
+    takeFollowOffer,
   }
 }

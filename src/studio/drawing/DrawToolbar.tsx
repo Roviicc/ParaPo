@@ -1,4 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { coarsePointer } from '../../shared/map/tap'
+import { FollowChip, PointBar, PutBack } from './PointBar'
 import type { Drawing } from './useDrawing'
 
 function formatDistance(metres: number) {
@@ -17,8 +19,8 @@ function typing(target: EventTarget | null): boolean {
  * is the document, and this is the only chrome allowed to compete with it.
  *
  * Serves both a route trace and a hotspot outline. The outline needs three
- * corners, has no router to wait for, and has no freehand toggle because every
- * edge is already straight.
+ * corners, has no router to wait for, and has no Tap | Draw switch because
+ * every edge is already straight.
  *
  * Three of the buttons answer to a key as well — Ctrl+Z, Enter, F — but only
  * while `keys` is true: the studio turns them off the moment a panel opens,
@@ -62,7 +64,7 @@ function PickBar({ draw, ends }: { draw: Drawing; ends: { from: string; to: stri
   ].map((o) => (ends?.backwards ? { ...o, part: o.part === 'start' ? ('end' as const) : ('start' as const) } : o))
 
   return (
-    <div className="absolute bottom-6 left-1/2 z-10 w-max max-w-[calc(100%-2rem)] -translate-x-1/2">
+    <div className="absolute bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-1/2 z-10 w-max max-w-[calc(100%-2rem)] -translate-x-1/2">
       <p className="mb-2 text-center text-[11px] text-neutral-600 [text-shadow:0_1px_2px_white]">
         {spot
           ? `${(spot.metres / 1000).toFixed(2)} km along the line · tap again to move the spot`
@@ -108,6 +110,18 @@ function Toolbar({ draw, onDone, keys }: { draw: Drawing; onDone: () => void; ke
   // A stand-in still on the line is not road geometry yet, and must not be saved.
   const waiting = draw.snapping > 0 || draw.unresolved
   const canDone = points >= minPoints && !waiting
+  // A phone has no hover for a title, no right-click and no shift key: it is
+  // told what a finger does, asked before ✕ throws the drawing away, and
+  // gets the point bar (PointBar.tsx) for what the mouse's clicks do.
+  const finger = coarsePointer()
+  const [confirming, setConfirming] = useState(false)
+  const [uTurnHelp, setUTurnHelp] = useState(false)
+  const uTurnText =
+    uTurns === 1
+      ? 'The route turns back on itself at the ringed point, drawn in amber. Drag the point to the corner to fix it, or keep it if the jeep really turns there.'
+      : 'The route turns back on itself at the ringed points, drawn in amber. Drag a point to its corner to fix it, or keep it if the jeep really turns there.'
+  const doneReason =
+    points < minPoints ? `Add at least ${minPoints} ${noun}s` : waiting ? 'Waiting for the router' : null
 
   useEffect(() => {
     if (!keys) return
@@ -132,19 +146,50 @@ function Toolbar({ draw, onDone, keys }: { draw: Drawing; onDone: () => void; ke
     return () => window.removeEventListener('keydown', onKey)
   }, [keys, points, canDone, area, draw, onDone])
 
+  const hint = uTurnHelp
+    ? uTurnText
+    : finger
+      ? area
+        ? points === 0
+          ? 'Tap the corners of the hotspot'
+          : 'Tap to add a corner · tap a corner for options · drag one to move'
+        : points === 0
+          ? 'Tap where the jeep starts'
+          : 'Tap to add · tap a point for options · drag a point to move'
+      : points === 0
+        ? null
+        : area
+          ? 'drag a corner to move · right-click to delete · click an edge to insert a corner'
+          : 'drag a point to move · right-click it to delete · click the line to insert · shift-click a stretch to straighten it · right-click a blue line to follow it to its end'
+  const contextual = draw.selected !== null || draw.canPutBack || draw.followOffer !== null
+
   return (
-    <div className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2">
+    <div
+      data-testid="draw-toolbar"
+      className="absolute left-1/2 z-10 flex w-max max-w-[calc(100%-2rem)] -translate-x-1/2 flex-col items-center gap-2
+                 bottom-[calc(1.5rem+env(safe-area-inset-bottom))]"
+    >
       {/* Dragging and right-clicking are not discoverable on a bare map. */}
-      {points > 0 && (
-        <p className="mb-2 text-center text-[11px] text-neutral-600 [text-shadow:0_1px_2px_white]">
-          {area
-            ? 'drag a corner to move · right-click to delete · click an edge to insert a corner'
-            : 'drag a point to move · right-click it to delete · click the line to insert · shift-click a stretch to straighten it · right-click a blue line to follow it to its end'}
+      {hint && !contextual && (
+        <p
+          className={
+            finger
+              ? 'rounded-full bg-neutral-900/80 px-3 py-1.5 text-center text-xs text-white'
+              : 'text-center text-[11px] text-neutral-600 [text-shadow:0_1px_2px_white]'
+          }
+        >
+          {hint}
         </p>
       )}
 
-      <div className="flex items-center gap-1 rounded-full bg-white p-1.5 shadow-lg ring-1 ring-black/10">
-        <span className="px-3 text-xs tabular-nums text-neutral-500">
+      <PointBar draw={draw} />
+      <PutBack draw={draw} />
+      <FollowChip draw={draw} />
+
+      {!area && <TapDraw draw={draw} />}
+
+      <div className="flex flex-col items-center rounded-3xl bg-white p-1.5 shadow-lg ring-1 ring-black/10">
+        <span className="px-3 pt-0.5 text-center text-xs tabular-nums text-neutral-500">
           {area && (
             <span className="font-medium text-neutral-700">
               {area.kind === 'terminal' ? 'Terminal' : 'Hintuan'} ·{' '}
@@ -152,85 +197,100 @@ function Toolbar({ draw, onDone, keys }: { draw: Drawing; onDone: () => void; ke
           )}
           {points} {points === 1 ? noun : `${noun}s`}
           {!area && draw.line.length > 1 && <> · {formatDistance(draw.metres)}</>}
-          {!area && freehandCount > 0 && (
-            <span className="text-neutral-400"> · {freehandCount} freehand</span>
-          )}
+          {!area && freehandCount > 0 && <span className="text-neutral-400"> · {freehandCount} straight</span>}
           {!area && uTurns > 0 && (
-            <span
-              className="text-amber-700"
-              title={
-                uTurns === 1
-                  ? 'The route turns back on itself at the ringed point, drawn in amber. Drag the point to the corner to fix it, or keep it if the jeep really turns there.'
-                  : 'The route turns back on itself at the ringed points, drawn in amber. Drag a point to its corner to fix it, or keep it if the jeep really turns there.'
-              }
+            <button
+              type="button"
+              onClick={() => setUTurnHelp(!uTurnHelp)}
+              title={uTurnText}
+              className="text-amber-700 underline decoration-dotted underline-offset-2"
             >
-              {' '}
               · ⚠ {uTurns} U-turn{uTurns === 1 ? '' : 's'}
-            </span>
+            </button>
           )}
           {draw.snapping > 0 && <span className="text-rose-600"> · snapping…</span>}
+          {finger && doneReason && points > 0 && !draw.snapping && (
+            <span className="text-neutral-400"> · {doneReason.toLowerCase()}</span>
+          )}
         </span>
 
-        {!area && (
-          <button
-            type="button"
-            onClick={() => draw.setFreehand(!draw.freehand)}
-            aria-pressed={draw.freehand}
-            title={
-              draw.freehand
-                ? 'New segments are straight lines. Click to route them along roads again. (F)'
-                : 'New segments follow roads. Click to draw straight lines instead — for paths the router refuses. (F)'
-            }
-            className={
-              'rounded-full px-3 py-2 text-sm transition-colors ' +
-              (draw.freehand
-                ? 'bg-rose-600 text-white'
-                : 'text-neutral-700 hover:bg-neutral-100')
-            }
-          >
-            〰 Freehand
-          </button>
+        {confirming ? (
+          <div className="flex items-center gap-1">
+            <span className="px-2 text-sm text-neutral-700">Discard this {area ? 'hotspot' : 'route'}?</span>
+            <button type="button" onClick={() => setConfirming(false)} className={TOOL}>
+              Keep
+            </button>
+            <button type="button" onClick={draw.cancel} className={TOOL + ' text-red-600'}>
+              Discard
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={draw.undo}
+              disabled={points === 0}
+              title={`Undo last ${noun} (Ctrl+Z)`}
+              className={TOOL}
+            >
+              ↶ Undo
+            </button>
+
+            <button
+              type="button"
+              onClick={onDone}
+              disabled={!canDone}
+              title={doneReason ?? (area ? 'Save this hotspot (Enter)' : 'Save this route (Enter)')}
+              className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white pointer-coarse:min-h-11
+                         disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ✓ Done
+            </button>
+
+            <button
+              type="button"
+              onClick={finger && points > 0 ? () => setConfirming(true) : draw.cancel}
+              title={area ? 'Discard this hotspot' : 'Discard this route'}
+              className={TOOL + ' text-neutral-500 pointer-coarse:min-w-11'}
+            >
+              ✕
+            </button>
+          </div>
         )}
-
-        <button
-          type="button"
-          onClick={draw.undo}
-          disabled={points === 0}
-          title={`Undo last ${noun} (Ctrl+Z)`}
-          className="rounded-full px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100
-                     disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          ↶ Undo
-        </button>
-
-        <button
-          type="button"
-          onClick={onDone}
-          disabled={!canDone}
-          title={
-            points < minPoints
-              ? `Add at least ${minPoints} ${noun}s`
-              : waiting
-                ? 'Waiting for the router'
-                : area
-                  ? 'Save this hotspot (Enter)'
-                  : 'Save this route (Enter)'
-          }
-          className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white
-                     disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          ✓ Done
-        </button>
-
-        <button
-          type="button"
-          onClick={draw.cancel}
-          title={area ? 'Discard this hotspot' : 'Discard this route'}
-          className="rounded-full px-3 py-2 text-sm text-neutral-500 hover:bg-neutral-100"
-        >
-          ✕
-        </button>
       </div>
+    </div>
+  )
+}
+
+/** A tool button: 44 px tall under a finger, as small as ever under a mouse. */
+const TOOL =
+  'rounded-full px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 pointer-coarse:min-h-11 disabled:cursor-not-allowed disabled:opacity-40'
+
+/**
+ * Tap | Draw (the owner's pick, 2026-10-02, after AllTrails' route builder):
+ * how the next stretch is drawn. Tap follows the streets, Draw goes straight
+ * from point to point. It is the freehand switch the F key flips; a stretch
+ * already drawn is turned from the point bar, or with a shift-click.
+ */
+function TapDraw({ draw }: { draw: Drawing }) {
+  const option = (straight: boolean, label: string, title: string) => (
+    <button
+      type="button"
+      aria-pressed={draw.freehand === straight}
+      onClick={() => draw.setFreehand(straight)}
+      title={title}
+      className={
+        'rounded-full px-4 py-1.5 text-sm font-medium transition-colors pointer-coarse:min-h-11 ' +
+        (draw.freehand === straight ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-100')
+      }
+    >
+      {label}
+    </button>
+  )
+  return (
+    <div data-testid="tap-draw" className="flex rounded-full bg-white p-1 shadow-lg ring-1 ring-black/10">
+      {option(false, 'Tap', 'New stretches follow the streets (F)')}
+      {option(true, 'Draw', 'New stretches go straight from point to point, for paths the router refuses (F)')}
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { travelLine } from '../../shared/model/ride'
 import type { StopRow } from '../../shared/model/stops'
 import { withDrawing } from '../data/live'
 import type { SaveTarget } from '../panels/useSaveTarget'
+import { coarsePointer } from '../../shared/map/tap'
 import { lineToFollow } from './borrow'
 import type { Drawing } from './useDrawing'
 
@@ -27,7 +28,8 @@ export function useFollow({
   setNotice: (text: string) => void
 }) {
   /**
-   * A right-click on saved lines while drawing: join the one going the way
+   * A right-click on saved lines while drawing, or a finger's Follow chip
+   * (PointBar.tsx): join the one going the way
    * the drawing goes — preferring one that ends where the drawing is headed —
    * and follow it to its end. The two directions of a route often share a
    * road, so the click may land on both.
@@ -52,7 +54,7 @@ export function useFollow({
     if (!choice) return
     if ('against' in choice) {
       setNotice(
-        `${choice.against.v.direction_name} runs the other way here. Right-click a line going the way you are drawing.`,
+        `${choice.against.v.direction_name} runs the other way here. ${coarsePointer() ? 'Follow' : 'Right-click'} a line going the way you are drawing.`,
       )
       return
     }

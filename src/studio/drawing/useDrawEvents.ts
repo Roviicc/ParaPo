@@ -1,10 +1,10 @@
 import { useEffect, type RefObject } from 'react'
 import type { MapLibreMap, MapMouseEvent, MapTouchEvent } from 'maplibre-gl'
 import type { LngLat, Segment, SnapMode } from '../../shared/geo/geo'
-import { ROUTES_HIT_LAYER } from '../../shared/map/tap'
+import { ROUTES_HIT_LAYER, tapBox } from '../../shared/map/tap'
 import { nearestSpot } from './borrow'
 import { CLOSING, HIT_LAYER, POINT_LAYER } from './drawLayers'
-import type { AreaTarget, Picking } from './useDrawing'
+import type { AreaTarget, Borrow, FollowOffer, Picking } from './useDrawing'
 
 /** A tap this many pixels off the line being extended does not pick a spot on it. */
 const PICK_PX = 40
@@ -38,8 +38,11 @@ type IndexedFeature = { properties?: { index?: number } }
  * while picking where an Extend leaves a line, a tap near it picks the spot.
  *
  * A finger does the same through touch events: a drag from a point moves it,
- * and a second finger puts it back and pinches instead. A tap on or beside a
- * point and a long-press add nothing.
+ * and a second finger puts it back and pinches instead. A tap or a long-press
+ * on or beside a point selects it, for the point bar's Delete and stretch
+ * buttons; the next tap on the map only closes that bar. A tap that adds a
+ * point on a saved line offers to follow that line instead, which is the
+ * right-click's job on a desktop.
  *
  * The handlers are bound once per drawing and read the drawing through its
  * refs, which every mutator keeps current.
@@ -53,7 +56,9 @@ export function useDrawEvents(
     area: RefObject<AreaTarget | null>
     picking: RefObject<Picking | null>
     join: RefObject<LngLat | null>
+    borrow: RefObject<Borrow | null>
     follow: RefObject<((variantIds: string[], at: LngLat) => void) | undefined>
+    selected: RefObject<number | null>
   },
   actions: {
     setPicking: (p: Picking) => void
@@ -65,10 +70,23 @@ export function useDrawEvents(
     writePoints: (pts: LngLat[]) => void
     writeSegments: (next: Segment[]) => void
     markStandIn: (s: Segment) => void
+    select: (i: number | null) => void
+    setFollowOffer: (o: FollowOffer | null) => void
   },
 ): void {
-  const { setPicking, addPoint, insertPoint, deletePoint, toggleSegment, resolveGaps, writePoints, writeSegments, markStandIn } =
-    actions
+  const {
+    setPicking,
+    addPoint,
+    insertPoint,
+    deletePoint,
+    toggleSegment,
+    resolveGaps,
+    writePoints,
+    writeSegments,
+    markStandIn,
+    select,
+    setFollowOffer,
+  } = actions
   useEffect(() => {
     if (!map || !drawing) return
     if (!map.getLayer(POINT_LAYER) || !map.getLayer(HIT_LAYER)) return
@@ -95,13 +113,45 @@ export function useDrawEvents(
       timer: ReturnType<typeof setTimeout>
       before: { points: LngLat[]; segments: Segment[]; join: LngLat | null } | null
     } | null = null
-    // Until when a click is the echo of a touch already answered.
+    // Until when a click is the echo of a touch already answered, and when
+    // the last touch ended: a click soon after that came from a finger.
     let echoUntil = -Infinity
+    let lastTouchEnd = -Infinity
     const isEcho = () => performance.now() < echoUntil
+    const fromFinger = () => performance.now() - lastTouchEnd < ECHO_MS
+
+    /**
+     * A tap while the point bar is open closes it and does nothing else, so
+     * that tapping the map to put the bar away never adds a point.
+     */
+    const closesBar = () => {
+      setFollowOffer(null)
+      if (refs.selected.current === null) return false
+      select(null)
+      return true
+    }
+
+    /**
+     * After a finger adds a point on a saved line, while drawing a route that
+     * has a point before it and follows no line yet: offer to follow that one.
+     */
+    const offerFollow = (e: MapMouseEvent, point: LngLat) => {
+      if (!fromFinger() || refs.area.current || refs.join.current || refs.borrow.current) return
+      if (refs.points.current.length < 2 || !map.getLayer(ROUTES_HIT_LAYER)) return
+      const ids = [
+        ...new Set(
+          map
+            .queryRenderedFeatures(tapBox(e.point, e.originalEvent), { layers: [ROUTES_HIT_LAYER] })
+            .map((f) => f.properties?.id)
+            .filter((id): id is string => typeof id === 'string'),
+        ),
+      ]
+      if (ids.length > 0) setFollowOffer({ ids, at: point, point })
+    }
 
     // Clicking empty map appends a point; clicking the route itself does not.
     const onMapClick = (e: MapMouseEvent) => {
-      if (isEcho()) return
+      if (isEcho() || closesBar()) return
       // Choosing where a new route leaves a saved one: a tap near its line
       // picks the nearest spot on it; a tap elsewhere is ignored.
       const p = refs.picking.current
@@ -119,11 +169,13 @@ export function useDrawEvents(
         layers: [POINT_LAYER, HIT_LAYER],
       })
       if (hits.length > 0) return
-      void addPoint([e.lngLat.lng, e.lngLat.lat])
+      const point: LngLat = [e.lngLat.lng, e.lngLat.lat]
+      void addPoint(point)
+      offerFollow(e, point)
     }
 
     const onLineClick = (e: MapMouseEvent & { features?: IndexedFeature[] }) => {
-      if (isEcho()) return
+      if (isEcho() || closesBar()) return
       // A click on a point's dot is a press on that point, not a click on the
       // line beneath it: inserting here would stack a second point on the first.
       if (map.queryRenderedFeatures(e.point, { layers: [POINT_LAYER] }).length > 0) return
@@ -315,6 +367,7 @@ export function useDrawEvents(
       if (e.originalEvent.touches.length > 0) return
       const t = touch
       touch = null
+      lastTouchEnd = performance.now()
       if (!t) return
       clearTimeout(t.timer)
       // A press on a point and a long-press are answered here; the click the
@@ -325,7 +378,10 @@ export function useDrawEvents(
       const i = dragIdx
       dragIdx = null
       map.dragPan.enable()
-      settleDrag(i)
+      if (i === null) {
+        setFollowOffer(null)
+        select(t.idx)
+      } else settleDrag(i)
     }
 
     const enterPoint = () => {
@@ -389,5 +445,7 @@ export function useDrawEvents(
     writePoints,
     writeSegments,
     markStandIn,
+    select,
+    setFollowOffer,
   ])
 }

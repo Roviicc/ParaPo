@@ -20,7 +20,7 @@ export const STOPS_FILL_LAYER = LAYERS.stopsFill
  * `pointerType`), which is what tells a touched laptop screen from its
  * trackpad. Without an event, fall back to the device's primary pointer.
  */
-function coarsePointer(event?: Event): boolean {
+export function coarsePointer(event?: Event): boolean {
   const type = (event as { pointerType?: string } | undefined)?.pointerType
   if (type === 'touch' || type === 'pen') return true
   if (type === 'mouse') return false
@@ -29,7 +29,7 @@ function coarsePointer(event?: Event): boolean {
 }
 
 /** The box around a screen point to query hit layers with, sized for the pointer. */
-function tapBox(
+export function tapBox(
   p: { x: number; y: number },
   event?: Event,
 ): [[number, number], [number, number]] {

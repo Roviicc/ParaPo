@@ -28,6 +28,7 @@ await page.addInitScript(() => { window.__src = async (id) => { const s = window
 const cdp = await ctx.newCDPSession(page)
 const { proj, idle } = drawing(page)
 
+const bar = page.getByTestId('point-bar')
 const cp = async () => page.evaluate(async () => ((await window.__src('draw-points'))?.features ?? []).map((f) => f.geometry.coordinates))
 const segs = async () => page.evaluate(async () => (await window.__src('draw-line'))?.features ?? [])
 const centreNow = () => page.evaluate(() => { const c = window.__map.getCenter(); return [c.lng, c.lat, window.__map.getZoom()] })
@@ -49,11 +50,14 @@ const drag = async (a, z, steps = 10) => {
   await touch('touchEnd', [])
 }
 const tapButton = async (loc) => { const r = await loc.first().boundingBox(); await page.touchscreen.tap(r.x + r.width / 2, r.y + r.height / 2); await page.waitForTimeout(300) }
+// ✕ asks first under a finger: Discard answers it.
 const discard = async () => {
   for (const t of ['Discard this route', 'Discard this hotspot']) {
     const l = page.locator(`button[title="${t}"]`)
     if (await l.count()) await tapButton(l)
   }
+  const yes = page.getByRole('button', { name: 'Discard', exact: true })
+  if (await yes.count()) await tapButton(yes)
   await page.evaluate(() => localStorage.removeItem('parapo.draft.v1'))
 }
 
@@ -141,6 +145,9 @@ c = await startRoute(3)
 const last = await proj(c[2])
 await tap(last[0] + 10, last[1] + 4); await settle()
 check('a tap 11 px off a dot adds no point', (await cp()).length === 3, `${(await cp()).length} points`)
+check('…and opens that point\'s bar', (await bar.textContent().catch(() => '')).includes('Point 3 of 3'), await bar.textContent().catch(() => 'no bar'))
+await tap(W / 2, 200); await settle()
+check('a tap on the map with the bar open closes it and adds nothing', !(await bar.count()) && (await cp()).length === 3, `bar ${await bar.count()}, ${(await cp()).length} points`)
 
 const [fx, fy] = (await roadPixels(6, 70))[4] ?? [W / 2, 200]
 await tap(fx, fy); await page.waitForTimeout(80); await tap(fx, fy); await settle()
@@ -177,6 +184,69 @@ await page.waitForTimeout(1000)
 await page.mouse.click(box.x + held[0], box.y + held[1], { button: 'right' }); await settle()
 check('a right-click with no finger down still deletes the point', (await cp()).length === c.length - 1, `${c.length} → ${(await cp()).length} points`)
 
+// ---------------------------------------------------------------- the point bar
+const snaps = async () => page.evaluate(async () => ((await window.__src('draw-line'))?.features ?? []).sort((a, b) => a.properties.index - b.properties.index).map((f) => f.properties.snap))
+c = await startRoute(3)
+let at1 = await proj(c[1])
+await tap(...at1); await page.waitForTimeout(300)
+const ring = await page.evaluate(async () => ((await window.__src('draw-points'))?.features ?? []).filter((f) => f.properties.selected).map((f) => f.properties.index))
+check('a tap on a point opens its bar and rings it', (await bar.count()) === 1 && ring.join() === '1', `bar ${await bar.count()}, ringed ${ring}`)
+const before = await snaps()
+await page.getByTestId('stretch-1').tap(); await settle()
+const flipped = await snaps()
+check('a stretch button turns that stretch straight, and only it', before.join() === 'snapped,snapped' && flipped.join() === 'snapped,freehand', `${before} → ${flipped}`)
+await page.getByTestId('stretch-1').tap(); await settle()
+check('…and the same button turns it back to the streets', (await snaps()).join() === 'snapped,snapped', `${await snaps()}`)
+await bar.getByRole('button', { name: 'Delete' }).tap(); await settle()
+after = await cp()
+check('Delete takes the point out, healing its two stretches', after.length === 2 && metres(after[1], c[2]) < 1 && (await snaps()).length === 1, `${after.length} points, ${(await snaps()).length} stretch`)
+await page.getByRole('button', { name: 'Put back' }).tap(); await settle()
+after = await cp()
+check('Put back restores the point and both stretches', after.length === 3 && metres(after[1], c[1]) < 1 && (await snaps()).length === 2, `${after.length} points`)
+
+// A mouse click on a dot is the desktop's, and opens no bar.
+at1 = await proj((await cp())[1])
+await page.mouse.click(box.x + at1[0], box.y + at1[1]); await page.waitForTimeout(400)
+check('a mouse click on a point opens no bar', (await bar.count()) === 0, `bar ${await bar.count()}`)
+
+// ---------------------------------------------------------------- Tap | Draw
+const tapDraw = page.getByTestId('tap-draw')
+const [nx, ny] = (await roadPixels(6, 70))[4] ?? [W / 2, 200]
+await tapDraw.getByRole('button', { name: 'Draw' }).tap()
+await tap(nx, ny); await settle()
+check('Draw makes the next stretch straight', (await snaps()).at(-1) === 'freehand' && (await tapDraw.getByRole('button', { name: 'Draw' }).getAttribute('aria-pressed')) === 'true', `${await snaps()}`)
+await tapDraw.getByRole('button', { name: 'Tap' }).tap()
+const [mx, my] = (await roadPixels(7, 70))[5] ?? [W / 2, 260]
+await tap(mx, my); await settle()
+check('Tap makes the next one follow the streets again', (await snaps()).at(-1) === 'snapped', `${await snaps()}`)
+
+// ---------------------------------------------------------------- toolbar
+// A point opened and closed again: no bar, no Follow offer, the hint back.
+await tap(...(await proj((await cp())[0]))); await page.waitForTimeout(300)
+await bar.getByRole('button', { name: 'Close' }).tap(); await page.waitForTimeout(300)
+const hintText = await page.getByTestId('draw-toolbar').innerText()
+check('the hint speaks of taps, not right-clicks', hintText.includes('tap a point for options') && !/right-click|shift-click/.test(hintText), hintText.replace(/\n/g, ' / '))
+await page.locator('button[title="Discard this route"]').tap()
+check('✕ asks before discarding', (await page.getByRole('button', { name: 'Keep' }).count()) === 1 && (await cp()).length > 0)
+await page.getByRole('button', { name: 'Keep' }).tap()
+check('Keep keeps the drawing', (await cp()).length > 0 && (await page.getByRole('button', { name: /Done/ }).count()) === 1)
+const small = await page.evaluate(() => [...document.querySelectorAll('[data-testid="draw-toolbar"] button')].map((b) => [b.textContent.trim(), Math.round(b.getBoundingClientRect().height)]).filter(([, h]) => h < 44))
+check('every drawing button is at least 44 px tall', small.length === 0, JSON.stringify(small))
+
+// ---------------------------------------------------------------- follow by finger
+// A tap on a saved line, away from the drawing, offers to follow it; taking
+// the offer drops that tap's point and joins the line there.
+c = await startRoute(2)
+const onLine = (await roadPixels(8, 70))[4]
+if (onLine) {
+  await tap(...onLine); await settle()
+  const chip = page.getByTestId('follow-chip')
+  check('a tap on a saved line offers to follow it', (await chip.count()) === 1, `chip ${await chip.count()}, ${(await cp()).length} points`)
+  await chip.tap(); await page.waitForTimeout(1500); await settle()
+  const joined = await page.evaluate(() => JSON.parse(localStorage.getItem('parapo.draft.v1') ?? 'null')?.borrow ?? null)
+  check('Follow joins the saved line', joined !== null && (await cp()).length > 2, `borrow ${JSON.stringify(joined)}, ${(await cp()).length} points`)
+} else check('a tap on a saved line offers to follow it', false, 'no vertex of the saved line on screen')
+
 // ---------------------------------------------------------------- hotspot
 await discard(); await recentre(16)
 await tapButton(page.getByRole('button', { name: '+ New hotspot' }))
@@ -190,6 +260,11 @@ const k0 = await proj(c[0])
 await drag(k0, [k0[0] - 30, k0[1] - 30]); await page.waitForTimeout(400)
 after = await cp()
 check('a finger drag moves a hotspot corner, with no router', after.length === 4 && metres(after[0], c[0]) > 10 && routerCalls === calls, `${after.length} corners, moved ${metres(after[0], c[0]).toFixed(0)} m, ${routerCalls - calls} router requests`)
+await tap(...(await proj(after[3]))); await page.waitForTimeout(300)
+await bar.getByRole('button', { name: 'Delete' }).tap(); await page.waitForTimeout(300)
+check('a hotspot corner deletes from its bar', (await cp()).length === 3, `${(await cp()).length} corners`)
+await tap(...(await proj((await cp())[0]))); await page.waitForTimeout(300)
+check('…but not below 3 corners', (await bar.count()) === 1 && (await bar.getByRole('button', { name: 'Delete' }).count()) === 0, await bar.textContent().catch(() => 'no bar'))
 await discard()
 
 check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
