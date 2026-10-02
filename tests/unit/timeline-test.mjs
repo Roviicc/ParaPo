@@ -57,7 +57,7 @@ test('what a place is made of: one hintuan, its boxes mini stops', () => {
 test('the committed map: no direction lists the same hintuan twice in a row', () => {
   const m = published()
   for (const v of m.variants) {
-    const rows = labels(hintuansAlong(variantLine(v), m.stops).map((a) => a.stop))
+    const rows = labels(hintuansAlong(variantLine(v), m.stops, v.route).map((a) => a.stop))
     rows.forEach((r, i) => assert.notEqual(r, rows[i - 1], `${v.direction_name}: ${r} twice`))
   }
 })

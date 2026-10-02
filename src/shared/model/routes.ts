@@ -10,6 +10,8 @@ export type TransportMode =
   | 'bus'
   | 'p2p'
   | 'tricycle'
+  | 'lrt'
+  | 'mrt'
 
 export const MODES: { value: TransportMode; label: string }[] = [
   { value: 'jeepney', label: 'Jeepney' },
@@ -18,7 +20,40 @@ export const MODES: { value: TransportMode; label: string }[] = [
   { value: 'bus', label: 'Bus' },
   { value: 'p2p', label: 'P2P bus' },
   { value: 'tricycle', label: 'Tricycle' },
+  { value: 'lrt', label: 'LRT' },
+  { value: 'mrt', label: 'MRT' },
 ]
+
+/**
+ * The train lines (0011, the owner's ask of 2026-10-02): LRT-1, LRT-2 and
+ * MRT-3, each a route whose `route_code` names its line. A train runs on its
+ * own track and stops only at its own stations, so everything that asks
+ * which hintuans a line passes asks `servedBy` too.
+ */
+export const RAIL_MODES: readonly TransportMode[] = ['lrt', 'mrt']
+
+/** The lines a route_code or a station's `line` may name; 0011 holds `stop.line` to them. */
+export const RAIL_LINES = ['LRT-1', 'LRT-2', 'MRT-3'] as const
+export type RailLine = (typeof RAIL_LINES)[number]
+export const isRailLine = (code: string | null | undefined): code is RailLine => (RAIL_LINES as readonly string[]).includes(code ?? '')
+
+export const isRail = (mode: TransportMode | null | undefined): boolean => !!mode && RAIL_MODES.includes(mode)
+
+/** What `servedBy` reads of a route. `route_code` is absent from files published before 0011. */
+export type ServedRoute = { mode: TransportMode; route_code?: string | null }
+
+/**
+ * Whether a direction of this route stops at this hintuan, beyond passing
+ * within reach of its box. A train stops only at its own line's stations; a
+ * jeep at every hintuan that is not a station — the owner's default of
+ * 2026-10-02, open to change. A train with no line named stops nowhere, so
+ * it can never pick up the jeep hintuans under its track.
+ */
+export function servedBy(stop: { line?: string | null }, route: ServedRoute): boolean {
+  const line = stop.line ?? null
+  if (!isRail(route.mode)) return line === null
+  return line !== null && line === (route.route_code ?? null)
+}
 
 export type Confidence = 'drawn' | 'verified'
 
@@ -53,7 +88,11 @@ export type RouteRow = {
 export type RouteSummary = Pick<
   RouteRow,
   'id' | 'signboard' | 'long_name' | 'mode' | 'fare_note' | 'head_stop_id' | 'tail_stop_id' | 'via'
-> & { name: string }
+> & {
+  name: string
+  /** The train line, 'LRT-1', for a rail route (0011). Absent from files published before it. */
+  route_code?: string | null
+}
 
 /** Spaced en dash. R3: applied by the app, never typed, so it cannot vary. */
 const DASH = '–'
