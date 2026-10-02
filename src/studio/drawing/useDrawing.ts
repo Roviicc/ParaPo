@@ -65,7 +65,7 @@ export function useDrawing(
      * A right-click on saved lines while drawing a route: the directions under
      * it and where. The studio decides which one is meant and calls `connect`.
      */
-    onFollow?: (variantIds: string[], at: LngLat) => void
+    onFollow?: (variantIds: string[], at: LngLat, offered?: LngLat) => void
   } = {},
 ) {
   const [drawing, setDrawing] = useState(false)
@@ -268,7 +268,18 @@ export function useDrawing(
     joinRef.current = join
     connectedRef.current = connected
     setDeleted(null)
-  }, [deleted, writePoints, writeSegments])
+    // A stretch still waiting for the router lost its request to the Delete:
+    // ask again, each run of them in one request.
+    let from = -1
+    segments.forEach((s, i) => {
+      const waiting = !!s && isStandIn(s)
+      if (waiting && from === -1) from = i
+      if (from === -1 || (waiting && i < segments.length - 1)) return
+      const to = waiting ? i : i - 1
+      void resolveGaps(from, segments.slice(from, to + 1).map((g) => g.snap))
+      from = -1
+    })
+  }, [deleted, writePoints, writeSegments, isStandIn, resolveGaps])
 
   // Put back is offered for a few seconds after the Delete.
   useEffect(() => {
@@ -278,15 +289,23 @@ export function useDrawing(
   }, [deleted])
 
   /** Take the follow offer: the point the tap added goes, and the line is followed from there. */
+  /**
+   * Take the follow offer: the line is followed from where the tap was, and
+   * the point the tap added goes only once the join goes ahead (`connect`),
+   * so a refused follow leaves the drawing as it was.
+   */
   const takeFollowOffer = useCallback(() => {
     const o = followOffer
     setFollowOffer(null)
-    if (!o) return
-    const i = cpRef.current.indexOf(o.point)
-    if (i !== cpRef.current.length - 1) return
-    void deletePoint(i)
-    followRef.current?.(o.ids, o.at)
-  }, [followOffer, deletePoint])
+    if (!o || cpRef.current[cpRef.current.length - 1] !== o.point) return
+    followRef.current?.(o.ids, o.at, o.point)
+  }, [followOffer])
+
+  /** The drawing's line as it is now, without its last point when that is `drop`. */
+  const lineNow = useCallback((drop?: LngLat) => {
+    const last = cpRef.current[cpRef.current.length - 1]
+    return joinSegments(drop && last === drop ? segRef.current.slice(0, -1) : segRef.current)
+  }, [])
 
   const reset = useCallback(() => {
     writePoints([])
@@ -399,8 +418,12 @@ export function useDrawing(
     return { go: true, problem: null }
   }, [])
 
+  /**
+   * `drop`, from the follow offer: the point the finger's tap added, which
+   * the join replaces, taken out only once the join goes ahead.
+   */
   const connect = useCallback(
-    (v: VariantDrawing, at: LngLat, backwards: boolean): string | null => {
+    (v: VariantDrawing, at: LngLat, backwards: boolean, drop?: LngLat): string | null => {
       const gate = joinGate()
       if (!gate.go) return gate.problem
       const cp = v.control_points ?? []
@@ -411,10 +434,13 @@ export function useDrawing(
       const cut = cutAt(src.controlPoints, src.segments, spot, 'end')
       if (cut.segments.length === 0) return 'That is the very end of the line: nothing left to follow.'
 
-      const gap = cpRef.current.length - 1
-      const last = cpRef.current[gap]
-      writePoints([...cpRef.current, ...cut.controlPoints])
-      writeSegments([...segRef.current, straightSegment(last, cut.controlPoints[0]), ...cut.segments])
+      const dropping = !!drop && cpRef.current.length > 1 && cpRef.current[cpRef.current.length - 1] === drop
+      const mine = dropping ? cpRef.current.slice(0, -1) : cpRef.current
+      const mineSegs = dropping ? segRef.current.slice(0, -1) : segRef.current
+      const gap = mine.length - 1
+      const last = mine[gap]
+      writePoints([...mine, ...cut.controlPoints])
+      writeSegments([...mineSegs, straightSegment(last, cut.controlPoints[0]), ...cut.segments])
       connectedRef.current = { spot: cut.controlPoints[0], end: cut.controlPoints[cut.controlPoints.length - 1] }
       setBorrow({ variantId: v.id, part: 'end' })
       void resolveGaps(gap, [freehandRef.current ? 'freehand' : 'snapped'])
@@ -575,6 +601,7 @@ export function useDrawing(
     keep,
     joinGate,
     connect,
+    lineNow,
     /** Control points where the route turns back on itself (see findUTurns). */
     uTurns,
     load,

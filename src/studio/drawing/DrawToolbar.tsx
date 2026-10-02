@@ -124,7 +124,8 @@ function Toolbar({ draw, onDone, keys }: { draw: Drawing; onDone: () => void; ke
     points < minPoints ? `Add at least ${minPoints} ${noun}s` : waiting ? 'Waiting for the router' : null
 
   useEffect(() => {
-    if (!keys) return
+    // While ✕ asks, Enter must not save what is about to be thrown away.
+    if (!keys || confirming) return
     const onKey = (e: KeyboardEvent) => {
       if (typing(e.target)) return
       const mod = e.ctrlKey || e.metaKey
@@ -144,7 +145,7 @@ function Toolbar({ draw, onDone, keys }: { draw: Drawing; onDone: () => void; ke
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [keys, points, canDone, area, draw, onDone])
+  }, [keys, confirming, points, canDone, area, draw, onDone])
 
   const hint = uTurnHelp
     ? uTurnText

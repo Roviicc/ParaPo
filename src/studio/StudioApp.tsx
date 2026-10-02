@@ -104,7 +104,7 @@ function Workshop({
 
   // A right-click on a saved line while drawing: decided below, once the
   // saved lines and hotspots are loaded (onFollow).
-  const draw = useDrawing(map, { onFollow: (ids, at) => onFollow(ids, at) })
+  const draw = useDrawing(map, { onFollow: (ids, at, offered) => onFollow(ids, at, offered) })
   // The list rows, each with its overview (0009): a direction's full line is
   // read when it is lit or chosen, its drawing when it is opened (below).
   const saved = useSavedRoutes(map, listVariants, {

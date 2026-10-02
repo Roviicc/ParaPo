@@ -34,7 +34,7 @@ export function useFollow({
    * and follow it to its end. The two directions of a route often share a
    * road, so the click may land on both.
    */
-  const onFollow = (ids: string[], at: LngLat) => {
+  const onFollow = (ids: string[], at: LngLat, offered?: LngLat) => {
     const gate = draw.joinGate()
     if (!gate.go) {
       if (gate.problem) setNotice(gate.problem)
@@ -50,7 +50,9 @@ export function useFollow({
         endsAtDestination:
           home !== null && target.placeOfStop(v.reversed ? v.route.head_stop_id : v.route.tail_stop_id) === home,
       }))
-    const choice = lineToFollow(options, draw.line, at)
+    // The line now, without the point an offer would drop: the render's
+    // `draw.line` is a step behind the edits that led here.
+    const choice = lineToFollow(options, draw.lineNow(offered), at)
     if (!choice) return
     if ('against' in choice) {
       setNotice(
@@ -61,7 +63,7 @@ export function useFollow({
     const v = choice.follow.v
     const backwards = choice.follow.travel[0] !== variantLine(v)[0]
     void opening(v, (d) => {
-      const problem = draw.connect(d, at, backwards)
+      const problem = draw.connect(d, at, backwards, offered)
       if (problem) setNotice(problem)
     })
   }

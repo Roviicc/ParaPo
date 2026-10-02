@@ -57,7 +57,7 @@ export function useDrawEvents(
     picking: RefObject<Picking | null>
     join: RefObject<LngLat | null>
     borrow: RefObject<Borrow | null>
-    follow: RefObject<((variantIds: string[], at: LngLat) => void) | undefined>
+    follow: RefObject<((variantIds: string[], at: LngLat, offered?: LngLat) => void) | undefined>
     selected: RefObject<number | null>
   },
   actions: {
@@ -427,8 +427,11 @@ export function useDrawEvents(
       if (dragIdx === null) canvas.style.cursor = 'crosshair'
     }
 
-    map.on('click', onMapClick)
+    // The line's handler first: MapLibre calls click listeners in the order
+    // they were added, and a tap on the line that closes the point bar must
+    // close it there, before onMapClick has cleared the selection it reads.
     map.on('click', HIT_LAYER, onLineClick)
+    map.on('click', onMapClick)
     map.on('mousedown', POINT_LAYER, onPointDown)
     map.on('contextmenu', POINT_LAYER, onPointContext)
     map.on('contextmenu', onMapContext)

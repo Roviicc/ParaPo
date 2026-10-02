@@ -255,6 +255,41 @@ await page.getByRole('button', { name: 'Put back' }).tap(); await settle()
 after = await cp()
 check('Put back restores the point and both stretches', after.length === 3 && metres(after[1], c[1]) < 1 && (await snaps()).length === 2, `${after.length} points`)
 
+// With the bar open, a tap on the line closes it and inserts nothing.
+await tap(...(await proj((await cp())[0]))); await page.waitForTimeout(300)
+const lineSpot = await (async () => {
+  const dots = await Promise.all((await cp()).map(proj))
+  let best = null, clear = 0
+  for (const f of await segs()) for (const q of f.geometry.coordinates) {
+    const p = await proj(q), d = Math.min(...dots.map((o) => Math.hypot(o[0] - p[0], o[1] - p[1])))
+    if (d > clear) { best = p; clear = d }
+  }
+  return best
+})()
+await tap(...lineSpot); await settle()
+check('a tap on the line with the bar open only closes it', (await bar.count()) === 0 && (await cp()).length === 3, `bar ${await bar.count()}, ${(await cp()).length} points`)
+
+// Put back while the router is slow: the stretch it brings back is asked for again.
+{
+  let slow = false
+  const held = /routing\.openstreetmap\.de|route\/v1\/driving/
+  const handler = async (route) => { if (slow) await new Promise((r) => setTimeout(r, 2500)); await route.fallback() }
+  await page.route(held, handler)
+  slow = true
+  const [qx, qy] = (await roadPixels(6, 70))[3] ?? [W / 2, 250]
+  await tap(qx, qy); await page.waitForTimeout(200)
+  const n = (await cp()).length
+  await tap(...(await proj((await cp())[n - 1]))); await page.waitForTimeout(300)
+  await bar.getByRole('button', { name: 'Delete' }).tap(); await page.waitForTimeout(200)
+  await page.getByRole('button', { name: 'Put back' }).tap()
+  slow = false
+  await page.waitForTimeout(3000); await settle()
+  const lastLen = (await segs()).sort((a, z) => a.properties.index - z.properties.index).at(-1)?.geometry.coordinates.length ?? 0
+  check('Put back while the router works asks for the stretch again', (await cp()).length === n && lastLen > 2 && (await page.getByRole('button', { name: /Done/ }).isEnabled()), `${(await cp()).length} points, last stretch ${lastLen} coordinates`)
+  await page.unroute(held, handler)
+  await page.getByRole('button', { name: /Undo/ }).tap(); await settle()
+}
+
 // A mouse click on a dot is the desktop's, and opens no bar.
 at1 = await proj((await cp())[1])
 await page.mouse.click(box.x + at1[0], box.y + at1[1]); await page.waitForTimeout(400)
@@ -295,7 +330,10 @@ if (onLine) {
   check('a tap on a saved line offers to follow it', (await chip.count()) === 1, `chip ${await chip.count()}, ${(await cp()).length} points`)
   await chip.tap(); await page.waitForTimeout(1500); await settle()
   const joined = await page.evaluate(() => JSON.parse(localStorage.getItem('parapo.draft.v1') ?? 'null')?.borrow ?? null)
-  check('Follow joins the saved line', joined !== null && (await cp()).length > 2, `borrow ${JSON.stringify(joined)}, ${(await cp()).length} points`)
+  // The tap was on the line, so the join begins where the tap's point was:
+  // kept, it would sit on the join's first point.
+  const all = await cp()
+  check('Follow joins the saved line, in place of the tap\'s point', joined !== null && all.length > 3 && metres(all[1], c[1]) < 0.5 && metres(all[2], all[3]) > 1, `borrow ${JSON.stringify(joined)}, ${all.length} points, the join's first two ${metres(all[2], all[3]).toFixed(1)} m apart`)
 } else check('a tap on a saved line offers to follow it', false, 'no vertex of the saved line on screen')
 
 // ---------------------------------------------------------------- hotspot
