@@ -2,11 +2,9 @@ import { entryDistance, type Ring } from '../../shared/geo/ring'
 import { passIndex } from '../../shared/geo/pass'
 import { servedBy, variantLine, type VariantRow } from '../../shared/model/routes'
 
-// ---------------------------------------------------------------- geometry
-//
-// Pure functions, so they can be unit-tested and so the save panel can show
-// exactly what a save will write before it writes it. Apart from the writes
-// (stopsWrite.ts), which need the Supabase client a test cannot load.
+// Pure functions, kept apart from the writes (stopsWrite.ts), which need the
+// Supabase client a test cannot load: so they can be unit-tested, and so the
+// save panel can show exactly what a save will write before it writes it.
 
 /**
  * Which directions pass this outline, and where along each one. This is a
