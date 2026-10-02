@@ -8,6 +8,7 @@ import { placeBoxes } from '../model/places'
 import type { VariantSummary } from '../model/routes'
 import { stopLabel, type StopKind, type StopSummary } from '../model/stops'
 import { BottomSheet, type SheetHeight } from './BottomSheet'
+import { wayWord } from './RouteCardHeader'
 import { ChevronLeftIcon, CloseIcon, HintuanIcon, InformationIcon, JeepIcon, TerminalIcon } from './RouteIcons'
 import { RouteCardStack, type PickedPlace } from './RouteCardStack'
 
@@ -30,10 +31,16 @@ type Props = {
     selected: string | null
     onSelect: (place: PickedPlace | null) => void
     onShown: (ids: readonly string[]) => void
-    /** SWITCH pressed: the routes turn round (the public map takes them in whole). */
-    onSwitch?: () => void
+    /**
+     * SWITCH pressed: the routes turn round, and `box`, when the other way
+     * leaves from another box of the place, is the one to select. The camera
+     * stays where the visitor tapped the hintuan — no zoom, no glide (the
+     * owner, 2026-10-01: "it must remain where the camera the user clicked
+     * the hintuan").
+     */
+    onSwitch?: (box: string | null) => void
   }
-  /** Another box of the place picked — its row, or SWITCH moving to it: select it and go there. */
+  /** Another box of the place picked from its row: select it and go there. */
   onPickBox: (id: string) => void
   /**
    * No row Selected: the Selected one tapped again lets it go (the owner's
@@ -155,8 +162,11 @@ export function HintuanCard({
   }, [shownKey])
 
   // Figma's "2 routes passes here" (the owner's of 2026-10-01; "… through"
-  // before), its verb agreeing with the count.
-  const count = `${shown.length} ${shown.length === 1 ? 'route passes' : 'routes pass'} here`
+  // before), its verb agreeing with the count. It counts the head routes,
+  // a card each, not their tails (the owner, 2026-10-01: "we're counting the
+  // head route only not tails").
+  const heads = drawnDepartures(routes, back).length
+  const count = `${heads} ${heads === 1 ? 'route passes' : 'routes pass'} here`
 
   return (
     <BottomSheet
@@ -248,16 +258,15 @@ export function HintuanCard({
               <Button
                 variant="special"
                 size="small"
-                label="SWITCH"
+                label={wayWord(back)}
                 data-testid="card-flip"
                 aria-pressed={back}
                 disabled={!switchTo}
                 onClick={() => {
                   if (!switchTo) return
                   routeCards.onSelect(null)
-                  routeCards.onSwitch?.()
                   setFlipped(other)
-                  if (switchTo.id !== stop.id) onPickBox(switchTo.id)
+                  routeCards.onSwitch?.(switchTo.id !== stop.id ? switchTo.id : null)
                 }}
               />
             </div>

@@ -394,7 +394,11 @@ if (!spot) {
     }
     return (await read()).listed
   }
-  /** The first of up to eight points, spread along `coords`, where what the app's own mouse box (±5 px) catches at zoom 17 passes `ok`. */
+  /**
+   * The first of up to eight points, spread along `coords`, where what the
+   * app's own mouse box (±5 px) catches at zoom 17 passes `ok`; with `at`,
+   * the point itself, for clickAt to come back to.
+   */
   const findSpot = async (coords, ok) => {
     for (const c of coords.filter((_, i) => i % Math.max(1, Math.floor(coords.length / 8)) === 0)) {
       await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 17 }), c)
@@ -406,12 +410,19 @@ if (!spot) {
         const ids = (layer) => [...new Set(m.queryRenderedFeatures(box, { layers: [layer] }).map((f) => f.properties.id))]
         return { x: q.x, y: q.y, ids: ids('saved-routes-hit'), stops: ids('saved-stops-fill').length }
       }, c)
-      if (ok(p)) return p
+      if (ok(p)) return { ...p, at: c }
     }
     return null
   }
-  /** Click there; what is shown afterwards — the list's directions, or the card's lit one — and what the list or card says. */
+  /**
+   * Click there; what is shown afterwards — the list's directions, or the
+   * card's lit one — and what the list or card says. The camera goes back
+   * to where the spot was measured first: a card picked since takes in its
+   * routes, as on the public map (2026-10-01), and leaves the spot elsewhere.
+   */
   const clickAt = async (p) => {
+    await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 17 }), p.at)
+    await page.waitForTimeout(600)
     await page.mouse.click(p.x, p.y)
     await page.waitForTimeout(700)
     const now = await read()

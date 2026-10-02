@@ -411,3 +411,70 @@ export const OtherRoutes: Story = {
     await expect(args.onOtherRoute).toHaveBeenCalledWith('tala-sm')
   },
 }
+
+/** Sample boards in the frame's look (3919:11447), not real ones: dark, a lime word over a gold one. */
+const board = (top: string, under: string) =>
+  'data:image/svg+xml,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="98" height="40" viewBox="0 0 98 40"><rect width="98" height="40" fill="#111"/>` +
+      `<text x="49" y="21" text-anchor="middle" font-family="Arial Black,sans-serif" font-weight="900" font-size="16" fill="#7CFC00">${top}</text>` +
+      `<text x="49" y="34" text-anchor="middle" font-family="Arial Black,sans-serif" font-weight="900" font-size="9" fill="#FFB400">${under}</text></svg>`,
+  )
+
+/** Figma's Signboard (3919:11355): the direction's boards under the tiles, 40 tall, 8 apart. */
+export const Signboards: Story = {
+  args: { signboards: [board('BAYAN', 'SIMBAHAN'), board('SM', 'FAIRVIEW')] },
+  play: async ({ canvasElement }) => {
+    const boards = within(canvasElement).getAllByTestId('trip-signboard')
+    await expect(boards).toHaveLength(2)
+    await waitFor(() => expect(boards[0].getBoundingClientRect().height).toBe(40))
+    await expect(within(canvasElement).getByRole('heading', { name: 'Signboard' })).toBeVisible()
+  },
+}
+
+/** None uploaded: no heading, no row. */
+export const NoSignboards: Story = {
+  args: { signboards: [] },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).queryByTestId('trip-signboards')).toBeNull()
+  },
+}
+
+/** Five boards, one far wider than the rest: the row wraps on a phone, and no board runs past the card. */
+export const ManySignboards: Story = {
+  args: {
+    signboards: [
+      board('BAYAN', 'SIMBAHAN'),
+      board('SM', 'FAIRVIEW'),
+      board('TALA', 'ZABARTE'),
+      board('LAGRO', 'NOVA'),
+      'data:image/svg+xml,' +
+        encodeURIComponent(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="40" viewBox="0 0 600 40"><rect width="600" height="40" fill="#111"/><text x="300" y="28" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="20" fill="#7CFC00">QUIRINO HIGHWAY · REGALADO · COMMONWEALTH</text></svg>',
+        ),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const row = within(canvasElement).getByTestId('trip-signboards')
+    const boards = within(canvasElement).getAllByTestId('trip-signboard')
+    await waitFor(() => expect(boards.at(-1)!.getBoundingClientRect().right).toBeLessThanOrEqual(row.getBoundingClientRect().right))
+    await expect(new Set(boards.map((b) => Math.round(b.getBoundingClientRect().top))).size).toBeGreaterThan(1)
+  },
+}
+
+/** Signboard over Other routes, as the frame stacks them (3778:3183). */
+export const SignboardsAndOtherRoutes: Story = {
+  args: {
+    signboards: [board('BAYAN', 'SIMBAHAN'), board('SM', 'FAIRVIEW')],
+    otherRoutes: [
+      { id: 'tala-sm', to: 'SM Fairview' },
+      { id: 'tala-nova', to: 'Novaliches' },
+    ],
+    onOtherRoute: fn(),
+  },
+  play: async ({ canvasElement }) => {
+    const boards = within(canvasElement).getByTestId('trip-signboards')
+    const others = within(canvasElement).getByTestId('trip-other-routes')
+    await expect(boards.compareDocumentPosition(others) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  },
+}

@@ -25,7 +25,9 @@
 // words (15);
 // undo to no points leaving no draft (12); a link sync that fails and a retry
 // that updates rather than inserts (13); the drawing keys alive after signing
-// in from Done (9); no React warnings (the duplicate key).
+// in from Done (9); no React warnings (the duplicate key). And the camera
+// with the cards, the public map's in the studio too (the owner, 2026-09-30):
+// a trip opened on its whole route, beside the card.
 import { chromium } from 'playwright'
 import { readPublished } from './lib/big-map.mjs'
 import { BASE, bareStyle, harness } from './lib/harness.mjs'
@@ -59,7 +61,7 @@ const tables = {
     control_points: v.shape ? [v.shape.coordinates[0], v.shape.coordinates.at(-1)] : [],
     segments: v.shape ? [{ snap: 'snapped', coordinates: v.shape.coordinates, streets: [] }] : [],
     reversed: v.reversed, confidence: v.confidence ?? 'drawn', borrowed_from: null, borrowed_part: null, borrowed_m: null,
-    created_at: now, updated_at: now,
+    signboards: [], created_at: now, updated_at: now,
   })),
   stop: m.stops.map((s) => ({ ...s, owner_id: OWNER, created_at: now })),
   route_stop: m.links.map((l) => ({ route_variant_id: l.route_variant_id, stop_id: l.stop_id, stop_sequence: l.stop_sequence })),
@@ -160,7 +162,7 @@ let seq = 0
 const newId = () => `00000000-0000-4000-8000-${String(++seq).padStart(12, '0')}`
 const fill = (table, r) =>
   table === 'route' ? { id: newId(), owner_id: OWNER, signboard: null, route_code: null, short_name: null, long_name: null, mode: 'jeepney', fare_note: null, fare_as_of: null, via: null, created_at: now, updated_at: now, ...r }
-  : table === 'route_variant' ? { id: newId(), owner_id: OWNER, direction_name: null, origin_terminal: null, destination_terminal: null, confidence: 'drawn', overview: null, borrowed_from: null, borrowed_part: null, borrowed_m: null, created_at: now, updated_at: now, ...r }
+  : table === 'route_variant' ? { id: newId(), owner_id: OWNER, direction_name: null, origin_terminal: null, destination_terminal: null, confidence: 'drawn', overview: null, borrowed_from: null, borrowed_part: null, borrowed_m: null, signboards: [], created_at: now, updated_at: now, ...r }
   : table === 'stop' ? { id: newId(), owner_id: OWNER, informal: null, aliases: [], note: null, created_at: now, ...r }
   : { ...r }
 
@@ -228,6 +230,26 @@ const serve = async (req) => {
   return answer(made)
 }
 
+// The signboards bucket (0010), as Storage answers: an upload (the file in a
+// form), the public read, and a delete by names.
+const bucket = new Map()
+const storage = async (r) => {
+  const req = r.request()
+  const u = new URL(req.url())
+  const name = decodeURIComponent(u.pathname.split('/').pop())
+  log.push({ method: req.method(), table: 'storage', url: req.url(), query: u.pathname, body: null })
+  if (req.method() === 'GET' && u.pathname.includes('/object/public/signboards/')) {
+    return bucket.has(name) ? r.fulfill({ status: 200, contentType: 'image/svg+xml', body: bucket.get(name) }) : r.fulfill({ status: 400, body: '{"error":"not_found"}' })
+  }
+  if (req.method() === 'DELETE') {
+    for (const n of JSON.parse(req.postData() ?? '{}').prefixes ?? []) bucket.delete(n)
+    return r.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+  }
+  const svg = (req.postDataBuffer()?.toString('utf8') ?? '').match(/<svg[\s\S]*<\/svg>/)?.[0] ?? ''
+  bucket.set(name, svg)
+  return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ Key: `signboards/${name}`, Id: name }) })
+}
+
 // ------------------------------------------------------------ the session
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url')
 const exp = Math.floor(Date.now() / 1000) + 6 * 3600
@@ -252,6 +274,7 @@ async function open(signedIn, path) {
     if (out.range) headers['content-range'] = out.range
     await r.fulfill({ status: out.status, contentType: 'application/json', headers, body: out.body === null ? '' : JSON.stringify(out.body) })
   })
+  await page.route(/\/storage\/v1\/object\//, storage)
   await page.route(/\/auth\/v1\/user/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) }))
   await page.route(/\/auth\/v1\//, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...session, user }) }))
   await page.route(/router\.project-osrm\.org|routing\.openstreetmap\.de/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 'NoRoute', routes: [] }) }))
@@ -277,7 +300,16 @@ const said = (ws) => ws.map((w) => `${w.method} ${w.table}${w.query.slice(0, 70)
 /** Put the map on a place, at a zoom, and give back where a [lng, lat] lands on the page. */
 const go = async (c, zoom) => { await page.evaluate(([c, z]) => window.__map.jumpTo({ center: c, zoom: z }), [c, zoom]); await page.waitForTimeout(400) }
 const box = await page.locator('canvas.maplibregl-canvas').boundingBox()
-const px = async (ll) => { const p = await page.evaluate((ll) => { const q = window.__map.project(ll); return [q.x, q.y] }, ll); return [box.x + p[0], box.y + p[1]] }
+/**
+ * Where a [lng, lat] lands on the page once the camera is at rest: it glides
+ * with the cards, as on the public map, since 2026-10-01 (the trip opening on
+ * its whole route), and a point read mid-glide is clicked where it no longer is.
+ */
+const px = async (ll) => {
+  await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+  const p = await page.evaluate((ll) => { const q = window.__map.project(ll); return [q.x, q.y] }, ll)
+  return [box.x + p[0], box.y + p[1]]
+}
 const clickAt = async (ll, wait = 250) => { const [x, y] = await px(ll); await page.mouse.click(x, y); await page.waitForTimeout(wait) }
 const idle = () => page.waitForFunction(() => !document.body.innerText.includes('snapping…'), null, { timeout: 15000 }).catch(() => {})
 const pointsShown = async () => Number((await body()).match(/(\d+) points?\b/)?.[1] ?? 0)
@@ -389,10 +421,38 @@ async function openCard(ll) {
 }
 await openCard(OUT[1])
 check('a tap on the line opens its card, with Edit route', (await page.getByRole('button', { name: 'Edit route' }).count()) === 1)
+// The camera with the cards, as on the public map (the owner, 2026-09-30:
+// "most of the interaction of public map should be in studio"): the trip
+// opens on its whole route, every corner of it on the map beside the card
+// floating in the corner, in the middle of the room the card leaves. Tapped,
+// the route sat in the middle of the whole map: a camera that stays put fails.
+await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+const framed = await page.evaluate((line) => {
+  const m = window.__map
+  const c = m.getCanvas().getBoundingClientRect()
+  const card = document.querySelector('[data-testid="card"]').getBoundingClientRect()
+  const pts = line.map((p) => m.project(p)).map((q) => ({ x: c.left + q.x, y: c.top + q.y }))
+  const box = {
+    left: Math.min(...pts.map((q) => q.x)),
+    right: Math.max(...pts.map((q) => q.x)),
+    top: Math.min(...pts.map((q) => q.y)),
+    bottom: Math.max(...pts.map((q) => q.y)),
+  }
+  const onMap = box.left >= c.left - 2 && box.right <= c.right + 2 && box.top >= c.top - 2 && box.bottom <= c.bottom + 2
+  const besideCard = box.left >= card.right - 2
+  const centred = Math.abs((box.left + box.right) / 2 - (card.right + c.right) / 2) <= 20
+  return { onMap, besideCard, centred, box: Object.fromEntries(Object.entries(box).map(([k, x]) => [k, Math.round(x)])), cardRight: Math.round(card.right), zoom: +m.getZoom().toFixed(2) }
+}, OUT)
+check('  the camera takes in the whole route, beside the card in the corner', framed.onMap && framed.besideCard && framed.centred, JSON.stringify(framed))
 await page.getByRole('button', { name: 'Edit route' }).click()
 await waitFor(async () => (await pointsShown()) === OUT.length)
 check('  Edit route loads its points', (await pointsShown()) === OUT.length, `${await pointsShown()} points`)
+// Back where the suite measured its ground: the trip's overview left the
+// camera beside a card that is gone now.
+await go(at(0, 0), 15)
 await clickAt(at(0.0055, 0.0005), 300)
+await waitFor(async () => (await pointsShown()) === OUT.length + 1)
+check('  a click past its tail adds a point', (await pointsShown()) === OUT.length + 1, `${await pointsShown()} points`)
 await done()
 check('  the panel says it updates this direction', (await body()).includes('Update this direction'))
 n = log.length
@@ -405,6 +465,42 @@ check('  no row added or lost', tables.route_variant.length === rowsBefore)
 await page.waitForTimeout(1200)
 check('  and no return trip is offered for a route drawn both ways (2)', (await toast().count()) === 1 && (await returnTrip().count()) === 0)
 await dismissToasts()
+
+// ---- 5b. Signboards, per direction (0010, the owner's ask of 2026-10-01)
+const outRow = () => tables.route_variant.find((v) => v.id === outV?.id)
+const items = () => page.getByTestId('signboard-item')
+const upload = (name, text) => page.getByTestId('signboard-file').setInputFiles({ name, mimeType: 'image/svg+xml', buffer: Buffer.from(text) })
+await openCard(OUT[1])
+const editor = page.getByTestId('signboard-editor')
+check('the trip card has a Signboard for the direction on show, Papunta', (await editor.count()) === 1 && /Signboard · Papunta/.test(await editor.innerText()) && (await items().count()) === 0)
+n = log.length
+await upload('evil.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 98 40" onload="alert(1)"><script>alert(2)</script><rect width="98" height="40" fill="#111"/><a href="https://example.com"><text>X</text></a></svg>')
+await waitFor(async () => (await items().count()) === 1)
+const firstBoard = outRow()?.signboards?.[0]
+const stored = bucket.get(firstBoard) ?? ''
+check('  an upload lands in the bucket cleaned: no script, no handler, no link out', /^[0-9a-f-]{36}\.svg$/.test(firstBoard ?? '') && stored.includes('<rect width="98" height="40" fill="#111"/>') && !/script|onload|alert|example\.com/.test(stored), stored.slice(0, 160))
+check('  and is listed on the direction, file first and then the row', (await items().count()) === 1 && since(n).findIndex((x) => x.table === 'storage') < since(n).findIndex((x) => x.method === 'PATCH' && x.table === 'route_variant'), said(since(n)))
+await waitFor(async () => (await page.getByTestId('trip-signboard').count()) === 1)
+check('  the card above shows it as visitors will', (await page.getByTestId('trip-signboard').count()) === 1 && /\/storage\/v1\/object\/public\/signboards\//.test((await page.getByTestId('trip-signboard').getAttribute('src')) ?? ''))
+await upload('second.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 98 40"><rect width="98" height="40" fill="#222"/></svg>')
+await waitFor(async () => (await items().count()) === 2)
+const second = outRow()?.signboards?.[1]
+await page.getByRole('button', { name: 'Move signboard 2 earlier' }).click()
+await waitFor(async () => outRow()?.signboards?.[0] === second)
+check('  a second goes last, and ‹ moves it first', outRow()?.signboards?.join() === [second, firstBoard].join(), JSON.stringify(outRow()?.signboards))
+n = log.length
+await upload('note.svg', 'just words, not a drawing')
+await waitFor(async () => (await page.getByRole('alert').filter({ hasText: 'note.svg' }).count()) === 1)
+// The list read again after the move above may land after the refusal: it
+// must leave the words where they are (a GitHub runner, 2026-10-01).
+await page.waitForTimeout(800)
+check('  a file that is not an SVG is refused in words, and nothing is sent', (await page.getByRole('alert').filter({ hasText: 'note.svg' }).count()) === 1 && writesSince(n).length === 0 && !since(n).some((x) => x.table === 'storage'), said(since(n)))
+await page.getByRole('button', { name: 'Remove signboard 1' }).click()
+await waitFor(async () => (await items().count()) === 1)
+check('  ✕ takes it off the direction and out of the bucket', outRow()?.signboards?.join() === firstBoard && !bucket.has(second), JSON.stringify(outRow()?.signboards))
+await page.getByRole('button', { name: 'Remove signboard 1' }).click()
+await waitFor(async () => (await items().count()) === 0 && (await page.getByTestId('trip-signboards').count()) === 0)
+check('  and the last one leaves none', outRow()?.signboards?.length === 0 && bucket.size === 0 && (await page.getByTestId('trip-signboards').count()) === 0, `${JSON.stringify(outRow()?.signboards)}; ${bucket.size} in the bucket; ${await page.getByTestId('trip-signboards').count()} row(s) on the card`)
 
 // ---- 6. Delete a direction, then draw it again
 await openCard(OUT[1])

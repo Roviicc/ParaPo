@@ -109,6 +109,12 @@ export type VariantSummary = {
    * Absent from the studio's rows and from map.json's, whose lines are whole.
    */
   metres?: number | null
+  /**
+   * Its signboards as pictures, in order (0010, the owner's ask of
+   * 2026-10-01): file names — in the studio's bucket for the editor, beside
+   * the map (/data/signboards/) for the public. Absent when it has none.
+   */
+  signboards?: readonly string[]
 }
 
 /**

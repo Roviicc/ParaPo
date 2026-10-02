@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { HintuanCard } from '../shared/cards/HintuanCard'
 import { placeKey } from '../shared/model/places'
@@ -6,9 +6,8 @@ import { MAP_FILE_TOO_NEW, loadLine, loadStopsFromFile, loadVariantsFromFile } f
 import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
 import { METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
 import { RouteCardList } from '../shared/cards/RouteCardList'
-import { clearOfSheet } from '../shared/cards/BottomSheet'
 import { useCardStack } from '../shared/cards/useCardStack'
-import { useRideTo } from '../shared/map/rideTo'
+import { useCardCamera } from '../shared/cards/useCardCamera'
 import { routeTimeline } from '../shared/model/ride'
 import { useLitRides } from '../shared/map/useLitRides'
 import { useSavedRoutes } from '../shared/map/useSavedRoutes'
@@ -19,11 +18,11 @@ import { Notices } from './Notices'
 import { TripCard } from '../shared/cards/TripCard'
 import { useMapAge, useOffline } from './status'
 import { useShareLink } from './useShareLink'
-import { useCardOverview, useHeightOverview, useSwitchOverview, useTripOverview, type Framed } from './useOverviews'
 import { Locator } from './Locator'
 import { LocatorOnMap } from './LocatorIndicatorOverlay'
 import { useLocator } from './useLocator'
 import { useLocatorMood } from './locatorMood'
+import { nearestOnLines, useGazeHush, type Subject } from './dotGaze'
 import type { LngLat } from '../shared/geo/geo'
 import { variantLine } from '../shared/model/routes'
 
@@ -50,37 +49,12 @@ export default function CommuterApp() {
   // The route list, a hotspot's card and the trip opened from either: which
   // is up, what stands behind what, their height and colours (useCardStack).
   const cards = useCardStack(map, saved, stops)
-  // A hintuan picked on the trip card (the owner's Timeline State=Selected,
-  // 2026-09-29): the camera gliding there clear of the card, and a circle
-  // popping up on it — the route left whole, no get-off circles (the
-  // owner's ask of 2026-09-30: "now I don't want to cut the route"). The
-  // card stays at its height (clearOfSheet).
-  const tripDock = useRef<HTMLDivElement>(null)
-  // The HintuanCard's, for a picked box to land clear of it.
-  const hotspotDock = useRef<HTMLDivElement>(null)
-  const ride = useRideTo(map, saved.selected, stops.stops, { onGlide: cards.clearOf(tripDock) })
-  useTripOverview(map, saved.selected, tripDock, cards.snap)
-  // The page, and the card's sheet on show in it, for what the camera keeps clear of.
-  const root = useRef<HTMLDivElement>(null)
-  const openSheet = () => root.current?.querySelector<HTMLElement>('[data-floats]:not([hidden])') ?? null
-  // A RouteCard picked, in the list or a hotspot's card: its routes whole.
-  useCardOverview(map, saved.highlight, saved.variants, openSheet, cards.snap)
-  // SWITCH, on any card: the routes the other way round, whole.
-  const [switches, setSwitches] = useState(0)
-  const switched = () => setSwitches((n) => n + 1)
-  useSwitchOverview(map, saved.litVariants, switches, openSheet, cards.snap)
-  // The sheet settled at another height: what the card on show frames, again,
-  // in the map it leaves — a trip's route, a picked card's routes or what the
-  // list lights, a hotspot's place.
-  const framed = (): Framed => {
-    const ids = saved.highlight && new Set(saved.highlight.ids)
-    const picked = ids && { lines: saved.variants.filter((v) => ids.has(v.id)).map(variantLine) }
-    if (saved.selected) return { lines: [variantLine(saved.selected)] }
-    if (stops.selected) return picked ?? { at: stops.selected.point.coordinates as LngLat }
-    if (cards.choosing) return picked ?? { lines: saved.litVariants.map(variantLine) }
-    return null
-  }
-  useHeightOverview(map, cards.snap, framed, openSheet)
+  // The camera with the cards: a hintuan picked on the trip, gliding there;
+  // a trip, a picked RouteCard and SWITCH taken in whole, again as the sheet
+  // settles; the camera from before a hotspot's card was picked, back as it
+  // is let go (useCardCamera).
+  const { root, tripDock, hotspotDock, ride, clearOfOpen, switchTrip, flipList, otherRoute, pickOnPlaceCard, openPlace, openRide } =
+    useCardCamera(map, saved, stops, cards)
 
   useShareLink(map, saved)
   // The visitor's own position, when they ask for it, and the camera with
@@ -89,25 +63,30 @@ export default function CommuterApp() {
   const locator = useLocator(map, {
     compass: coarse,
     snap: cards.snap,
-    offset: () =>
-      map ? clearOfSheet(map.getContainer(), openSheet(), cards.snap) : [0, 0],
+    offset: clearOfOpen,
   })
   // How the dot feels: glad as the location comes, a boing at a tap on the
   // button or on the dot, now and then a huff (locatorMood).
   const { mood, face, beat, poke } = useLocatorMood(locator)
+  // …and its gaze: at what was just picked, for three seconds (dotGaze.ts) —
+  // a hintuan on the trip card, a place, a trip, a card, or the routes a tap
+  // on the map lists. Keyed by route, not direction, so SWITCH is no pick;
+  // ‹ and ✕ are hushed, so going back picks nothing.
+  const { hush, hushedAt } = useGazeHush()
+  const nearestLit = (lines: LngLat[][]) => (locator.fix ? nearestOnLines(locator.fix.at, lines) : null)
+  const routesOf = (vs: readonly { route_id: string }[]) => [...new Set(vs.map((v) => v.route_id))].sort().join() || null
+  const gazeAt: Subject[] = [
+    { key: ride.pickedId, at: () => ride.pinAt },
+    { key: stops.selected && placeKey(stops.selected), at: () => (stops.selected?.point.coordinates as LngLat | undefined) ?? null },
+    { key: saved.selected?.route_id ?? null, at: () => nearestLit(saved.selected ? [variantLine(saved.selected)] : []) },
+    { key: saved.highlight && `${saved.highlight.where}:${saved.highlight.from}`, at: () => nearestLit(saved.litVariants.map(variantLine)) },
+    { key: routesOf(saved.candidates), at: () => nearestLit(saved.litVariants.map(variantLine)) },
+  ]
   const offline = useOffline()
   const age = useMapAge(saved.variants)
   const needRefresh = useNeedRefresh()
 
-  // A place's name on the map: its card opens at the height the trip's is
-  // at, or a hotspot card's.
-  const openPlace = (stopId: string) => cards.openPlace(stopId, tripDock.current ? tripDock : hotspotDock)
-  // A tail's name with no trip open: its ride's trip, in the colour of the card picked, if one is.
-  const openRide = (id: string) => {
-    const v = saved.variants.find((x) => x.id === id)
-    if (v) cards.openTrip(v, saved.highlight?.livery)
-  }
-  const { tripLivery, look, height } = cards
+  const { tripLivery, look, inCardColour, height } = cards
 
   return (
     // `data-directions`: how many the map file brought, for the suites on a
@@ -123,13 +102,14 @@ export default function CommuterApp() {
       */}
       <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} />
       {map && <Locator locator={locator} docked={cards.open} />}
-      {map && locator.fix && <LocatorOnMap map={map} fix={locator.fix} heading={locator.heading} mood={mood} face={face} beat={beat} onPoke={poke} />}
+      {map && locator.fix && <LocatorOnMap map={map} fix={locator.fix} heading={locator.heading} mood={mood} face={face} beat={beat} gazeAt={gazeAt} hushedAt={hushedAt} onPoke={poke} />}
       {/* Each lit ride's ends, named over their circles; with no trip open, a tail opens its ride's. */}
       {map && (
         <EndTitles
           map={map}
           rides={rides}
           look={look}
+          badged={inCardColour}
           onPick={openPlace}
           onTrip={saved.selected ? undefined : openRide}
         />
@@ -176,11 +156,8 @@ export default function CommuterApp() {
           variants={saved.variants}
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
           livery={tripLivery}
-          onBackToList={cards.backFromTrip}
-          onSwitch={(v) => {
-            saved.select(v.id, { keepList: true })
-            switched()
-          }}
+          onBackToList={hush(cards.backFromTrip)}
+          onSwitch={switchTrip}
           onClose={cards.closeAll}
           picked={ride.pickedId}
           // The pesos to a picked hintuan are the full line's: none while
@@ -196,10 +173,7 @@ export default function CommuterApp() {
           // The sheet goes to Middle from wherever it is, so the map shows it
           // (the owner, 2026-10-01: from Max at first, then "not only max");
           // the hintuans stay open or folded.
-          onOtherRoute={(v) => {
-            if (height.snap !== 'middle') height.onSnap('middle')
-            saved.select(v.id, { keepList: true })
-          }}
+          onOtherRoute={otherRoute}
         />
       )}
 
@@ -218,9 +192,10 @@ export default function CommuterApp() {
           key={placeKey(stops.selected)}
           routeCards={{
             selected: saved.highlight?.where === 'hotspot' ? saved.highlight.from : null,
-            onSelect: (p) => saved.highlightCard(p && { where: 'hotspot', ...p }),
+            onSelect: pickOnPlaceCard,
             onShown: saved.showCard,
-            onSwitch: switched,
+            // The other way round, the camera kept where it is (HintuanCard's onSwitch).
+            onSwitch: (box) => box && stops.select(box),
           }}
           hidden={!!saved.selected}
           height={height}
@@ -243,8 +218,8 @@ export default function CommuterApp() {
             saved.highlightCard(null)
             stops.show(id, cards.clearOf(hotspotDock))
           }}
-          onBack={cards.backToTrip}
-          onClose={cards.closeStop}
+          onBack={hush(cards.backToTrip)}
+          onClose={hush(cards.closeStop)}
         />
       )}
 
@@ -262,10 +237,7 @@ export default function CommuterApp() {
           routes={saved.candidates}
           stops={stops.candidates}
           back={saved.back}
-          onFlip={() => {
-            saved.flip()
-            switched()
-          }}
+          onFlip={flipList}
           selected={saved.highlight?.where === 'list' ? saved.highlight.from : null}
           onSelect={(p) => saved.highlightCard(p && { where: 'list', ...p })}
           onRoute={cards.openTrip}

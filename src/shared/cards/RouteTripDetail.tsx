@@ -45,6 +45,12 @@ type Props = Omit<TripTimelineProps, "pickedPesos"> & {
   otherRoutes?: readonly { id: string; to: string }[];
   /** A row tapped: that route's trip in this one's place. */
   onOtherRoute?: (id: string) => void;
+  /**
+   * Figma's "Signboard" (3919:11355, 2026-10-01): the boards this direction's
+   * jeeps show, as pictures, in their order — addresses of SVG files the
+   * studio uploaded. Empty or omitted, none is shown.
+   */
+  signboards?: readonly string[];
   /** Under the tiles: what only the studio shows — its facts and its Edit, Extend and Delete. */
   children?: ReactNode;
 };
@@ -78,6 +84,10 @@ type Props = Omit<TripTimelineProps, "pickedPesos"> & {
  * With none, there is no heading either.
  *
  * The card and its rail are TripTimeline's.
+ *
+ * Under the tiles, the direction's signboards as pictures (the owner's
+ * Signboard, 3919:11355, 2026-10-01), uploaded in the studio, then "Other
+ * routes".
  */
 export function RouteTripDetail({
   livery,
@@ -103,6 +113,7 @@ export function RouteTripDetail({
   height,
   otherRoutes = [],
   onOtherRoute,
+  signboards = [],
   children,
 }: Props) {
   const [own, setOwn] = useState(false);
@@ -114,6 +125,7 @@ export function RouteTripDetail({
   // the same day).
   const [turns, setTurns] = useState(0);
   const othersHeading = useId();
+  const boardsHeading = useId();
   const shown = picked && pickedFare ? pickedFare : fare;
   const shownMetres = picked && pickedMetres !== undefined ? pickedMetres : metres;
   return (
@@ -187,6 +199,28 @@ export function RouteTripDetail({
           </button>
         )}
       </div>
+      {signboards.length > 0 && (
+        // Each board 40 tall at its own width, 8 apart, wrapping on a narrow
+        // phone (3919:11447). Pictures, so nothing in a file can run.
+        <section data-testid="trip-signboards" aria-labelledby={boardsHeading} className="flex w-full flex-col gap-2 px-3 pt-2 pb-4 font-sn-pro">
+          <h3 id={boardsHeading} className="text-sm/5 font-medium text-content-tertiary">
+            Signboard
+          </h3>
+          <ul className="flex flex-wrap gap-2">
+            {signboards.map((src, i) => (
+              <li key={src}>
+                <img
+                  data-testid="trip-signboard"
+                  src={src}
+                  alt={signboards.length > 1 ? `Signboard ${i + 1} of ${signboards.length}` : "Signboard"}
+                  className="block h-10 w-auto max-w-full"
+                  decoding="async"
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {otherRoutes.length > 0 && (
         <section data-testid="trip-other-routes" aria-labelledby={othersHeading} className="flex w-full flex-col gap-2 px-3 pt-2 pb-4 font-sn-pro">
           <h3 id={othersHeading} className="text-sm/5 font-medium text-content-tertiary">

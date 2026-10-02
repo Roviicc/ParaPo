@@ -329,6 +329,10 @@ for (const [i, p] of snapshot.polys.entries()) {
     // The pesos left the cards with the owner's State set (2026-09-29): the
     // trip's Expected fare carries them.
     check(`  and no pesos on any card`, places.every((t) => !t.includes('₱')), places.join(' | '))
+    // The counter counts the head routes, a card each, not their tails (the
+    // owner, 2026-10-01: "we're counting the head route only not tails").
+    const counted = await page.locator('[data-testid="card"] [data-testid="card-count"]').innerText()
+    check(`  the counter counts the cards, not their rows`, Number(counted.match(/\d+/)?.[0]) === places.length, `${counted}; ${places.length} cards`)
     // ⇄ only where both ways pass: a box passed one way only has nothing to flip to.
     const flip = page.locator('[data-testid="card-flip"]')
     check(`  and ⇄ offers the way back, or the box is passed one way only`, (await flip.count()) <= 1)
@@ -369,21 +373,53 @@ for (const [i, p] of snapshot.polys.entries()) {
       check(`  ‹ on the trip goes back to the hotspot's card, lit again`, again.kind === 'hotspot' && again.text === opened && (await stopsLit()).includes(p.id), `card ${again.kind}; lit ${JSON.stringify(await stopsLit())}`)
       const relit = await litNow()
       check(`  ‹ comes back to its cards at rest, every route lit again`, (await page.locator('[data-testid="card"] [data-testid="card-origin"][data-state="selected"]').count()) === 0 && sameIds(relit, shownIds), `${relit.length} lit of ${shownIds.length}`)
-      // Picked, a second tap lets it go.
+      // Picked, a second tap lets it go — and the camera, after the pick's
+      // overview, goes back to where the visitor had it (the owner, 2026-10-01).
+      const view = () => page.evaluate(() => {
+        const m = window.__map
+        const c = m.getCenter()
+        return { lng: c.lng, lat: c.lat, zoom: m.getZoom() }
+      })
+      const camBefore = await view()
       await name.click()
       await page.waitForTimeout(250)
       const repicked = (await firstCard.getAttribute('data-state')) === 'selected'
+      await page.waitForTimeout(700)
       await name.click()
       await page.waitForTimeout(250)
       const letGo = await litNow()
       check(`  a second tap on a picked card lets it go: every route lit again`, repicked && (await firstCard.getAttribute('data-state')) === 'rest' && sameIds(letGo, shownIds), `picked ${repicked}; ${letGo.length} lit`)
+      await page.waitForTimeout(800)
+      const camAfter = await view()
+      check(`  and the camera goes back to where it was before the pick`, Math.abs(camAfter.zoom - camBefore.zoom) < 0.01 && Math.abs(camAfter.lng - camBefore.lng) < 1e-6 && Math.abs(camAfter.lat - camBefore.lat) < 1e-6, JSON.stringify({ camBefore, camAfter }))
+      // ⇄ turns the routes round and leaves the camera where the visitor tapped
+      // the hintuan: no zoom, no glide, even onto another box of the place (the
+      // owner, 2026-10-01). Pressed twice, so the card is the way round it was;
+      // last, as it may leave another box of the place the one Selected.
+      if ((await flip.count()) === 1 && (await flip.isEnabled())) {
+        const still = (a, b) => Math.abs(a.zoom - b.zoom) < 0.01 && Math.abs(a.lng - b.lng) < 1e-6 && Math.abs(a.lat - b.lat) < 1e-6
+        const before = await view()
+        await flip.click()
+        await page.waitForTimeout(900)
+        const turned = await view()
+        await flip.click()
+        await page.waitForTimeout(900)
+        const back = await view()
+        check(`  ⇄ turns the routes round with the camera kept still, there and back`, still(before, turned) && still(before, back), JSON.stringify({ before, turned, back }))
+      }
       // ✕ closes it, a picked card and all: nothing stays lit.
       await name.click()
       await page.waitForTimeout(250)
       const pickedAgain = (await firstCard.getAttribute('data-state')) === 'selected'
       await closeCard()
-      await page.waitForTimeout(250)
-      const closed = await litNow()
+      // Nothing lit as soon as the map has drawn the close: a runner drawing a
+      // few frames a second may take more than a quarter second (2026-10-01).
+      const closeBy = Date.now() + 2000
+      let closed = await litNow()
+      while (closed.length && Date.now() < closeBy) {
+        await page.waitForTimeout(100)
+        closed = await litNow()
+      }
       check(`  ✕ closes it all: nothing lit`, pickedAgain && closed.length === 0, `picked ${pickedAgain}; ${closed.length} lit`)
     }
   } else {

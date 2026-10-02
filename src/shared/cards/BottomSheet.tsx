@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type Ref } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type Ref } from 'react'
 import { IconButton } from '../../design-system/primitives/IconButton'
 import { CloseIcon } from './RouteIcons'
 import { useDialogFocus } from './useDialogFocus'
@@ -90,6 +90,11 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
   // A finger on it: the glide is off, and --sheet-y is the drag's, written
   // straight onto the sheet move by move rather than rendered.
   const [dragging, setDragging] = useState(false)
+  // Where it first stands, drawn with it: a card opening over another (a
+  // place's name tapped) is new, and without this it showed at Max for a
+  // moment and glided down to its height. Never changed after, so React
+  // leaves the drag's and the glide's --sheet-y alone.
+  const [opensAt] = useState(() => ({ '--sheet-y': slide(snap) }) as CSSProperties)
   useDialogFocus(own, hidden)
   useEscape(onClose, !hidden)
 
@@ -279,6 +284,7 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
       data-snap={snapName(snap)}
       data-floats={floats}
       hidden={hidden}
+      style={opensAt}
       onPointerDown={onPointerDown}
       className={
         // Docked, it casts BottomSheet/TopShadow (3817:6007) up onto the map;
@@ -388,6 +394,12 @@ const framedAt = (snap: Snap): Snap => (aboveMiddle(snap) ? 'middle' : snap)
 
 /** Between a route fitted whole and the map's edges, or the sheet's. */
 const FIT_MARGIN_PX = 48
+/**
+ * Over the top margin, an end's Start or End badge and its gap: the names
+ * stand over their circles (EndTitles), and a route starting at the top of
+ * the room kept its name in the margin but put the badge under the map's edge.
+ */
+const FIT_BADGE_PX = 28
 /** The least map a whole route is fitted into, the margins given up for it where the sheet leaves less. */
 const FIT_ROOM_MIN_PX = 48
 
@@ -404,7 +416,7 @@ export function roomBeside(
   dock: HTMLElement | null,
   snap: Snap,
 ): { top: number; bottom: number; left: number; right: number } {
-  const room = { top: FIT_MARGIN_PX, bottom: FIT_MARGIN_PX, left: FIT_MARGIN_PX, right: FIT_MARGIN_PX }
+  const room = { top: FIT_MARGIN_PX + FIT_BADGE_PX, bottom: FIT_MARGIN_PX, left: FIT_MARGIN_PX, right: FIT_MARGIN_PX }
   if (!dock || dock.hidden) return room
   const m = map.getBoundingClientRect()
   const d = dock.getBoundingClientRect()
@@ -416,7 +428,7 @@ export function roomBeside(
   if (m.height - shows < FIT_ROOM_MIN_PX) shows = showsAt(dock, framedAt(snap))
   // A thin strip above a tall sheet: the margins give way, so the route still fits.
   const margin = Math.max(0, Math.min(FIT_MARGIN_PX, (m.height - shows - FIT_ROOM_MIN_PX) / 2))
-  room.top = margin
+  room.top = margin + Math.max(0, Math.min(FIT_BADGE_PX, m.height - shows - FIT_ROOM_MIN_PX - 2 * margin))
   room.bottom = shows + margin
   return room
 }

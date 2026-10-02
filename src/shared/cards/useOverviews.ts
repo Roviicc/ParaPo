@@ -1,12 +1,12 @@
 import { useEffect, useRef, type RefObject } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
-import { clearOfSheet, roomBeside } from '../shared/cards/BottomSheet'
-import { shownAt, type Snap } from '../shared/cards/sheetGesture'
-import { bboxOf, type LngLat } from '../shared/geo/geo'
-import { APP_MOVE } from '../shared/map/MapView'
-import type { Highlight } from '../shared/map/useSavedRoutes'
-import { variantLine, type VariantSummary } from '../shared/model/routes'
-import { zoomForScale } from './useLocator'
+import { clearOfSheet, roomBeside } from './BottomSheet'
+import type { Framed } from './cardStack'
+import { shownAt, type Snap } from './sheetGesture'
+import { bboxOf, zoomForScale, type LngLat } from '../geo/geo'
+import { APP_MOVE } from '../map/MapView'
+import type { Highlight } from '../map/useSavedRoutes'
+import { variantLine, type VariantSummary } from '../model/routes'
 
 /*
  * The camera taking in routes whole — a trip opened, a RouteCard picked,
@@ -120,9 +120,6 @@ export function useSwitchOverview(
   }, [map, switches])
 }
 
-/** What a card frames: routes whole, or a place kept in view. */
-export type Framed = { lines: readonly (readonly LngLat[])[] } | { at: LngLat } | null
-
 /**
  * The sheet settled at another height — Low, Middle, Max, or where a drag
  * left it: the camera takes in again what the card on show frames, in what
@@ -157,4 +154,30 @@ export function useHeightOverview(
     if ('lines' in framed) overview(map, framed.lines, sheet, snap, up ? RAISED_FARTHEST_M : undefined)
     else map.easeTo({ center: framed.at, offset: clearOfSheet(map.getContainer(), sheet, snap), duration: 700 }, APP_MOVE)
   }, [map, snap])
+}
+
+type Camera = { center: LngLat; zoom: number; bearing: number; pitch: number }
+
+/**
+ * A hotspot's RouteCard picked and let go: the camera goes back to where the
+ * visitor had it before the pick's overview (the owner, 2026-10-01:
+ * "deselecting head route … should go back to original camera of the user,
+ * after the overview"). `keep` as a card is picked with none picked yet — so
+ * moving between cards keeps the camera from before them all — and `back`
+ * as it is let go.
+ */
+export function useCameraBefore(map: MapLibreMap | null) {
+  const kept = useRef<Camera | null>(null)
+  return {
+    keep: () => {
+      if (!map) return
+      const c = map.getCenter()
+      kept.current = { center: [c.lng, c.lat], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() }
+    },
+    back: () => {
+      const was = kept.current
+      kept.current = null
+      if (map && was) map.easeTo({ ...was, duration: 700 }, APP_MOVE)
+    },
+  }
 }
