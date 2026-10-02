@@ -4,7 +4,8 @@ import { variantLine, type VariantRow } from '../../shared/model/routes'
 import { PASS_WITHIN_M } from '../../shared/geo/pass'
 import { parseAliases, stopLabel, type StopRow } from '../../shared/model/stops'
 import { linesOf } from '../data/live'
-import { linksThrough, saveStop, variantsStartingIn } from '../data/stopsWrite'
+import { saveStop } from '../data/stopsWrite'
+import { linksThrough, variantsStartingIn } from '../data/stopsGeometry'
 import type { Drawing } from '../drawing/useDrawing'
 import { coarse } from '../../shared/map/MapView'
 import { FIELD_TEXT, FOOTER, OVERLAY, PANEL } from './sheet'
@@ -106,7 +107,8 @@ export function HotspotPanel({
   }, [ring, variants])
   const lines = lined ?? variants
 
-  const through = useMemo(() => linksThrough(ring, lines), [ring, lines])
+  const station = existing?.line ?? null
+  const through = useMemo(() => linksThrough(ring, lines, station), [ring, lines, station])
   const throughIds = useMemo(() => new Set(through.map((l) => l.variantId)), [through])
 
   // A terminal's checklist is pre-ticked from the full lines, once they are
