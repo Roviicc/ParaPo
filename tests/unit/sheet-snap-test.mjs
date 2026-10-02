@@ -60,15 +60,15 @@ test('a flick down goes all the way to Low, from Max or Middle alike, and from L
   assert.equal(snapFor(70, -3, heights), 'close')
 })
 
-test('each height of a map 844 tall: Low 129, Middle 45%, Max all of it but a 64 px strip', () => {
-  assert.deepEqual(heightsFor(844), { low: LOW_PX, middle: 380, max: 780 })
+test('each height of a map 844 tall: Low 129, Middle 45%, Max all of it but a 24 px strip', () => {
+  assert.deepEqual(heightsFor(844), { low: LOW_PX, middle: 380, max: 820 })
 })
 
 // A finger taking hold of a sheet at Middle (464 of 844) at y 400.
 test('a drag follows the finger, never above Max or below nothing', () => {
   const f = follow(400, 0, 464, 844)
   assert.equal(f.move(300, 16), 564)
-  assert.equal(f.move(-500, 32), 780)
+  assert.equal(f.move(-500, 32), 820)
   assert.equal(f.move(1400, 48), 0)
 })
 
@@ -87,7 +87,7 @@ test('lifted while moving fast it is a flick: to the end, down from Low it close
   const up = follow(400, 0, 464, 844)
   for (let i = 1; i <= 4; i++) up.move(400 - i * 50, i * 16)
   assert.equal(up.release(64 + 16), 'max')
-  const fromMax = follow(100, 0, 780, 844)
+  const fromMax = follow(100, 0, 820, 844)
   for (let i = 1; i <= 4; i++) fromMax.move(100 + i * 50, i * 16)
   assert.equal(fromMax.release(64 + 16), 'low')
   const down = follow(700, 0, LOW_PX, 844)

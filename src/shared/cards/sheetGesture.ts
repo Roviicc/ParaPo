@@ -97,14 +97,22 @@ const MIDDLE = 0.45
 export const LOW_PX = 129
 
 /**
- * What Max leaves of the map at the top: a strip of it stays in view, so the
- * visitor keeps their place (the owner's ask, 2026-10-02).
+ * What Max leaves of the map at the top, as Google Maps does: the status
+ * bar's height, where the page runs behind it, and this strip under it, so
+ * the visitor keeps their place (the owner's asks, 2026-10-02).
  */
-export const MAX_GAP_PX = 64
+export const MAX_STRIP_PX = 24
+const MAX_GAP_CSS = `calc(env(safe-area-inset-top) + ${MAX_STRIP_PX}px)`
+
+/** The status bar's height as the page reads it (BottomSheet measures it): 0 where the page stops under it. */
+let safeTop = 0
+export function setSafeTop(px: number) {
+  safeTop = Math.max(0, Math.round(px))
+}
 
 /** What each magnet shows of a sheet `h` tall, the map's height. */
 export function heightsFor(h: number): Record<SnapName & ('low' | 'middle' | 'max'), number> {
-  return { low: LOW_PX, middle: Math.round(h * MIDDLE), max: Math.max(0, h - MAX_GAP_PX) }
+  return { low: LOW_PX, middle: Math.round(h * MIDDLE), max: Math.max(0, h - safeTop - MAX_STRIP_PX) }
 }
 
 /** What a sheet `h` tall shows at `snap`, a free height's included: a share of Max's. */
@@ -114,17 +122,17 @@ export function shownAt(snap: Snap, h: number): number {
 
 /** How far down a sheet at `snap` slides, as a CSS length: `100%` is its own height, the map's. */
 export function slide(snap: Snap): string {
-  if (snap === 'max') return `${MAX_GAP_PX}px`
+  if (snap === 'max') return MAX_GAP_CSS
   // Below Max its bottom padding is off the screen: what shows stands clear
   // of a phone's home indicator by lifting it that much.
   if (snap === 'middle') return `calc(${(1 - MIDDLE) * 100}% - env(safe-area-inset-bottom))`
-  if (typeof snap === 'number') return `calc(100% - ${snap} * (100% - ${MAX_GAP_PX}px) - env(safe-area-inset-bottom))`
+  if (typeof snap === 'number') return `calc(100% - ${snap} * (100% - ${MAX_GAP_CSS}) - env(safe-area-inset-bottom))`
   return `calc(100% - ${LOW_PX}px - env(safe-area-inset-bottom))`
 }
 
 /** How far down a sheet slides while `shown` px of it follow a finger. Never above Max's top. */
 export function slideShowing(shown: number): string {
-  return `max(${MAX_GAP_PX}px, calc(100% - ${shown}px - env(safe-area-inset-bottom)))`
+  return `max(${MAX_GAP_CSS}, calc(100% - ${shown}px - env(safe-area-inset-bottom)))`
 }
 
 /**
