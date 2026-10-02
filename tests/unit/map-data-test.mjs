@@ -162,3 +162,43 @@ test('the committed map has no problem', () => {
   assert.deepEqual(r.problems, [])
   console.log(`  ${r.warnings.length} warning(s) on the committed map${r.warnings.length ? ':\n  ' + r.warnings.join('\n  ') : ''}`)
 })
+
+// The train lines (0011): the link rule asks servedBy, and the file must say
+// which line a train or a station is.
+
+const train = (line) => ({ ...route, mode: 'lrt', route_code: line })
+
+test('a train under a jeep hintuan is owed no link, and one it has is a warning', () => {
+  const m = good()
+  m.variants = [direction(road(0, 1000), { route: train('LRT-1') })]
+  m.links = []
+  assert.deepEqual(checkMapData(m).warnings, [])
+  m.links = [{ route_variant_id: 'd', stop_id: 'Mid', stop_sequence: 20 }]
+  const r = checkMapData(m)
+  assert.deepEqual(r.problems, [])
+  assert.equal(r.warnings.length, 1)
+  assert.match(r.warnings[0], /does not stop at/)
+})
+
+test('a jeep under a station is owed no link; the train over it is', () => {
+  const m = good()
+  m.stops.push(stop('Station', 'hintuan', 700, 0, { line: 'LRT-1' }))
+  assert.deepEqual(checkMapData(m).warnings, [])
+  m.variants.push({ ...direction(road(0, 1000)), id: 'rail', route: train('LRT-1') })
+  const r = checkMapData(m)
+  assert.equal(r.warnings.length, 1)
+  assert.match(r.warnings[0], /passes "Station" but is not linked/)
+})
+
+test('a train route with no line, or a station of no line, is a problem', () => {
+  const m = good()
+  m.variants = [direction(road(0, 1000), { route: train(null) })]
+  m.links = []
+  assert.match(checkMapData(m).problems.join('\n'), /is not a train line/)
+  const s = good()
+  s.stops.push(stop('Odd', 'hintuan', 700, 0, { line: 'LRT-9' }))
+  assert.match(checkMapData(s).problems.join('\n'), /"LRT-9", which is not a train line/)
+  const t = good()
+  t.stops[0] = { ...t.stops[0], line: 'LRT-1' }
+  assert.match(checkMapData(t).problems.join('\n'), /a station is a hintuan/)
+})

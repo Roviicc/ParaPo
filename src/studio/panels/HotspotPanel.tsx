@@ -104,7 +104,8 @@ export function HotspotPanel({
   }, [ring, variants])
   const lines = lined ?? variants
 
-  const through = useMemo(() => linksThrough(ring, lines), [ring, lines])
+  const station = existing?.line ?? null
+  const through = useMemo(() => linksThrough(ring, lines, station), [ring, lines, station])
   const throughIds = useMemo(() => new Set(through.map((l) => l.variantId)), [through])
 
   // A terminal's checklist is pre-ticked from the full lines, once they are

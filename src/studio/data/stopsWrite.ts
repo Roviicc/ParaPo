@@ -1,57 +1,15 @@
-import { entryDistance, firstTouchIndex, ringCentroid, ringToPolygon, type Ring } from '../../shared/geo/ring'
+import { firstTouchIndex, ringCentroid, ringToPolygon, type Ring } from '../../shared/geo/ring'
 import { roundLngLat } from '../../shared/geo/geo'
 import { variantLine, type VariantRow } from '../../shared/model/routes'
 import { hintuansAlong } from '../../shared/model/timeline'
 import { normaliseName, type PointGeoJSON, type StopKind, type StopLink, type StopRow } from '../../shared/model/stops'
-import { passIndex } from '../../shared/geo/pass'
+import { linksThrough } from './stopsGeometry'
 import { requireSupabase } from './supabase'
 import { readAll } from './readAll'
 
+export { linksThrough, variantsStartingIn } from './stopsGeometry'
+
 const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim())
-
-// ---------------------------------------------------------------- geometry
-//
-// Pure functions, so they can be unit-tested and so the save panel can show
-// exactly what a save will write before it writes it.
-
-/**
- * Which directions pass this outline, and where along each one. This is a
- * hintuan's whole route list, by the one rule in `passIndex` — the same one
- * the route side's `hintuansAlong` asks, so a box saved before or after its
- * route ends up linked the same way.
- */
-export function linksThrough(
-  ring: Ring,
-  variants: VariantRow[],
-): { variantId: string; sequence: number }[] {
-  const out: { variantId: string; sequence: number }[] = []
-  for (const v of variants) {
-    const idx = passIndex(variantLine(v), ring)
-    if (idx >= 0) out.push({ variantId: v.id, sequence: idx })
-  }
-  return out
-}
-
-/** How far into a route "starts here" still holds, in metres. */
-const STARTS_WITHIN_M = 100
-
-/**
- * Directions that begin at this outline — the pre-ticked suggestion for a
- * terminal. The owner adjusts from there.
- *
- * "Begins at" means the route touches the outline within its first 100 m,
- * not that its very first vertex is inside: a hand-traced corner is often a
- * metre or two off the road, and the first real terminal traced (Tala) had
- * the route start 20 cm outside its outline.
- */
-export function variantsStartingIn(ring: Ring, variants: VariantRow[]): string[] {
-  return variants
-    .filter((v) => {
-      const d = entryDistance(variantLine(v), ring)
-      return d >= 0 && d <= STARTS_WITHIN_M
-    })
-    .map((v) => v.id)
-}
 
 // ------------------------------------------------------------------ writes
 
@@ -119,7 +77,7 @@ export async function saveStop(input: SaveStopInput): Promise<StopRow> {
   const byId = new Map(input.variants.map((v) => [v.id, v]))
   const links: StopLink[] =
     input.kind === 'hintuan'
-      ? linksThrough(ring, input.variants).map((l) => ({
+      ? linksThrough(ring, input.variants, stop.line ?? null).map((l) => ({
           route_variant_id: l.variantId,
           stop_id: stop.id,
           stop_sequence: l.sequence,
@@ -183,8 +141,9 @@ export async function syncHintuanLinks(variant: VariantRow): Promise<void> {
   ])
   if (hintuans.length === 0) return
 
-  // The same rule the save panel showed before Save was pressed.
-  const along = hintuansAlong(variantLine(variant), hintuans)
+  // The same rule the save panel showed before Save was pressed. A link to a
+  // hintuan this route does not stop at (servedBy) is one it no longer earns.
+  const along = hintuansAlong(variantLine(variant), hintuans, variant.route)
   const keep: StopLink[] = along.map(({ stop, index }) => ({
     route_variant_id: variant.id,
     stop_id: stop.id,

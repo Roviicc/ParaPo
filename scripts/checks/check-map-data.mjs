@@ -27,6 +27,7 @@ import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { PASS_WITHIN_M, passBounds } from '../../src/shared/geo/pass.ts'
 import { stopLabel, stopRing } from '../../src/shared/model/stops.ts'
+import { RAIL_LINES, isRail, servedBy } from '../../src/shared/model/routes.ts'
 import { bboxOf, bboxesOverlap, haversine, lineLength } from '../../src/shared/geo/geo.ts'
 import { distanceToRingM } from '../../src/shared/geo/ring.ts'
 import { firstNearIndex } from '../../src/shared/geo/pass.ts'
@@ -87,6 +88,8 @@ export function checkMapData(file) {
     if (!Array.isArray(s.point?.coordinates) || s.point.coordinates.length !== 2) problems.push(`hotspot "${label}" (${s.id}) has no point`)
     if (s.area && stopRing(s).length < 3) problems.push(`hotspot "${label}" (${s.id}) has a box with fewer than 3 corners`)
     if (s.kind === 'hintuan' && !s.area) warnings.push(`hintuan "${label}" has no box, so no line can pass it and no timeline will list it`)
+    if (s.line != null && s.kind !== 'hintuan') problems.push(`hotspot "${label}" (${s.id}) is a ${s.kind} with a train line; a station is a hintuan`)
+    if (s.line != null && !RAIL_LINES.includes(s.line)) problems.push(`hotspot "${label}" (${s.id}) is a station of "${s.line}", which is not a train line`)
   }
 
   const linksOf = new Map()
@@ -111,6 +114,9 @@ export function checkMapData(file) {
     const tail = stopById.get(v.route?.tail_stop_id)
     if (!head) problems.push(`${name}: its route's head hotspot ${v.route?.head_stop_id} is not in the file`)
     if (!tail) problems.push(`${name}: its route's tail hotspot ${v.route?.tail_stop_id} is not in the file`)
+    if (isRail(v.route?.mode) && !RAIL_LINES.includes(v.route?.route_code)) {
+      problems.push(`${name}: a train route whose line ("${v.route?.route_code ?? ''}") is not a train line, so it stops at no station`)
+    }
     const line = v.shape?.coordinates
     if (v.shape && (!Array.isArray(line) || line.length < 2)) problems.push(`${name}: a line with fewer than 2 points`)
     if (!Array.isArray(line) || line.length < 2) {
@@ -140,6 +146,12 @@ export function checkMapData(file) {
     const linked = new Map((linksOf.get(v.id) ?? []).map((l) => [l.stop_id, l]))
     const reach = bboxOf(line)
     for (const { s, ring, bounds } of hintuans) {
+      // A hintuan this route does not stop at — a jeep's under a train's
+      // track, a station over a jeep's road — is neither owed nor allowed a link.
+      if (v.route && !servedBy(s, v.route)) {
+        if (linked.has(s.id)) warnings.push(`${name}: linked to "${stopLabel(s)}", which it does not stop at, so the timeline lists it wrongly`)
+        continue
+      }
       const overlaps = bboxesOverlap(reach, bounds)
       if (linked.has(s.id)) {
         if (!overlaps || firstNearIndex(line, ring, surelyFar) < 0) {
