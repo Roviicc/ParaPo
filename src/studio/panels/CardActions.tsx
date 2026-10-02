@@ -20,7 +20,7 @@ export function CardActions({
       <button
         type="button"
         onClick={onEdit}
-        className="flex-1 rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white"
+        className="flex-1 rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white pointer-coarse:min-h-11"
       >
         {editLabel}
       </button>
@@ -29,7 +29,7 @@ export function CardActions({
           type="button"
           onClick={onExtend}
           title="Start a new route from part of this line"
-          className="rounded-lg px-3 py-2 text-sm text-neutral-800 ring-1 ring-neutral-300 hover:bg-neutral-50"
+          className="rounded-lg px-3 py-2 text-sm text-neutral-800 ring-1 ring-neutral-300 hover:bg-neutral-50 pointer-coarse:min-h-11"
         >
           Extend
         </button>
@@ -37,7 +37,7 @@ export function CardActions({
       <button
         type="button"
         onClick={onDelete}
-        className="rounded-lg px-3 py-2 text-sm text-red-600 ring-1 ring-red-200 hover:bg-red-50"
+        className="rounded-lg px-3 py-2 text-sm text-red-600 ring-1 ring-red-200 hover:bg-red-50 pointer-coarse:ml-2 pointer-coarse:min-h-11"
       >
         Delete
       </button>

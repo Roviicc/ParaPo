@@ -22,7 +22,10 @@ export function NewButtons({
   onNewHotspot: (kind: HotspotKind) => void
 }) {
   return (
-    <div className="absolute bottom-6 right-6 z-10 flex flex-col items-end gap-2">
+    <div
+      className="absolute bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-[calc(1.5rem+env(safe-area-inset-right))]
+                 z-10 flex flex-col items-end gap-2"
+    >
       {menu && (
         <div
           role="menu"
@@ -35,7 +38,7 @@ export function NewButtons({
               setMenu(false)
               onNewHotspot('terminal')
             }}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-neutral-50"
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-neutral-50 pointer-coarse:min-h-11"
           >
             <span className="h-3 w-3 rounded-sm bg-sky-500" />
             <span>
@@ -50,7 +53,7 @@ export function NewButtons({
               setMenu(false)
               onNewHotspot('hintuan')
             }}
-            className="flex w-full items-center gap-2 border-t border-neutral-100 px-4 py-2.5 text-left hover:bg-neutral-50"
+            className="flex w-full items-center gap-2 border-t border-neutral-100 px-4 py-2.5 text-left hover:bg-neutral-50 pointer-coarse:min-h-11"
           >
             <span className="h-3 w-3 rounded-sm bg-orange-500" />
             <span>

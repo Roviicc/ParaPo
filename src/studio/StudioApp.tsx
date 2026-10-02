@@ -245,12 +245,12 @@ function Workshop({
 
   return (
     <div ref={root} className="@container relative h-full w-full overflow-clip">
-      <MapView onReady={setMap} />
+      <MapView onReady={setMap} foldCredits />
 
       {/* A config or load problem is a banner, never a blank page. */}
       {(supabaseConfigError || saved.error || stops.error) && (
         <div
-          className="absolute left-1/2 top-4 z-20 max-w-xl -translate-x-1/2 rounded-lg bg-amber-50
+          className="absolute left-1/2 top-[calc(1rem+env(safe-area-inset-top))] z-20 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-lg bg-amber-50
                      px-4 py-2 text-xs text-amber-900 shadow ring-1 ring-amber-200"
         >
           {supabaseConfigError ?? `Couldn't load saved routes: ${saved.error ?? stops.error}`}
@@ -435,7 +435,7 @@ function Workshop({
                   setToast(null)
                   draw.start(routeId)
                 }}
-                className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900"
+                className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900 pointer-coarse:min-h-11 pointer-coarse:px-4 pointer-coarse:text-sm"
               >
                 Draw the return trip
               </button>

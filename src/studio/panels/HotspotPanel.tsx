@@ -7,6 +7,8 @@ import { linesOf } from '../data/live'
 import { saveStop } from '../data/stopsWrite'
 import { linksThrough, variantsStartingIn } from '../data/stopsGeometry'
 import type { Drawing } from '../drawing/useDrawing'
+import { coarse } from '../../shared/map/MapView'
+import { FIELD_TEXT, FOOTER, OVERLAY, PANEL } from './sheet'
 
 type Props = {
   draw: Drawing
@@ -23,7 +25,7 @@ type Props = {
 }
 
 const field =
-  'mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none ' +
+  `mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 ${FIELD_TEXT} outline-none ` +
   'focus:border-neutral-900'
 
 /** Directions grouped under their route's generated name, for both lists. */
@@ -163,10 +165,10 @@ export function HotspotPanel({
   const swatch = kind === 'terminal' ? 'bg-sky-500' : 'bg-orange-500'
 
   return (
-    <div className="absolute inset-0 z-20 grid place-items-center bg-black/30 p-4">
+    <div className={OVERLAY}>
       <form
         onSubmit={submit}
-        className="max-h-full w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+        className={PANEL}
       >
         <h2 className="flex items-center gap-2 text-base font-medium text-neutral-900">
           <span className={`inline-block h-3 w-3 rounded-sm ${swatch}`} />
@@ -178,7 +180,7 @@ export function HotspotPanel({
           Ground name <span className="text-neutral-400">(as written on the ground)</span>
           <input
             required
-            autoFocus
+            autoFocus={!coarse}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={kind === 'terminal' ? 'SM Fairview Terminal A' : 'SM Fairview Ilalim'}
@@ -224,7 +226,7 @@ export function HotspotPanel({
                     <ul className="mt-1 space-y-1">
                       {g.directions.map((v) => (
                         <li key={v.id}>
-                          <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
+                          <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700 pointer-coarse:min-h-11">
                             <input
                               type="checkbox"
                               checked={ticked.has(v.id)}
@@ -270,7 +272,7 @@ export function HotspotPanel({
 
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
-        <div className="mt-5 flex gap-2">
+        <div className={FOOTER}>
           <button
             type="button"
             onClick={onCancel}
