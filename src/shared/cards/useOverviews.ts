@@ -96,6 +96,33 @@ export function useCardOverview(
 }
 
 /**
+ * The route list opened — a tap where routes share a road, or a trip's ‹
+ * listing those sharing an end: the camera takes in every route it lights,
+ * in the selected blue, as a picked card's do (the owner's ask, 2026-10-02).
+ * Keyed on what it lists, so a card picked and let go, or a trip opened from
+ * it and its ‹, leave the view to those. What is lit is read a frame later,
+ * as for SWITCH.
+ */
+export function useListOverview(
+  map: MapLibreMap | null,
+  listed: readonly VariantSummary[],
+  lit: readonly VariantSummary[],
+  dock: () => HTMLElement | null,
+  snap: Snap,
+): void {
+  const litRef = useRef(lit)
+  litRef.current = lit
+  const key = listed.map((v) => v.id).sort().join()
+  useEffect(() => {
+    if (!map || !key) return
+    const frame = requestAnimationFrame(() => overview(map, litRef.current.map(variantLine), dock(), snap))
+    return () => cancelAnimationFrame(frame)
+    // Only as the list opens on other routes (see above).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, key])
+}
+
+/**
  * SWITCH pressed — on the route list, a hotspot's card or a trip: the camera
  * takes in what is lit now, the routes the other way round, as a pick does
  * (the owner's ask, 2026-10-01). `switches` counts the presses. What is lit

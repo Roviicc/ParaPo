@@ -9,11 +9,13 @@ import { clearOfSheet, type SheetHeight } from './BottomSheet'
 import { framedBy, type Framed } from './cardStack'
 import type { PickedPlace } from './RouteCardStack'
 import type { Snap } from './sheetGesture'
-import { useCameraBefore, useCardOverview, useHeightOverview, useSwitchOverview, useTripOverview } from './useOverviews'
+import { useCameraBefore, useCardOverview, useHeightOverview, useListOverview, useSwitchOverview, useTripOverview } from './useOverviews'
 
 type Routes<V extends VariantSummary> = {
   variants: readonly V[]
   selected: V | null
+  /** What the route list lists, if it is up. */
+  candidates: readonly V[]
   highlight: Highlight | null
   litVariants: readonly V[]
   select: (id: string | null, opts?: { keepList?: boolean }) => void
@@ -74,6 +76,8 @@ export function useCardCamera<V extends VariantSummary, S extends StopSummary>(
   // The page, and the card's sheet on show in it, for what the camera keeps clear of.
   const root = useRef<HTMLDivElement>(null)
   const openSheet = () => root.current?.querySelector<HTMLElement>('[data-floats]:not([hidden])') ?? null
+  // The route list opened: every route it lights, whole.
+  useListOverview(cam, saved.candidates, saved.litVariants, openSheet, cards.snap)
   // A RouteCard picked, in the list or a hotspot's card: its routes whole.
   useCardOverview(cam, saved.highlight, saved.variants, openSheet, cards.snap)
   // …and on a hotspot's card, let go, the camera the visitor had before it.
