@@ -133,7 +133,7 @@ function Workshop({
 
   // What the lit routes wear on the map, as on the public map (useLitRides);
   // none of the orange over the direction being redrawn.
-  const rides = useLitRides(map, saved, stops.stops, draw.target.variantId)
+  const rides = useLitRides(map, saved, stops.stops, draw.target.variantId, ride.ridden)
 
   // The pill counts routes, not directions: a route is two rows, one of them
   // perhaps an empty slot, and five routes once read "10 routes" (finding 7).

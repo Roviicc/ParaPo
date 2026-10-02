@@ -623,6 +623,23 @@ const tripChecks = async () => {
       !!title && title.text === rowName && title.colours && Math.abs(title.gap - 10) < 1.5 && Math.abs(title.drop) < 1.5,
       title ? `"${title.text}" for "${rowName}"; ${title.detail}; ${title.gap.toFixed(1)} px right, ${title.drop.toFixed(1)} px low` : 'no title',
     )
+    // The ride ends at the hintuan now (SelectedHintuanRouteTitle, Figma
+    // 3848:12135): End over its name, and the route's own tail keeps its
+    // name without the word.
+    const words = await page.evaluate(() => {
+      const t = document.querySelector('[data-testid="hintuan-pin-title"]')
+      const badge = t?.parentElement?.querySelector('[data-part="badge"]')
+      const word = (end) => document.querySelector(`[data-testid="end-title"][data-end="${end}"] [data-part="badge"]`)?.textContent.trim() ?? null
+      const tails = document.querySelectorAll('[data-testid="end-title"][data-end="tail"] [data-part="name"]').length
+      if (!t || !badge) return { pin: null, head: word('head'), tail: word('tail'), tails }
+      const [a, b] = [badge.getBoundingClientRect(), t.getBoundingClientRect()]
+      return { pin: badge.textContent.trim(), over: b.top - a.bottom, centred: a.left + a.width / 2 - (b.left + b.width / 2), head: word('head'), tail: word('tail'), tails }
+    })
+    check(
+      '  End over its name, Start still over the start, the tail named without End',
+      words.pin === 'End' && Math.abs(words.over - 4) < 1.5 && Math.abs(words.centred) < 1.5 && words.head === 'Start' && words.tail === null && words.tails > 0,
+      `pin "${words.pin}" ${words.over?.toFixed(1)} px over, ${words.centred?.toFixed(1)} px off centre; head "${words.head}", tail "${words.tail}", ${words.tails} tail name(s)`,
+    )
     if (pickWant) {
       const where = await page.evaluate((at) => {
         const m = window.__map
@@ -1052,7 +1069,7 @@ if (routeA) {
   } else {
     const end = tappable[0]
     await jumpTo(page, end.at)
-    await endButton(end.name).click()
+    await endButton(end.name).locator('[data-part="name"]').click()
     await page.waitForTimeout(300)
     await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 4000 }).catch(() => {})
     const opened = await page.evaluate(() => {
@@ -1287,7 +1304,7 @@ if (!shared) {
         tailName,
       )
       if (tailAt) await jumpTo(page, tailAt)
-      await tail.click()
+      await tail.locator('[data-part="name"]').click()
       await page.waitForFunction(() => document.querySelectorAll('[data-testid="card"]:not([hidden]) [data-testid="trip"]').length === 1, null, { timeout: 4000 }).catch(() => {})
       const tripName = await tripLabel()
       const litTrip = (await litIds(page)) ?? []

@@ -44,8 +44,6 @@ export default function CommuterApp() {
   const stops = useSavedStops(map, loadStopsFromFile, { muted: !!saved.selected })
   const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW
 
-  // What the lit routes wear on the map, their ends named (useLitRides).
-  const rides = useLitRides(map, saved, stops.stops)
   // The route list, a hotspot's card and the trip opened from either: which
   // is up, what stands behind what, their height and colours (useCardStack).
   const cards = useCardStack(map, saved, stops)
@@ -55,6 +53,9 @@ export default function CommuterApp() {
   // is let go (useCardCamera).
   const { root, tripDock, hotspotDock, ride, clearOfOpen, switchTrip, flipList, otherRoute, pickOnPlaceCard, openPlace, openRide } =
     useCardCamera(map, saved, stops, cards)
+  // What the lit routes wear on the map, their ends named (useLitRides): a
+  // picked hintuan's ride flowing only as far as there.
+  const rides = useLitRides(map, saved, stops.stops, null, ride.ridden)
 
   useShareLink(map, saved)
   // The visitor's own position, when they ask for it, and the camera with

@@ -103,11 +103,15 @@ export function useRideTo(
   }, [map, cut])
 
   const pickedStop = live ? stops.find((s) => s.id === live.rowId) : undefined
+  // Kept one object while the cut is, so the lit rides are not made anew each render.
+  const ridden = useMemo(() => (cut && selectedId ? { variantId: selectedId, line: cut.ridden } : null), [cut, selectedId])
 
   return {
     rideTo: cut && live ? { stopId: live.rowId, metres: cut.metres } : null,
     /** The row picked, cut or not: a row whose box the line misses is still shown picked, with nothing to price. */
     pickedId: live?.rowId ?? null,
+    /** The ride from its start to the picked hintuan, where its chevrons stop (useLitRides); null with nothing cut. */
+    ridden,
     /**
      * Where the picked hintuan is: where the ride would end on the line, as
      * the glide goes; for a row whose box the line misses, the hintuan's own

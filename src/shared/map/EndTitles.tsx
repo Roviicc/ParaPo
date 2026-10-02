@@ -22,8 +22,10 @@ import './endTitles.css'
  * circled arrow. While what is lit wears a card's colour (`badged`) — an
  * open trip, or a picked card's rides, Tala's to Novaliches and to SM
  * Fairview — a badge over each name says which end it is (2026-10-02):
- * Start in the hintuan's green, End in the terminal's blue, the two one
- * label and one button. A list's routes lit in the selected blue keep their
+ * Start in the hintuan's green, End in the brand's blue, the two one
+ * label and one button. A ride a picked hintuan stops short (`flow`) ends
+ * there, End over the hintuan's name (HintuanPin), so its own tail keeps
+ * its name without the word (the owner's ask, 2026-10-02). A list's routes lit in the selected blue keep their
  * plain names: there are too many (the owner's ask, the same day). A place
  * two rides share is named by
  * the first to reach it (`rideEnds`), so a trip's change of ride is the
@@ -63,6 +65,8 @@ export function EndTitles({
   /** A direction's trip to open, from the one ride a tail names. */
   onTrip?: (variantId: string) => void
 }) {
+  // Rides that end short of their tail, at a picked hintuan.
+  const short = new Set(rides.filter((r) => r.flow && r.id).map((r) => r.id))
   return (
     <>
       {rideEnds(rides)
@@ -76,7 +80,7 @@ export function EndTitles({
               at={at}
               name={name}
               head={end === 'from'}
-              badged={badged}
+              badged={badged && !(end === 'to' && here.some((id) => short.has(id)))}
               look={look}
               opens={trip ? 'trip' : 'place'}
               onPick={trip ? () => onTrip?.(trip) : onPick && stopId ? () => onPick(stopId) : undefined}
@@ -163,13 +167,13 @@ function EndTitle({
         : {})}
       className="flex max-w-56 flex-col items-center gap-1"
     >
-      {/* Over the name, which end it is: Start in the hintuan's green, End in the terminal's blue. */}
+      {/* Over the name, which end it is: Start in the hintuan's green, End in the brand's blue. */}
       {badged && (
         <span
           data-part="badge"
           className={
-            'rounded-full px-2 py-1 text-xs/4 font-medium text-content-inverse ' +
-            (head ? 'bg-map-hotspots-card-hintuan-surface' : 'bg-map-hotspots-card-terminal-surface')
+            'rounded-full px-2 py-1 text-sm/5 font-medium text-content-inverse ' +
+            (head ? 'bg-map-hotspots-card-hintuan-surface' : 'bg-brand-surface-secondary')
           }
         >
           {head ? 'Start' : 'End'}
