@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, type RefObject } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { clearOfSheet, roomBeside } from './BottomSheet'
 import type { Framed } from './cardStack'
@@ -168,16 +168,27 @@ type Camera = { center: LngLat; zoom: number; bearing: number; pitch: number }
  */
 export function useCameraBefore(map: MapLibreMap | null) {
   const kept = useRef<Camera | null>(null)
-  return {
-    keep: () => {
-      if (!map) return
-      const c = map.getCenter()
-      kept.current = { center: [c.lng, c.lat], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() }
-    },
-    back: () => {
-      const was = kept.current
-      kept.current = null
-      if (map && was) map.easeTo({ ...was, duration: 700 }, APP_MOVE)
-    },
-  }
+  // One object for the map's life, so an effect may name it.
+  return useMemo(
+    () => ({
+      /** The camera now kept — or, given, one kept by another (`held`). */
+      keep: (at: Camera | null = null) => {
+        if (!map) return
+        const c = map.getCenter()
+        kept.current = at ?? { center: [c.lng, c.lat], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() }
+      },
+      /** What is kept, if anything. */
+      held: () => kept.current,
+      back: () => {
+        const was = kept.current
+        kept.current = null
+        if (map && was) map.easeTo({ ...was, duration: 700 }, APP_MOVE)
+      },
+      /** Let it go, the camera staying where it is. */
+      forget: () => {
+        kept.current = null
+      },
+    }),
+    [map],
+  )
 }

@@ -346,6 +346,17 @@ for (const [i, p] of snapshot.polys.entries()) {
     const shownIds = (await cardDirections(page.locator('[data-testid="card"]').first())).filter(Boolean)
     const litBefore = await litNow()
     check(`  every route its cards show is lit`, shownIds.length > 0 && sameIds(litBefore, shownIds), `${litBefore.length} lit, ${shownIds.length} shown`)
+    const view = () => page.evaluate(() => {
+      const m = window.__map
+      const c = m.getCenter()
+      return { lng: c.lng, lat: c.lat, zoom: m.getZoom() }
+    })
+    const sameView = (a, b) => Math.abs(a.zoom - b.zoom) < 0.01 && Math.abs(a.lng - b.lng) < 1e-6 && Math.abs(a.lat - b.lat) < 1e-6
+    const settled = () => page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 4000 }).catch(() => {})
+    // Where the visitor had the camera as the card opened, before any pick:
+    // where the trip's ‹ brings it back (the owner, 2026-10-02).
+    await settled()
+    const camHome = await view()
     await name.click()
     await page.waitForTimeout(250)
     const cardIds = await cardDirections(firstCard)
@@ -373,13 +384,27 @@ for (const [i, p] of snapshot.polys.entries()) {
       check(`  ‹ on the trip goes back to the hotspot's card, lit again`, again.kind === 'hotspot' && again.text === opened && (await stopsLit()).includes(p.id), `card ${again.kind}; lit ${JSON.stringify(await stopsLit())}`)
       const relit = await litNow()
       check(`  ‹ comes back to its cards at rest, every route lit again`, (await page.locator('[data-testid="card"] [data-testid="card-origin"][data-state="selected"]').count()) === 0 && sameIds(relit, shownIds), `${relit.length} lit of ${shownIds.length}`)
+      // …and the camera comes back in to where the visitor had it before
+      // the pick, out of the trip's overview (the owner's ask, 2026-10-02).
+      await page.waitForTimeout(400)
+      await settled()
+      const camBack = await view()
+      check(`  and the camera back where it was before the pick`, sameView(camBack, camHome), JSON.stringify({ camHome, camBack }))
+      // A row tapped with no card picked, the owner's own way in: its ‹
+      // brings the camera back to where the row was tapped.
+      const camRow = await view()
+      await rows.first().click()
+      await page.waitForTimeout(350)
+      await settled()
+      const opened2 = (await cardKind()).kind === 'route'
+      const moved = !sameView(await view(), camRow)
+      if ((await back.count()) > 0) await back.first().click()
+      await page.waitForTimeout(400)
+      await settled()
+      const camRowBack = await view()
+      check(`  a row tapped at rest: the trip's overview, and its ‹ back to where the row was tapped`, opened2 && moved && sameView(camRowBack, camRow), JSON.stringify({ opened: opened2, moved, camRow, camRowBack }))
       // Picked, a second tap lets it go — and the camera, after the pick's
       // overview, goes back to where the visitor had it (the owner, 2026-10-01).
-      const view = () => page.evaluate(() => {
-        const m = window.__map
-        const c = m.getCenter()
-        return { lng: c.lng, lat: c.lat, zoom: m.getZoom() }
-      })
       const camBefore = await view()
       await name.click()
       await page.waitForTimeout(250)
