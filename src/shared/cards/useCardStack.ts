@@ -1,11 +1,11 @@
-import { useState, type RefObject } from 'react'
+import { useMemo, useState, type RefObject } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { LIT_LINE, LIVERY_LINE, type LineLook } from '../map/liveryLine'
 import { useRideColours } from '../map/directionArrows'
 import { useLitLineColour } from '../map/savedRoutesLayers'
 import type { Highlight } from '../map/useSavedRoutes'
-import { sharingAnEnd } from '../model/departures'
-import type { Livery } from '../model/liveries'
+import { drawnDepartures, sharingAnEnd } from '../model/departures'
+import { liveriesFor, type Livery } from '../model/liveries'
 import type { VariantSummary } from '../model/routes'
 import { clearOfSheet, type SheetHeight } from './BottomSheet'
 import { isChoosing, sharedSnap, tripBack, tripBehindHolds } from './cardStack'
@@ -16,6 +16,8 @@ type Routes<V extends VariantSummary> = {
   variants: readonly V[]
   selected: V | null
   candidates: readonly V[]
+  /** Which way round the list shows them. */
+  back: boolean
   highlight: Highlight | null
   select: (id: string | null, opts?: { keepList?: boolean }) => void
   openList: (directions: readonly V[], way: boolean) => void
@@ -71,14 +73,24 @@ export function useCardStack<V extends VariantSummary, S extends { id: string }>
   // owner, 2026-09-29).
   const [worn, setWorn] = useState<{ id: string; livery: Livery } | null>(null)
   const tripLivery = useTripLivery(saved.selected, worn, choosing || !!stops.selected)
-  // What is lit wears the colour of the card it answers: the open trip's, or
-  // the picked RouteCard's; a list with none picked lights its routes in the
-  // selected blue (the owner's ask, 2026-09-29).
+  // A list of one RouteCard: its routes wear that card's colour, picked or
+  // not, a pick only bringing the camera to them (the owner's ask,
+  // 2026-10-02). The colour is the one the card is drawn in (liveriesFor
+  // keeps a place's colour for the visit, so the card reads the same).
+  const onlyPlace = choosing ? drawnDepartures(saved.candidates, saved.back) : []
+  const onlyFrom = onlyPlace.length === 1 ? onlyPlace[0].from : null
+  const onlyLivery = useMemo(() => (onlyFrom ? liveriesFor([onlyFrom])[0] : null), [onlyFrom])
+  // What is lit wears the colour of the card it answers: the open trip's,
+  // the picked RouteCard's, or a list's only card's; a list of several with
+  // none picked lights its routes in the selected blue (the owner's ask,
+  // 2026-09-29).
   const look: LineLook = tripLivery
     ? LIVERY_LINE[tripLivery]
     : saved.highlight
       ? LIVERY_LINE[saved.highlight.livery]
-      : LIT_LINE
+      : onlyLivery
+        ? LIVERY_LINE[onlyLivery]
+        : LIT_LINE
   useLitLineColour(map, look.line)
   useRideColours(map, look)
 
