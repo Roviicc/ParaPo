@@ -26,6 +26,15 @@ button.hintuan-pin-title {
   margin-bottom: 0;
   animation: hintuan-pin-pop var(--transition-duration-base) var(--ease-enter) both;
 }
+/*
+ * A train's station further out (StationLabels.tsx): its dot smaller. On
+ * the dot, not the marker: MapLibre moves the marker by its transform, and
+ * a scale there would scale where it sits too. `scale`, not `transform`,
+ * so the pop keeps its own.
+ */
+.station-label[data-far] > span {
+  scale: 0.6;
+}
 @keyframes hintuan-pin-pop {
   from { transform: scale(0.4); opacity: 0; }
   to { transform: scale(1); opacity: 1; }

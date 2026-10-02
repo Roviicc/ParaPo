@@ -8,6 +8,7 @@ import { TripCard } from '../shared/cards/TripCard'
 import { useCardStack } from '../shared/cards/useCardStack'
 import { useCardCamera } from '../shared/cards/useCardCamera'
 import { HintuanPin } from '../shared/map/HintuanPin'
+import { StationLabels } from '../shared/map/StationLabels'
 import { EndTitles } from '../shared/map/EndTitles'
 import { lineOf, listVariants, loadStopsFromSupabase } from './data/live'
 import { isDrawn, type VariantRow } from '../shared/model/routes'
@@ -258,6 +259,10 @@ function Workshop({
 
       {/* Each lit ride's ends, named over their circles. */}
       {map && !draw.drawing && <EndTitles map={map} rides={rides} look={look} badged={inCardColour} />}
+      {/* A selected train line's stations, named along it (RouteLineLabel). */}
+      {map && !draw.drawing && saved.selected && tripLivery && (
+        <StationLabels map={map} selected={saved.selected} stops={stops.stops} livery={tripLivery} pickedId={ride.pickedId} />
+      )}
       {/* Keyed on the pick: another hintuan pops a fresh circle. */}
       {map && !draw.drawing && ride.pinAt && tripLivery && (
         <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} label={ride.pickedLabel} livery={tripLivery} />
