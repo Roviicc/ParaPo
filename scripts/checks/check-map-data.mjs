@@ -28,6 +28,7 @@ import { pathToFileURL } from 'node:url'
 import { PASS_WITHIN_M, passBounds } from '../../src/shared/geo/pass.ts'
 import { stopLabel, stopRing } from '../../src/shared/model/stops.ts'
 import { RAIL_LINES, isRail, servedBy } from '../../src/shared/model/routes.ts'
+import { stationIndex } from '../../src/shared/model/railFares.ts'
 import { bboxOf, bboxesOverlap, haversine, lineLength } from '../../src/shared/geo/geo.ts'
 import { distanceToRingM } from '../../src/shared/geo/ring.ts'
 import { firstNearIndex } from '../../src/shared/geo/pass.ts'
@@ -90,6 +91,10 @@ export function checkMapData(file) {
     if (s.kind === 'hintuan' && !s.area) warnings.push(`hintuan "${label}" has no box, so no line can pass it and no timeline will list it`)
     if (s.line != null && s.kind !== 'hintuan') problems.push(`hotspot "${label}" (${s.id}) is a ${s.kind} with a train line; a station is a hintuan`)
     if (s.line != null && !RAIL_LINES.includes(s.line)) problems.push(`hotspot "${label}" (${s.id}) is a station of "${s.line}", which is not a train line`)
+    // A station is priced by its name (railFares.ts): one the table does not know has no fare on the card.
+    else if (s.line != null && stationIndex(s.line, label) < 0 && !s.aliases?.some((a) => stationIndex(s.line, a) >= 0)) {
+      warnings.push(`station "${label}" is not in the ${s.line} fare table, so a ride to or from it shows no fare`)
+    }
   }
 
   const linksOf = new Map()

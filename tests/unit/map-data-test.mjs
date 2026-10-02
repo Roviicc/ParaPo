@@ -182,12 +182,12 @@ test('a train under a jeep hintuan is owed no link, and one it has is a warning'
 
 test('a jeep under a station is owed no link; the train over it is', () => {
   const m = good()
-  m.stops.push(stop('Station', 'hintuan', 700, 0, { line: 'LRT-1' }))
+  m.stops.push(stop('EDSA', 'hintuan', 700, 0, { line: 'LRT-1' }))
   assert.deepEqual(checkMapData(m).warnings, [])
   m.variants.push({ ...direction(road(0, 1000)), id: 'rail', route: train('LRT-1') })
   const r = checkMapData(m)
   assert.equal(r.warnings.length, 1)
-  assert.match(r.warnings[0], /passes "Station" but is not linked/)
+  assert.match(r.warnings[0], /passes "EDSA" but is not linked/)
 })
 
 test('a train route with no line, or a station of no line, is a problem', () => {
@@ -201,4 +201,14 @@ test('a train route with no line, or a station of no line, is a problem', () => 
   const t = good()
   t.stops[0] = { ...t.stops[0], line: 'LRT-1' }
   assert.match(checkMapData(t).problems.join('\n'), /a station is a hintuan/)
+})
+
+test('a station whose name the fare table does not know is a warning', () => {
+  const m = good()
+  m.stops.push(stop('EDSA', 'hintuan', 700, 0, { line: 'LRT-1' }))
+  assert.deepEqual(checkMapData(m).warnings, [])
+  m.stops.push(stop('Nowhere Station', 'hintuan', 800, 0, { line: 'LRT-1' }))
+  const r = checkMapData(m)
+  assert.deepEqual(r.problems, [])
+  assert.match(r.warnings.join('\n'), /"Nowhere Station" is not in the LRT-1 fare table/)
 })
