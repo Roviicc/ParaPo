@@ -256,6 +256,59 @@ await ctx.setGeolocation({ ...p, accuracy: 10 })
 await page.waitForTimeout(1200)
 const kept = await camera(page)
 check('  and the next fix leaves the camera where the app put it', Math.abs(kept.latitude - moved.latitude) < 1e-7, `${((kept.latitude - moved.latitude) / M_LAT).toFixed(1)} m moved`)
+
+// A route tapped: the dot gazes at it — its eyes turn the way to it for three
+// seconds, then wander again (dotGaze.ts; the owner's ask, 2026-10-01).
+const onLine = await page.evaluate(async () => {
+  const m = window.__map
+  const data = await m.getSource('saved-routes')?.getData()
+  const f = data?.features.find((x) => x.geometry?.type === 'LineString' && x.geometry.coordinates.length > 1)
+  if (!f) return null
+  const [a, b] = f.geometry.coordinates
+  const at = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+  m.jumpTo({ center: at, zoom: 16 })
+  return at
+})
+if (!onLine) {
+  check('a route tapped: the dot gazes at it', false, 'no route line on the map')
+} else {
+  await page.waitForTimeout(600)
+  const [tx, ty] = await page.evaluate((c) => Object.values(window.__map.project(c)), onLine)
+  // Read in the page, not over round trips that the tap's busiest seconds
+  // could stretch past the gaze: its heading, and the eyes once their turn
+  // has ended (a face whose eyes held still turns them over a quarter second).
+  await page.evaluate(() => {
+    window.__gazed = null
+    const host = document.querySelector('[data-testid="locator-overlay"]')
+    const seen = () => {
+      const dot = host?.querySelector('.locator-dot[data-gaze]')
+      if (!dot || window.__gazed !== null) return
+      window.__gazed = false
+      const eyes = dot.querySelector('.locator-eyes')
+      const read = () => {
+        if (window.__gazed) return
+        const style = getComputedStyle(eyes)
+        window.__gazed = { deg: Number(dot.dataset.gaze), animation: style.animationName, translate: style.translate }
+      }
+      eyes.addEventListener('transitionend', read, { once: true })
+      setTimeout(read, 400)
+    }
+    new MutationObserver(seen).observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-gaze'] })
+  })
+  await page.mouse.click(tx, ty)
+  const dot = overlay(page).locator('.locator-dot').first()
+  const gazed = await until(async () => !!(await page.evaluate(() => window.__gazed)), 5000)
+  const { deg, ...eyes } = (await page.evaluate(() => window.__gazed)) || { deg: NaN, animation: '', translate: '' }
+  const [ex, ey] = String(eyes.translate).split(' ').map((v) => parseFloat(v))
+  // Its eyes the way it gazes, 3.5 px out, the dot lying north up: x east, y south.
+  const want = [3.5 * Math.sin((deg * Math.PI) / 180), -3.5 * Math.cos((deg * Math.PI) / 180)]
+  check(
+    'a route tapped: the dot gazes at it, its eyes still and turned that way',
+    gazed && eyes.animation === 'none' && Math.hypot(ex - want[0], (ey || 0) - want[1]) < 0.2,
+    `gaze ${deg}°; eyes ${JSON.stringify(eyes)}`,
+  )
+  check('  and after three seconds they wander again', await until(async () => (await dot.getAttribute('data-gaze')) === null, 4500), `${await dot.getAttribute('data-gaze')}`)
+}
 check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
 await page.close()
 await ctx.close()
