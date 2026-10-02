@@ -1845,17 +1845,23 @@ if (!routeA) {
     )
     check('  at Low: in closer, the whole route above the sheet', atLow.inside && atLow.zoom > shareFramed.zoom + 0.1, JSON.stringify(atLow))
   }
-  await page.evaluate(() => {
-    const c = window.__map.getCenter()
-    window.__map.jumpTo({ center: [c.lng + 0.02, c.lat + 0.02], zoom: 16 })
-  })
-  await buttonTap(handle(), async () => (await sheetState()) === 'middle')
-  const back = await framedAboveCard(r.bbox)
-  check(
-    '  moved away, then up to Middle: the overview again, 5 km on the bar at the farthest',
-    Math.abs(back.zoom - raised) < 0.05 && (back.inside || capZoom > shareFramed.zoom),
-    JSON.stringify(back),
-  )
+  // Up to Middle from Low: with the sheet never brought down, it is at
+  // Middle already, and no height change moves the camera (a runner that
+  // dropped the handle's taps, 2026-10-01).
+  if (!toLow) skip('  moved away, then up to Middle: the overview again', `the sheet never came down to Low: data-snap=${await sheetState()}`)
+  else {
+    await page.evaluate(() => {
+      const c = window.__map.getCenter()
+      window.__map.jumpTo({ center: [c.lng + 0.02, c.lat + 0.02], zoom: 16 })
+    })
+    await buttonTap(handle(), async () => (await sheetState()) === 'middle')
+    const back = await framedAboveCard(r.bbox)
+    check(
+      '  moved away, then up to Middle: the overview again, 5 km on the bar at the farthest',
+      Math.abs(back.zoom - raised) < 0.05 && (back.inside || capZoom > shareFramed.zoom),
+      JSON.stringify(back),
+    )
+  }
 
   // Opened by a link, no list is behind the trip: ‹ only where another route
   // sharing an end is drawn its way round (the owner's ask, 2026-09-29). No
