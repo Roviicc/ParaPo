@@ -70,6 +70,7 @@ export function useDrawEvents(
     writePoints: (pts: LngLat[]) => void
     writeSegments: (next: Segment[]) => void
     markStandIn: (s: Segment) => void
+    isStandIn: (s: Segment) => boolean
     select: (i: number | null) => void
     setFollowOffer: (o: FollowOffer | null) => void
   },
@@ -84,6 +85,7 @@ export function useDrawEvents(
     writePoints,
     writeSegments,
     markStandIn,
+    isStandIn,
     select,
     setFollowOffer,
   } = actions
@@ -310,25 +312,45 @@ export function useDrawEvents(
       return best
     }
 
+    /**
+     * The fingers on the map, in its pixels. A touch event lists every finger
+     * on the screen, and MapLibre's points and centre count them all, so a
+     * thumb resting on the toolbar would turn one finger on a point into a
+     * pinch, and its lifting would never end the drag.
+     */
+    const container = map.getCanvasContainer()
+    const fingersOnMap = (e: TouchEvent) => {
+      const r = container.getBoundingClientRect()
+      return [...e.touches]
+        .filter((f) => container.contains(f.target as Node))
+        .map((f) => ({ x: f.clientX - r.left, y: f.clientY - r.top }))
+    }
+
     // A finger on a point holds the map still, so that a drag moves the point
     // rather than panning; anywhere else the map pans and pinches as ever.
     const onTouchStart = (e: MapTouchEvent) => {
-      if (touch && e.points.length > 1) {
+      // A new touch: whatever click the last one was owed has come by now.
+      echoUntil = -Infinity
+      const fingers = fingersOnMap(e.originalEvent)
+      if (touch) {
         putBack()
-        return
+        if (fingers.length > 1) return
       }
-      const idx = refs.picking.current || e.points.length > 1 ? null : pointUnderFinger(e.point)
+      const one = fingers.length === 1 ? fingers[0] : null
+      const idx = refs.picking.current || !one ? null : pointUnderFinger(one)
       const timer = setTimeout(() => {
         if (touch) touch.long = true
       }, LONG_PRESS_MS)
-      touch = { start: e.point, idx, long: false, timer, before: null }
+      touch = { start: one ?? e.point, idx, long: false, timer, before: null }
       if (idx !== null) map.dragPan.disable()
     }
 
     const onTouchMove = (e: MapTouchEvent) => {
       const t = touch
-      if (!t || e.points.length > 1) return
-      if (Math.hypot(e.point.x - t.start.x, e.point.y - t.start.y) < DRAG_START_PX && dragIdx === null) return
+      const fingers = fingersOnMap(e.originalEvent)
+      if (!t || fingers.length !== 1) return
+      const p = fingers[0]
+      if (Math.hypot(p.x - t.start.x, p.y - t.start.y) < DRAG_START_PX && dragIdx === null) return
       clearTimeout(t.timer)
       if (t.idx === null) return
       if (dragIdx === null) {
@@ -337,7 +359,8 @@ export function useDrawEvents(
         dragModes = [refs.segments.current[t.idx - 1]?.snap, refs.segments.current[t.idx]?.snap]
         t.before = { points: refs.points.current, segments: refs.segments.current, join: refs.join.current }
       }
-      dragTo([e.lngLat.lng, e.lngLat.lat])
+      const at = map.unproject([p.x, p.y])
+      dragTo([at.lng, at.lat])
     }
 
     // A second finger, or a touch the browser cancelled: the point being
@@ -347,10 +370,20 @@ export function useDrawEvents(
       const t = touch
       if (!t) return
       clearTimeout(t.timer)
-      if (dragIdx !== null && t.before) {
+      const i = dragIdx
+      if (i !== null && t.before) {
         refs.join.current = t.before.join
         writePoints(t.before.points)
         writeSegments(t.before.segments)
+        // A stretch beside the point that was still waiting for the router
+        // lost its request when the drag replaced it: ask again.
+        const before = t.before.segments[i - 1]
+        const after = t.before.segments[i]
+        const waitingBefore = !!before && isStandIn(before)
+        const waitingAfter = !!after && isStandIn(after)
+        if (waitingBefore && waitingAfter) void resolveGaps(i - 1, [before.snap, after.snap])
+        else if (waitingBefore) void resolveGaps(i - 1, [before.snap])
+        else if (waitingAfter) void resolveGaps(i, [after.snap])
       }
       dragIdx = null
       if (t.idx !== null) map.dragPan.enable()
@@ -364,7 +397,7 @@ export function useDrawEvents(
 
     const onTouchEnd = (e: MapTouchEvent) => {
       // One finger of two lifted: the gesture is not over.
-      if (e.originalEvent.touches.length > 0) return
+      if (fingersOnMap(e.originalEvent).length > 0) return
       const t = touch
       touch = null
       lastTouchEnd = performance.now()
@@ -445,6 +478,7 @@ export function useDrawEvents(
     writePoints,
     writeSegments,
     markStandIn,
+    isStandIn,
     select,
     setFollowOffer,
   ])

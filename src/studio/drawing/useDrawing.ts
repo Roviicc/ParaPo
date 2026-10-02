@@ -530,6 +530,7 @@ export function useDrawing(
       writePoints,
       writeSegments,
       markStandIn,
+      isStandIn,
       select,
       setFollowOffer,
     },

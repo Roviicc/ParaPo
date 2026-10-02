@@ -140,6 +140,51 @@ after = await cp()
 const z1 = (await centreNow())[2]
 check('a second finger puts the dragged point back and pinches', after.length === 3 && metres(after[1], c[1]) < 1 && z1 > z0, `point ${metres(after[1], c[1]).toFixed(1)} m from where it was, zoom ${z0.toFixed(2)} → ${z1.toFixed(2)}`)
 
+// A thumb resting off the map, on the toolbar, while a finger drags a point:
+// lifting the finger ends the drag, and the map pans again after.
+c = await startRoute(3)
+const offMap = await page.evaluate(() => {
+  const map = document.querySelector('canvas.maplibregl-canvas').parentElement.parentElement
+  for (let y = innerHeight - 10; y > 0; y -= 10) for (let x = 10; x < innerWidth; x += 10) {
+    const el = document.elementFromPoint(x, y)
+    if (el && !map.contains(el) && !el.closest('button,a,input')) return [x, y]
+  }
+  return null
+})
+const p0 = await proj(c[1])
+await touch('touchStart', [finger(...p0)])
+for (let i = 1; i <= 6; i++) { await touch('touchMove', [finger(p0[0] + 8 * i, p0[1])]); await page.waitForTimeout(16) }
+await touch('touchStart', [finger(p0[0] + 48, p0[1]), finger(...offMap, 1)])
+await touch('touchMove', [finger(...offMap, 1)])
+await touch('touchEnd', [])
+await settle()
+after = await cp()
+const panFrom = await centreNow()
+await drag([W / 2, 300], [W / 2 - 100, 360]); await page.waitForTimeout(400)
+const panTo = await centreNow()
+check('a thumb resting on the toolbar does not stick a drag', metres(after[1], c[1]) > 15 && (await segs()).every((f) => f.geometry.coordinates.length > 2) && metres(panFrom, panTo) > 50, `point moved ${metres(after[1], c[1]).toFixed(0)} m, stretches ${(await segs()).map((f) => f.geometry.coordinates.length)}, then a pan of ${metres(panFrom, panTo).toFixed(0)} m`)
+
+// A second finger mid-drag puts back a stretch still waiting for the router,
+// and it is asked for again rather than left straight.
+let slowRouter = false
+await page.route(/routing\.openstreetmap\.de|route\/v1\/driving/, async (route) => {
+  if (slowRouter) await new Promise((r) => setTimeout(r, 3000))
+  await route.fallback()
+})
+c = await startRoute(2)
+slowRouter = true
+const [sx, sy] = (await roadPixels(5, 70))[3] ?? [W / 2, 250]
+await tap(sx, sy); await page.waitForTimeout(200)
+const ps = await proj((await cp())[2])
+await touch('touchStart', [finger(...ps)])
+for (let i = 1; i <= 6; i++) { await touch('touchMove', [finger(ps[0] + 8 * i, ps[1])]); await page.waitForTimeout(16) }
+await touch('touchStart', [finger(ps[0] + 48, ps[1]), finger(ps[0] + 48, ps[1] + 120, 1)])
+await touch('touchEnd', [])
+slowRouter = false
+await page.waitForTimeout(3500); await settle()
+const lens = (await segs()).map((f) => f.geometry.coordinates.length)
+check('a stretch put back while it waited for the router is routed after all', lens.length === 2 && lens.every((n) => n > 2), `stretch coordinates ${lens}`)
+
 // ---------------------------------------------------------------- taps that add nothing
 c = await startRoute(3)
 const last = await proj(c[2])
@@ -152,11 +197,17 @@ check('a tap on the map with the bar open closes it and adds nothing', !(await b
 const [fx, fy] = (await roadPixels(6, 70))[4] ?? [W / 2, 200]
 await tap(fx, fy); await page.waitForTimeout(80); await tap(fx, fy); await settle()
 check('a double-tap adds one point', (await cp()).length === 4, `${(await cp()).length} points`)
+// Its second tap lands on the point the first added, and opens that point's bar.
+if (await bar.count()) { await bar.getByRole('button', { name: 'Close' }).tap(); await page.waitForTimeout(300) }
 
 c = await cp()
 const empty = [W / 2, H / 2 - 120]
 await touch('touchStart', [finger(...empty)]); await page.waitForTimeout(900); await touch('touchEnd', []); await settle()
 check('a long-press adds no point', (await cp()).length === c.length, `${c.length} → ${(await cp()).length} points`)
+await touch('touchStart', [finger(...empty)]); await page.waitForTimeout(900); await touch('touchEnd', [])
+await page.waitForTimeout(300); await tap(empty[0], empty[1] + 60); await settle()
+check('a tap soon after a long-press still adds its point', (await cp()).length === c.length + 1, `${c.length} → ${(await cp()).length} points`)
+await page.getByRole('button', { name: /Undo/ }).tap(); await settle()
 
 await drag(empty, [empty[0] - 120, empty[1] + 60]); await settle()
 await touch('touchStart', [finger(W / 2 - 40, H / 2), finger(W / 2 + 40, H / 2, 1)])
