@@ -86,6 +86,14 @@ export function metresPerPixel(lat: number, zoom: number): number {
   return (78271.51696 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom
 }
 
+/** The scale bar's length on the screen: the camera's "height" is metres per this many pixels (useLocator, useOverviews). */
+export const SCALE_PX = 100
+
+/** The zoom at which SCALE_PX screen pixels are `metres` at this latitude: the scale bar reading that. */
+export function zoomForScale(metres: number, lat: number): number {
+  return Math.log2((metresPerPixel(lat, 0) * SCALE_PX) / metres)
+}
+
 /** `12.8km`: a length as the trip card's Kilometer tile writes it, to a tenth, no space (the owner's 3778:3183). */
 export function kmLabel(metres: number): string {
   return (metres / 1000).toFixed(1) + 'km'

@@ -33,13 +33,14 @@ export type Highlight = { where: 'list' | 'hotspot'; from: string; ids: readonly
  * The editor also passes `drawing` and `hiddenVariantId`; the public map
  * passes neither, and both default to off.
  *
- * The public map also passes `loadLine`: its file carries each direction's
- * overview (mapFile.ts), and a direction's full line is read when it is lit
- * or chosen, or on screen at street zoom. From then on `variants` carries that line in its `shape` — so
- * the orange stretches, the chevrons, the ride-cut and the babaan sides all
- * work on the line itself — and the map draws it in place of the overview.
- * The editor passes none: its list carries overviews, and it reads a full
- * line itself when it needs one (live.ts, lineOf and linesOf).
+ * Both pass `loadLine`: their lists carry each direction's overview (the
+ * public map's file, mapFile.ts; the editor's tables, 0009), and a
+ * direction's full line is read when it is lit or chosen, or on screen at
+ * street zoom (the public map's loadLine; the editor's lineOf, live.ts).
+ * From then on `variants` carries that line in its `shape` — so the orange
+ * stretches, the chevrons, the ride-cut and the babaan sides all work on the
+ * line itself — and the map draws it in place of the overview. The editor
+ * still reads a line itself for what it opens to edit (live.ts, linesOf).
  */
 export function useSavedRoutes<T extends VariantSummary>(
   map: MapLibreMap | null,
@@ -268,7 +269,7 @@ export function useSavedRoutes<T extends VariantSummary>(
 
   return {
     variants,
-    /** The directions whose full line has been read (the public map); none on the editor, which reads its own. */
+    /** The directions whose full line has been read, on either map (`loadLine`). */
     fullIds,
     error,
     loading,

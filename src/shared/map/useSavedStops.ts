@@ -16,8 +16,7 @@ import { letGoHolds } from '../cards/cardStack'
  * module level, not a new one per render, or it reloads every render.
  *
  * The editor also passes `drawing` and `hiddenStopId`; the public map passes
- * neither, and both default to off. The public map passes `muted` while a
- * trip is open: the hotspot card or route list it was picked from waits
+ * neither, and both default to off. Both pass `muted` while a trip is open: the hotspot card or route list it was picked from waits
  * hidden behind it, and the hotspots that lit go dark until ‹ brings it back
  * (the owner, 2026-09-29: the map lights only the trip).
  */

@@ -11,7 +11,6 @@ import {
   ACCURACY_MAX_M,
   ACCURACY_MIN_M,
   COMPASS_SCALE_M,
-  SCALE_PX,
   TRACKED_SCALE_M,
   circleRadius,
   afterTap,
@@ -22,9 +21,8 @@ import {
   motionFrom,
   indicatorScale,
   trackedZoom,
-  zoomForScale,
 } from '../../src/commuter/useLocator.ts'
-import { M_PER_DEG, metresPerPixel } from '../../src/shared/geo/geo.ts'
+import { M_PER_DEG, SCALE_PX, metresPerPixel, zoomForScale } from '../../src/shared/geo/geo.ts'
 
 /** A point `east` metres east and `north` metres north of 121.05, 14.70: sample geometry, not the map. */
 const at = (east, north = 0) => [121.05 + east / (M_PER_DEG * Math.cos((14.7 * Math.PI) / 180)), 14.7 + north / M_PER_DEG]
