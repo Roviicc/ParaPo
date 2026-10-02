@@ -109,7 +109,24 @@ try {
 
   await page.goto(`${base}/`, { waitUntil: 'load' })
   check('index.html links the manifest', await page.evaluate(() => !!document.querySelector('link[rel="manifest"][href="/manifest.webmanifest"]')))
-  check('theme-color meta matches the manifest', (await page.evaluate(() => document.querySelector('meta[name="theme-color"]')?.getAttribute('content'))) === manifest?.theme_color)
+  // The page as served starts in the brand colour the manifest carries; once
+  // the map is up, the status bar takes the map's background (statusBar.ts).
+  const served = await page.evaluate(async () => (await (await fetch('/')).text()).match(/<meta name="theme-color" content="([^"]+)"/)?.[1] ?? null)
+  check('theme-color meta matches the manifest, as served', served === manifest?.theme_color, `${served} vs ${manifest?.theme_color}`)
+  // A production build keeps the map to itself: the bar leaving the brand
+  // colour for another is the map's background taking it.
+  const bar = await page
+    .waitForFunction(
+      (brand) => {
+        const meta = document.querySelector('meta[name="theme-color"]')?.getAttribute('content')
+        return !!meta && meta !== brand ? meta : false
+      },
+      manifest?.theme_color,
+      { timeout: 20000 },
+    )
+    .then((h) => h.jsonValue())
+    .catch(() => null)
+  check("once the map is up, the status bar wears the map's background", !!bar, String(bar))
 
   // The worker installs, activates and precaches on the first visit.
   const sw = await page.evaluate(async () => {
