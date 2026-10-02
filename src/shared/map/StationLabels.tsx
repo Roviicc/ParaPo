@@ -3,19 +3,27 @@ import { createPortal } from 'react-dom'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
 import { CARD_SURFACE, CARD_TEXT } from '../cards/liveryCard'
 import { TimelineDot } from '../cards/TripTimeline'
+import { haversine } from '../geo/geo'
 import type { Livery } from '../model/liveries'
 import { isRail, type VariantSummary } from '../model/routes'
 import { stopLabel, type StopSummary } from '../model/stops'
 import { tapsOnItsButton } from './markerTap'
 import './hintuanPin.css'
 
+/** The scale bar's width (MapView's ScaleControl, MapLibre's default maxWidth). */
+const SCALE_PX = 100
+
 /**
- * Closer than this the names show; further out, the dots alone, so the
- * pills never pile up. From 13, lasting 14/10 as far out — gone once the
- * map shows 1.4 times the ground it did at 13 (the owner's ask of
- * 2026-10-02: at 10/10 they went too soon), as the boxes' names last 12/10.
+ * Whether the names show: until the scale bar reads 1 km — the owner's ask
+ * of 2026-10-02, "as zoomed out to 1km it will be removed". Measured the way
+ * the bar measures itself: the ground across its width, at the map's middle
+ * height, which reads 1 km from 1,000 m. Further out, the dots alone, so
+ * the pills never pile up.
  */
-const NAMES_FROM_ZOOM = 13 - Math.log2(1.4)
+function namesShow(map: MapLibreMap): boolean {
+  const y = map.getContainer().clientHeight / 2
+  return haversine(map.unproject([0, y]).toArray(), map.unproject([SCALE_PX, y]).toArray()) < 1000
+}
 
 /**
  * The selected train line's stations along it — the owner's asks of
@@ -27,7 +35,7 @@ const NAMES_FROM_ZOOM = 13 - Math.log2(1.4)
  * the dot and its name are one colour, as the owner asked.
  *
  * The two ends are left to their end titles (EndTitles), and a picked
- * station to its HintuanPin. Further out than NAMES_FROM_ZOOM only the
+ * station to its HintuanPin. Once the scale bar reads 1 km only the
  * dots show, smaller. Given `onPick`, a name is a button that opens the station's
  * place, as the picked hintuan's is; the dot takes no taps.
  */
@@ -47,9 +55,9 @@ export function StationLabels({
   pickedId?: string | null
   onPick?: (stopId: string) => void
 }) {
-  const [named, setNamed] = useState(() => map.getZoom() >= NAMES_FROM_ZOOM)
+  const [named, setNamed] = useState(() => namesShow(map))
   useEffect(() => {
-    const on = () => setNamed(map.getZoom() >= NAMES_FROM_ZOOM)
+    const on = () => setNamed(namesShow(map))
     map.on('zoom', on)
     return () => {
       map.off('zoom', on)
