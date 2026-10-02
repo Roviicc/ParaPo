@@ -9,8 +9,13 @@ import { stopLabel, type StopSummary } from '../model/stops'
 import { tapsOnItsButton } from './markerTap'
 import './hintuanPin.css'
 
-/** Closer than this the names show; further out, the dots alone, so the pills never pile up. */
-const NAMES_FROM_ZOOM = 13
+/**
+ * Closer than this the names show; further out, the dots alone, so the
+ * pills never pile up. From 13, lasting 14/10 as far out — gone once the
+ * map shows 1.4 times the ground it did at 13 (the owner's ask of
+ * 2026-10-02: at 10/10 they went too soon), as the boxes' names last 12/10.
+ */
+const NAMES_FROM_ZOOM = 13 - Math.log2(1.4)
 
 /**
  * The selected train line's stations along it — the owner's asks of
