@@ -25,7 +25,9 @@
 // words (15);
 // undo to no points leaving no draft (12); a link sync that fails and a retry
 // that updates rather than inserts (13); the drawing keys alive after signing
-// in from Done (9); no React warnings (the duplicate key).
+// in from Done (9); no React warnings (the duplicate key). And the camera
+// with the cards, the public map's in the studio too (the owner, 2026-09-30):
+// a trip opened on its whole route, beside the card.
 import { chromium } from 'playwright'
 import { readPublished } from './lib/big-map.mjs'
 import { BASE, bareStyle, harness } from './lib/harness.mjs'
@@ -298,7 +300,16 @@ const said = (ws) => ws.map((w) => `${w.method} ${w.table}${w.query.slice(0, 70)
 /** Put the map on a place, at a zoom, and give back where a [lng, lat] lands on the page. */
 const go = async (c, zoom) => { await page.evaluate(([c, z]) => window.__map.jumpTo({ center: c, zoom: z }), [c, zoom]); await page.waitForTimeout(400) }
 const box = await page.locator('canvas.maplibregl-canvas').boundingBox()
-const px = async (ll) => { const p = await page.evaluate((ll) => { const q = window.__map.project(ll); return [q.x, q.y] }, ll); return [box.x + p[0], box.y + p[1]] }
+/**
+ * Where a [lng, lat] lands on the page once the camera is at rest: it glides
+ * with the cards, as on the public map, since 2026-10-01 (the trip opening on
+ * its whole route), and a point read mid-glide is clicked where it no longer is.
+ */
+const px = async (ll) => {
+  await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+  const p = await page.evaluate((ll) => { const q = window.__map.project(ll); return [q.x, q.y] }, ll)
+  return [box.x + p[0], box.y + p[1]]
+}
 const clickAt = async (ll, wait = 250) => { const [x, y] = await px(ll); await page.mouse.click(x, y); await page.waitForTimeout(wait) }
 const idle = () => page.waitForFunction(() => !document.body.innerText.includes('snapping…'), null, { timeout: 15000 }).catch(() => {})
 const pointsShown = async () => Number((await body()).match(/(\d+) points?\b/)?.[1] ?? 0)
@@ -410,10 +421,38 @@ async function openCard(ll) {
 }
 await openCard(OUT[1])
 check('a tap on the line opens its card, with Edit route', (await page.getByRole('button', { name: 'Edit route' }).count()) === 1)
+// The camera with the cards, as on the public map (the owner, 2026-09-30:
+// "most of the interaction of public map should be in studio"): the trip
+// opens on its whole route, every corner of it on the map beside the card
+// floating in the corner, in the middle of the room the card leaves. Tapped,
+// the route sat in the middle of the whole map: a camera that stays put fails.
+await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+const framed = await page.evaluate((line) => {
+  const m = window.__map
+  const c = m.getCanvas().getBoundingClientRect()
+  const card = document.querySelector('[data-testid="card"]').getBoundingClientRect()
+  const pts = line.map((p) => m.project(p)).map((q) => ({ x: c.left + q.x, y: c.top + q.y }))
+  const box = {
+    left: Math.min(...pts.map((q) => q.x)),
+    right: Math.max(...pts.map((q) => q.x)),
+    top: Math.min(...pts.map((q) => q.y)),
+    bottom: Math.max(...pts.map((q) => q.y)),
+  }
+  const onMap = box.left >= c.left - 2 && box.right <= c.right + 2 && box.top >= c.top - 2 && box.bottom <= c.bottom + 2
+  const besideCard = box.left >= card.right - 2
+  const centred = Math.abs((box.left + box.right) / 2 - (card.right + c.right) / 2) <= 20
+  return { onMap, besideCard, centred, box: Object.fromEntries(Object.entries(box).map(([k, x]) => [k, Math.round(x)])), cardRight: Math.round(card.right), zoom: +m.getZoom().toFixed(2) }
+}, OUT)
+check('  the camera takes in the whole route, beside the card in the corner', framed.onMap && framed.besideCard && framed.centred, JSON.stringify(framed))
 await page.getByRole('button', { name: 'Edit route' }).click()
 await waitFor(async () => (await pointsShown()) === OUT.length)
 check('  Edit route loads its points', (await pointsShown()) === OUT.length, `${await pointsShown()} points`)
+// Back where the suite measured its ground: the trip's overview left the
+// camera beside a card that is gone now.
+await go(at(0, 0), 15)
 await clickAt(at(0.0055, 0.0005), 300)
+await waitFor(async () => (await pointsShown()) === OUT.length + 1)
+check('  a click past its tail adds a point', (await pointsShown()) === OUT.length + 1, `${await pointsShown()} points`)
 await done()
 check('  the panel says it updates this direction', (await body()).includes('Update this direction'))
 n = log.length

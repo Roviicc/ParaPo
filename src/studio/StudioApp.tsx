@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { MapLibreMap } from 'maplibre-gl'
 import { HotspotCard } from '../shared/cards/HotspotCard'
-import { MapView } from '../shared/map/MapView'
+import { APP_MOVE, MapView } from '../shared/map/MapView'
 import { RouteCardList } from '../shared/cards/RouteCardList'
 import { TripCard } from '../shared/cards/TripCard'
 import { useCardStack } from '../shared/cards/useCardStack'
@@ -121,15 +121,15 @@ function Workshop({
   // The route list, a hotspot's card and the trip opened from either, as on
   // the public map (useCardStack).
   const cards = useCardStack(map, saved, stops)
-  // The camera with the cards, as on the public map (useCardCamera): a
-  // hintuan picked on the trip card, the camera gliding there clear of the
-  // card and a circle popping up on it, the route left whole (the owner,
-  // 2026-09-30: "most of the interaction of public map should be in
-  // studio"), the card staying at its height. Its overviews are off here for
-  // now (`camera: false`), so the studio's camera moves as it did.
-  const { root, tripDock, ride, switchTrip, flipList, pickOnPlaceCard } = useCardCamera(map, saved, stops, cards, {
-    camera: false,
-  })
+  // The camera with the cards, as on the public map (useCardCamera), the
+  // owner's ask of 2026-09-30: "most of the interaction of public map should
+  // be in studio". A hintuan picked on the trip card, the camera gliding
+  // there clear of the card and a circle popping up on it, the route left
+  // whole, the card staying at its height; a trip opened on its whole route,
+  // a RouteCard picked, SWITCH and the sheet settled at another height, each
+  // framed beside the card; and the camera from before a hotspot's RouteCard
+  // was picked, back as it is let go.
+  const { root, tripDock, ride, clearOfOpen, switchTrip, flipList, pickOnPlaceCard } = useCardCamera(map, saved, stops, cards)
 
   // What the lit routes wear on the map, as on the public map (useLitRides);
   // none of the orange over the direction being redrawn.
@@ -346,9 +346,11 @@ function Workshop({
           variants={saved.variants}
           onSelectVariant={cards.openTrip}
           stops={stops.stops}
+          // Another box: the map goes there, the box clear of the card on
+          // show, as on the public map.
           onPickSibling={(id) => {
             saved.highlightCard(null)
-            stops.show(id)
+            stops.show(id, clearOfOpen)
           }}
           actions={
             userId !== null &&
@@ -359,6 +361,12 @@ function Workshop({
                   const s = stops.selected
                   if (!s) return
                   closeAll()
+                  // A RouteCard picked on the way here, on this card or in
+                  // the list, took in its routes whole and left the box a
+                  // few pixels across: the outline opens on the box, in
+                  // close enough to take its corners. Already that close,
+                  // the map stays where it is.
+                  if (map && map.getZoom() < 16) map.flyTo({ center: s.point.coordinates, zoom: 16 }, APP_MOVE)
                   draw.loadArea(s.kind, s.id, stopRing(s))
                 }}
                 onDelete={() => {
