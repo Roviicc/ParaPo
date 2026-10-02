@@ -3,7 +3,7 @@ import { passStretches } from '../geo/pass'
 import { placeKey } from './places'
 import { stopRing, type StopSummary } from './stops'
 import { drawnFromTheEnd, timelineFor, type Timeline } from './timeline'
-import { variantLine, type VariantSummary } from './routes'
+import { servedBy, variantLine, type VariantSummary } from './routes'
 
 /*
  * A direction ridden: its line in the jeep's order, its timeline of
@@ -80,7 +80,7 @@ export function rideCut(
   const key = placeKey(row)
   const dots: RideDot[] = []
   for (const s of stops) {
-    if (s.kind !== 'hintuan' || placeKey(s) !== key || !s.area) continue
+    if (s.kind !== 'hintuan' || placeKey(s) !== key || !s.area || !servedBy(s, v.route)) continue
     const piece = passStretches(ride, stopRing(s))[0]
     if (!piece) continue
     const metres = distanceAlong(ride, piece[0]) + lineLength(piece) / 2
