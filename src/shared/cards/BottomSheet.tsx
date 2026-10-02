@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type Ref } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type Ref } from 'react'
 import { IconButton } from '../../design-system/primitives/IconButton'
 import { CloseIcon } from './RouteIcons'
 import { useDialogFocus } from './useDialogFocus'
@@ -90,6 +90,11 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
   // A finger on it: the glide is off, and --sheet-y is the drag's, written
   // straight onto the sheet move by move rather than rendered.
   const [dragging, setDragging] = useState(false)
+  // Where it first stands, drawn with it: a card opening over another (a
+  // place's name tapped) is new, and without this it showed at Max for a
+  // moment and glided down to its height. Never changed after, so React
+  // leaves the drag's and the glide's --sheet-y alone.
+  const [opensAt] = useState(() => ({ '--sheet-y': slide(snap) }) as CSSProperties)
   useDialogFocus(own, hidden)
   useEscape(onClose, !hidden)
 
@@ -279,6 +284,7 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
       data-snap={snapName(snap)}
       data-floats={floats}
       hidden={hidden}
+      style={opensAt}
       onPointerDown={onPointerDown}
       className={
         // Docked, it casts BottomSheet/TopShadow (3817:6007) up onto the map;
