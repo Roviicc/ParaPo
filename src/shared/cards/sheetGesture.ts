@@ -96,33 +96,47 @@ const MIDDLE = 0.45
  */
 export const LOW_PX = 129
 
-/** What each magnet shows of a sheet `h` tall, the map's height. */
-export function heightsFor(h: number): Record<SnapName & ('low' | 'middle' | 'max'), number> {
-  return { low: LOW_PX, middle: Math.round(h * MIDDLE), max: h }
+/**
+ * What Max leaves of the map at the top, as Google Maps does: the status
+ * bar's height, where the page runs behind it, and this strip under it, so
+ * the visitor keeps their place (the owner's asks, 2026-10-02).
+ */
+export const MAX_STRIP_PX = 24
+const MAX_GAP_CSS = `calc(env(safe-area-inset-top) + ${MAX_STRIP_PX}px)`
+
+/** The status bar's height as the page reads it (BottomSheet measures it): 0 where the page stops under it. */
+let safeTop = 0
+export function setSafeTop(px: number) {
+  safeTop = Math.max(0, Math.round(px))
 }
 
-/** What a sheet `h` tall shows at `snap`, a free height's included. */
+/** What each magnet shows of a sheet `h` tall, the map's height. */
+export function heightsFor(h: number): Record<SnapName & ('low' | 'middle' | 'max'), number> {
+  return { low: LOW_PX, middle: Math.round(h * MIDDLE), max: Math.max(0, h - safeTop - MAX_STRIP_PX) }
+}
+
+/** What a sheet `h` tall shows at `snap`, a free height's included: a share of Max's. */
 export function shownAt(snap: Snap, h: number): number {
-  return typeof snap === 'number' ? Math.round(h * snap) : heightsFor(h)[snap]
+  return typeof snap === 'number' ? Math.round(heightsFor(h).max * snap) : heightsFor(h)[snap]
 }
 
 /** How far down a sheet at `snap` slides, as a CSS length: `100%` is its own height, the map's. */
 export function slide(snap: Snap): string {
-  if (snap === 'max') return '0px'
+  if (snap === 'max') return MAX_GAP_CSS
   // Below Max its bottom padding is off the screen: what shows stands clear
   // of a phone's home indicator by lifting it that much.
   if (snap === 'middle') return `calc(${(1 - MIDDLE) * 100}% - env(safe-area-inset-bottom))`
-  if (typeof snap === 'number') return `calc(${(1 - snap) * 100}% - env(safe-area-inset-bottom))`
+  if (typeof snap === 'number') return `calc(100% - ${snap} * (100% - ${MAX_GAP_CSS}) - env(safe-area-inset-bottom))`
   return `calc(100% - ${LOW_PX}px - env(safe-area-inset-bottom))`
 }
 
-/** How far down a sheet slides while `shown` px of it follow a finger. Never above the map's top. */
+/** How far down a sheet slides while `shown` px of it follow a finger. Never above Max's top. */
 export function slideShowing(shown: number): string {
-  return `max(0px, calc(100% - ${shown}px - env(safe-area-inset-bottom)))`
+  return `max(${MAX_GAP_CSS}, calc(100% - ${shown}px - env(safe-area-inset-bottom)))`
 }
 
 /**
- * A finger, or a mouse, holding a sheet `max` tall that showed `from` when
+ * A finger, or a mouse, holding a sheet `h` tall that showed `from` when
  * it took hold at `startY`: how much shows as it moves, and where it lands
  * let go (snapFor). Its speed at release is the finger's over its last
  * RECENT_MS only, so a swipe that slowed before lifting is read as slow,
@@ -130,7 +144,9 @@ export function slideShowing(shown: number): string {
  * stay on the middle", 2026-09-30); held still 80 ms before lifting, it is a
  * placement, not a flick. The touch pull at Max and the pointer drag share it.
  */
-export function follow(startY: number, t: number, from: number, max: number) {
+export function follow(startY: number, t: number, from: number, h: number) {
+  const heights = heightsFor(h)
+  const max = heights.max
   let y = startY
   let last = t
   const moves: { at: number; t: number }[] = [{ at: startY, t }]
@@ -148,12 +164,12 @@ export function follow(startY: number, t: number, from: number, max: number) {
       const first = moves.find((m) => last - m.t <= RECENT_MS) ?? moves[moves.length - 1]
       const dt = last - first.t
       const v = now - last > 80 || dt <= 0 ? 0 : (first.at - y) / dt
-      return snapFor(shown(at), v, heightsFor(max))
+      return snapFor(shown(at), v, heights)
     },
   }
 }
 
-/** Let go this close under Middle's top, it is Middle still; this close under the map's top, Max. */
+/** Let go this close under Middle's top, it is Middle still; this close under Max's top, Max. */
 const MIDDLE_PULL_PX = 32
 const MAX_PULL_PX = 64
 

@@ -262,6 +262,14 @@ const buttonTap = async (locator, done) => {
   return true
 }
 
+/** Where the camera is: its centre and zoom. */
+const camNow = () =>
+  page.evaluate(() => {
+    const m = window.__map
+    const c = m.getCenter()
+    return { lng: c.lng, lat: c.lat, zoom: m.getZoom() }
+  })
+
 check('no zoom buttons on a touch screen', (await page.locator('.maplibregl-ctrl-zoom-in').count()) === 0)
 check(
   'the attribution control sits top right',
@@ -527,6 +535,8 @@ const tripChecks = async () => {
     const pickButton = row.locator('button[data-testid="trip-hintuan-pick"]')
     const isPicked = async () => (await row.getAttribute('data-state')) === 'selected'
     await pickButton.scrollIntoViewIfNeeded()
+    await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+    const camBeforePick = await camNow()
     await buttonTap(pickButton, isPicked)
     const selectedRows = await card().locator('[data-testid="trip-hintuan"][data-state="selected"]').count()
     const weight = await pickButton.evaluate((b) => getComputedStyle(b.lastElementChild.firstElementChild).fontWeight)
@@ -655,7 +665,22 @@ const tripChecks = async () => {
       )
     }
     check('  and leaves no padding on the map for later moves', drawn.padding)
+    // In to where the scale bar reads 500 m; a second tap takes the camera
+    // back where it was before the pick (the owner's ask, 2026-10-02).
+    if (pickWant) {
+      const zoomed = await camNow()
+      const want = await page.evaluate(async (lat) => (await import('/src/shared/geo/geo.ts')).zoomForScale(500, lat), zoomed.lat)
+      check('  zoomed in to 500 m on the scale bar', Math.abs(zoomed.zoom - want) < 0.05, `zoom ${zoomed.zoom.toFixed(2)}, want ${want.toFixed(2)}`)
+    }
     await buttonTap(pickButton, async () => !(await isPicked()))
+    await page.waitForTimeout(300)
+    await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+    const camAfterLetGo = await camNow()
+    check(
+      '  and let go, the camera back where it was before the pick',
+      Math.abs(camAfterLetGo.zoom - camBeforePick.zoom) < 0.01 && Math.abs(camAfterLetGo.lng - camBeforePick.lng) < 1e-6 && Math.abs(camAfterLetGo.lat - camBeforePick.lat) < 1e-6,
+      JSON.stringify({ camBeforePick, camAfterLetGo }),
+    )
     const letGo = await page.evaluate(async () => ({
       pins: document.querySelectorAll('[data-testid="hintuan-pin"]').length,
       lit: (await window.__lit('saved-routes')) ?? [],
@@ -813,11 +838,11 @@ const sheetState = async () =>
 /**
  * How far to drag the handle for the sheet to come to rest at `to` from
  * where it is, by the heights BottomSheet gives it: Low 129, Middle 45% of
- * the map, Max all of it. Negative is up.
+ * the map, Max all of it but its 24 px strip at the top. Negative is up.
  */
 const dragTo = async (from, to) => {
   const h = await card().first().evaluate((el) => el.offsetHeight)
-  const shown = { low: 129, middle: Math.round(h * 0.45), max: h }
+  const shown = { low: 129, middle: Math.round(h * 0.45), max: h - 24 }
   return shown[from] - shown[to]
 }
 const closeCard = async () => {

@@ -17,6 +17,7 @@ import { EndTitles } from '../shared/map/EndTitles'
 import { Notices } from './Notices'
 import { TripCard } from '../shared/cards/TripCard'
 import { useMapAge, useOffline } from './status'
+import { useStatusBarColour } from './statusBar'
 import { useShareLink } from './useShareLink'
 import { Locator } from './Locator'
 import { LocatorOnMap } from './LocatorIndicatorOverlay'
@@ -84,6 +85,8 @@ export default function CommuterApp() {
     { key: routesOf(saved.candidates), at: () => nearestLit(saved.litVariants.map(variantLine)) },
   ]
   const offline = useOffline()
+  // The phone's status bar in the map's colour (statusBar.ts).
+  useStatusBarColour(map)
   const age = useMapAge(saved.variants)
   const needRefresh = useNeedRefresh()
 

@@ -4,6 +4,10 @@ import { APP_MOVE } from './MapView'
 import { rideCut, travelLine } from '../model/ride'
 import type { VariantSummary } from '../model/routes'
 import { stopLabel, type StopSummary } from '../model/stops'
+import { zoomForScale, type LngLat } from '../geo/geo'
+
+/** How close a picked hintuan is brought in: the scale bar reading this. */
+const PICKED_SCALE_M = 500
 
 /**
  * A hintuan picked on the trip card — the owner's Timeline State=Selected,
@@ -43,11 +47,17 @@ export function useRideTo(
   const [atEnd, setAtEnd] = useState<{ variantId: string; end: 'from' | 'to' } | null>(null)
   const endPicked = selected && atEnd?.variantId === selected.id ? atEnd.end : null
 
+  // The camera as the first hintuan was picked: a second tap on the picked
+  // row brings it back (the owner's ask, 2026-10-02). Another hintuan picked
+  // meanwhile keeps the first one's; an end row, or another ride, lets it go.
+  const before = useRef<{ center: LngLat; zoom: number; bearing: number; pitch: number } | null>(null)
+
   // A different direction is a different ride, and so is the same one opened
   // again: start it whole.
   useEffect(() => {
     setPicked(null)
     setAtEnd(null)
+    before.current = null
   }, [selected?.id])
 
   // Called as a glide starts, so a fresh function each render moves nothing.
@@ -61,16 +71,26 @@ export function useRideTo(
 
   /** A hintuan row picks its ride (again puts it back); an end row passes null. */
   const selectedId = selected?.id
+  const liveRow = live?.rowId ?? null
   const pick = useCallback(
     (id: string | null) => {
       setAtEnd(null)
+      if (id !== null && selectedId && liveRow === id) {
+        // The picked row again: let it go, and the camera back where it was.
+        const was = before.current
+        before.current = null
+        if (map && was) map.easeTo({ ...was, duration: 700 }, APP_MOVE)
+      } else if (id !== null && selectedId && !liveRow && map) {
+        const c = map.getCenter()
+        before.current = { center: [c.lng, c.lat], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() }
+      } else if (id === null) before.current = null
       setPicked((cur) =>
         id === null || !selectedId || (cur?.variantId === selectedId && cur.rowId === id)
           ? null
           : { variantId: selectedId, rowId: id },
       )
     },
-    [selectedId],
+    [selectedId, liveRow, map],
   )
 
   /**
@@ -81,6 +101,7 @@ export function useRideTo(
   const toEnd = useCallback(
     (end: 'from' | 'to') => {
       setPicked(null)
+      before.current = null
       const on = endPicked !== end
       setAtEnd(on && selectedId ? { variantId: selectedId, end } : null)
       if (!on) return
@@ -92,14 +113,17 @@ export function useRideTo(
     [map, selected, selectedId, stops, endPicked],
   )
 
-  // Glide to where the rider would get off, at the height the map is at:
-  // the owner tried the stretch fitted whole and it zoomed far out
-  // (2026-09-28). `offset`, never `padding`: MapLibre keeps a padding for
+  // Glide to where the rider would get off, in to where the scale bar reads
+  // 500 m (the owner's ask, 2026-10-02; the stretch fitted whole zoomed far
+  // out, 2026-09-28). `offset`, never `padding`: MapLibre keeps a padding for
   // every later move, and a shared link's fit or "Where am I" would land off
   // centre ever after.
   useEffect(() => {
     if (!map || !cut) return
-    map.easeTo({ center: cut.at, offset: onGlide.current?.() ?? [0, 0], duration: 700 }, APP_MOVE)
+    map.easeTo(
+      { center: cut.at, zoom: zoomForScale(PICKED_SCALE_M, cut.at[1]), offset: onGlide.current?.() ?? [0, 0], duration: 700 },
+      APP_MOVE,
+    )
   }, [map, cut])
 
   const pickedStop = live ? stops.find((s) => s.id === live.rowId) : undefined

@@ -3,7 +3,7 @@ import { IconButton } from '../../design-system/primitives/IconButton'
 import { CloseIcon } from './RouteIcons'
 import { useDialogFocus } from './useDialogFocus'
 import { useEscape } from './useEscape'
-import { DRAG_PX, aboveMiddle, follow, shownAt, slide, slideShowing, snapAfterTap, snapName, swallowTheTapsClick, type Snap, type SnapName } from './sheetGesture'
+import { DRAG_PX, MAX_STRIP_PX, aboveMiddle, follow, setSafeTop, shownAt, slide, slideShowing, snapAfterTap, snapName, swallowTheTapsClick, type Snap, type SnapName } from './sheetGesture'
 
 type Props = {
   /** What a screen reader calls it: the list by its count, a trip by its direction, a card by its place. */
@@ -94,6 +94,7 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
   // place's name tapped) is new, and without this it showed at Max for a
   // moment and glided down to its height. Never changed after, so React
   // leaves the drag's and the glide's --sheet-y alone.
+  measureSafeTop()
   const [opensAt] = useState(() => ({ '--sheet-y': slide(snap) }) as CSSProperties)
   useDialogFocus(own, hidden)
   useEscape(onClose, !hidden)
@@ -163,7 +164,7 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
         }
         if (y - pull.startY <= DRAG_PX / 3) return
         const h = sheet.offsetHeight
-        pull.track = follow(pull.startY, pull.t, h, h)
+        pull.track = follow(pull.startY, pull.t, shownAt('max', h), h)
         setDragging(true)
       }
       e.preventDefault()
@@ -293,7 +294,6 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
         'pb-[env(safe-area-inset-bottom)] ' +
         'translate-y-(--sheet-y) motion-reduce:transition-none ' +
         (dragging ? '' : 'transition-[translate] duration-sheet ease-enter ') +
-        (snap === 'max' ? 'pt-[env(safe-area-inset-top)] ' : '') +
         'sheet-floating:translate-y-0 sheet-floating:transition-none ' +
         FLOATS_AT[floats]
       }
@@ -332,6 +332,9 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
           'min-h-0 flex-1 scrollbar-none [&::-webkit-scrollbar]:hidden sheet-floating:overflow-y-auto sheet-floating:touch-auto ' +
           (snap === 'max' ? 'overflow-y-auto' : 'overflow-hidden touch-none')
         }
+        // At Max the sheet stands a gap down the map (sheetGesture), as much
+        // of it under the screen's bottom: padded by that, its list scrolls to the end.
+        style={snap === 'max' ? { paddingBottom: 'calc(env(safe-area-inset-top) + ' + MAX_STRIP_PX + 'px)' } : undefined}
       >
         {children}
       </div>
@@ -392,6 +395,21 @@ export function clearOfDock(map: HTMLElement, dock: HTMLElement | null, snap?: S
  */
 const framedAt = (snap: Snap): Snap => (aboveMiddle(snap) ? 'middle' : snap)
 
+/**
+ * The status bar's height as the page reads it, once: what Max leaves above
+ * it besides its strip of map (sheetGesture). 0 where the page stops under it.
+ */
+let safeTopRead = false
+function measureSafeTop() {
+  if (safeTopRead || typeof document === 'undefined') return
+  safeTopRead = true
+  const probe = document.createElement('div')
+  probe.style.cssText = 'position:fixed;top:0;visibility:hidden;padding-top:env(safe-area-inset-top)'
+  document.body.appendChild(probe)
+  setSafeTop(parseFloat(getComputedStyle(probe).paddingTop) || 0)
+  probe.remove()
+}
+
 /** Between a route fitted whole and the map's edges, or the sheet's. */
 const FIT_MARGIN_PX = 48
 /**
@@ -425,7 +443,8 @@ export function roomBeside(
     return room
   }
   let shows = showsAt(dock, snap)
-  if (m.height - shows < FIT_ROOM_MIN_PX) shows = showsAt(dock, framedAt(snap))
+  // Max leaves only a strip of map (MAX_STRIP_PX): framed as at Middle, as when it covered it all.
+  if (snap === 'max' || m.height - shows < FIT_ROOM_MIN_PX) shows = showsAt(dock, framedAt(snap))
   // A thin strip above a tall sheet: the margins give way, so the route still fits.
   const margin = Math.max(0, Math.min(FIT_MARGIN_PX, (m.height - shows - FIT_ROOM_MIN_PX) / 2))
   room.top = margin + Math.max(0, Math.min(FIT_BADGE_PX, m.height - shows - FIT_ROOM_MIN_PX - 2 * margin))
@@ -439,7 +458,7 @@ export function roomBeside(
  */
 function showsAt(sheet: HTMLElement, snap: Snap): number {
   const h = sheet.offsetHeight
-  if (snap === 'max') return h
+  if (snap === 'max') return shownAt('max', h)
   return shownAt(snap, h) + (parseFloat(getComputedStyle(sheet).paddingBottom) || 0)
 }
 
