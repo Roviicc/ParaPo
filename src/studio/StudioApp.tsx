@@ -129,11 +129,11 @@ function Workshop({
   // a RouteCard picked, SWITCH and the sheet settled at another height, each
   // framed beside the card; and the camera from before a hotspot's RouteCard
   // was picked, back as it is let go.
-  const { root, tripDock, ride, clearOfOpen, switchTrip, flipList, pickOnPlaceCard } = useCardCamera(map, saved, stops, cards)
+  const { root, tripDock, ride, clearOfOpen, switchTrip, flipList, pickOnPlaceCard, openTrip, backFromTrip } = useCardCamera(map, saved, stops, cards)
 
   // What the lit routes wear on the map, as on the public map (useLitRides);
   // none of the orange over the direction being redrawn.
-  const rides = useLitRides(map, saved, stops.stops, draw.target.variantId)
+  const rides = useLitRides(map, saved, stops.stops, draw.target.variantId, ride.ridden)
 
   // The pill counts routes, not directions: a route is two rows, one of them
   // perhaps an empty slot, and five routes once read "10 routes" (finding 7).
@@ -275,7 +275,7 @@ function Workshop({
           variants={saved.variants}
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
           livery={tripLivery}
-          onBackToList={cards.backFromTrip}
+          onBackToList={backFromTrip}
           onSwitch={switchTrip}
           onClose={closeAll}
           picked={ride.pickedId}
@@ -344,7 +344,7 @@ function Workshop({
           stop={stops.selected}
           linkedVariantIds={stops.linkedVariantIds(stops.selected.id)}
           variants={saved.variants}
-          onSelectVariant={cards.openTrip}
+          onSelectVariant={openTrip}
           stops={stops.stops}
           // Another box: the map goes there, the box clear of the card on
           // show, as on the public map.
@@ -395,7 +395,7 @@ function Workshop({
           onFlip={flipList}
           selected={saved.highlight?.where === 'list' ? saved.highlight.from : null}
           onSelect={(p) => saved.highlightCard(p && { where: 'list', ...p })}
-          onRoute={cards.openTrip}
+          onRoute={openTrip}
           onStop={(s) => cards.openStop(s.id)}
           onClose={closeAll}
         />

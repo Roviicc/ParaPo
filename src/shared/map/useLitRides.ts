@@ -5,6 +5,7 @@ import { usePassStretches } from '../geo/passStretches'
 import { travelLine } from '../model/ride'
 import { directionEndStops, directionEnds, type VariantSummary } from '../model/routes'
 import type { StopSummary } from '../model/stops'
+import type { LngLat } from '../geo/geo'
 import { useDirectionArrows, type Ride } from './directionArrows'
 
 /**
@@ -27,6 +28,8 @@ export function useLitRides(
   stops: readonly StopSummary[],
   /** The direction being redrawn in the studio: no stretches over the draft. */
   hiddenVariantId: string | null = null,
+  /** A hintuan picked on the trip (useRideTo's `ridden`): that ride's chevrons stop there. */
+  ridden: { variantId: string; line: LngLat[] } | null = null,
 ): Ride[] {
   // Where a lit direction passes a hintuan, the line turns orange for that
   // stretch: worked out on the full lines read — a lit direction's is asked
@@ -40,8 +43,15 @@ export function useLitRides(
   // flowing inside each line from where the ride starts, and each end a
   // circle with its place's name and, where the route says, its hotspot.
   const rides = useMemo(
-    () => saved.litVariants.map((v) => ({ id: v.id, line: travelLine(v, stops), ...directionEnds(v), ...directionEndStops(v) })),
-    [saved.litVariants, stops],
+    () =>
+      saved.litVariants.map((v) => ({
+        id: v.id,
+        line: travelLine(v, stops),
+        ...(ridden?.variantId === v.id ? { flow: ridden.line } : {}),
+        ...directionEnds(v),
+        ...directionEndStops(v),
+      })),
+    [saved.litVariants, stops, ridden],
   )
   useDirectionArrows(map, rides)
   // The chosen direction's side of each hintuan it cuts across: its right.

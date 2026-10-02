@@ -39,6 +39,11 @@ type Props = {
  * point the marker is anchored to. Given `onPick`, the name is a button
  * that opens the hintuan's place (the owner's ask, 2026-10-01); the circle
  * still takes no taps.
+ *
+ * Over the name, End (the owner's SelectedHintuanRouteTitle, Figma
+ * 3848:12135, 2026-10-02): picked, the hintuan is where the ride ends, so
+ * the chevrons stop here (useLitRides) and the route's own tail keeps its
+ * name without the word (EndTitles).
  */
 export function HintuanPin({ map, at, label, livery, onPick }: Props) {
   const [el] = useState(() => {
@@ -78,17 +83,27 @@ export function HintuanPin({ map, at, label, livery, onPick }: Props) {
       <TimelineDot rail={TIMELINE_SURFACE[livery]} selected />
       {label && (
         <Title
-          {...(onPick ? { type: 'button' as const, 'aria-label': `${label}: the routes there` } : {})}
-          data-testid="hintuan-pin-title"
-          className={
-            'hintuan-pin-title absolute left-full top-1/2 ml-2.5 max-w-56 truncate rounded-full px-2 py-1 ' +
-            'text-sm/5 font-medium shadow-selected-hintuan-route-title ' +
-            CARD_SURFACE[livery] +
-            ' ' +
-            CARD_TEXT[livery]
-          }
+          {...(onPick ? { type: 'button' as const, 'aria-label': `End, ${label}: the routes there` } : {})}
+          className="hintuan-pin-title absolute left-full top-1/2 ml-2.5 flex max-w-56 flex-col items-center"
         >
-          {label}
+          {/* Over the name, as over a ride's own end (EndTitles): the ride now ends here. */}
+          <span
+            data-part="badge"
+            className="absolute bottom-full mb-1 rounded-full bg-brand-surface-secondary px-2 py-1 text-sm/5 font-medium text-content-inverse"
+          >
+            End
+          </span>
+          <span
+            data-testid="hintuan-pin-title"
+            className={
+              'max-w-full truncate rounded-full px-2 py-1 text-sm/5 font-medium shadow-selected-hintuan-route-title ' +
+              CARD_SURFACE[livery] +
+              ' ' +
+              CARD_TEXT[livery]
+            }
+          >
+            {label}
+          </span>
         </Title>
       )}
     </>,

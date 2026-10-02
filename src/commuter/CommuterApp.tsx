@@ -44,8 +44,6 @@ export default function CommuterApp() {
   const stops = useSavedStops(map, loadStopsFromFile, { muted: !!saved.selected })
   const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW
 
-  // What the lit routes wear on the map, their ends named (useLitRides).
-  const rides = useLitRides(map, saved, stops.stops)
   // The route list, a hotspot's card and the trip opened from either: which
   // is up, what stands behind what, their height and colours (useCardStack).
   const cards = useCardStack(map, saved, stops)
@@ -53,8 +51,11 @@ export default function CommuterApp() {
   // a trip, a picked RouteCard and SWITCH taken in whole, again as the sheet
   // settles; the camera from before a hotspot's card was picked, back as it
   // is let go (useCardCamera).
-  const { root, tripDock, hotspotDock, ride, clearOfOpen, switchTrip, flipList, otherRoute, pickOnPlaceCard, openPlace, openRide } =
+  const { root, tripDock, hotspotDock, ride, clearOfOpen, switchTrip, flipList, otherRoute, pickOnPlaceCard, openPlace, openRide, openTrip, backFromTrip } =
     useCardCamera(map, saved, stops, cards)
+  // What the lit routes wear on the map, their ends named (useLitRides): a
+  // picked hintuan's ride flowing only as far as there.
+  const rides = useLitRides(map, saved, stops.stops, null, ride.ridden)
 
   useShareLink(map, saved)
   // The visitor's own position, when they ask for it, and the camera with
@@ -156,7 +157,7 @@ export default function CommuterApp() {
           variants={saved.variants}
           timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
           livery={tripLivery}
-          onBackToList={hush(cards.backFromTrip)}
+          onBackToList={hush(backFromTrip)}
           onSwitch={switchTrip}
           onClose={cards.closeAll}
           picked={ride.pickedId}
@@ -204,7 +205,7 @@ export default function CommuterApp() {
           stops={stops.stops}
           linkedVariantIds={stops.linkedVariantIds}
           variants={saved.variants}
-          onSelectVariant={cards.openTrip}
+          onSelectVariant={openTrip}
           // Its Selected row tapped again: no box is the one until a row is
           // picked (the owner, 2026-10-01).
           deselected={stops.letGone}
@@ -240,7 +241,7 @@ export default function CommuterApp() {
           onFlip={flipList}
           selected={saved.highlight?.where === 'list' ? saved.highlight.from : null}
           onSelect={(p) => saved.highlightCard(p && { where: 'list', ...p })}
-          onRoute={cards.openTrip}
+          onRoute={openTrip}
           onStop={(s) => cards.openStop(s.id)}
           onClose={cards.closeAll}
         />

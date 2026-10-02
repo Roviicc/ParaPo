@@ -1,4 +1,4 @@
-import { useRef, useState, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { useRideTo } from '../map/rideTo'
 import type { Highlight } from '../map/useSavedRoutes'
@@ -9,11 +9,13 @@ import { clearOfSheet, type SheetHeight } from './BottomSheet'
 import { framedBy, type Framed } from './cardStack'
 import type { PickedPlace } from './RouteCardStack'
 import type { Snap } from './sheetGesture'
-import { useCameraBefore, useCardOverview, useHeightOverview, useSwitchOverview, useTripOverview } from './useOverviews'
+import { useCameraBefore, useCardOverview, useHeightOverview, useListOverview, useSwitchOverview, useTripOverview } from './useOverviews'
 
 type Routes<V extends VariantSummary> = {
   variants: readonly V[]
   selected: V | null
+  /** What the route list lists, if it is up. */
+  candidates: readonly V[]
   highlight: Highlight | null
   litVariants: readonly V[]
   select: (id: string | null, opts?: { keepList?: boolean }) => void
@@ -28,6 +30,7 @@ type Stops<S extends StopSummary> = {
 
 type Cards = {
   snap: Snap
+  backFromTrip: (() => void) | null
   height: SheetHeight
   choosing: boolean
   clearOf: (dock: RefObject<HTMLElement | null>) => () => [number, number]
@@ -73,10 +76,29 @@ export function useCardCamera<V extends VariantSummary, S extends StopSummary>(
   // The page, and the card's sheet on show in it, for what the camera keeps clear of.
   const root = useRef<HTMLDivElement>(null)
   const openSheet = () => root.current?.querySelector<HTMLElement>('[data-floats]:not([hidden])') ?? null
+  // The route list opened: every route it lights, whole.
+  useListOverview(cam, saved.candidates, saved.litVariants, openSheet, cards.snap)
   // A RouteCard picked, in the list or a hotspot's card: its routes whole.
   useCardOverview(cam, saved.highlight, saved.variants, openSheet, cards.snap)
   // …and on a hotspot's card, let go, the camera the visitor had before it.
   const before = useCameraBefore(cam)
+  // A trip opened from a card — a list's, a hotspot's, a tail's name — and
+  // its ‹: the camera the visitor had as they tapped, back with the card
+  // (the owner's ask, 2026-10-02: a hintuan's card, zoomed in, a RouteCard's
+  // row, ‹, and in again where they were). A hotspot's card picked first
+  // comes back at rest, so the camera from before that pick. One trip
+  // opening another ("Other routes") keeps the first one's.
+  const beforeTrip = useCameraBefore(cam)
+  const keepForTrip = () => {
+    if (saved.selected) return
+    beforeTrip.keep(saved.highlight?.where === 'hotspot' ? before.held() : null)
+  }
+  // Closed any other way — ✕, a place's card in front — it is let go, so a
+  // trip opened later by a tap on its line has no camera of another's to go back to.
+  const tripOpen = !!saved.selected
+  useEffect(() => {
+    if (!tripOpen) beforeTrip.forget()
+  }, [tripOpen, beforeTrip])
   // SWITCH, on any card: the routes the other way round, whole.
   const [switches, setSwitches] = useState(0)
   const switched = () => setSwitches((n) => n + 1)
@@ -102,6 +124,20 @@ export function useCardCamera<V extends VariantSummary, S extends StopSummary>(
     /** Where the visitor's own position sits as the camera follows it: clear of the card on show. */
     clearOfOpen: (): [number, number] =>
       map ? clearOfSheet(map.getContainer(), openSheet(), cards.snap) : [0, 0],
+
+    /** A route picked on a card: its trip, the camera as it was kept for the trip's ‹. */
+    openTrip: (v: { id: string }, livery?: Livery) => {
+      keepForTrip()
+      cards.openTrip(v, livery)
+    },
+
+    /** The trip's ‹ (useCardStack's), and the camera from before the trip back with the card. Null: no ‹. */
+    backFromTrip: cards.backFromTrip
+      ? () => {
+          cards.backFromTrip?.()
+          beforeTrip.back()
+        }
+      : null,
 
     /** SWITCH on a trip: the other way round, and the camera with it. */
     switchTrip: (v: { id: string }) => {
@@ -145,7 +181,9 @@ export function useCardCamera<V extends VariantSummary, S extends StopSummary>(
     /** A tail's name with no trip open: its ride's trip, in the colour of the card picked, if one is. */
     openRide: (id: string) => {
       const v = saved.variants.find((x) => x.id === id)
-      if (v) cards.openTrip(v, saved.highlight?.livery)
+      if (!v) return
+      keepForTrip()
+      cards.openTrip(v, saved.highlight?.livery)
     },
   }
 }

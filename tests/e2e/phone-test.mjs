@@ -623,6 +623,23 @@ const tripChecks = async () => {
       !!title && title.text === rowName && title.colours && Math.abs(title.gap - 10) < 1.5 && Math.abs(title.drop) < 1.5,
       title ? `"${title.text}" for "${rowName}"; ${title.detail}; ${title.gap.toFixed(1)} px right, ${title.drop.toFixed(1)} px low` : 'no title',
     )
+    // The ride ends at the hintuan now (SelectedHintuanRouteTitle, Figma
+    // 3848:12135): End over its name, and the route's own tail keeps its
+    // name without the word.
+    const words = await page.evaluate(() => {
+      const t = document.querySelector('[data-testid="hintuan-pin-title"]')
+      const badge = t?.parentElement?.querySelector('[data-part="badge"]')
+      const word = (end) => document.querySelector(`[data-testid="end-title"][data-end="${end}"] [data-part="badge"]`)?.textContent.trim() ?? null
+      const tails = document.querySelectorAll('[data-testid="end-title"][data-end="tail"] [data-part="name"]').length
+      if (!t || !badge) return { pin: null, head: word('head'), tail: word('tail'), tails }
+      const [a, b] = [badge.getBoundingClientRect(), t.getBoundingClientRect()]
+      return { pin: badge.textContent.trim(), over: b.top - a.bottom, centred: a.left + a.width / 2 - (b.left + b.width / 2), head: word('head'), tail: word('tail'), tails }
+    })
+    check(
+      '  End over its name, Start still over the start, the tail named without End',
+      words.pin === 'End' && Math.abs(words.over - 4) < 1.5 && Math.abs(words.centred) < 1.5 && words.head === 'Start' && words.tail === null && words.tails > 0,
+      `pin "${words.pin}" ${words.over?.toFixed(1)} px over, ${words.centred?.toFixed(1)} px off centre; head "${words.head}", tail "${words.tail}", ${words.tails} tail name(s)`,
+    )
     if (pickWant) {
       const where = await page.evaluate((at) => {
         const m = window.__map
@@ -713,24 +730,29 @@ const tripChecks = async () => {
       await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
       const destination = await card().locator('[data-testid="trip-destination"]').first().getAttribute('data-state')
       const origin = await card().locator('[data-testid="trip-origin"]').first().getAttribute('data-state')
-      const after = await page.evaluate(async (at) => {
+      // Where the camera brings the end in: above the card, or, with the card
+      // left at Max (a runner can drop the handle taps that bring it down),
+      // above where Middle would be, as for a hintuan picked at Max.
+      const snapNow = await sheetState()
+      const after = await page.evaluate(async ([at, snap]) => {
         const m = window.__map
         const c = m.getCanvas().getBoundingClientRect()
         const d = document.querySelector('[data-testid="card"]').getBoundingClientRect()
+        const floor = snap === 'max' ? c.bottom - Math.round(c.height * 0.45) : d.top
         const q = at && m.project(at)
         return {
           pins: document.querySelectorAll('[data-testid="hintuan-pin"]').length,
           lit: (await window.__lit('saved-routes')) ?? [],
-          above: q ? c.top + q.y > c.top + 16 && c.top + q.y < d.top - 16 && q.x > 16 && q.x < c.width - 16 : null,
+          above: q ? c.top + q.y > c.top + 16 && c.top + q.y < floor - 16 && q.x > 16 && q.x < c.width - 16 : null,
           padding: Object.values(m.getPadding()).every((v) => v === 0),
         }
-      }, ends?.[end] ?? null)
+      }, [ends?.[end] ?? null, snapNow])
       check(
         `  ${end === 'to' ? 'where the trip goes' : 'where it leaves from'}, tapped, is picked in the hintuan's place, its circle gone, the map gliding there above the card`,
         wasPicked && destinationBefore === 'rest' && !(await isPicked()) &&
           destination === (end === 'to' ? 'selected' : 'rest') && origin === (end === 'from' ? 'selected' : 'rest') &&
           after.pins === 0 && after.lit.length === 1 && after.lit[0] === tripId && after.above !== false && after.padding,
-        `picked first ${wasPicked}; the destination ${destinationBefore} → ${destination}, the origin ${origin}; ${after.pins} circle(s), ${after.lit.length} lit; in the map above the card ${after.above ?? 'not measured'}`,
+        `picked first ${wasPicked}; the destination ${destinationBefore} → ${destination}, the origin ${origin}; ${after.pins} circle(s), ${after.lit.length} lit; in the map above the card ${after.above ?? 'not measured'} (data-snap=${snapNow})`,
       )
     }
     // Picked again, for SWITCH — or ✕ and ‹ — to let go.
@@ -972,9 +994,18 @@ if (routeA) {
   check('  the camera takes in the whole route, above the card', framed.inside, JSON.stringify(framed))
   const routeEnds = r.signboard.split(' – ').map((e) => e.replace(/ via .*$/, ''))
   check("  its ends are the route's two ends", routeEnds.length === 2 && routeEnds.every((e) => text.includes(e)), r.signboard)
-  // Dropped by the owner for now, to design later (2026-09-28).
-  const gone = ['Length', 'Mode', 'Status', 'Share', 'Signboard'].filter((s) => text.includes(s))
-  check("  the old card's extras are gone: no Length, Mode, Status, Share or signboard", text !== '' && gone.length === 0, gone.join(', '))
+  // Dropped by the owner for now, to design later (2026-09-28). The words
+  // signboard went with them; the boards uploaded in the studio came back
+  // as pictures under their own heading (3919:11355), left out here.
+  const extras = await card()
+    .first()
+    .evaluate((c) => {
+      const k = c.cloneNode(true)
+      k.querySelector('[data-testid="trip-signboards"]')?.remove()
+      return k.textContent
+    })
+  const gone = ['Length', 'Mode', 'Status', 'Share', 'Signboard'].filter((s) => extras.includes(s))
+  check("  the old card's extras are gone: no Length, Mode, Status, Share or signboard words", text !== '' && gone.length === 0, gone.join(', '))
 
   // The tap opens the route's drawn outbound, whichever direction was under the finger (2026-09-22).
   const sameRoute = snapshot.routes.filter((o) => o.routeId === r.routeId).map((o) => o.id)
@@ -1052,7 +1083,7 @@ if (routeA) {
   } else {
     const end = tappable[0]
     await jumpTo(page, end.at)
-    await endButton(end.name).click()
+    await endButton(end.name).locator('[data-part="name"]').click()
     await page.waitForTimeout(300)
     await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 4000 }).catch(() => {})
     const opened = await page.evaluate(() => {
@@ -1254,8 +1285,16 @@ if (!shared) {
       again ? `card count ${await card().count()}; picked before ${pickedForTrip}, now ${await isPicked()}; ${litBack.length} lit` : 'the list did not come back',
     )
     if (trip3.picked) check('  and lets the picked hintuan go', await noPickLeft())
+    // A list of one card wears that card's colour; of several, the
+    // selected blue (the owner's asks, 2026-09-29 and 2026-10-02).
+    const listCards = chooser.first().locator('[data-testid="chooser-origin"]')
+    const oneCard = (await listCards.count()) === 1 ? await listCards.first().getAttribute('data-livery') : null
     const seenRest = await rideLook(page)
-    check('  and its lines are the selected blue again', wears(seenRest, LOOKS?.lit), JSON.stringify(seenRest))
+    check(
+      oneCard ? "  and its lines are its one card's colour again" : '  and its lines are the selected blue again',
+      wears(seenRest, oneCard ? LOOKS?.byLivery[oneCard] : LOOKS?.lit),
+      `${oneCard ?? 'blue'}: ${JSON.stringify(seenRest)}`,
+    )
     // A Tail Route one lit ride alone goes to opens that ride's trip, its
     // line lit (the owner's ask, 2026-10-01); ‹ back to the list. The card
     // picked first: the list's routes may all end at one place (the way
@@ -1269,7 +1308,11 @@ if (!shared) {
         return { titles: titles.length, badged: titles.filter((t) => t.querySelector('[data-part="badge"]')).length }
       })
     const inBlue = await badges()
-    check('  in the selected blue, the ends are named without Start or End', inBlue.titles > 0 && inBlue.badged === 0, JSON.stringify(inBlue))
+    check(
+      oneCard ? "  in its one card's colour, the ends wear Start or End" : '  in the selected blue, the ends are named without Start or End',
+      inBlue.titles > 0 && inBlue.badged === (oneCard ? inBlue.titles : 0),
+      JSON.stringify(inBlue),
+    )
     await buttonTap(wantedName, isPicked)
     await page
       .waitForFunction(() => [...document.querySelectorAll('[data-testid="end-title"]')].every((t) => t.querySelector('[data-part="badge"]')), null, { timeout: 2000 })
@@ -1286,15 +1329,26 @@ if (!shared) {
         async (n) => ((await window.__src('direction-ends'))?.features ?? []).find((f) => f.properties.named && f.properties.name === n)?.geometry.coordinates,
         tailName,
       )
+      // Where a finger could tap it: a list left at Max (its handle's taps
+      // dropped by a slow runner) covers the map, so it comes down first.
+      const listHandle = page.locator('[data-testid="chooser"]').first().locator('button[data-testid="dock-handle"]')
+      const listSnap = async () => page.locator('[data-testid="chooser"]').first().getAttribute('data-snap')
+      if ((await listSnap()) === 'max') await buttonTap(listHandle, async () => (await listSnap()) !== 'max')
       if (tailAt) await jumpTo(page, tailAt)
-      await tail.click()
+      const namePill = tail.locator('[data-part="name"]')
+      const reachable = await namePill.evaluate((el) => {
+        const r = el.getBoundingClientRect()
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        return !!hit && el.contains(hit)
+      })
+      if (reachable) await namePill.click()
       await page.waitForFunction(() => document.querySelectorAll('[data-testid="card"]:not([hidden]) [data-testid="trip"]').length === 1, null, { timeout: 4000 }).catch(() => {})
       const tripName = await tripLabel()
       const litTrip = (await litIds(page)) ?? []
       check(
         "  a tap on a tail's name opens its ride's trip, its line alone lit",
-        tripName.includes(tailName) && litTrip.length === 1 && listedIds.includes(litTrip[0]) && !(await listShown()),
-        JSON.stringify({ tail: tailName, trip: tripName, lit: litTrip }),
+        reachable && tripName.includes(tailName) && litTrip.length === 1 && listedIds.includes(litTrip[0]) && !(await listShown()),
+        JSON.stringify({ tail: tailName, reachable, list: await listSnap(), trip: tripName, lit: litTrip }),
       )
       await buttonTap(card().getByRole('button', { name: 'Back' }), listShown)
       check('  and its ‹ goes back to the list', await listShown())
@@ -1911,9 +1965,11 @@ if (!fannedOne) {
   await page.goto(`${BASE}/?r=${encodeURIComponent(fannedOne.id)}`, { waitUntil: 'load' })
   await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
   await page.waitForTimeout(2000)
+  const back = card().getByRole('button', { name: 'Back' })
+  // The trip opens once its line is read: on a slow runner, after the map.
+  await back.first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
   const opened = await tripLabel()
   const openedColour = (await trip().count()) ? await trip().first().getAttribute('data-livery') : null
-  const back = card().getByRole('button', { name: 'Back' })
   const chooser = page.locator('[data-testid="chooser"]')
   const listShown = async () => (await chooser.count()) > 0 && (await chooser.first().isVisible())
   const tapped = (await back.count()) > 0 && (await buttonTap(back, listShown))
