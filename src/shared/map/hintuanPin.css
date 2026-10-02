@@ -1,6 +1,7 @@
 /*
- * The picked hintuan's circle on the public map (HintuanPin.tsx, which
- * imports this sheet, so only the public map loads it). The marker's own
+ * The picked hintuan's circle (HintuanPin.tsx) and a selected train line's
+ * stations (StationLabels.tsx); both import this sheet, so only the maps
+ * that draw them load it. The marker's own
  * element is MapLibre's to move — it sets its transform — so the pop is on
  * the circle inside, TimelineDot's own span: from nothing to its size,
  * over the base duration with the arriving ease (tokens.css, Motion), and
@@ -10,9 +11,11 @@
 .hintuan-pin {
   pointer-events: none;
 }
-/* A name that opens its place takes taps; the circle never does. */
+/*
+ * A name that opens its place takes taps, and so does a train station's dot
+ * and name, one button (StationLabels.tsx); the picked hintuan's circle never does.
+ */
 button.hintuan-pin-title,
-/* A train's station (StationLabels.tsx) is one button: its dot and its name. */
 button.station-label-tap {
   pointer-events: auto;
   cursor: pointer;

@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Marker, type MapLibreMap } from 'maplibre-gl'
 import { CARD_SURFACE, CARD_TEXT } from '../cards/liveryCard'
 import { TimelineDot } from '../cards/TripTimeline'
 import { haversine } from '../geo/geo'
 import type { Livery } from '../model/liveries'
-import { isRail, type VariantSummary } from '../model/routes'
+import { isRail, servedBy, type VariantSummary } from '../model/routes'
 import { stopLabel, type StopSummary } from '../model/stops'
 import { tapsOnItsButton } from './markerTap'
 import './hintuanPin.css'
@@ -41,8 +41,9 @@ function namesShow(map: MapLibreMap): boolean {
  * The two ends are left to their end titles (EndTitles), and a picked
  * station to its HintuanPin. Once the scale bar reads 3 km only the
  * dots show, smaller. The names are 12px, the picked one's pill 14px (the
- * owner's ask, 2026-10-02). Given `onPick`, the dot and its name are one button,
- * which picks the station.
+ * owner's ask, 2026-10-02). Given `onPick`, the dot and its name are one
+ * button that hands it the station's id: the public map opens its place,
+ * the studio picks it.
  */
 export function StationLabels({
   map,
@@ -58,26 +59,28 @@ export function StationLabels({
   livery: Livery
   /** The picked hintuan, which its HintuanPin names. */
   pickedId?: string | null
+  /** Called with the tapped station's id. */
   onPick?: (stopId: string) => void
 }) {
   const [named, setNamed] = useState(() => namesShow(map))
   useEffect(() => {
     const on = () => setNamed(namesShow(map))
-    map.on('zoom', on)
+    // On every move, as the bar itself: its metres change with the latitude too.
+    map.on('move', on)
     return () => {
-      map.off('zoom', on)
+      map.off('move', on)
     }
   }, [map])
 
   const route = selected.route
-  if (!isRail(route?.mode) || !route.route_code) return null
+  if (!isRail(route?.mode)) return null
   // A train's stations are its line's (servedBy): both directions stop at each.
   const ends = new Set([route.head_stop_id, route.tail_stop_id, pickedId])
-  const stations = stops.filter((s) => s.line === route.route_code && !ends.has(s.id))
+  const stations = stops.filter((s) => servedBy(s, route) && !ends.has(s.id))
   return (
     <>
       {stations.map((s) => (
-        <StationLabel key={s.id} map={map} stop={s} livery={livery} named={named} onPick={onPick && (() => onPick(s.id))} />
+        <StationLabel key={s.id} map={map} stop={s} livery={livery} named={named} onPick={onPick} />
       ))}
     </>
   )
@@ -94,7 +97,7 @@ function StationLabel({
   stop: StopSummary
   livery: Livery
   named: boolean
-  onPick?: () => void
+  onPick?: (stopId: string) => void
 }) {
   const [el] = useState(() => {
     const div = document.createElement('div')
@@ -108,7 +111,10 @@ function StationLabel({
       m.remove()
     }
   }, [map, el, stop.point.coordinates])
-  useEffect(() => (onPick ? tapsOnItsButton(el, onPick) : undefined), [el, onPick])
+  // Read as the tap comes: a fresh function each render binds nothing anew (HintuanPin).
+  const pick = useRef(onPick)
+  pick.current = onPick
+  useEffect(() => tapsOnItsButton(el, () => pick.current?.(stop.id)), [el, stop.id])
 
   // Further out, a smaller dot (hintuanPin.css), so the stations read as beads, not a wall.
   el.toggleAttribute('data-far', !named)
