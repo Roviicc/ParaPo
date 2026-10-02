@@ -14,6 +14,7 @@ Chromium does.
     node tests/e2e/hotspot-test.mjs           # 22: hotspot tracing, draft reload, a routed segment on /studio/?e2e=1
     node tests/e2e/snap-test.mjs              # 20: far clicks go freehand, U-turns at joins shown not changed, street names
     node tests/e2e/extend-test.mjs            # 16: Extend's join mode, and a right-click on a saved line following it to its end
+    node tests/e2e/studio-phone-test.mjs      # 15: the studio's drawing by finger on /studio/?e2e=1 at 390×844, touch only — taps add and insert, a drag from a point (or 13 px beside it) moves it with the map held still and one router request on lifting, a second finger putting it back to pinch, a tap beside a point, a double-tap, a long-press, a pan and a pinch adding nothing, Android's long-press contextmenu deleting nothing while a right-click still does, and a hotspot corner dragged with no router
     node tests/e2e/group-test.mjs             # 35 (35 run, 0 SKIP today): the studio's route list on a tap where routes share a road — one way round, a RouteCard per place, only what is drawn, all of it lit till a card is picked, a second tap and SWITCH letting it go, the picked card lit with arrows, end circles and names, the other way drawn as it rests, opaque, and the studio's paint in the same two looks; its ride-to preview still drawing the way not ridden at rest with its get-off circles, a second tap putting the route back; clicks that switch, and clicks that keep what the list shows, a card picked or not
 
     npm run test:unit                         # 156 in 19 files (tests/unit/), one `node --test`, no browser: the studio's paged table reader against a capped fake server (11), the map file reader against every shape of file it can meet, and the committed file's decimals (10), the orange stretches with their bounds checks against the walk without them (4), the pass index the saves link by with its bounds checks against the walks without them (4), the map data check against small maps with one thing wrong each and the committed map (12), what a save keeps of a coordinate (2), "Where am I"'s pose, facing and motion from its fixes (9), the cards over the map — the list asking, a trip's ‹, the shared height, a trip behind a place's card, a row let go (7)
@@ -31,8 +32,8 @@ and runs the checks that cost little, and takes a third of the hotspots. Unset,
 it runs whole, as on your machine. A pull request runs only what
 its files can reach: docs alone run nothing, `src/studio/` alone skips the public
 suites, `src/commuter/` and `public/` alone skip the studio's, anything shared runs
-both. The drawing suites (group, regression-gestures, hotspot, snap, extend) are
-not run on pull requests. They run on every push to `main` or `staging`, nightly
+both. The drawing suites (group, regression-gestures, hotspot, snap, extend,
+studio-phone) are not run on pull requests. They run on every push to `main` or `staging`, nightly
 and on "Run workflow", one at a time with one retry after a minute for the shared
 router. The pull request's two checks keep their names, "Build and the public map"
 and "The editor". A red check means the push broke something; the failing

@@ -5,9 +5,9 @@
 //
 // BASE and harness: every suite but pwa-test, which starts its own server and
 // keeps its own count. nodeFetch: gate, visitor, phone, hotspot,
-// regression-gestures and snap. bareStyle: where, scale, studio-scale and
-// save. waitForSource: visitor, phone, hotspot, regression-gestures, extend
-// and group.
+// regression-gestures, snap and studio-phone. bareStyle: where, scale,
+// studio-scale and save. waitForSource: visitor, phone, hotspot,
+// regression-gestures, extend, group and studio-phone.
 
 /** The dev server's address: PARAPO_BASE, or http://localhost:5173. */
 export const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')

@@ -1,6 +1,6 @@
 // The drawing suites' helpers on the studio's page: where a [lng, lat] lands
 // on the canvas, the wait for the router, and whether a layer draws at a
-// pixel yet. Used by regression-gestures and snap-test, as
+// pixel yet. Used by regression-gestures, snap-test and studio-phone-test, as
 // `const { proj, idle, renderedAt } = drawing(page)`.
 export const drawing = (page) => {
   /** Canvas pixels of a [lng, lat]. */

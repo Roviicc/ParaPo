@@ -88,7 +88,7 @@ jobs:
             [ -z "$f" ] && continue
             case "$f" in
               docs/*|*.md) ;;
-              src/studio/*|tests/e2e/studio-scale-test.mjs|tests/e2e/save-test.mjs|tests/e2e/group-test.mjs|tests/e2e/regression-gestures.mjs|tests/e2e/hotspot-test.mjs|tests/e2e/snap-test.mjs|tests/e2e/extend-test.mjs)
+              src/studio/*|tests/e2e/studio-scale-test.mjs|tests/e2e/save-test.mjs|tests/e2e/group-test.mjs|tests/e2e/regression-gestures.mjs|tests/e2e/hotspot-test.mjs|tests/e2e/snap-test.mjs|tests/e2e/extend-test.mjs|tests/e2e/studio-phone-test.mjs)
                 studio=true ;;
               src/commuter/*|public/*|tests/e2e/visitor-test.mjs|tests/e2e/phone-test.mjs|tests/e2e/where-test.mjs|tests/e2e/scale-test.mjs|tests/e2e/pwa-test.mjs|tests/e2e/gate-test.mjs)
                 public=true ;;
@@ -247,7 +247,7 @@ jobs:
         run: |
           set +e
           status=0
-          for suite in group-test regression-gestures hotspot-test snap-test extend-test; do
+          for suite in group-test regression-gestures hotspot-test snap-test extend-test studio-phone-test; do
             echo "::group::$suite"
             if node "tests/e2e/$suite.mjs"; then
               echo "::endgroup::"

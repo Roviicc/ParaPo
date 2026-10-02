@@ -1,5 +1,5 @@
 import { useEffect, type RefObject } from 'react'
-import type { MapLibreMap, MapMouseEvent } from 'maplibre-gl'
+import type { MapLibreMap, MapMouseEvent, MapTouchEvent } from 'maplibre-gl'
 import type { LngLat, Segment, SnapMode } from '../../shared/geo/geo'
 import { ROUTES_HIT_LAYER } from '../../shared/map/tap'
 import { nearestSpot } from './borrow'
@@ -9,6 +9,25 @@ import type { AreaTarget, Picking } from './useDrawing'
 /** A tap this many pixels off the line being extended does not pick a spot on it. */
 const PICK_PX = 40
 
+/**
+ * A finger within this many pixels of one of the drawing's points is on that
+ * point, the nearest one winning. A dot is 6 px across its middle; a finger is
+ * not, and a tap just beside a dot was inserting a second point on the line
+ * under it.
+ */
+const FINGER_PX = 20
+/** A finger on a point drags it once it has moved this far: less is a tap. */
+const DRAG_START_PX = 6
+/** A finger held this long without moving is a long-press, which adds nothing. */
+const LONG_PRESS_MS = 500
+/**
+ * After a touch the browser sends a click of its own. One arriving this soon
+ * after a touch the drawing has already answered is that touch's echo, not a
+ * second press. (Android's contextmenu on a long-press MapLibre drops itself:
+ * after a touch it ignores contextmenu until a real mouse button goes down.)
+ */
+const ECHO_MS = 700
+
 type IndexedFeature = { properties?: { index?: number } }
 
 /**
@@ -17,6 +36,10 @@ type IndexedFeature = { properties?: { index?: number } }
  * point (its two stretches rubber-band, then re-route on release), a
  * right-click on a point deletes it and on a saved line asks to follow it;
  * while picking where an Extend leaves a line, a tap near it picks the spot.
+ *
+ * A finger does the same through touch events: a drag from a point moves it,
+ * and a second finger puts it back and pinches instead. A tap on or beside a
+ * point and a long-press add nothing.
  *
  * The handlers are bound once per drawing and read the drawing through its
  * refs, which every mutator keeps current.
@@ -52,6 +75,8 @@ export function useDrawEvents(
 
     const canvas = map.getCanvas()
     canvas.style.cursor = 'crosshair'
+    // A finger held on the map is a long-press, not a call for iOS's callout.
+    canvas.style.setProperty('-webkit-touch-callout', 'none')
 
     // Shift+drag is MapLibre's box zoom and it swallows shift+click, which is
     // our "straighten this segment" gesture. Double-click zoom would fire on a
@@ -59,8 +84,24 @@ export function useDrawEvents(
     map.boxZoom.disable()
     map.doubleClickZoom.disable()
 
+    // The finger on the map, if one is: where it went down, the point it is
+    // on, and whether it has been held long. `before` is the drawing as it
+    // was, kept while its point is dragged so that a second finger can put it
+    // back.
+    let touch: {
+      start: { x: number; y: number }
+      idx: number | null
+      long: boolean
+      timer: ReturnType<typeof setTimeout>
+      before: { points: LngLat[]; segments: Segment[]; join: LngLat | null } | null
+    } | null = null
+    // Until when a click is the echo of a touch already answered.
+    let echoUntil = -Infinity
+    const isEcho = () => performance.now() < echoUntil
+
     // Clicking empty map appends a point; clicking the route itself does not.
     const onMapClick = (e: MapMouseEvent) => {
+      if (isEcho()) return
       // Choosing where a new route leaves a saved one: a tap near its line
       // picks the nearest spot on it; a tap elsewhere is ignored.
       const p = refs.picking.current
@@ -82,6 +123,7 @@ export function useDrawEvents(
     }
 
     const onLineClick = (e: MapMouseEvent & { features?: IndexedFeature[] }) => {
+      if (isEcho()) return
       // A click on a point's dot is a press on that point, not a click on the
       // line beneath it: inserting here would stack a second point on the first.
       if (map.queryRenderedFeatures(e.point, { layers: [POINT_LAYER] }).length > 0) return
@@ -131,11 +173,11 @@ export function useDrawEvents(
       undefined,
     ]
 
-    const onDragMove = (e: MapMouseEvent) => {
+    /** The point being dragged follows the pointer; its two stretches rubber-band. */
+    const dragTo = (point: LngLat) => {
       const i = dragIdx
       if (i === null) return
       dragMoved = true
-      const point: LngLat = [e.lngLat.lng, e.lngLat.lat]
       const pts = [...refs.points.current]
       if (pts[i] === refs.join.current) refs.join.current = point
       pts[i] = point
@@ -154,14 +196,10 @@ export function useDrawEvents(
       writeSegments(next)
     }
 
-    const onDragEnd = () => {
-      const i = dragIdx
-      dragIdx = null
-      map.off('mousemove', onDragMove)
-      map.off('mouseup', onDragEnd)
-      document.removeEventListener('mouseup', onDragEnd)
-      canvas.style.cursor = 'crosshair'
-      map.dragPan.enable()
+    const onDragMove = (e: MapMouseEvent) => dragTo([e.lngLat.lng, e.lngLat.lat])
+
+    /** A drag let go, by mouse or finger: point `i` has moved, or not. */
+    const settleDrag = (i: number | null) => {
       // A press and release that never moved is not an edit: both segments are
       // still right, so the router is not asked again.
       if (i === null || !dragMoved) return
@@ -173,6 +211,17 @@ export function useDrawEvents(
       if (i > 0 && i < last) void resolveGaps(i - 1, [before, after])
       else if (i > 0) void resolveGaps(i - 1, [before])
       else if (i < last) void resolveGaps(i, [after])
+    }
+
+    const onDragEnd = () => {
+      const i = dragIdx
+      dragIdx = null
+      map.off('mousemove', onDragMove)
+      map.off('mouseup', onDragEnd)
+      document.removeEventListener('mouseup', onDragEnd)
+      canvas.style.cursor = 'crosshair'
+      map.dragPan.enable()
+      settleDrag(i)
     }
 
     const onPointDown = (e: MapMouseEvent & { features?: IndexedFeature[] }) => {
@@ -194,6 +243,91 @@ export function useDrawEvents(
       document.addEventListener('mouseup', onDragEnd)
     }
 
+    /** The drawing's point nearest a finger at `p`, if one is within reach. */
+    const pointUnderFinger = (p: { x: number; y: number }): number | null => {
+      let best: number | null = null
+      let bestPx = FINGER_PX
+      refs.points.current.forEach((c, i) => {
+        const q = map.project(c)
+        const px = Math.hypot(q.x - p.x, q.y - p.y)
+        if (px <= bestPx) {
+          best = i
+          bestPx = px
+        }
+      })
+      return best
+    }
+
+    // A finger on a point holds the map still, so that a drag moves the point
+    // rather than panning; anywhere else the map pans and pinches as ever.
+    const onTouchStart = (e: MapTouchEvent) => {
+      if (touch && e.points.length > 1) {
+        putBack()
+        return
+      }
+      const idx = refs.picking.current || e.points.length > 1 ? null : pointUnderFinger(e.point)
+      const timer = setTimeout(() => {
+        if (touch) touch.long = true
+      }, LONG_PRESS_MS)
+      touch = { start: e.point, idx, long: false, timer, before: null }
+      if (idx !== null) map.dragPan.disable()
+    }
+
+    const onTouchMove = (e: MapTouchEvent) => {
+      const t = touch
+      if (!t || e.points.length > 1) return
+      if (Math.hypot(e.point.x - t.start.x, e.point.y - t.start.y) < DRAG_START_PX && dragIdx === null) return
+      clearTimeout(t.timer)
+      if (t.idx === null) return
+      if (dragIdx === null) {
+        dragIdx = t.idx
+        dragMoved = false
+        dragModes = [refs.segments.current[t.idx - 1]?.snap, refs.segments.current[t.idx]?.snap]
+        t.before = { points: refs.points.current, segments: refs.segments.current, join: refs.join.current }
+      }
+      dragTo([e.lngLat.lng, e.lngLat.lat])
+    }
+
+    // A second finger, or a touch the browser cancelled: the point being
+    // dragged goes back where it was and the map is free again, to pinch.
+    // Nothing this touch did is kept.
+    const putBack = () => {
+      const t = touch
+      if (!t) return
+      clearTimeout(t.timer)
+      if (dragIdx !== null && t.before) {
+        refs.join.current = t.before.join
+        writePoints(t.before.points)
+        writeSegments(t.before.segments)
+      }
+      dragIdx = null
+      if (t.idx !== null) map.dragPan.enable()
+      t.idx = null
+    }
+
+    const onTouchCancel = () => {
+      putBack()
+      touch = null
+    }
+
+    const onTouchEnd = (e: MapTouchEvent) => {
+      // One finger of two lifted: the gesture is not over.
+      if (e.originalEvent.touches.length > 0) return
+      const t = touch
+      touch = null
+      if (!t) return
+      clearTimeout(t.timer)
+      // A press on a point and a long-press are answered here; the click the
+      // browser sends after them must not add a point as well. (A finger that
+      // moved past the browser's slop panned the map, and gets no click.)
+      if (t.idx !== null || t.long) echoUntil = performance.now() + ECHO_MS
+      if (t.idx === null) return
+      const i = dragIdx
+      dragIdx = null
+      map.dragPan.enable()
+      settleDrag(i)
+    }
+
     const enterPoint = () => {
       if (dragIdx === null) canvas.style.cursor = 'grab'
     }
@@ -209,6 +343,10 @@ export function useDrawEvents(
     map.on('mousedown', POINT_LAYER, onPointDown)
     map.on('contextmenu', POINT_LAYER, onPointContext)
     map.on('contextmenu', onMapContext)
+    map.on('touchstart', onTouchStart)
+    map.on('touchmove', onTouchMove)
+    map.on('touchend', onTouchEnd)
+    map.on('touchcancel', onTouchCancel)
     map.on('mouseenter', POINT_LAYER, enterPoint)
     map.on('mouseleave', POINT_LAYER, leave)
     map.on('mouseenter', HIT_LAYER, enterLine)
@@ -220,6 +358,11 @@ export function useDrawEvents(
       map.off('mousedown', POINT_LAYER, onPointDown)
       map.off('contextmenu', POINT_LAYER, onPointContext)
       map.off('contextmenu', onMapContext)
+      map.off('touchstart', onTouchStart)
+      map.off('touchmove', onTouchMove)
+      map.off('touchend', onTouchEnd)
+      map.off('touchcancel', onTouchCancel)
+      if (touch) clearTimeout(touch.timer)
       map.off('mouseenter', POINT_LAYER, enterPoint)
       map.off('mouseleave', POINT_LAYER, leave)
       map.off('mouseenter', HIT_LAYER, enterLine)
@@ -231,6 +374,7 @@ export function useDrawEvents(
       map.boxZoom.enable()
       map.doubleClickZoom.enable()
       canvas.style.cursor = ''
+      canvas.style.removeProperty('-webkit-touch-callout')
     }
   }, [
     map,
