@@ -19,7 +19,13 @@ import './endTitles.css'
  * Its Head and Tail Route variants (2026-10-01) read as the RouteCard
  * does: where a ride starts, the top of its timeline, is the card's title;
  * where it goes is one of the card's rows, so its pill leads with the rows'
- * circled arrow. A place two rides share is named by
+ * circled arrow. While what is lit wears a card's colour (`badged`) — an
+ * open trip, or a picked card's rides, Tala's to Novaliches and to SM
+ * Fairview — a badge over each name says which end it is (2026-10-02):
+ * Start in the hintuan's green, End in the terminal's blue, the two one
+ * label and one button. A list's routes lit in the selected blue keep their
+ * plain names: there are too many (the owner's ask, the same day). A place
+ * two rides share is named by
  * the first to reach it (`rideEnds`), so a trip's change of ride is the
  * earlier ride's tail, as it sits under the start on the timeline.
  *
@@ -44,12 +50,15 @@ export function EndTitles({
   map,
   rides,
   look,
+  badged = false,
   onPick,
   onTrip,
 }: {
   map: MapLibreMap
   rides: readonly Ride[]
   look: LineLook
+  /** What is lit wears a card's colour: Start and End over the names. */
+  badged?: boolean
   onPick?: (stopId: string) => void
   /** A direction's trip to open, from the one ride a tail names. */
   onTrip?: (variantId: string) => void
@@ -67,6 +76,7 @@ export function EndTitles({
               at={at}
               name={name}
               head={end === 'from'}
+              badged={badged}
               look={look}
               opens={trip ? 'trip' : 'place'}
               onPick={trip ? () => onTrip?.(trip) : onPick && stopId ? () => onPick(stopId) : undefined}
@@ -92,6 +102,7 @@ function EndTitle({
   at,
   name,
   head,
+  badged,
   look,
   opens,
   onPick,
@@ -101,6 +112,8 @@ function EndTitle({
   name: string
   /** Where the ride starts (Head Route), or where it goes (Tail Route). */
   head: boolean
+  /** Start or End over the name. */
+  badged: boolean
   look: LineLook
   /** What a tap opens: the ride's trip, or the place's card. */
   opens: 'trip' | 'place'
@@ -145,28 +158,44 @@ function EndTitle({
   const Pill = onPick ? 'button' : 'div'
   return createPortal(
     <Pill
-      {...(onPick ? { type: 'button' as const, 'aria-label': opens === 'trip' ? `${name}: the trip there` : `${name}: the routes there` } : {})}
-      className={
-        'relative flex max-w-56 items-center gap-1 rounded-full py-1 text-sm/5 font-medium ' +
-        (head ? 'px-2' : 'pr-2 pl-1')
-      }
-      style={{ backgroundColor: look.line, color: look.arrow }}
+      {...(onPick
+        ? { type: 'button' as const, 'aria-label': `${badged ? (head ? 'Start, ' : 'End, ') : ''}${name}: ${opens === 'trip' ? 'the trip there' : 'the routes there'}` }
+        : {})}
+      className="flex max-w-56 flex-col items-center gap-1"
     >
-      {!head && (
-        <span aria-hidden data-part="arrow" className="size-5 shrink-0 *:size-full">
-          <CircleArrowRightIcon />
+      {/* Over the name, which end it is: Start in the hintuan's green, End in the terminal's blue. */}
+      {badged && (
+        <span
+          data-part="badge"
+          className={
+            'rounded-full px-2 py-1 text-xs/4 font-medium text-content-inverse ' +
+            (head ? 'bg-map-hotspots-card-hintuan-surface' : 'bg-map-hotspots-card-terminal-surface')
+          }
+        >
+          {head ? 'Start' : 'End'}
         </span>
       )}
-      <span className="min-w-0 truncate">{name}</span>
-      {/* Figma's Arrow, turned to point down at the circle. */}
-      <svg
-        aria-hidden
-        viewBox="0 0 14.7047 13"
-        className="absolute left-1/2 top-full -mt-[1.5px] h-[13px] w-[14.7px] -translate-x-1/2 rotate-180"
-        style={{ fill: look.line }}
+      <span
+        data-part="name"
+        className={'relative flex max-w-full items-center gap-1 rounded-full py-1 text-sm/5 font-medium ' + (head ? 'px-2' : 'pr-2 pl-1')}
+        style={{ backgroundColor: look.line, color: look.arrow }}
       >
-        <path d="M6.48632 0.5C6.87122 -0.166666 7.83347 -0.166667 8.21837 0.499999L14.5692 11.5C14.9541 12.1667 14.473 13 13.7032 13H1.00149C0.231692 13 -0.249434 12.1667 0.135466 11.5L6.48632 0.5Z" />
-      </svg>
+        {!head && (
+          <span aria-hidden data-part="arrow" className="size-5 shrink-0 *:size-full">
+            <CircleArrowRightIcon />
+          </span>
+        )}
+        <span className="min-w-0 truncate">{name}</span>
+        {/* Figma's Arrow, turned to point down at the circle. */}
+        <svg
+          aria-hidden
+          viewBox="0 0 14.7047 13"
+          className="absolute left-1/2 top-full -mt-[1.5px] h-[13px] w-[14.7px] -translate-x-1/2 rotate-180"
+          style={{ fill: look.line }}
+        >
+          <path d="M6.48632 0.5C6.87122 -0.166666 7.83347 -0.166667 8.21837 0.499999L14.5692 11.5C14.9541 12.1667 14.473 13 13.7032 13H1.00149C0.231692 13 -0.249434 12.1667 0.135466 11.5L6.48632 0.5Z" />
+        </svg>
+      </span>
     </Pill>,
     el,
   )

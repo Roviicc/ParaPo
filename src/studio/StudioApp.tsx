@@ -221,7 +221,7 @@ function Workshop({
     }
   }
 
-  const { choice, choosing, closeAll, tripLivery, look, height } = cards
+  const { choice, choosing, closeAll, tripLivery, look, inCardColour, height } = cards
 
   // "Draw the return trip" only while the route still has a way undrawn: after
   // an edit of a route drawn both ways it once started a drawing whose save
@@ -257,7 +257,7 @@ function Workshop({
       )}
 
       {/* Each lit ride's ends, named over their circles. */}
-      {map && !draw.drawing && <EndTitles map={map} rides={rides} look={look} />}
+      {map && !draw.drawing && <EndTitles map={map} rides={rides} look={look} badged={inCardColour} />}
       {/* Keyed on the pick: another hintuan pops a fresh circle. */}
       {map && !draw.drawing && ride.pinAt && tripLivery && (
         <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} label={ride.pickedLabel} livery={tripLivery} />
