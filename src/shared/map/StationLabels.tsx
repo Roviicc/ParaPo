@@ -40,7 +40,8 @@ function namesShow(map: MapLibreMap): boolean {
  *
  * The two ends are left to their end titles (EndTitles), and a picked
  * station to its HintuanPin. Once the scale bar reads 3 km only the
- * dots show, smaller. Given `onPick`, the dot and its name are one button,
+ * dots show, smaller. The names are 12px, the picked one's pill 14px (the
+ * owner's ask, 2026-10-02). Given `onPick`, the dot and its name are one button,
  * which picks the station.
  */
 export function StationLabels({
@@ -124,7 +125,7 @@ function StationLabel({
         <span className="hintuan-pin-title absolute left-full top-1/2 ml-2.5 flex max-w-56">
           <span
             data-testid="station-label-title"
-            className={'max-w-full truncate rounded-full px-2 py-1 text-sm/5 font-medium shadow-selected-hintuan-route-title ' + CARD_SURFACE[livery] + ' ' + CARD_TEXT[livery]}
+            className={'max-w-full truncate rounded-full px-2 py-1 text-xs/4 font-medium shadow-selected-hintuan-route-title ' + CARD_SURFACE[livery] + ' ' + CARD_TEXT[livery]}
           >
             {label}
           </span>
