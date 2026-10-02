@@ -813,11 +813,11 @@ const sheetState = async () =>
 /**
  * How far to drag the handle for the sheet to come to rest at `to` from
  * where it is, by the heights BottomSheet gives it: Low 129, Middle 45% of
- * the map, Max all of it. Negative is up.
+ * the map, Max all of it but its 64 px strip at the top. Negative is up.
  */
 const dragTo = async (from, to) => {
   const h = await card().first().evaluate((el) => el.offsetHeight)
-  const shown = { low: 129, middle: Math.round(h * 0.45), max: h }
+  const shown = { low: 129, middle: Math.round(h * 0.45), max: h - 64 }
   return shown[from] - shown[to]
 }
 const closeCard = async () => {

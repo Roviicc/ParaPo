@@ -163,7 +163,7 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
         }
         if (y - pull.startY <= DRAG_PX / 3) return
         const h = sheet.offsetHeight
-        pull.track = follow(pull.startY, pull.t, h, h)
+        pull.track = follow(pull.startY, pull.t, shownAt('max', h), h)
         setDragging(true)
       }
       e.preventDefault()
@@ -290,10 +290,11 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
         // Docked, it casts BottomSheet/TopShadow (3817:6007) up onto the map;
         // floating as a card, its own shadow-xl takes over.
         'absolute inset-0 z-10 outline-none flex flex-col overflow-clip bg-surface shadow-bottom-sheet-top-shadow ' +
-        'pb-[env(safe-area-inset-bottom)] ' +
+        // At Max it stands MAX_GAP_PX down the map, so as much of it is
+        // under the screen's bottom: padded by that, its list scrolls to the end.
+        (snap === 'max' ? 'pb-[calc(64px+env(safe-area-inset-bottom))] ' : 'pb-[env(safe-area-inset-bottom)] ') +
         'translate-y-(--sheet-y) motion-reduce:transition-none ' +
         (dragging ? '' : 'transition-[translate] duration-sheet ease-enter ') +
-        (snap === 'max' ? 'pt-[env(safe-area-inset-top)] ' : '') +
         'sheet-floating:translate-y-0 sheet-floating:transition-none ' +
         FLOATS_AT[floats]
       }
@@ -425,7 +426,8 @@ export function roomBeside(
     return room
   }
   let shows = showsAt(dock, snap)
-  if (m.height - shows < FIT_ROOM_MIN_PX) shows = showsAt(dock, framedAt(snap))
+  // Max leaves only a strip of map (MAX_GAP_PX): framed as at Middle, as when it covered it all.
+  if (snap === 'max' || m.height - shows < FIT_ROOM_MIN_PX) shows = showsAt(dock, framedAt(snap))
   // A thin strip above a tall sheet: the margins give way, so the route still fits.
   const margin = Math.max(0, Math.min(FIT_MARGIN_PX, (m.height - shows - FIT_ROOM_MIN_PX) / 2))
   room.top = margin + Math.max(0, Math.min(FIT_BADGE_PX, m.height - shows - FIT_ROOM_MIN_PX - 2 * margin))
@@ -439,7 +441,7 @@ export function roomBeside(
  */
 function showsAt(sheet: HTMLElement, snap: Snap): number {
   const h = sheet.offsetHeight
-  if (snap === 'max') return h
+  if (snap === 'max') return shownAt('max', h)
   return shownAt(snap, h) + (parseFloat(getComputedStyle(sheet).paddingBottom) || 0)
 }
 
