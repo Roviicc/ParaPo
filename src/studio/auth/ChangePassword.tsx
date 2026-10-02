@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { getSupabase, supabaseConfigError } from '../data/supabase'
+import { coarse } from '../../shared/map/MapView'
+import { FIELD_TEXT } from '../panels/sheet'
 
 /**
  * Change password for a signed-in user. No email involved.
@@ -83,13 +85,13 @@ export function ChangePassword({ email, onDone }: { email: string; onDone: () =>
             <input
               type="password"
               required
-              autoFocus
+              autoFocus={!coarse}
               autoComplete="current-password"
               value={current}
               onChange={(e) => setCurrent(e.target.value)}
               placeholder="Current password"
-              className="mt-4 w-full rounded-lg border border-neutral-300 px-3 py-2.5
-                         text-sm outline-none focus:border-neutral-900"
+              className={`mt-4 w-full rounded-lg border border-neutral-300 px-3 py-2.5
+                         ${FIELD_TEXT} outline-none focus:border-neutral-900`}
             />
             <input
               type="password"
@@ -99,8 +101,8 @@ export function ChangePassword({ email, onDone }: { email: string; onDone: () =>
               value={next}
               onChange={(e) => setNext(e.target.value)}
               placeholder="New password"
-              className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5
-                         text-sm outline-none focus:border-neutral-900"
+              className={`mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5
+                         ${FIELD_TEXT} outline-none focus:border-neutral-900`}
             />
             <input
               type="password"
@@ -110,8 +112,8 @@ export function ChangePassword({ email, onDone }: { email: string; onDone: () =>
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               placeholder="Confirm new password"
-              className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5
-                         text-sm outline-none focus:border-neutral-900"
+              className={`mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5
+                         ${FIELD_TEXT} outline-none focus:border-neutral-900`}
             />
             <p className="mt-2 text-xs text-neutral-500">At least 12 characters, with upper- and lowercase letters, a number and a symbol.</p>
 
