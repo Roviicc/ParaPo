@@ -7,7 +7,7 @@ import { stopLabel, type StopSummary } from '../model/stops'
 import { zoomForScale, type LngLat } from '../geo/geo'
 
 /** How close a picked hintuan is brought in: the scale bar reading this. */
-const PICKED_SCALE_M = 200
+const PICKED_SCALE_M = 500
 
 /**
  * A hintuan picked on the trip card — the owner's Timeline State=Selected,
@@ -114,7 +114,7 @@ export function useRideTo(
   )
 
   // Glide to where the rider would get off, in to where the scale bar reads
-  // 200 m (the owner's ask, 2026-10-02; the stretch fitted whole zoomed far
+  // 500 m (the owner's ask, 2026-10-02; the stretch fitted whole zoomed far
   // out, 2026-09-28). `offset`, never `padding`: MapLibre keeps a padding for
   // every later move, and a shared link's fit or "Where am I" would land off
   // centre ever after.

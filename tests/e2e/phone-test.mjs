@@ -665,12 +665,12 @@ const tripChecks = async () => {
       )
     }
     check('  and leaves no padding on the map for later moves', drawn.padding)
-    // In to where the scale bar reads 200 m; a second tap takes the camera
+    // In to where the scale bar reads 500 m; a second tap takes the camera
     // back where it was before the pick (the owner's ask, 2026-10-02).
     if (pickWant) {
       const zoomed = await camNow()
-      const want = await page.evaluate(async (lat) => (await import('/src/shared/geo/geo.ts')).zoomForScale(200, lat), zoomed.lat)
-      check('  zoomed in to 200 m on the scale bar', Math.abs(zoomed.zoom - want) < 0.05, `zoom ${zoomed.zoom.toFixed(2)}, want ${want.toFixed(2)}`)
+      const want = await page.evaluate(async (lat) => (await import('/src/shared/geo/geo.ts')).zoomForScale(500, lat), zoomed.lat)
+      check('  zoomed in to 500 m on the scale bar', Math.abs(zoomed.zoom - want) < 0.05, `zoom ${zoomed.zoom.toFixed(2)}, want ${want.toFixed(2)}`)
     }
     await buttonTap(pickButton, async () => !(await isPicked()))
     await page.waitForTimeout(300)
