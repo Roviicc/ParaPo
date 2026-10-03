@@ -687,7 +687,9 @@ check('  and Enter still opens the save panel (9)', (await guest.getByTestId('sa
 
 // A line that comes back to where it began: the panel's first guess puts one
 // place at both ends, and the timeline's two end rows used to share a key.
-await drawLine([P1, at(0, 0.0012), at(-0.0036, 0.0002)])
+// Its last point south of the line, 50 m clear of it: one 9 m off, as it was,
+// is two pixels at zoom 15, where a click inserts into the line instead.
+await drawLine([P1, at(0, 0.0012), at(-0.0036, -0.0004)])
 check('a line back to its start guesses one place at both ends', (await page.getByTestId('save-head').inputValue()) !== '' && (await page.getByTestId('save-head').inputValue()) === (await page.getByTestId('save-tail').inputValue()))
 await page.getByRole('button', { name: 'Back to map' }).click()
 await page.getByTitle('Discard this route').click()

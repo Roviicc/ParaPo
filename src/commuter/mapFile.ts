@@ -31,7 +31,7 @@ export type MapFile = {
 type IndexVariant = Omit<VariantSummary, 'shape'> & { overview?: LineStringGeoJSON | null }
 
 /** No hash in the name, so it keeps revalidating headers; never make it immutable. */
-export const MAP_FILE_URL = '/data/index.json'
+export const MAP_FILE_URL = '/data/index.v3.json'
 /** A direction's full line: `${LINES_URL}${id}.json`. The worker keeps every one seen. */
 const LINES_URL = '/data/lines/'
 
@@ -54,8 +54,15 @@ const LINES_URL = '/data/lines/'
  *   - Shape 1 is `/data/map.json`, one file with every line in full; the
  *     publish keeps writing it for one release after shape 2, the index at
  *     its own path, so an app installed before still loads.
+ *   - Shape 2 is `/data/index.json`; shape 3, `/data/index.v3.json`, is the
+ *     same index with the train lines in (2026-10-03): a train's
+ *     `route_code` and a station's `line` change which hintuans a line stops
+ *     at (servedBy), so a shape-2 app would draw a jeep stopping at a
+ *     station. The publish writes shapes 1 and 2 without the trains
+ *     (scripts/publish/withoutTrains.mjs), shape 2 a month at least. The
+ *     line files under `/data/lines/` are the same for both.
  */
-export const MAP_FILE_SCHEMA = 2
+export const MAP_FILE_SCHEMA = 3
 
 /** The load error for a file of a shape this app does not know. The banner reads it. */
 export const MAP_FILE_TOO_NEW = 'This map was published for a newer version of the app.'

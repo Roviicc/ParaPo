@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url'
  * another length than the index says fails here, not quietly further on.
  */
 const published = () => {
-  const { file, problems } = readPublished(fileURLToPath(new URL('../../public/data/index.json', import.meta.url)))
+  const { file, problems } = readPublished(fileURLToPath(new URL('../../public/data/index.v3.json', import.meta.url)))
   assert.deepEqual(problems, [])
   return file
 }

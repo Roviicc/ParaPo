@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url'
 import { readPublished } from '../../scripts/checks/check-map-data.mjs'
 
 /** The committed map, every line in full: the index and its lines/ (check-map-data.mjs). */
-const published = () => readPublished(fileURLToPath(new URL('../../public/data/index.json', import.meta.url))).file
+const published = () => readPublished(fileURLToPath(new URL('../../public/data/index.v3.json', import.meta.url))).file
 
 const file = published()
 const lines = file.variants.filter((v) => v.shape).map((v) => ({ id: v.id, line: v.shape.coordinates }))
