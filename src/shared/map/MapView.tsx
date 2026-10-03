@@ -194,8 +194,10 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
         setLoaded(true)
         setError(null)
         // Dev builds expose the map so the headless suites (tests/e2e/) can read real
-        // screen positions from the drawn geometry instead of guessing.
-        if (import.meta.env.DEV) (window as unknown as { __map?: MapLibreMap }).__map = map!
+        // screen positions from the drawn geometry instead of guessing; so does
+        // the phone-speed measurement's own build (scripts/research/phone-speed.mjs
+        // sets VITE_EXPOSE_MAP), never a production one.
+        if (import.meta.env.DEV || import.meta.env.VITE_EXPOSE_MAP === '1') (window as unknown as { __map?: MapLibreMap }).__map = map!
         setReady(map)
         onReadyRef.current?.(map!)
       })
