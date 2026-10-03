@@ -72,3 +72,16 @@ test('the two directions of the committed map share each box they both cut', () 
   assert.ok(cut > 0, 'no box in the committed map is cut')
   console.log(`  ${cut} direction–box pairs cut`)
 })
+
+// Review of 2026-10-03: carry measured the last step, and a repeated end
+// point made it zero long, so a tail stopping in the box cut nothing.
+test('a line ending in the box on a repeated point still cuts it', () => {
+  const once = rightOfLine(square, [[-1, 0.5], [0.6, 0.5]])
+  const twice = rightOfLine(square, [[-1, 0.5], [0.6, 0.5], [0.6, 0.5]])
+  close(area(once), 0.5)
+  assert.ok(twice)
+  close(area(twice), 0.5)
+  const start = rightOfLine(square, [[0.4, 0.5], [0.4, 0.5], [2, 0.5]])
+  assert.ok(start)
+  close(area(start), 0.5)
+})
