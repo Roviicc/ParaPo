@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Ref } from 'react'
+import { useLayoutEffect, useRef, useState, type Ref } from 'react'
 import { Button } from '../../design-system/primitives/Button'
 import { IconButton } from '../../design-system/primitives/IconButton'
 import { haversine } from '../geo/geo'
@@ -30,7 +30,8 @@ type Props = {
   routeCards: {
     selected: string | null
     onSelect: (place: PickedPlace | null) => void
-    onShown: (ids: readonly string[]) => void
+    /** What the RouteCards show while the card is open; null once it closes. */
+    onShown: (ids: readonly string[] | null) => void
     /**
      * SWITCH pressed: the routes turn round, and `box`, when the other way
      * leaves from another box of the place, is the one to select. The camera
@@ -149,16 +150,19 @@ export function HintuanCard({
           .filter((b) => b.id !== stop.id && passes(b.id, other))
           .sort((a, b) => haversine(a.point.coordinates, stop.point.coordinates) - haversine(b.point.coordinates, stop.point.coordinates))[0] ?? null)
 
-  // What the RouteCards show, for the map to light; nothing once the card
-  // closes. Told only when that changes: the caller's function is read from
+  // What the RouteCards show, for the map to light; null once the card
+  // closes, so an open card showing nothing still says it is open (a list
+  // kept behind it must not light its own: review of 2026-10-03). Told
+  // before the first paint, so that list's routes do not flash lit for a
+  // frame. Told only when that changes: the caller's function is read from
   // a ref, so one made afresh each render cannot set the lights going in a loop.
   const shownKey = shown.join('\n')
   const onShown = useRef(routeCards.onShown)
   onShown.current = routeCards.onShown
-  useEffect(() => {
+  useLayoutEffect(() => {
     const tell = onShown.current
     tell(shownKey ? shownKey.split('\n') : [])
-    return () => tell([])
+    return () => tell(null)
   }, [shownKey])
 
   // Figma's "2 routes passes here" (the owner's of 2026-10-01; "… through"

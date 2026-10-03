@@ -100,9 +100,9 @@ export function useSavedRoutes<T extends VariantSummary>(
    * What a hotspot's RouteCards show, the way round its ⇄ has them: lit as a
    * list's are, till one of its cards is picked (the owner, 2026-09-29: "on
    * hintuan it should light its routes"). The card says what it shows, and
-   * nothing once it closes.
+   * null once it closes.
    */
-  const [cardShows, setCardShows] = useState<readonly string[]>([])
+  const [cardShows, setCardShows] = useState<readonly string[] | null>(null)
   const flip = useCallback(() => {
     setBack((b) => !b)
     setHighlight(null)

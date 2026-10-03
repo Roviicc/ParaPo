@@ -24,12 +24,13 @@ const slot = dir('c-back', 'c', true, false)
 const all = [out, back, bOut, slot]
 
 test('a list shows its routes the way round it is showing, drawn ones only', () => {
-  assert.deepEqual(showingOf(all, false, all, []).map((v) => v.id), ['a-out', 'b-out'])
-  assert.deepEqual(showingOf(all, true, all, []).map((v) => v.id), ['a-back'])
+  assert.deepEqual(showingOf(all, false, all, null).map((v) => v.id), ['a-out', 'b-out'])
+  assert.deepEqual(showingOf(all, true, all, null).map((v) => v.id), ['a-back'])
 })
 
 test('with no list, what a hotspot card shows is shown', () => {
   assert.deepEqual(showingOf([], false, all, ['b-out', 'c-back']).map((v) => v.id), ['b-out'])
+  assert.deepEqual(showingOf([], false, all, null), [])
 })
 
 test('lit: the chosen direction alone, else the Selected card, else everything shown', () => {
@@ -89,5 +90,7 @@ test('the wash is a hull over the chosen box and its siblings; none for a place 
 // keeps the list behind both; the place's card, not the list, is shown.
 test("with a hotspot card open over a kept list, the card's routes are shown", () => {
   assert.deepEqual(showingOf(all, false, all, ['a-back', 'c-back']).map((v) => v.id), ['a-back'])
-  assert.deepEqual(showingOf(all, false, all, []).map((v) => v.id), ['a-out', 'b-out'])
+  assert.deepEqual(showingOf(all, false, all, null).map((v) => v.id), ['a-out', 'b-out'])
+  // An open card that shows no route lights none of the list's either.
+  assert.deepEqual(showingOf(all, false, all, []), [])
 })
