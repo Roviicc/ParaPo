@@ -142,10 +142,14 @@ function crossingPoint(a: LngLat, b: LngLat, c: LngLat, d: LngLat): LngLat | nul
  * This is what "the route starts at this terminal" is measured with.
  */
 export function entryDistance(line: LngLat[], ring: Ring): number {
-  const idx = firstTouchIndex(line, ring)
-  if (idx < 0) return -1
+  const found = firstTouchIndex(line, ring)
+  if (found < 0) return -1
+  // A first vertex inside, reached from outside, was entered on the segment
+  // before it: measured to that vertex, the entry overshot the crossing by up
+  // to a segment, 20–30 m on a snapped road (review of 2026-10-03).
+  if (pointInRing(line[found], ring) && found === 0) return 0
+  const idx = pointInRing(line[found], ring) ? found - 1 : found
   const upTo = lineLength(line.slice(0, idx + 1))
-  if (pointInRing(line[idx], ring)) return upTo
   // The touch is on segment idx → idx+1: find the nearest crossing on it.
   const a = line[idx]
   const b = line[idx + 1]

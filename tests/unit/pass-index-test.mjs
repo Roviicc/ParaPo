@@ -106,3 +106,17 @@ test('a line keeps its box: asked twice, the same box comes back without a secon
   assert.equal(lineBounds(line), lineBounds(line))
   assert.notEqual(lineBounds(line), lineBounds([...line]))
 })
+
+// Review of 2026-10-03: a first vertex inside, reached from outside, was
+// measured to that vertex and not to where the line crossed into the box.
+test('the entry is where the line crosses into the box, not its first vertex inside', () => {
+  const sq = [[0, 0], [0.001, 0], [0.001, 0.001], [0, 0.001]]
+  // From 0.001 west of the box to its middle: the crossing is at x = 0.
+  const line = [[-0.001, 0.0005], [0.0005, 0.0005], [0.002, 0.0005]]
+  const d = entryDistance(line, sq)
+  const want = entryDistance([[-0.001, 0.0005], [0, 0.0005]], [[0, 0], [0.001, 0], [0.001, 0.001], [0, 0.001]])
+  assert.ok(Math.abs(d - want) < 0.01, `${d} vs ${want}`)
+  assert.ok(Math.abs(d - 111.2) < 1, `${d}`)
+  // A line that starts inside enters at 0.
+  assert.equal(entryDistance([[0.0005, 0.0005], [0.002, 0.0005]], sq), 0)
+})
