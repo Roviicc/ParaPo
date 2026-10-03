@@ -119,11 +119,19 @@ export default function CommuterApp() {
           onTrip={saved.selected ? undefined : openRide}
         />
       )}
-      {/* A selected train line's stations, named along it (RouteLineLabel). */}
+      {/*
+        A selected train line's stations, named along it (RouteLineLabel). A
+        tap picks the station as its row on the trip card does, the map
+        gliding in to it (the owner's ask, 2026-10-03), as the studio's do.
+      */}
       {map && saved.selected && tripLivery && (
-        <StationLabels map={map} selected={saved.selected} stops={stops.stops} livery={tripLivery} pickedId={ride.pickedId} onPick={openPlace} />
+        <StationLabels map={map} selected={saved.selected} stops={stops.stops} livery={tripLivery} pickedId={ride.pickedId} onPick={ride.pick} />
       )}
-      {/* Keyed on the pick: another hintuan pops a fresh circle. */}
+      {/*
+        Keyed on the pick: another hintuan pops a fresh circle. Its name,
+        tapped, lets the pick go and takes the camera back where it was, as
+        its row tapped again does (the owner's ask, 2026-10-03).
+      */}
       {map && ride.pinAt && tripLivery && (
         <HintuanPin
           key={ride.pickedId}
@@ -131,7 +139,7 @@ export default function CommuterApp() {
           at={ride.pinAt}
           label={ride.pickedLabel}
           livery={tripLivery}
-          onPick={() => ride.pickedId && openPlace(ride.pickedId)}
+          onPick={() => ride.pick(ride.pickedId)}
         />
       )}
 
