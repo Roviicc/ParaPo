@@ -24,6 +24,9 @@ type Props = {
   stops?: StopRow[]
   onSaved: (s: StopRow) => void
   onCancel: () => void
+  /** The row a save of this drawing already wrote, kept by the caller across the panel closing. */
+  written?: string | null
+  onWritten?: (stopId: string) => void
 }
 
 const field =
@@ -58,6 +61,8 @@ export function HotspotPanel({
   stops = [],
   onSaved,
   onCancel,
+  written,
+  onWritten,
 }: Props) {
   const area = draw.area
   const kind = area?.kind ?? 'hintuan'
@@ -84,7 +89,11 @@ export function HotspotPanel({
   const [error, setError] = useState<string | null>(null)
   // The row as a save wrote it, when its links failed after: the retry
   // updates it rather than inserting the box again (SavePanel's `written`).
-  const [writtenId, setWrittenId] = useState<string | null>(null)
+  // Held by the studio when it passes `written`, so ✕ and Done again keep it
+  // (review of 2026-10-03); here otherwise, as in the stories.
+  const [ownWritten, setOwnWritten] = useState<string | null>(null)
+  const writtenId = written !== undefined ? written : ownWritten
+  const setWrittenId = onWritten ?? setOwnWritten
   const stopId = writtenId ?? existing?.id ?? area?.stopId ?? null
 
   // The list holds overviews (0009); a link's sequence is an index into the
