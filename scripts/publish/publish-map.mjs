@@ -3,12 +3,17 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs scripts/publish/publish-map.mjs
 //                                                   writes public/data/
 //
-// Four things (shape A of docs/review-2026-09-29.md, section 8, stage 7 of the
-// clean-up; since 2026-09-29; the train lines' shape since 2026-10-03):
-//   data/index.v3.json      schema 3, what the app reads (MAP_FILE_URL): the
-//                           index below with the train lines in — a train's
-//                           `route_code`, a station's `line` — read by
-//                           servedBy (src/shared/model/routes.ts).
+// Five things (shape A of docs/review-2026-09-29.md, section 8, stage 7 of the
+// clean-up; since 2026-09-29; the train lines' shape and the ferry's since
+// 2026-10-03):
+//   data/index.v4.json      schema 4, what the app reads (MAP_FILE_URL): the
+//                           index below with every line in, the trains and
+//                           the ferry — a line's `route_code`, a station's
+//                           `line` — read by servedBy (src/shared/model/routes.ts).
+//   data/index.v3.json      schema 3: the same without the ferry
+//                           (withoutLines.mjs), for an app that knows the
+//                           trains but would take the ferry for a jeep. Kept
+//                           a month at least after shape 4 ships.
 //   data/index.json         schema 2: every route, its names, every hotspot,
 //                           the links, and each direction's *overview* — its
 //                           line thinned at 5 m with 5-decimal coordinates,
@@ -16,14 +21,14 @@
 //                           the whole map is seen at — and its length in
 //                           metres, measured on the full line, so a trip's
 //                           Kilometer and fare never read an overview. The
-//                           map draws from it. Without the trains
-//                           (withoutTrains.mjs): an app installed before
+//                           map draws from it. Without any line
+//                           (withoutLines.mjs): an app installed before
 //                           servedBy would draw a jeep stopping at a station.
 //                           Kept a month at least after shape 3 ships.
 //   data/lines/<id>.json    each direction's full line (below), fetched when
 //                           the direction is lit or opened.
 //   data/map.json           schema 1, everything in full as before (without
-//                           the trains, as the index), for one
+//                           any line, as the index), for one
 //                           release: an installed app that has not updated
 //                           reads it. Drop it a month at least after the
 //                           index ships (src/commuter/mapFile.ts has the
@@ -66,11 +71,11 @@ import { gzipSync } from 'node:zlib'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { OVERVIEW_M, lineLength, overviewOf, pointToSegmentM, round6, roundLngLat, simplifyLine } from '../../src/shared/geo/geo.ts'
-import { directionName, isRail, routeName } from '../../src/shared/model/routes.ts'
+import { directionName, isLineMode, routeName } from '../../src/shared/model/routes.ts'
 import { stopLabel } from '../../src/shared/model/stops.ts'
 import { MAP_FILE_SCHEMA } from '../../src/commuter/mapFile.ts'
 import { cleanSignboardSvg } from '../../src/shared/model/signboardSvg.ts'
-import { withoutTrains } from './withoutTrains.mjs'
+import { EVERY_LINE, FERRY, withoutLines } from './withoutLines.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -91,6 +96,7 @@ const DATA = join(root, 'public', 'data')
 const OUT = join(DATA, 'map.json')
 const INDEX = join(DATA, 'index.json')
 const INDEX_V3 = join(DATA, 'index.v3.json')
+const INDEX_V4 = join(DATA, 'index.v4.json')
 const LINES = join(DATA, 'lines')
 const SIGNBOARDS = join(DATA, 'signboards')
 /** A board's name in the bucket, as the studio writes it (signboards.ts): a uuid. Anything else is not read. */
@@ -122,8 +128,10 @@ const TIMEOUT_MS = 30_000
 const SCHEMA = 1
 /** The old index's shape, before the train lines: fixed, as map.json's, for installed apps. */
 const INDEX_SCHEMA = 2
+/** The index with the trains but not the ferry: fixed, for installed apps. */
+const INDEX_V3_SCHEMA = 3
 /** The index the app reads now: its own MAP_FILE_SCHEMA. */
-const INDEX_V3_SCHEMA = MAP_FILE_SCHEMA
+const INDEX_V4_SCHEMA = MAP_FILE_SCHEMA
 /** The data's licence, written into the file itself. See README.md, "Data and licence". */
 const LICENSE = 'ODbL-1.0'
 const ATTRIBUTION =
@@ -334,9 +342,9 @@ const variants = variantRows.map((v) => {
       tail_stop_id: v.route.tail_stop_id,
       via: v.route.via,
       name,
-      // The train line (0011), only on a train's: every other route's file
-      // stays byte for byte what it was.
-      ...(v.route.route_code && isRail(v.route.mode) ? { route_code: v.route.route_code } : {}),
+      // The line (0011, 0012), only on a train's or the ferry's: every other
+      // route's file stays byte for byte what it was.
+      ...(v.route.route_code && isLineMode(v.route.mode) ? { route_code: v.route.route_code } : {}),
     },
   }
 })
@@ -361,14 +369,18 @@ const links = linkRows.map((l) => ({
   stop_sequence: l.stop_sequence,
 }))
 
-// The old shapes, for installed apps, without the trains (withoutTrains.mjs):
-// an app from before servedBy would paint a jeep's stretches at the stations
-// over its road, and the train's at every jeep hintuan under its track.
-const old = withoutTrains({ variants, stops, links })
-if (old.ids.variants.size || old.ids.stops.size) {
-  console.log(`Left out of the old shapes: ${old.ids.variants.size} train direction(s), ${old.ids.stops.size} station(s).`)
-}
+// The old shapes, for installed apps, without the lines they do not know
+// (withoutLines.mjs): an app from before servedBy would paint a jeep's
+// stretches at the stations over its road, and a line's at every jeep
+// hintuan under its track; one reading shape 3 takes the ferry for a jeep.
 const all = { variants, stops, links }
+const v3 = withoutLines(all, FERRY)
+const old = withoutLines(all, EVERY_LINE)
+for (const [name, cut] of [['shape 3', v3], ['shapes 1 and 2', old]]) {
+  if (cut.ids.variants.size || cut.ids.stops.size) {
+    console.log(`Left out of ${name}: ${cut.ids.variants.size} line direction(s), ${cut.ids.stops.size} station(s).`)
+  }
+}
 const body = { variants: old.variants, stops: old.stops, links: old.links }
 
 const readJson = (path) => {
@@ -381,14 +393,15 @@ const readJson = (path) => {
 }
 const { text: previousText, json: previous } = readJson(OUT)
 const { json: previousV3 } = readJson(INDEX_V3)
+const { json: previousV4 } = readJson(INDEX_V4)
 
 // A map that shrank suddenly is far more likely a read that went wrong (a
 // policy change, a table made private) than a clear-out. Refuse it unless told.
-// The new index against its last copy, the train lines in; until it has one,
-// the old file against the whole map: with the trains in or not (the old
-// script published them on 2026-10-02), it is never more than the whole.
+// The new index against its last copy, every line in; until it has one, the
+// newest older file against the whole map, which is never more than the whole.
 if (!FORCE) {
-  const [was, now] = previousV3 ? [previousV3, all] : [previous, all]
+  const was = previousV4 ?? previousV3 ?? previous
+  const now = all
   for (const key of was ? ['variants', 'stops', 'links'] : []) {
     const before = Array.isArray(was[key]) ? was[key].length : 0
     const after = now[key].length
@@ -423,12 +436,12 @@ const indexRows = (rows) => ({
 // `published_at` is carried over when nothing else changed, so an unchanged
 // map is a byte-identical file and the daily workflow has nothing to commit.
 // Read off the new index, which has everything; until there is one, a new stamp.
-const indexV3Body = indexRows(all)
+const indexV4Body = indexRows(all)
 const sameText = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 const same =
-  previousV3 &&
-  sameText({ variants: previousV3.variants, stops: previousV3.stops, links: previousV3.links }, indexV3Body)
-const published_at = same ? previousV3.published_at : new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
+  previousV4 &&
+  sameText({ variants: previousV4.variants, stops: previousV4.stops, links: previousV4.links }, indexV4Body)
+const published_at = same ? previousV4.published_at : new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
 
 // The terms travel inside each file, so no copy can arrive without them. The
 // shape number first: an installed app reads whatever its path serves, and
@@ -442,9 +455,12 @@ writeFileSync(OUT, file)
 const indexFile = stamp(INDEX_SCHEMA, indexRows(body))
 const previousIndex = existsSync(INDEX) ? readFileSync(INDEX, 'utf8') : null
 writeFileSync(INDEX, indexFile)
-const indexV3File = stamp(INDEX_V3_SCHEMA, indexV3Body)
+const indexV3File = stamp(INDEX_V3_SCHEMA, indexRows(v3))
 const previousIndexV3 = existsSync(INDEX_V3) ? readFileSync(INDEX_V3, 'utf8') : null
 writeFileSync(INDEX_V3, indexV3File)
+const indexV4File = stamp(INDEX_V4_SCHEMA, indexV4Body)
+const previousIndexV4 = existsSync(INDEX_V4) ? readFileSync(INDEX_V4, 'utf8') : null
+writeFileSync(INDEX_V4, indexV4File)
 
 // A line per drawn direction, written only when it changed, and the files of
 // directions gone removed, so an unchanged map touches nothing.
@@ -455,7 +471,7 @@ for (const v of variants) {
   if (!v.shape) continue
   const path = join(LINES, `${v.id}.json`)
   // No date in it: a line file changes only when its line does.
-  // Shape 2's, which shape 3 kept: both indexes read the same files.
+  // Shape 2's, which shapes 3 and 4 kept: every index reads the same files.
   const text = JSON.stringify({ schema: INDEX_SCHEMA, id: v.id, shape: v.shape }) + '\n'
   lineFiles.add(`${v.id}.json`)
   if (existsSync(path) && readFileSync(path, 'utf8') === text) continue
@@ -503,9 +519,11 @@ console.log(
 const indexGz = gzipSync(Buffer.from(indexFile)).length
 console.log(`${previousIndex === indexFile ? 'Unchanged' : 'Wrote'} public/data/index.json: ${indexFile.length} bytes, ${indexGz} gzipped`)
 const indexV3Gz = gzipSync(Buffer.from(indexV3File)).length
+console.log(`${previousIndexV3 === indexV3File ? 'Unchanged' : 'Wrote'} public/data/index.v3.json: ${indexV3File.length} bytes, ${indexV3Gz} gzipped`)
+const indexV4Gz = gzipSync(Buffer.from(indexV4File)).length
 console.log(
-  `${previousIndexV3 === indexV3File ? 'Unchanged' : 'Wrote'} public/data/index.v3.json: ${variants.length} direction(s), ` +
-    `${stops.length} hotspot(s), ${links.length} link(s); ${indexV3File.length} bytes, ${indexV3Gz} gzipped; ` +
+  `${previousIndexV4 === indexV4File ? 'Unchanged' : 'Wrote'} public/data/index.v4.json: ${variants.length} direction(s), ` +
+    `${stops.length} hotspot(s), ${links.length} link(s); ${indexV4File.length} bytes, ${indexV4Gz} gzipped; ` +
     `lines/: ${lineFiles.size} file(s), ${linesWritten} written, ${linesRemoved} removed`,
 )
 console.log(

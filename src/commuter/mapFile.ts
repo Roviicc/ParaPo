@@ -31,7 +31,7 @@ export type MapFile = {
 type IndexVariant = Omit<VariantSummary, 'shape'> & { overview?: LineStringGeoJSON | null }
 
 /** No hash in the name, so it keeps revalidating headers; never make it immutable. */
-export const MAP_FILE_URL = '/data/index.v3.json'
+export const MAP_FILE_URL = '/data/index.v4.json'
 /** A direction's full line: `${LINES_URL}${id}.json`. The worker keeps every one seen. */
 const LINES_URL = '/data/lines/'
 
@@ -58,11 +58,15 @@ const LINES_URL = '/data/lines/'
  *     same index with the train lines in (2026-10-03): a train's
  *     `route_code` and a station's `line` change which hintuans a line stops
  *     at (servedBy), so a shape-2 app would draw a jeep stopping at a
- *     station. The publish writes shapes 1 and 2 without the trains
- *     (scripts/publish/withoutTrains.mjs), shape 2 a month at least. The
- *     line files under `/data/lines/` are the same for both.
+ *     station. Shape 4, `/data/index.v4.json`, is shape 3 with the ferry
+ *     in (the same day): a shape-3 app knows only the trains as lines, and
+ *     would draw the ferry stopping at every jeep hintuan by the river. The
+ *     publish writes shape 3 without the ferry and shapes 1 and 2 without
+ *     any line (scripts/publish/withoutLines.mjs), each a month at least
+ *     after the next ships. The line files under `/data/lines/` are the
+ *     same for all.
  */
-export const MAP_FILE_SCHEMA = 3
+export const MAP_FILE_SCHEMA = 4
 
 /** The load error for a file of a shape this app does not know. The banner reads it. */
 export const MAP_FILE_TOO_NEW = 'This map was published for a newer version of the app.'
@@ -75,12 +79,17 @@ export const MAP_FILE_TOO_NEW = 'This map was published for a newer version of t
 const SERVED_FROM_HEADER = 'x-parapo-served-from'
 
 /**
- * Shape 2's index, without the trains. An app updated from it kept its last
- * copy in the worker's store (the map-file rule matched this path then), and
- * has no copy of the new one until it reaches the network: offline, that
- * copy is the map, not the load error.
+ * The older indexes, newest first: shape 3, without the ferry, and shape 2,
+ * without any line. An app updated from one kept its last copy in the
+ * worker's store (the map-file rule matched that path then), and has no copy
+ * of the new one until it reaches the network: offline, that copy is the
+ * map, not the load error. Each older shape is a newer one with fewer lines,
+ * so it reads as is.
  */
-const STORED_OLD_URL = '/data/index.json'
+const STORED_OLD = [
+  { url: '/data/index.v3.json', schema: 3 },
+  { url: '/data/index.json', schema: 2 },
+] as const
 /** The worker's store for the map file (vite.config.ts, the map-file rule). */
 const MAP_FILE_CACHE = 'map-file'
 
@@ -108,16 +117,19 @@ function asMap(file: RawFile, url: string, schema: number): MapFile {
   return { ...file, variants } as MapFile
 }
 
-/** The stored shape-2 copy, when the worker kept one; shape 3 is shape 2 with the trains in, so it reads as is. */
+/** The newest older copy the worker kept, if any (STORED_OLD). */
 async function storedOldCopy(): Promise<MapFile | null> {
   if (typeof caches === 'undefined') return null
-  const res = await caches.match(STORED_OLD_URL, { cacheName: MAP_FILE_CACHE }).catch(() => undefined)
-  if (!res?.ok) return null
-  try {
-    return asMap((await res.json()) as RawFile, STORED_OLD_URL, 2)
-  } catch {
-    return null
+  for (const { url, schema } of STORED_OLD) {
+    const res = await caches.match(url, { cacheName: MAP_FILE_CACHE }).catch(() => undefined)
+    if (!res?.ok) continue
+    try {
+      return asMap((await res.json()) as RawFile, url, schema)
+    } catch {
+      continue
+    }
   }
+  return null
 }
 
 /**

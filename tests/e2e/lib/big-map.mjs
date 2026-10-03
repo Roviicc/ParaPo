@@ -12,6 +12,6 @@ export const shift = (k) => [(k % 25) * 0.03, Math.floor(k / 25) * 0.03]
 /** The published map with every line in full: the index, each line from lines/<id>.json beside it. */
 export const readPublished = () => {
   const at = (name) => JSON.parse(readFileSync(new URL(`../../../public/data/${name}`, import.meta.url), 'utf8'))
-  const index = at('index.v3.json')
+  const index = at('index.v4.json')
   return { ...index, variants: index.variants.map(({ overview, ...v }) => ({ ...v, shape: overview ? at(`lines/${v.id}.json`).shape : null })) }
 }

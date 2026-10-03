@@ -5,7 +5,7 @@ import { CARD_SURFACE, CARD_TEXT } from '../cards/liveryCard'
 import { TimelineDot } from '../cards/TripTimeline'
 import { haversine } from '../geo/geo'
 import type { Livery } from '../model/liveries'
-import { isRail, servedBy, type VariantSummary } from '../model/routes'
+import { isLineMode, servedBy, type VariantSummary } from '../model/routes'
 import { stopLabel, type StopSummary } from '../model/stops'
 import { tapsOnItsButton } from './markerTap'
 import './hintuanPin.css'
@@ -30,7 +30,8 @@ function namesShow(map: MapLibreMap): boolean {
 }
 
 /**
- * The selected train line's stations along it — the owner's asks of
+ * The selected line's stations along it, a train's or the ferry's (the
+ * ferry the same way, his ask of 2026-10-03) — the owner's asks of
  * 2026-10-02: a dot at each, its name beside it, for the selected line
  * only. The name is the owner's RouteLineLabel, SelectedHintuanRouteTitle's
  * Default (Figma 3846:11748): the picked hintuan's pill (HintuanPin), in
@@ -73,8 +74,8 @@ export function StationLabels({
   }, [map])
 
   const route = selected.route
-  if (!isRail(route?.mode)) return null
-  // A train's stations are its line's (servedBy): both directions stop at each.
+  if (!isLineMode(route?.mode)) return null
+  // A line's stations, a train's or the ferry's (servedBy): both directions stop at each.
   const ends = new Set([route.head_stop_id, route.tail_stop_id, pickedId])
   const stations = stops.filter((s) => servedBy(s, route) && !ends.has(s.id))
   return (

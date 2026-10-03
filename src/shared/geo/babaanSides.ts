@@ -4,7 +4,7 @@ import { HOTSPOT_COLOUR } from '../map/colours'
 import { rightOfLine } from './rightOfLine'
 import { ringToPolygon } from './ring'
 import { travelLine } from '../model/ride'
-import { isRail, type VariantSummary } from '../model/routes'
+import { isLineMode, type VariantSummary } from '../model/routes'
 import { hintuansAlong } from '../model/timeline'
 import { stopRing, type StopSummary } from '../model/stops'
 import { LAYERS, useLayerReady } from '../map/layers'
@@ -18,7 +18,7 @@ import { LAYERS, useLayerReady } from '../map/layers'
  * box crossed by several lines would be cut into strips.
  *
  * A placeholder look until the owner designs it: the hintuan orange, stronger.
- * Not for a train: a platform has no side of the road to get off on.
+ * Not for a train or the ferry: a platform or a pier has no side of the road to get off on.
  */
 
 const SRC = 'babaan-side'
@@ -49,7 +49,7 @@ export function useBabaanSides(map: MapLibreMap | null, chosen: VariantSummary |
   }, [map, casingReady])
 
   const features = useMemo(() => {
-    if (!chosen || isRail(chosen.route?.mode)) return []
+    if (!chosen || isLineMode(chosen.route?.mode)) return []
     const line = travelLine(chosen, stops)
     return hintuansAlong(line, stops, chosen.route).flatMap(({ stop }) => {
       const side = rightOfLine(stopRing(stop), line)

@@ -1,11 +1,11 @@
 import { useState, type ReactNode, type Ref } from 'react'
-import { RouteTripDetail, type Fares } from './RouteTripDetail'
+import { FREE, RouteTripDetail, type Fare, type Fares } from './RouteTripDetail'
 import { useFareKind } from './useFareKind'
 import type { SheetHeight } from './BottomSheet'
 import { lineLength } from '../geo/geo'
 import { manilaDate, rideFare } from '../model/fares'
 import { liveriesFor, type Livery } from '../model/liveries'
-import { directionEnds, isDrawn, isRail, variantLine, type VariantSummary } from '../model/routes'
+import { directionEnds, isDrawn, isFerry, isRail, LINE_NOTES, variantLine, type VariantSummary } from '../model/routes'
 import { railFares } from '../model/railFares'
 import { otherDirection, otherRoutesFrom } from '../model/departures'
 import type { Timeline } from '../model/timeline'
@@ -123,7 +123,7 @@ export function TripCard({
       pickedMetres={pickedMetres}
       discounted={fareKind === 'discounted'}
       onDiscounted={(d) => setFareKind(d ? 'discounted' : 'regular')}
-      fare={isRail(variant.route?.mode) ? railFares(variant.route.route_code, timeline.from?.label, timeline.to?.label) : faresFor(variant.route?.mode, metres)}
+      fare={fareFor(variant, metres, timeline)}
       routeOrigin={from}
       hintuans={timeline.between}
       picked={picked}
@@ -142,6 +142,7 @@ export function TripCard({
       onBackToList={onBackToList}
       onClose={onClose}
       signboards={(variant.signboards ?? []).map(signboardUrl)}
+      note={LINE_NOTES[variant.route?.route_code ?? '']}
       otherRoutes={others.map((v) => ({ id: v.id, to: directionEnds(v).to }))}
       onOtherRoute={(id) => {
         const v = others.find((o) => o.id === id)
@@ -161,8 +162,16 @@ function faresFor(mode: Parameters<typeof rideFare>[0], metres: number): Fares |
   return regular && discounted ? { regular, discounted } : undefined
 }
 
-/** The fare to the picked hintuan: a jeep's by the metres to it, a train's to that station. */
-function pickedFareFor(variant: VariantSummary, pickedMetres: number | undefined, timeline: Timeline, picked: string | null): Fares | undefined {
+/** The whole ride's fare: a train's by its stations (railFares), the ferry's free, a jeep's by its metres. */
+function fareFor(variant: VariantSummary, metres: number, timeline: Timeline): Fare | undefined {
+  if (isFerry(variant.route?.mode)) return FREE
+  if (isRail(variant.route?.mode)) return railFares(variant.route.route_code, timeline.from?.label, timeline.to?.label)
+  return faresFor(variant.route?.mode, metres)
+}
+
+/** The fare to the picked hintuan: a jeep's by the metres to it, a train's to that station, the ferry's free. */
+function pickedFareFor(variant: VariantSummary, pickedMetres: number | undefined, timeline: Timeline, picked: string | null): Fare | undefined {
+  if (isFerry(variant.route?.mode)) return picked ? FREE : undefined
   if (isRail(variant.route?.mode)) {
     const row = picked ? timeline.between.find((r) => r.id === picked) : undefined
     return row ? railFares(variant.route.route_code, timeline.from?.label, row.label) : undefined

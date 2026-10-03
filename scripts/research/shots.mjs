@@ -17,7 +17,7 @@ mkdirSync(OUT, { recursive: true })
 /** The published map with every line in full: the index, each line from lines/<id>.json beside it. */
 const readPublished = () => {
   const at = (name) => JSON.parse(readFileSync(new URL(`../../public/data/${name}`, import.meta.url), 'utf8'))
-  const index = at('index.v3.json')
+  const index = at('index.v4.json')
   return { ...index, variants: index.variants.map(({ overview, ...v }) => ({ ...v, shape: overview ? at(`lines/${v.id}.json`).shape : null })) }
 }
 const file = readPublished()
@@ -82,7 +82,7 @@ if (stop) {
     },
   })
 }
-await shot(phone, '/', '05-phone-load-error', { before: (p) => p.route('**/data/index.v3.json*', (r) => r.abort()) })
+await shot(phone, '/', '05-phone-load-error', { before: (p) => p.route('**/data/index.v4.json*', (r) => r.abort()) })
 await shot(desk, '/', '06-desktop-map')
 if (routeId) await shot(desk, `/?r=${routeId}`, '07-desktop-route')
 await shot(desk, '/studio/', '08-studio-signin')

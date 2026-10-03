@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url'
  * another length than the index says fails here, not quietly further on.
  */
 const published = () => {
-  const { file, problems } = readPublished(fileURLToPath(new URL('../../public/data/index.v3.json', import.meta.url)))
+  const { file, problems } = readPublished(fileURLToPath(new URL('../../public/data/index.v4.json', import.meta.url)))
   assert.deepEqual(problems, [])
   return file
 }
@@ -202,7 +202,7 @@ test('a train route with no line, or a station of no line, is a problem', () => 
   assert.match(checkMapData(m).problems.join('\n'), /is not a train line/)
   const s = good()
   s.stops.push(stop('Odd', 'hintuan', 700, 0, { line: 'LRT-9' }))
-  assert.match(checkMapData(s).problems.join('\n'), /"LRT-9", which is not a train line/)
+  assert.match(checkMapData(s).problems.join('\n'), /"LRT-9", which is not a line/)
   const t = good()
   t.stops[0] = { ...t.stops[0], line: 'LRT-1' }
   assert.match(checkMapData(t).problems.join('\n'), /a station is a hintuan/)
@@ -224,11 +224,11 @@ test('a station is priced by the name the card shows, not by its other names', (
   assert.match(checkMapData(m).warnings.join('\n'), /"Yamaha" is not in the LRT-1 fare table/)
 })
 
-test('a station of no train line is a problem and owes no fare warning', () => {
+test('a station of no line is a problem and owes no fare warning', () => {
   const m = good()
   m.stops.push(stop('Somewhere', 'hintuan', 700, 0, { line: 'PNR' }))
   const r = checkMapData(m)
-  assert.equal(r.problems.filter((p) => /"PNR", which is not a train line/.test(p)).length, 1)
+  assert.equal(r.problems.filter((p) => /"PNR", which is not a line/.test(p)).length, 1)
   assert.doesNotMatch(r.warnings.join('\n'), /fare table/)
 })
 
@@ -240,4 +240,26 @@ test('a train whose end the fare table does not know is a warning: its card show
   assert.deepEqual(r.problems, [])
   assert.match(r.warnings.join('\n'), /ends at "West", which is not in the LRT-1 fare table/)
   assert.deepEqual(checkMapData(stationEnds(m)).warnings, [])
+})
+
+// The ferry (0012): a line as a train is, free, so its stations need no fare table.
+const ferry = (line) => ({ ...route, mode: 'ferry', route_code: line })
+
+test('a ferry under a jeep hintuan is owed no link; its stations are, with no fare-table warning', () => {
+  const m = good()
+  m.stops.push(stop('Pier', 'hintuan', 700, 0, { line: 'PRFS' }))
+  m.variants = [direction(road(0, 1000), { route: ferry('PRFS') })]
+  m.links = [{ route_variant_id: 'd', stop_id: 'Pier', stop_sequence: 20 }]
+  const r = checkMapData(m)
+  assert.deepEqual(r.problems, [])
+  assert.deepEqual(r.warnings, [])
+})
+
+test('a ferry route with no line, or a train line, is a problem', () => {
+  for (const code of [null, 'LRT-1']) {
+    const m = good()
+    m.variants = [direction(road(0, 1000), { route: ferry(code) })]
+    m.links = []
+    assert.match(checkMapData(m).problems.join('\n'), /is not a ferry line/)
+  }
 })
