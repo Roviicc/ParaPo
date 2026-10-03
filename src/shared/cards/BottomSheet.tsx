@@ -105,6 +105,14 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
     // or keeps up with the finger.
     own.current?.closest('[data-dock-host]')?.toggleAttribute('data-dock-dragging', dragging && !hidden)
   }, [snap, dragging, hidden])
+  // A flick that closes the sheet unmounts it mid-drag, before the effect
+  // above runs with the drag over, and the page kept the attribute: the
+  // LocatorButton stopped gliding for good (review of 2026-10-03). The host
+  // is held from the mount, as the sheet is gone from it by the cleanup.
+  useLayoutEffect(() => {
+    const host = own.current?.closest('[data-dock-host]')
+    return () => host?.removeAttribute('data-dock-dragging')
+  }, [])
 
   const settle = (next: Snap | 'close') => {
     setDragging(false)
