@@ -290,15 +290,18 @@ if (!onLine) {
         const style = getComputedStyle(eyes)
         window.__gazed = { deg: Number(dot.dataset.gaze), animation: style.animationName, translate: style.translate }
       }
-      // The eyes' own turn ending: an eye's width or height inside them
-      // ends sooner (0.2 s) and bubbles here, mid-turn.
-      const done = (e) => {
-        if (e.target !== eyes || e.propertyName !== 'translate') return
-        eyes.removeEventListener('transitionend', done)
-        read()
+      // Once the eyes' own turn has ended, read off the turn itself (the
+      // transition the gaze starts) rather than off a timer: on a busy
+      // runner the tap's work held the page past a 400 ms timer, which
+      // then read the eyes before they had begun to turn (PR #127's CI,
+      // 2026-10-03). A turn replaced by another is waited out again; no
+      // turn at all is read at once — eyes that never move fail as before.
+      const settle = () => {
+        const turns = eyes.getAnimations().filter((a) => a.transitionProperty === 'translate')
+        if (!turns.length) return read()
+        Promise.all(turns.map((a) => a.finished)).then(read, settle)
       }
-      eyes.addEventListener('transitionend', done)
-      setTimeout(read, 400)
+      settle()
     }
     new MutationObserver(seen).observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-gaze'] })
   })
@@ -367,6 +370,43 @@ await where3.click()
 await page3.waitForTimeout(300)
 check('  a second tap starts no second watch', (await page3.evaluate(() => window.__watches)) === 1, `${await page3.evaluate(() => window.__watches)} watch(es)`)
 await ctx3.close()
+
+// ---------------------------------------------------------- permission taken back
+// A fix, then the permission revoked: the watch answers PERMISSION_DENIED.
+// The overlay goes with the fix; kept, it stood where the visitor was, and
+// the next tap eased the camera there (review of 2026-10-03, finding 9).
+const ctx5 = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+const page5 = await ctx5.newPage()
+await page5.addInitScript(([lng, lat]) => {
+  const watchers = new Map()
+  let n = 0
+  const geo = {
+    watchPosition: (ok, fail) => {
+      const id = ++n
+      watchers.set(id, fail)
+      setTimeout(() => ok({ coords: { longitude: lng, latitude: lat, accuracy: 20, speed: null, heading: null }, timestamp: Date.now() }), 100)
+      return id
+    },
+    clearWatch: (id) => watchers.delete(id),
+    getCurrentPosition: () => {},
+  }
+  window.__revoke = () => {
+    for (const fail of watchers.values()) fail({ code: 1, message: 'User denied Geolocation', PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 })
+  }
+  Object.defineProperty(navigator, 'geolocation', { get: () => geo })
+}, [P0.longitude, P0.latitude])
+await stubTiles(page5)
+await open(page5)
+const where5 = page5.locator('[data-testid="where"]')
+await where5.click()
+check('permission taken back after a fix: first the overlay', await until(async () => (await overlay(page5).count()) === 1, 8000))
+await page5.evaluate(() => window.__revoke())
+check(
+  '  then no overlay, and the button LocationOff',
+  (await until(async () => (await overlay(page5).count()) === 0, 4000)) && (await where5.getAttribute('data-state')) === 'denied',
+  `${await overlay(page5).count()} overlay(s), ${await where5.getAttribute('data-state')}`,
+)
+await ctx5.close()
 
 // ---------------------------------------------------------- a mouse: no compass
 const ctx4 = await b.newContext({ viewport: { width: 1280, height: 800 }, geolocation: { ...P0, accuracy: 20 }, permissions: ['geolocation'] })

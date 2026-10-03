@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { APP_MOVE } from './MapView'
 import type { StopLink, StopSummary } from '../model/stops'
+import type { LngLat } from '../geo/geo'
+import { orderLinked } from '../model/timeline'
 import { useSavedStopsLayers } from './savedStopsLayers'
 import { boxMarks, placeHull } from './stopsShown'
 import { useStopTaps } from './stopTaps'
@@ -111,14 +113,20 @@ export function useSavedStops<S extends StopSummary>(
     [links],
   )
 
-  /** The hotspots one direction passes, in the order its line reaches them — the card's timeline. */
+  /**
+   * The hotspots one direction passes, in the order its line reaches them —
+   * the card's timeline. Given the line, two on one segment are put in the
+   * order it reaches them (orderLinked); without it, as the links are read.
+   */
   const stopsAlong = useCallback(
-    (variantId: string): S[] =>
-      links
-        .filter((l) => l.route_variant_id === variantId)
-        .sort((a, b) => a.stop_sequence - b.stop_sequence)
-        .map((l) => stops.find((s) => s.id === l.stop_id))
-        .filter((s): s is S => !!s),
+    (variantId: string, line: readonly LngLat[] = []): S[] =>
+      orderLinked(
+        links
+          .filter((l) => l.route_variant_id === variantId)
+          .map((l) => ({ stop: stops.find((s) => s.id === l.stop_id), sequence: l.stop_sequence }))
+          .filter((l): l is { stop: S; sequence: number } => !!l.stop),
+        line,
+      ),
     [links, stops],
   )
 

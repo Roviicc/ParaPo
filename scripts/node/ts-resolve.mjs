@@ -4,6 +4,8 @@
 //
 // The app imports its own modules without extensions ('./geo'), which Vite
 // and tsc resolve and Node does not. This hook tries `.ts` and `.tsx` for
-// such a relative import; everything else goes to Node untouched.
+// such a relative import; everything else goes to Node untouched. A module
+// that reads `import.meta.env` gets an empty one, as a build without a
+// .env would.
 import { register } from 'node:module'
 register('./ts-resolve-hook.mjs', import.meta.url)

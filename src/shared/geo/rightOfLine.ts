@@ -36,9 +36,18 @@ export function rightOfLine(ring: Ring, line: LngLat[]): Ring | null {
     const len = Math.hypot(dx, dy)
     return len === 0 ? to : [to[0] + (dx / len) * reach, to[1] + (dy / len) * reach]
   }
+  // Carried on from the nearest point that is not the end itself: a line
+  // whose end is repeated (a last click made twice) gave carry a zero-length
+  // step, which carried nothing, and the tail in the box cut nothing
+  // (review of 2026-10-03).
+  const unlike = (end: LngLat, from: LngLat[]) => from.find((p) => p[0] !== end[0] || p[1] !== end[1])
   const path = [...line]
-  if (pointInRing(path[0], ring)) path.unshift(carry(path[1], path[0]))
-  if (pointInRing(path[path.length - 1], ring)) path.push(carry(path[path.length - 2], path[path.length - 1]))
+  const first = path[0]
+  const beforeFirst = unlike(first, path.slice(1))
+  if (beforeFirst && pointInRing(first, ring)) path.unshift(carry(beforeFirst, first))
+  const last = path[path.length - 1]
+  const beforeLast = unlike(last, path.slice(0, -1).reverse())
+  if (beforeLast && pointInRing(last, ring)) path.push(carry(beforeLast, last))
 
   // Every place the path crosses an edge, in travel order. `at` is where on
   // the ring: edge index plus how far along it.

@@ -43,18 +43,24 @@ function slowStretches(line, ring, withinM = PASS_WITHIN_M, stepM = 1) {
   const nearBox = (a, b) => Math.max(a[0], b[0]) >= w && Math.min(a[0], b[0]) <= e && Math.max(a[1], b[1]) >= s && Math.min(a[1], b[1]) <= n
   const near = (p) => distanceToRingM(p, ring) <= withinM
   const out = []
-  const st = { cur: null, pending: null }
-  const close = () => {
+  // A one-point stretch as pass.ts draws it since 2026-10-03: from the sample before it, or to the one after.
+  const st = { cur: null, pending: null, before: null, last: null }
+  const close = (after) => {
     if (!st.cur) return
     if (st.pending) st.cur.push(st.pending)
     if (st.cur.length > 1) out.push(st.cur)
+    else out.push(st.before ? [st.before, st.cur[0]] : [st.cur[0], after ?? st.cur[0]])
     st.cur = null
     st.pending = null
   }
   const take = (p, isVertex) => {
-    if (!near(p)) return close()
-    if (!st.cur) st.cur = [p]
-    else if (isVertex) st.cur.push(p)
+    const before = st.last
+    st.last = p
+    if (!near(p)) return close(p)
+    if (!st.cur) {
+      st.cur = [p]
+      st.before = before
+    } else if (isVertex) st.cur.push(p)
     st.pending = isVertex ? null : st.cur[0] === p ? null : p
   }
   take(line[0], true)
@@ -116,4 +122,26 @@ test('a line through a box is painted; one 100 m away is not', () => {
   for (const p of [stretch[0][0], stretch[0][stretch[0].length - 1]]) assert.ok(distanceToRingM(p, ring) <= PASS_WITHIN_M + 1, `end ${distanceToRingM(p, ring).toFixed(1)} m from the box`)
   const far = [[x - 10 * d, y + 5 * d], [x + 10 * d, y + 5 * d]]
   assert.deepEqual(passStretches(far, ring), [])
+})
+
+// Review of 2026-10-03, finding 14: a line whose only point near the box is
+// a vertex — its end, coming straight at the box — was passed (passIndex)
+// but painted nothing, its one-point stretch dropped.
+test('a line that only comes near at its end vertex gets a stub of a stretch, as passIndex lists it', async () => {
+  const { passIndex } = await import('../../src/shared/geo/pass.ts')
+  const m = 1 / 111_000
+  const ring = [[121.04, 14.7], [121.0401, 14.7], [121.0401, 14.7001], [121.04, 14.7001]]
+  // Coming up from the south, ending 4.5 m below the box's lower edge.
+  const end = [121.04005, 14.7 - 4.5 * m]
+  const line = [[121.04005, 14.7 - 40 * m], end]
+  assert.ok(passIndex(line, ring) >= 0)
+  const out = passStretches(line, ring)
+  assert.equal(out.length, 1)
+  assert.equal(out[0].length, 2)
+  assert.deepEqual(out[0][1], end)
+  assert.ok(haversine(out[0][0], end) <= 1.01)
+  // The other way round: the line starts there and leaves.
+  const back = passStretches([...line].reverse(), ring)
+  assert.equal(back.length, 1)
+  assert.deepEqual(back[0][0], end)
 })

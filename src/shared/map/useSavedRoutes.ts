@@ -100,9 +100,9 @@ export function useSavedRoutes<T extends VariantSummary>(
    * What a hotspot's RouteCards show, the way round its ⇄ has them: lit as a
    * list's are, till one of its cards is picked (the owner, 2026-09-29: "on
    * hintuan it should light its routes"). The card says what it shows, and
-   * nothing once it closes.
+   * null once it closes.
    */
-  const [cardShows, setCardShows] = useState<readonly string[]>([])
+  const [cardShows, setCardShows] = useState<readonly string[] | null>(null)
   const flip = useCallback(() => {
     setBack((b) => !b)
     setHighlight(null)
@@ -206,9 +206,14 @@ export function useSavedRoutes<T extends VariantSummary>(
   // Reading a direction's full line, once. One that failed (offline, never
   // stored) is asked again when it lights, not at every look at the screen.
   const loadLine = opts.loadLine
+  // Only a drawn direction has a line to read. A slot (a return not drawn
+  // yet) opened by ?r= asked for /data/lines/<id>.json, which is not there;
+  // the host answers a missing file with the page, 200, and that was kept
+  // as the line (review of 2026-10-03, finding 10).
+  const drawn = useMemo(() => new Set(rows.filter((v) => variantLine(v).length > 1).map((v) => v.id)), [rows])
   const request = useCallback(
     (id: string) => {
-      if (!loadLine || requestedRef.current.has(id)) return
+      if (!loadLine || requestedRef.current.has(id) || !drawn.has(id)) return
       requestedRef.current.add(id)
       failedRef.current.delete(id)
       loadLine(id).then(
@@ -221,7 +226,7 @@ export function useSavedRoutes<T extends VariantSummary>(
         },
       )
     },
-    [loadLine],
+    [loadLine, drawn],
   )
 
   // What is lit, and the chosen direction, get their full lines.

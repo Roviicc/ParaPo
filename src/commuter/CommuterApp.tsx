@@ -171,7 +171,7 @@ export default function CommuterApp() {
         <TripCard
           variant={saved.selected}
           variants={saved.variants}
-          timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
+          timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id, variantLine(saved.selected)))}
           livery={tripLivery}
           onBackToList={hush(backFromTrip)}
           onSwitch={switchTrip}

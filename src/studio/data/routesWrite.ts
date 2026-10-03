@@ -3,6 +3,7 @@ import { joinSegments, overviewOf, roundLngLat } from '../../shared/geo/geo'
 import { VARIANT_SELECT } from './live'
 import type { LineStringGeoJSON, TransportMode, UnnamedVariantRow, VariantRow } from '../../shared/model/routes'
 import { requireSupabase } from './supabase'
+import { NOTHING_CHANGED } from './stopsWrite'
 import type { BorrowPart } from '../drawing/borrow'
 
 /**
@@ -93,7 +94,11 @@ async function claimExistingRoute(
     return { routeId: data.id as string, fillSlot: false }
   }
   const mine = directions.find((d) => d.reversed === reversed)
-  if (mine && mine.shape === null) return { routeId: data.id as string, fillSlot: true }
+  // No row this way round at all (a slot deleted by hand, a route from
+  // before 0006) is a slot to fill too: saveVariant's update finds nothing
+  // and its insert is the honest repair. It was refused as drawn already
+  // (review of 2026-10-03).
+  if (!mine || mine.shape === null) return { routeId: data.id as string, fillSlot: true }
   throw new Error(DRAWN_ALREADY)
 }
 
@@ -109,6 +114,11 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
 
   let routeId = input.routeId
   let newRoute = !routeId
+  // Whether the route row is this call's own insert. Only then may a failed
+  // save take it back out: a route claimed from claimExistingRoute may be
+  // another save's, in flight, and deleting it cascaded that save's line
+  // away when two saves of one new route overlapped (review of 2026-10-03).
+  let createdRoute = false
   if (routeId && input.writeRoute) {
     // The route row first: its ends are what both directions' names are
     // made of, and a clash with another route's ends is refused before any
@@ -151,6 +161,7 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
       throw new Error(error.message)
     } else {
       routeId = data.id as string
+      createdRoute = true
     }
   }
 
@@ -201,7 +212,11 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
       // Two requests, not one transaction: the route row is already in.
       // Take it back out, or the next press meets route_ends_unique for a
       // route that has no directions and cannot be reached from any card.
-      await client.from('route').delete().eq('id', routeId)
+      // A claimed route is left: the next press claims it again, or finds
+      // the other save's directions in it. So is our own when the refusal
+      // is a direction already there: another save claimed it meanwhile
+      // and its directions landed first, and they are its line.
+      if (createdRoute && error.code !== UNIQUE_VIOLATION) await client.from('route').delete().eq('id', routeId)
       throw new Error(error.message)
     }
     const saved = (data as unknown as UnnamedVariantRow[]).find((v) => v.reversed === input.reversed)
@@ -276,9 +291,18 @@ export async function deleteVariant(variant: VariantRow): Promise<void> {
       borrowed_from: null,
       borrowed_part: null,
       borrowed_m: null,
+      // Its boards go with its line: the emptied slot kept them, and the
+      // next line drawn into it would have shown another jeep's boards
+      // (review of 2026-10-03). The files stay in the bucket; the publish
+      // copies only listed ones.
+      signboards: [] as string[],
     })
     .eq('id', variant.id)
+    .select('id')
   if (emptied.error) throw new Error(emptied.error.message)
+  // RLS refusing an update is no rows, not an error: said, not reloaded as
+  // if done (review of 2026-10-03, finding 6).
+  if (!emptied.data?.length) throw new Error(NOTHING_CHANGED)
   const unlinked = await client.from('route_stop').delete().eq('route_variant_id', variant.id)
   if (unlinked.error) throw new Error(unlinked.error.message)
   const orphaned = await client.from('route_variant').update({ borrowed_from: null }).eq('borrowed_from', variant.id)
@@ -292,7 +316,8 @@ export async function deleteVariant(variant: VariantRow): Promise<void> {
   if (countError) throw new Error(countError.message)
   if (count === 0) {
     // Both ways empty: the route goes, its two slots with it (cascade).
-    const gone = await client.from('route').delete().eq('id', variant.route_id)
+    const gone = await client.from('route').delete().eq('id', variant.route_id).select('id')
     if (gone.error) throw new Error(gone.error.message)
+    if (!gone.data?.length) throw new Error(NOTHING_CHANGED)
   }
 }

@@ -162,6 +162,14 @@ export default defineConfig({
               expiration: { maxEntries: 1 },
               plugins: [
                 {
+                  // Only JSON. The host answers a missing file with the
+                  // map's page, 200 (wrangler.jsonc, single-page-application),
+                  // and a 200 alone kept that page as the map (review of
+                  // 2026-10-03). Inline: the worker is written from this.
+                  cacheWillUpdate: async ({ response }) =>
+                    (response.headers.get('content-type') ?? '').startsWith('application/json') ? response : null,
+                },
+                {
                   // Stamp what comes from the store, so the page can say
                   // "Not refreshed" honestly even while the phone believes it
                   // is online (a slow network answered after the timeout).
@@ -192,6 +200,18 @@ export default defineConfig({
               networkTimeoutSeconds: 3,
               cacheableResponse: { statuses: [200] },
               expiration: { maxEntries: 4000, purgeOnQuotaError: true },
+              plugins: [
+                {
+                  // Only JSON: a line not there is the map's page, 200 (above).
+                  // A page an older worker kept is passed over, not served.
+                  cacheWillUpdate: async ({ response }) =>
+                    (response.headers.get('content-type') ?? '').startsWith('application/json') ? response : null,
+                  cachedResponseWillBeUsed: async ({ cachedResponse }) =>
+                    cachedResponse && (cachedResponse.headers.get('content-type') ?? '').startsWith('application/json')
+                      ? cachedResponse
+                      : null,
+                },
+              ],
             },
           },
           {
@@ -205,6 +225,20 @@ export default defineConfig({
               cacheName: 'signboards',
               cacheableResponse: { statuses: [200] },
               expiration: { maxEntries: 2000, purgeOnQuotaError: true },
+              plugins: [
+                {
+                  // Only an SVG: a board not there is the map's page, 200,
+                  // and cache-first would have kept it under that name for
+                  // good. A page an older worker kept so is passed over, and
+                  // the board asked of the network again.
+                  cacheWillUpdate: async ({ response }) =>
+                    (response.headers.get('content-type') ?? '').startsWith('image/svg+xml') ? response : null,
+                  cachedResponseWillBeUsed: async ({ cachedResponse }) =>
+                    cachedResponse && (cachedResponse.headers.get('content-type') ?? '').startsWith('image/svg+xml')
+                      ? cachedResponse
+                      : null,
+                },
+              ],
             },
           },
           {

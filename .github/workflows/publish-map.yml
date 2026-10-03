@@ -44,7 +44,7 @@ on:
   workflow_dispatch:
     inputs:
       force:
-        description: 'Publish even if the map shrank (a deliberate clear-out)'
+        description: 'Publish even if the map shrank or its signboards are gone from the bucket (a deliberate clear-out)'
         type: boolean
         default: false
 

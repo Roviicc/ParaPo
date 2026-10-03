@@ -45,6 +45,28 @@ export async function addSignboard(variantId: string, current: readonly string[]
   return writeList(variantId, [...current, name])
 }
 
+/**
+ * Several files, each sent and listed in turn. `onStep` hears the list after
+ * each one is in, so a file refused halfway leaves the editor holding the
+ * boards already listed: it held the list from before them, and the next
+ * change wrote that back over them (review of 2026-10-03, finding 11). The
+ * refusal is then thrown, as one file's is.
+ */
+export async function addSignboards(
+  variantId: string,
+  current: readonly string[],
+  files: readonly File[],
+  onStep: (list: string[]) => void,
+  add: typeof addSignboard = addSignboard,
+): Promise<string[]> {
+  let list = [...current]
+  for (const f of files) {
+    list = await add(variantId, list, f)
+    onStep(list)
+  }
+  return list
+}
+
 /** A board taken off the direction, and its file deleted after. */
 export async function removeSignboard(variantId: string, current: readonly string[], name: string): Promise<string[]> {
   const client = getSupabase()

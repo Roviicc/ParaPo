@@ -78,8 +78,9 @@ const bearing = ([lng1, lat1], [lng2, lat2]) => {
 /**
  * Turn angles around each join of a line drawn as segments (arrays of
  * [lng, lat], in order). The segments are joined the way joinSegments in
- * src/shared/geo/geo.ts does it: every segment after the first loses its first
- * coordinate, which repeats the previous segment's last. For the join before
+ * src/shared/geo/geo.ts does it for routed segments: every segment after the
+ * first loses its first coordinate, which repeats the previous segment's last
+ * (joinSegments keeps it when it does not, since 2026-10-03). For the join before
  * control point k it reports the worst turn within atM metres along the line.
  * A vertex's turn is the angle, 0–180°, between the bearing in from the last
  * vertex at least minStepM behind it and the bearing out to the first vertex

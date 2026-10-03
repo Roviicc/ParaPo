@@ -78,7 +78,9 @@ const dotAt = ([x, y], there = true) =>
   [x, y, there], { timeout: 5000 }).then(() => true, () => false)
 // A drawing's line as the studio joins it and saves it (shared/geo.ts
 // joinSegments): each segment after the first starts on the point the one
-// before it ends on, and that point is kept once.
+// before it ends on, and that point is kept once. Every join here is routed
+// on both sides, so it always repeats (joinSegments keeps a first point that
+// does not, since 2026-10-03).
 const joined = (segments) => segments.flatMap((s, i) => (i === 0 ? s.coordinates : s.coordinates.slice(1)))
 
 let d = await readDraft()

@@ -5,7 +5,7 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/places-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { boxFor, groupPlaces, nearestStop } from '../../src/studio/panels/places.ts'
+import { boxFor, groupPlaces, nearestStop, terminalAlreadyAt } from '../../src/studio/panels/places.ts'
 
 let n = 0
 /** A box at [lng, 14.7]: sample data, shaped like the stop rows. */
@@ -53,4 +53,17 @@ test('the nearest box to a point, and nothing without a point or boxes', () => {
   assert.equal(nearestStop([a, b], [121.09, 14.7]), b.id)
   assert.equal(nearestStop([a, b], undefined), '')
   assert.equal(nearestStop([], [121.0, 14.7]), '')
+})
+
+test('a place has one terminal: a second is found by the name people say, or the ground name when that is blank', () => {
+  const tala = box('Tala', 121.0, 'terminal')
+  const fairview = box('SM Fairview Terminal A', 121.1, 'terminal', 'SM Fairview')
+  const stops = [tala, fairview, box('Tala Ilalim', 121.0, 'hintuan', 'Tala')]
+  // Two terminals both named "Tala", nothing informal: the gap the review of 2026-10-03 found.
+  assert.equal(terminalAlreadyAt(stops, { id: null, name: 'Tala', informal: '' }), tala)
+  assert.equal(terminalAlreadyAt(stops, { id: null, name: 'Tala Terminal B', informal: ' tala ' }), tala)
+  assert.equal(terminalAlreadyAt(stops, { id: null, name: 'sm  fairview', informal: '' }), fairview)
+  // The terminal itself, saved again, is no clash; a new place is none either.
+  assert.equal(terminalAlreadyAt(stops, { id: tala.id, name: 'Tala', informal: '' }), null)
+  assert.equal(terminalAlreadyAt(stops, { id: null, name: 'Novaliches', informal: '' }), null)
 })

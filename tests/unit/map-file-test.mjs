@@ -221,3 +221,48 @@ test('offline after an update, the newest stored older copy is the map, marked s
     delete globalThis.caches
   }
 })
+
+// Review of 2026-10-03, finding 16: the worker falls back to its copy only
+// when fetch fails outright; a 5xx reached the page, which showed the error
+// banner with a good copy in the store.
+test("a server's error with a stored copy shows the copy, marked stale", async () => {
+  const stored = { '/data/index.v4.json': { ...base, published_at: '2026-09-30T00:00:00Z' } }
+  globalThis.caches = {
+    match: async (url, { cacheName }) =>
+      cacheName === 'map-file' && stored[url] ? new Response(JSON.stringify(stored[url]), { status: 200 }) : undefined,
+  }
+  try {
+    index('gone', { status: 503 })
+    const a = await fresh()
+    const file = await a.loadMapFile()
+    assert.equal(file.published_at, '2026-09-30T00:00:00Z')
+    assert.equal(a.mapFileIsStale(), true)
+    // Only an older shape kept: that one, as offline.
+    delete stored['/data/index.v4.json']
+    stored['/data/index.v3.json'] = { ...base, schema: 3 }
+    const b = await fresh()
+    assert.equal((await b.loadMapFile()).schema, 3)
+    // Nothing kept: the error, as before.
+    delete stored['/data/index.v3.json']
+    await assert.rejects((await fresh()).loadMapFile(), { message: '/data/index.v4.json: HTTP 503' })
+  } finally {
+    delete globalThis.caches
+  }
+})
+
+test('the page served in place of a missing index shows the stored copy too', async () => {
+  globalThis.caches = {
+    match: async (url, { cacheName }) =>
+      cacheName === 'map-file' && url === '/data/index.v4.json' ? new Response(JSON.stringify(base), { status: 200 }) : undefined,
+  }
+  try {
+    index('<!doctype html><title>Para Po</title>', { headers: { 'content-type': 'text/html' } })
+    const a = await fresh()
+    assert.equal((await a.loadMapFile()).schema, 4)
+    assert.equal(a.mapFileIsStale(), true)
+  } finally {
+    delete globalThis.caches
+  }
+  index('<!doctype html>', { headers: { 'content-type': 'text/html' } })
+  await assert.rejects((await fresh()).loadMapFile(), { message: '/data/index.v4.json: not JSON' })
+})

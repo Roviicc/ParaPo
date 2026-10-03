@@ -12,17 +12,6 @@ import { bboxContains, bboxMeetsSegment, bboxOf, bboxesOverlap, haversine, lineB
 /** Polygon corners in order; the closing edge is implied. */
 export type Ring = LngLat[]
 
-/** Signed doubled area (shoelace). Positive = counter-clockwise in lng/lat. */
-function ring2Area(ring: Ring): number {
-  let s = 0
-  for (let i = 0, n = ring.length; i < n; i++) {
-    const [x1, y1] = ring[i]
-    const [x2, y2] = ring[(i + 1) % n]
-    s += x1 * y2 - x2 * y1
-  }
-  return s
-}
-
 /**
  * Point-in-polygon by ray casting. A point exactly on an edge counts as
  * inside: a hotspot traced along a kerb should still claim a route running on
@@ -72,6 +61,32 @@ export function segmentsIntersect(a: LngLat, b: LngLat, c: LngLat, d: LngLat): b
   if (o2 === 0 && onSegment(d, a, b)) return true
   if (o3 === 0 && onSegment(a, c, d)) return true
   if (o4 === 0 && onSegment(b, c, d)) return true
+  return false
+}
+
+/**
+ * Whether two edges of the ring that do not share a corner touch or cross: a
+ * bow-tie, or a corner dragged across the far side. Such a box has no inside
+ * one can trust (pointInRing counts it by crossings) and its centroid can sit
+ * outside it, so the studio refuses it before a save (review of 2026-10-03).
+ * Plain O(n²): a box has a handful of corners.
+ */
+export function ringCrossesItself(corners: Ring): boolean {
+  // A corner repeated where it stands — the ferry's imported stations end on
+  // their first corner again — is no side: dropped before the sides are paired.
+  const ring = corners.filter((p, i) => {
+    const q = corners[(i + 1) % corners.length]
+    return corners.length < 2 || p[0] !== q[0] || p[1] !== q[1]
+  })
+  const n = ring.length
+  if (n < 4) return false
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 2; j < n; j++) {
+      // The last edge and the first share corner 0.
+      if (i === 0 && j === n - 1) continue
+      if (segmentsIntersect(ring[i], ring[(i + 1) % n], ring[j], ring[(j + 1) % n])) return true
+    }
+  }
   return false
 }
 
@@ -127,10 +142,14 @@ function crossingPoint(a: LngLat, b: LngLat, c: LngLat, d: LngLat): LngLat | nul
  * This is what "the route starts at this terminal" is measured with.
  */
 export function entryDistance(line: LngLat[], ring: Ring): number {
-  const idx = firstTouchIndex(line, ring)
-  if (idx < 0) return -1
+  const found = firstTouchIndex(line, ring)
+  if (found < 0) return -1
+  // A first vertex inside, reached from outside, was entered on the segment
+  // before it: measured to that vertex, the entry overshot the crossing by up
+  // to a segment, 20–30 m on a snapped road (review of 2026-10-03).
+  if (pointInRing(line[found], ring) && found === 0) return 0
+  const idx = pointInRing(line[found], ring) ? found - 1 : found
   const upTo = lineLength(line.slice(0, idx + 1))
-  if (pointInRing(line[idx], ring)) return upTo
   // The touch is on segment idx → idx+1: find the nearest crossing on it.
   const a = line[idx]
   const b = line[idx + 1]
@@ -146,30 +165,44 @@ export function entryDistance(line: LngLat[], ring: Ring): number {
 /**
  * Area-weighted centroid. Falls back to the vertex average for a degenerate
  * (zero-area) ring so a bad trace still gets a usable label point.
+ *
+ * The shoelace sums are taken from the ring's first corner, not from 0°, and
+ * the corner added back at the end, as signedArea2 in rightOfLine.ts does.
+ * From 0° every term is about 121 × 14.7 while a box's area is about 1e-8,
+ * so the sums cancelled away the digits that mattered: a 10 m box at Manila
+ * had its centroid some 60 m off, and 23 of the 102 published hotspots had
+ * their point outside their own box (review of 2026-10-03). From the corner
+ * the terms are the box's own size, and the degenerate test below compares
+ * an area in square degrees that actually means something (1e-12 is about
+ * 0.01 m²).
  */
 export function ringCentroid(ring: Ring): LngLat {
   const n = ring.length
   if (n === 0) return [0, 0]
-  const a2 = ring2Area(ring)
+  const [ox, oy] = ring[0]
+  let a2 = 0
+  let cx = 0
+  let cy = 0
+  for (let i = 0; i < n; i++) {
+    const x1 = ring[i][0] - ox
+    const y1 = ring[i][1] - oy
+    const x2 = ring[(i + 1) % n][0] - ox
+    const y2 = ring[(i + 1) % n][1] - oy
+    const f = x1 * y2 - x2 * y1
+    a2 += f
+    cx += (x1 + x2) * f
+    cy += (y1 + y2) * f
+  }
   if (Math.abs(a2) < EPS) {
     let sx = 0
     let sy = 0
     for (const [x, y] of ring) {
-      sx += x
-      sy += y
+      sx += x - ox
+      sy += y - oy
     }
-    return [sx / n, sy / n]
+    return [ox + sx / n, oy + sy / n]
   }
-  let cx = 0
-  let cy = 0
-  for (let i = 0; i < n; i++) {
-    const [x1, y1] = ring[i]
-    const [x2, y2] = ring[(i + 1) % n]
-    const f = x1 * y2 - x2 * y1
-    cx += (x1 + x2) * f
-    cy += (y1 + y2) * f
-  }
-  return [cx / (3 * a2), cy / (3 * a2)]
+  return [ox + cx / (3 * a2), oy + cy / (3 * a2)]
 }
 
 /**

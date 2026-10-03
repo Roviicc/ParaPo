@@ -20,16 +20,28 @@ export type Segment = {
   streets?: StreetRun[]
 }
 
+/** Two points this close are one join, not two vertices: 1 cm, far below a click or a 6-decimal save. */
+const JOIN_M = 0.01
+
 /**
- * Concatenate segments into one continuous line, dropping the duplicated join
- * point where each segment starts where the previous one ended.
+ * Concatenate segments into one continuous line, dropping a segment's first
+ * point only where it repeats the previous segment's last.
+ *
+ * It was dropped always, and a routed segment does not start on the click: it
+ * starts where the router put that click on the road, up to SNAP_RADIUS_M
+ * (25 m) away. After a freehand segment, which does end on the click, the
+ * road's first vertex was lost, and the saved line, its metres, its stop
+ * order and the published line cut that corner, while the map, which draws
+ * segment by segment, showed it whole (review of 2026-10-03, finding 7).
  */
 export function joinSegments(segments: Segment[]): LngLat[] {
   const out: LngLat[] = []
-  segments.forEach((s, i) => {
-    if (!s?.coordinates?.length) return
-    out.push(...(i === 0 ? s.coordinates : s.coordinates.slice(1)))
-  })
+  for (const s of segments) {
+    if (!s?.coordinates?.length) continue
+    const last = out[out.length - 1]
+    const repeats = last !== undefined && haversine(last, s.coordinates[0]) < JOIN_M
+    out.push(...(repeats ? s.coordinates.slice(1) : s.coordinates))
+  }
   return out
 }
 
@@ -110,6 +122,29 @@ export function nearestOnSegment(p: LngLat, a: LngLat, b: LngLat): { point: LngL
   const l2 = bx * bx + by * by
   const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, (px * bx + py * by) / l2))
   return { point: [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])], t }
+}
+
+/**
+ * Metres along the line to the point of it nearest p. What breaks a tie
+ * between two hotspots met on one segment (timeline.ts): the line may be
+ * the full one or its overview, so an index into it is not to be trusted,
+ * a position along it is (2026-10-03).
+ */
+export function metresAlong(line: readonly LngLat[], p: LngLat): number {
+  if (line.length < 2) return 0
+  let best = Infinity
+  let at = 0
+  let walked = 0
+  for (let i = 1; i < line.length; i++) {
+    const [a, b] = [line[i - 1], line[i]]
+    const d = pointToSegmentM(p, a, b)
+    if (d < best) {
+      best = d
+      at = walked + haversine(a, nearestOnSegment(p, a, b).point)
+    }
+    walked += haversine(a, b)
+  }
+  return at
 }
 
 /**

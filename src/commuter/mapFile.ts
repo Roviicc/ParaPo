@@ -117,10 +117,22 @@ function asMap(file: RawFile, url: string, schema: number): MapFile {
   return { ...file, variants } as MapFile
 }
 
+/**
+ * The copy the worker kept of the index itself, else the newest older one.
+ * The worker falls back to its copy only when the network fails outright: a
+ * server's 500 is an answer, and came to the page as one (review of
+ * 2026-10-03, finding 16).
+ */
+async function storedCopy(): Promise<MapFile | null> {
+  return (await storedOldCopy([{ url: MAP_FILE_URL, schema: MAP_FILE_SCHEMA }])) ?? (await storedOldCopy())
+}
+
 /** The newest older copy the worker kept, if any (STORED_OLD). */
-async function storedOldCopy(): Promise<MapFile | null> {
+async function storedOldCopy(
+  candidates: readonly { url: string; schema: number }[] = STORED_OLD,
+): Promise<MapFile | null> {
   if (typeof caches === 'undefined') return null
-  for (const { url, schema } of STORED_OLD) {
+  for (const { url, schema } of candidates) {
     const res = await caches.match(url, { cacheName: MAP_FILE_CACHE }).catch(() => undefined)
     if (!res?.ok) continue
     try {
@@ -144,9 +156,26 @@ export function loadMapFile(): Promise<MapFile> {
   inFlight ??= fetch(MAP_FILE_URL, { cache: 'no-cache' })
     .then(
       async (res) => {
-        if (!res.ok) throw new Error(`${MAP_FILE_URL}: HTTP ${res.status}`)
+        // The server answered, but not with the map — an error, or the
+        // page itself, 200, which the host sends for a file it does not
+        // have (wrangler.jsonc): the stored copy, marked stale.
+        const kept = async (why: string) => {
+          const copy = await storedCopy()
+          if (!copy) throw new Error(`${MAP_FILE_URL}: ${why}`)
+          stale = true
+          return copy
+        }
+        if (!res.ok) return kept(`HTTP ${res.status}`)
+        let raw: RawFile
+        try {
+          raw = (await res.json()) as RawFile
+        } catch {
+          return kept('not JSON')
+        }
         stale = res.headers.get(SERVED_FROM_HEADER) === 'cache'
-        return asMap((await res.json()) as RawFile, MAP_FILE_URL, MAP_FILE_SCHEMA)
+        // A file that reads but is not this app's (too new, another shape)
+        // is said as it is: the banner's Reload is the answer to that.
+        return asMap(raw, MAP_FILE_URL, MAP_FILE_SCHEMA)
       },
       async (e: unknown) => {
         // No network and nothing stored under this path: an update made offline.
