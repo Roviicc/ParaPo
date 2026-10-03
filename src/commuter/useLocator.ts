@@ -315,6 +315,11 @@ export function useLocator(map: MapLibreMap | null, { offset, snap, compass }: O
           navigator.geolocation.clearWatch(watchRef.current ?? -1)
           watchRef.current = null
           fixesRef.current = []
+          // The last fix goes too: kept, the walker stood on the map where
+          // the visitor was when they took the permission back, and the
+          // next tap eased the camera there (review of 2026-10-03).
+          headingRef.current = null
+          setFix(null)
           setCamera('free')
           setNoFix(false)
           setStatus('denied')
