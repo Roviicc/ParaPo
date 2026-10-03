@@ -50,7 +50,7 @@ function overview(
 }
 
 /**
- * A trip opened — from a card, a tap on its line, a shared link: the camera
+ * A trip opened — from a card, a tap on its line: the camera
  * takes in its whole route, zooming in or out, clear of the card (the
  * owner's ask, 2026-10-01). Keyed on the route, so SWITCH, which covers the
  * same ground the other way, leaves the view as it is; the card's height and

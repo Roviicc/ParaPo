@@ -35,8 +35,6 @@ if (!existsSync(join(root, 'dist', 'sw.js'))) {
   process.exit(1)
 }
 const published = JSON.parse(readFileSync(join(root, 'public', 'data', 'index.v4.json'), 'utf8'))
-/** A drawn direction, for the line a trip reads and the worker keeps. */
-const tripId = published.variants.find((v) => v.overview)?.id
 /** One past the shape this app reads (src/commuter/mapFile.ts, MAP_FILE_SCHEMA). */
 const MAP_FILE_SCHEMA_NEXT = published.schema + 1
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -52,6 +50,50 @@ if (!base) {
   base = server.resolvedUrls.local[0].replace(/\/$/, '')
 }
 console.log(`preview at ${base}`)
+
+/**
+ * Opens a trip as a visitor does, by a tap on its line. A production build
+ * keeps its map to itself (no window.__map) and trip links went on
+ * 2026-10-03, so the line is found on a screenshot: a pixel in the colour
+ * routes rest in (Map/RouteLine/surface-default, #8ec5ff), away from the
+ * screen's edges. A tap there opens a trip, or the route list where routes
+ * share the road, whose first row then opens one. The trip's direction,
+ * from its card's label (its name), or null.
+ */
+async function openSomeTrip(page) {
+  let at = null
+  for (let i = 0; i < 10 && !at; i++) {
+    const shot = (await page.screenshot()).toString('base64')
+    at = await page.evaluate(async (b64) => {
+      const img = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob())
+      const c = new OffscreenCanvas(img.width, img.height)
+      const g = c.getContext('2d')
+      g.drawImage(img, 0, 0)
+      const { data, width, height } = g.getImageData(0, 0, img.width, img.height)
+      const scale = img.width / window.innerWidth
+      const hits = []
+      for (let y = Math.round(height * 0.15); y < height * 0.7; y += 2)
+        for (let x = Math.round(width * 0.1); x < width * 0.9; x += 2) {
+          const k = (y * width + x) * 4
+          if (Math.abs(data[k] - 0x8e) + Math.abs(data[k + 1] - 0xc5) + Math.abs(data[k + 2] - 0xff) < 12) hits.push([x / scale, y / scale])
+        }
+      return hits.length ? hits[Math.floor(hits.length / 2)] : null
+    }, shot)
+    if (!at) await page.waitForTimeout(500)
+  }
+  if (!at) return null
+  await page.touchscreen.tap(at[0], at[1])
+  const trip = page.locator('[data-testid="card"]:not([hidden]) [data-testid="trip"]')
+  const row = page.locator('[data-testid="chooser"] button[data-testid="chooser-item"]')
+  await Promise.race([trip.first().waitFor({ timeout: 10000 }), row.first().waitFor({ timeout: 10000 })]).catch(() => {})
+  if (!(await trip.count()) && (await row.count())) {
+    await row.first().tap()
+    await trip.first().waitFor({ timeout: 10000 }).catch(() => {})
+  }
+  if (!(await trip.count())) return null
+  const label = await page.locator('[data-testid="card"]:not([hidden])').filter({ has: page.locator('[data-testid="trip"]') }).first().getAttribute('aria-label')
+  return published.variants.find((v) => v.direction_name === label) ?? null
+}
 
 const browser = await chromium.launch()
 const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
@@ -235,14 +277,6 @@ try {
     !(await page.evaluate(() => document.body.innerText.includes('The map failed to load'))),
   )
 
-  // A shared link still opens offline.
-  const firstId = published.variants[0]?.id
-  if (firstId) {
-    await page.goto(`${base}/?r=${firstId}`, { waitUntil: 'load' }).catch(() => {})
-    const card = await page.locator('[data-testid="card"]').waitFor({ timeout: 20000 }).then(() => true, () => false)
-    check('offline: a shared link /?r=<id> opens its route card', card)
-  }
-
   await ctx.setOffline(false)
   // Back to the bare address, with no card open.
   await page.goto(`${base}/`, { waitUntil: 'load' })
@@ -270,17 +304,20 @@ try {
   check('fast again: no notice', (await page.locator('[data-testid="offline"]').count()) === 0)
 
   // A trip opened reads its direction's full line, and the worker keeps it.
-  if (tripId) {
-    await page.goto(`${base}/?r=${tripId}`, { waitUntil: 'load' })
+  // Opened by a tap, as a visitor opens one: trip links (?r=<id>) went on
+  // 2026-10-03.
+  const opened = await openSomeTrip(page)
+  if (!opened) check('an opened trip reads its full line, and the worker keeps it', false, 'no trip opened: no route line found on the screen to tap')
+  else {
     await page.waitForTimeout(2500)
     const kept = await page.evaluate(async (id) => {
       const name = (await window.caches.keys()).find((n) => n.includes('map-lines'))
       return !!name && (await (await window.caches.open(name)).keys()).some((r) => r.url.endsWith(`/data/lines/${id}.json`))
-    }, tripId)
-    check('an opened trip reads its full line, and the worker keeps it', kept)
-    await page.goto(`${base}/`, { waitUntil: 'load' })
-    await page.waitForTimeout(1000)
+    }, opened.id)
+    check('an opened trip reads its full line, and the worker keeps it', kept, `"${opened.direction_name}"`)
   }
+  await page.goto(`${base}/`, { waitUntil: 'load' })
+  await page.waitForTimeout(1000)
 
   // A map published for a newer app: the banner says so and offers Reload,
   // which goes through the worker (pwa.ts, reloadForNewerApp) and, with no

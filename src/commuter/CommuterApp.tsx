@@ -19,7 +19,6 @@ import { Notices } from './Notices'
 import { TripCard } from '../shared/cards/TripCard'
 import { useMapAge, useOffline } from './status'
 import { useStatusBarColour } from './statusBar'
-import { useShareLink } from './useShareLink'
 import { Locator } from './Locator'
 import { LocatorOnMap } from './LocatorIndicatorOverlay'
 import { useLocator } from './useLocator'
@@ -59,7 +58,6 @@ export default function CommuterApp() {
   // picked hintuan's ride flowing only as far as there.
   const rides = useLitRides(map, saved, stops.stops, null, ride.ridden)
 
-  useShareLink(map, saved)
   // The visitor's own position, when they ask for it, and the camera with
   // them (the owner's LocatorButton, 2026-10-01): kept clear of the card on
   // show, as a picked hintuan is.

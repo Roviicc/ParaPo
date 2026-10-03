@@ -18,9 +18,10 @@
 // where two routes share a road ("N Routes", a card per place), the trip a
 // row opens in its card's colour and ‹ back to the list, every card at rest; a tap
 // just outside a hotspot, and the bottom sheet on a hotspot's card — tap and
-// drag the handle, Middle → Max → Low → Middle → Low → gone; the ?r=<id> share link and the
-// view it frames; a trip opened on its own whose ‹ lists the routes sharing
-// an end with its own; the fine-pointer desktop control (±5 px, no zoom
+// drag the handle, Middle → Max → Low → Middle → Low → gone; a trip opened
+// by a tap on its own line (no ?r= link since the owner took trip links out,
+// 2026-10-03), the view it frames, and its ‹ listing the routes sharing an
+// end with its own; the fine-pointer desktop control (±5 px, no zoom
 // buttons for a mouse either since 2026-09-29, attribution bottom right);
 // and housekeeping.
 import { chromium } from 'playwright'
@@ -951,6 +952,49 @@ const BOX_M = 20 * M_PER_PX
 /** Where the negative control taps: 40 px off the line. */
 const FAR_M = 40 * M_PER_PX
 console.log(`(at zoom ${ZOOM} a pixel is ${M_PER_PX.toFixed(2)} m, so the ±20 px tap box reaches ${Math.round(BOX_M)} m)\n`)
+
+/** The direction an open trip card shows: its label is that direction's name (RouteTripDetail). */
+const openedDirection = async () => {
+  const label = await tripLabel()
+  return label ? (fileDirections.find((d) => d.direction_name === label) ?? null) : null
+}
+
+/**
+ * Opens direction `d`'s trip on its own from a fresh page, as a visitor would:
+ * a tap on its line where nothing else runs — the vertex with the most room
+ * from every other line and every box, more than the tap box reaches. Its
+ * own way back may share the road where `d` is the way out: a tap there opens
+ * the way out (routeTaps.ts, the outbound rule). The trip links that opened a
+ * given trip went on 2026-10-03; false when no vertex has the room, or the
+ * card opened is another.
+ */
+async function openAlone(d) {
+  const r = snapshot.routes.find((o) => o.id === d.id)
+  if (!r) return false
+  let best = null
+  for (const vi of sampleIndices(r.coords.length, 400)) {
+    const p = r.coords[vi]
+    const k = mPerDegLng(p[1])
+    if (distToHotspots(p, snapshot.polys, k) < BOX_M + 10) continue
+    let clear = Infinity
+    for (const o of snapshot.routes) {
+      if (o.id === r.id || (!d.reversed && o.routeId === r.routeId) || distToBbox(p, o.bbox, k) > clear) continue
+      clear = Math.min(clear, distToLine(p, o.coords, k))
+    }
+    if (!best || clear > best.clear) best = { p, clear }
+  }
+  if (!best || best.clear < BOX_M + 10) return false
+  await page.goto(`${BASE}/`, { waitUntil: 'load' })
+  await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
+  await waitForSource(page, 'saved-routes')
+  await jumpTo(page, best.p)
+  const at = await project(page, best.p)
+  const box = await canvasBox()
+  await mapTap(box.x + at[0], box.y + at[1])
+  await trip().first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
+  await page.waitForTimeout(2000)
+  return (await openedDirection())?.id === d.id
+}
 
 // ------------------------------------------------ 2. a forgiving tap, ±20 px
 // Route A: the vertex with the most clearance from every other route's line,
@@ -1907,31 +1951,25 @@ const overlapping = snapshot.polys.some((a) =>
 )
 if (!overlapping) skip('two overlapping hotspots open the list', 'no two hotspot polygons overlap today')
 
-// --------------------------------------------------------------- 5. sharing
+// ---------------------------------------- 5. a trip opened by a tap, framed
+// Trip links (?r=<id>) went on 2026-10-03, the owner's "remove that for
+// now": the address stays as it was, and the view a trip frames is checked
+// on a trip opened by a tap on its own line, as it was on one opened by a link.
 if (!routeA) {
-  skip('selecting a route puts ?r=<id> in the address', 'no lone route vertex to select')
+  skip('a trip opened by a tap leaves the address as it was', 'no lone route vertex to select')
 } else {
-  const r = routeA.route
   await jumpTo(page, routeA.point)
   const anchor = await project(page, routeA.point)
   const perp = await perpendicular(page, routeA.point, routeA.neighbour, routeA.route.coords, 40)
   const box = await canvasBox()
   await mapTap(box.x + anchor[0] + perp[0] * 14, box.y + anchor[1] + perp[1] * 14)
-  await page.waitForTimeout(600)
-  const sameRouteIds = snapshot.routes.filter((o) => o.routeId === r.routeId).map((o) => o.id)
-  check('selecting a route puts ?r=<id> in the address', sameRouteIds.includes(new URL(page.url()).searchParams.get('r') ?? ''), page.url().slice(BASE.length) || '/')
-  await closeCard()
-  check('  closing the card clears it again', !new URL(page.url()).searchParams.has('r'), page.url().slice(BASE.length) || '/')
-
-  // A cold load of the share link.
-  await page.goto(`${BASE}/?r=${encodeURIComponent(r.id)}`, { waitUntil: 'load' })
-  await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
   await page.waitForTimeout(2000)
-  const shareText = await cardText()
-  // The card reads the route the way that direction rides it: check both ends, not the order.
-  const ends = r.signboard.split(' – ').map((e) => e.replace(/ via .*$/, ''))
-  check('loading /?r=<id> opens that route', ends.length === 2 && ends.every((e) => shareText.includes(e)), shareText.split('\n')[0] ?? '(no card)')
-
+  check('a trip opened by a tap leaves the address as it was: no trip link', new URL(page.url()).search === '', page.url().slice(BASE.length) || '/')
+  // The direction the card opened (the tap may open the route's other way).
+  const opened = await openedDirection()
+  const r = opened && snapshot.routes.find((o) => o.id === opened.id)
+  if (!r) skip('  it frames the whole route, above the card', `no direction named "${await tripLabel()}" on the map`)
+  else {
   const shareFramed = await framedAboveCard(r.bbox)
   check('  it frames the whole route, above the card', shareFramed.inside, JSON.stringify(shareFramed))
   // Framed, not merely shown: the route fills the room the card leaves along
@@ -1979,37 +2017,41 @@ if (!routeA) {
     )
   }
 
-  // Opened by a link, no list is behind the trip: ‹ only where another route
-  // sharing an end is drawn its way round (the owner's ask, 2026-09-29). No
-  // Share button since the owner dropped it for now (2026-09-28) — the
-  // address bar is the link.
+  // Opened on its own, no list is behind the trip: ‹ only where another
+  // route sharing an end is drawn its way round (the owner's ask, 2026-09-29).
   const fannedR = fanOf(r.id).length > 1
   check(
     fannedR
-      ? '  opened by a link, the trip has ‹: another route sharing an end runs its way'
-      : '  opened by a link, the trip has no ‹: no other route sharing an end runs its way',
+      ? '  opened on its own, the trip has ‹: another route sharing an end runs its way'
+      : '  opened on its own, the trip has no ‹: no other route sharing an end runs its way',
     (await trip().count()) > 0 && ((await card().getByRole('button', { name: 'Back' }).count()) > 0) === fannedR,
     `trip ${await trip().count()}`,
   )
+  }
+  await closeCard()
 }
 
 // ------------------------------------------ 5b. ‹ on a trip opened on its own
-// A trip opened by a link has no list behind it. Where other routes sharing
+// A trip opened by a tap on its own line has no list behind it. Where other routes sharing
 // its head or its tail are drawn its way round, ‹ lists them the way the trip
 // goes, as a tap where they all run would: Tala → Novaliches ‹ to Tala's
 // card, "1 Route", Novaliches and SM Fairview (the owner's ask, 2026-09-29).
-// A drawn direction: a link to a slot opens nothing to test, and its fan would leave it out.
-const fannedOne = fileDirections.find((d) => (d.shape?.coordinates?.length ?? 0) > 1 && fanOf(d.id).length > 1)
+// A drawn direction (a slot has no line to tap, and its fan would leave it
+// out), one a tap can open alone: the first of up to ten that does.
+const fannedCandidates = fileDirections.filter((d) => (d.shape?.coordinates?.length ?? 0) > 1 && fanOf(d.id).length > 1)
+let fannedOne = null
+for (const d of fannedCandidates.slice(0, 10)) if (await openAlone(d)) { fannedOne = d; break }
 if (!fannedOne) {
   skip(
     'a trip opened on its own lists, behind its ‹, the routes sharing an end',
-    published ? 'no two routes sharing an end are drawn the same way round today' : 'the published file could not be read',
+    !published
+      ? 'the published file could not be read'
+      : fannedCandidates.length
+        ? 'none of those routes has a stretch of line a tap could open alone'
+        : 'no two routes sharing an end are drawn the same way round today',
   )
 } else {
   const fan = fanOf(fannedOne.id)
-  await page.goto(`${BASE}/?r=${encodeURIComponent(fannedOne.id)}`, { waitUntil: 'load' })
-  await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
-  await page.waitForTimeout(2000)
   const back = card().getByRole('button', { name: 'Back' })
   // The trip opens once its line is read: on a slow runner, after the map.
   await back.first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
@@ -2052,14 +2094,21 @@ if (!fannedOne) {
 const startOf = (d) => (d.reversed ? d.route?.tail_stop_id : d.route?.head_stop_id) ?? null
 const drawnDirection = (d) => (d.shape?.coordinates?.length ?? 0) > 1
 const othersOf = (d) => fileDirections.filter((o) => o.route_id !== d.route_id && drawnDirection(o) && !!startOf(d) && startOf(o) === startOf(d))
-const withOthers = fileDirections.find((d) => drawnDirection(d) && othersOf(d).length > 0)
+// Opened by a tap on its own line: the first of up to ten that a tap can open alone.
+const othersCandidates = fileDirections.filter((d) => drawnDirection(d) && othersOf(d).length > 0)
+let withOthers = null
+for (const d of othersCandidates.slice(0, 10)) if (await openAlone(d)) { withOthers = d; break }
 if (!withOthers) {
-  skip('a trip lists the other routes out of where it starts', published ? 'no two drawn routes leave one hotspot today' : 'the published file could not be read')
+  skip(
+    'a trip lists the other routes out of where it starts',
+    !published
+      ? 'the published file could not be read'
+      : othersCandidates.length
+        ? 'none of those routes has a stretch of line a tap could open alone'
+        : 'no two drawn routes leave one hotspot today',
+  )
 } else {
   const others = othersOf(withOthers)
-  await page.goto(`${BASE}/?r=${encodeURIComponent(withOthers.id)}`, { waitUntil: 'load' })
-  await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
-  await page.waitForTimeout(2000)
   const rows = card().locator('[data-testid="trip-other-route"]')
   const shown = await rows.evaluateAll((els) => els.map((e) => e.dataset.direction))
   check(

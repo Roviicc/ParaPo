@@ -207,9 +207,10 @@ export function useSavedRoutes<T extends VariantSummary>(
   // stored) is asked again when it lights, not at every look at the screen.
   const loadLine = opts.loadLine
   // Only a drawn direction has a line to read. A slot (a return not drawn
-  // yet) opened by ?r= asked for /data/lines/<id>.json, which is not there;
-  // the host answers a missing file with the page, 200, and that was kept
-  // as the line (review of 2026-10-03, finding 10).
+  // yet) opened by a trip link (?r=, since taken out) asked for
+  // /data/lines/<id>.json, which is not there; the host answers a missing
+  // file with the page, 200, and that was kept as the line (review of
+  // 2026-10-03, finding 10).
   const drawn = useMemo(() => new Set(rows.filter((v) => variantLine(v).length > 1).map((v) => v.id)), [rows])
   const request = useCallback(
     (id: string) => {
