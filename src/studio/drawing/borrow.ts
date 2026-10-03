@@ -32,9 +32,12 @@ export function nearestSpot(segments: Segment[], p: LngLat): (LineSpot & { off: 
   })
   if (!best) return null
   const b = best as LineSpot & { off: number }
-  const before = joinSegments(segments.slice(0, b.seg))
+  // Measured on the line as joinSegments makes it: since 2026-10-03 a join
+  // that is not one point keeps the hop between them (a freehand stretch
+  // ending on the click, the road starting where the router put it), and
+  // two lengths added apart left that hop out.
   const within = [...segments[b.seg].coordinates.slice(0, b.edge + 1), b.point]
-  b.metres = lineLength(before) + lineLength(within)
+  b.metres = lineLength(joinSegments([...segments.slice(0, b.seg), { snap: segments[b.seg].snap, coordinates: within }]))
   return b
 }
 

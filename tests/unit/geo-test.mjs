@@ -59,3 +59,17 @@ test('a join that repeats the point before it, to the centimetre, is kept once',
   assert.deepEqual(joinSegments([{ coordinates: [] }, { coordinates: [a, b] }, null]), [a, b])
   assert.deepEqual(joinSegments([]), [])
 })
+
+test('a spot on the line is measured along the line as it is joined, hop included', async () => {
+  const { nearestSpot } = await import('../../src/studio/drawing/borrow.ts')
+  const { lineLength } = await import('../../src/shared/geo/geo.ts')
+  const click = [121.04, 14.7]
+  const onRoad = [121.04, 14.70015]
+  const segments = [
+    { snap: 'freehand', coordinates: [[121.039, 14.7], click] },
+    { snap: 'snapped', coordinates: [onRoad, [121.041, 14.70015]] },
+  ]
+  const spot = nearestSpot(segments, [121.0405, 14.70016])
+  const along = lineLength([[121.039, 14.7], click, onRoad, spot.point])
+  assert.ok(Math.abs(spot.metres - along) < 0.01, `${spot.metres} vs ${along}`)
+})
