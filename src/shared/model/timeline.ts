@@ -1,5 +1,6 @@
 import { haversine, type LngLat } from '../geo/geo'
 import { passIndex } from '../geo/pass'
+import { distanceToRingM } from '../geo/ring'
 import { placeKey } from './places'
 import { servedBy, type ServedRoute } from './routes'
 import { stopLabel, stopRing, type StopKind, type StopSummary } from './stops'
@@ -17,13 +18,17 @@ import { stopLabel, stopRing, type StopKind, type StopSummary } from './stops'
  * jeep hintuans under a train's track, the stations over a jeep's road.
  */
 export function hintuansAlong<S extends StopSummary>(line: LngLat[], stops: readonly S[], route: ServedRoute): { stop: S; index: number }[] {
-  const along: { stop: S; index: number }[] = []
+  const along: { stop: S; index: number; at: number }[] = []
   for (const stop of stops) {
     if (stop.kind !== 'hintuan' || !stop.area || !servedBy(stop, route)) continue
-    const index = passIndex(line, stopRing(stop))
-    if (index >= 0) along.push({ stop, index })
+    const ring = stopRing(stop)
+    const index = passIndex(line, ring)
+    // Two boxes met on one segment, a snapped road's 20–30 m, tied and kept
+    // in the order the hotspots were read (review of 2026-10-03): the one
+    // nearer the segment's start is reached first.
+    if (index >= 0) along.push({ stop, index, at: distanceToRingM(line[index], ring) })
   }
-  return along.sort((a, b) => a.index - b.index)
+  return along.sort((a, b) => a.index - b.index || a.at - b.at).map(({ stop, index }) => ({ stop, index }))
 }
 
 /** One row of a direction's timeline. */

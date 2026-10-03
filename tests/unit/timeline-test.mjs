@@ -246,3 +246,24 @@ test('other routes: none where none leave, or the file carries no ends', () => {
   const old = [...drawn('a', undefined, undefined), ...drawn('b', undefined, undefined)]
   assert.deepEqual(idsOf(otherRoutesFrom(old, old[0])), [])
 })
+
+// Review of 2026-10-03, finding 17: two hintuans met on one segment tied on
+// its index and kept the order the hotspots were read in.
+test('two hintuans on one segment are listed in the order the line reaches them', () => {
+  const m = 1 / 111_000
+  const box = (id, x0) => ({
+    id,
+    kind: 'hintuan',
+    name: id,
+    informal: null,
+    aliases: [],
+    line: null,
+    area: { type: 'Polygon', coordinates: [[[121 + x0 * m, 14.7 - 3 * m], [121 + (x0 + 4) * m, 14.7 - 3 * m], [121 + (x0 + 4) * m, 14.7 - 1 * m], [121 + x0 * m, 14.7 - 1 * m], [121 + x0 * m, 14.7 - 3 * m]]] },
+    point: { type: 'Point', coordinates: [121 + (x0 + 2) * m, 14.7 - 2 * m] },
+  })
+  // One 30 m segment, eastward; the far box read first.
+  const line = [[121, 14.7], [121 + 30 * m, 14.7]]
+  const along = hintuansAlong(line, [box('far', 20), box('near', 5)], { mode: 'jeepney', route_code: null })
+  assert.deepEqual(along.map((a) => a.stop.id), ['near', 'far'])
+  assert.deepEqual(along.map((a) => a.index), [0, 0])
+})
