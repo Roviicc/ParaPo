@@ -80,7 +80,15 @@ await page.getByText(/Reset link problem/).waitFor({ timeout: 10000 }).catch(() 
 check(
   '/ forwards #error=… to /studio/, and the door explains it',
   new URL(page.url()).pathname === '/studio/' &&
-    (await page.getByText('Reset link problem: Email link is invalid or has expired').count()) === 1,
+    (await page.getByText('Reset link problem: the link has expired or was already used. Ask for a new one.').count()) === 1,
+  page.url().slice(0, 80),
+)
+await page.goto(`${BASE}/studio/?error=x&error_description=Call+0917+to+keep+your+account`, { waitUntil: 'load' })
+await page.getByText(/Reset link problem/).waitFor({ timeout: 10000 }).catch(() => {})
+check(
+  "a link's own error_description never reaches the door",
+  (await page.getByText('Reset link problem: the link could not be used. Ask for a new one.').count()) === 1 &&
+    (await page.getByText(/0917/).count()) === 0,
   page.url().slice(0, 80),
 )
 await page.goto(`${BASE}/`, { waitUntil: 'load' })

@@ -7,9 +7,21 @@
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
-# The editor is for one person. Keep it out of search results.
+# Every file. When several rules match a path their headers are all sent, so
+# nothing here may also appear in a rule below (a second nosniff or CSP would
+# be joined onto this one). Location stays this site's only: no frame or
+# embed may ask for it, nor for the camera or microphone.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=(), usb=()
+
+# The editor is for one person. Keep it out of search results, and out of
+# other sites' frames, where a page could dress it up and steer its clicks.
 /studio/*
   X-Robots-Tag: noindex
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
 
 # Signboards (0010): SVGs uploaded in the studio, cleaned twice
 # (signboardSvg.ts). Shown as pictures they run nothing; opened on their own
@@ -18,5 +30,4 @@
 # under the same name.
 /data/signboards/*
   Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox
-  X-Content-Type-Options: nosniff
   Cache-Control: public, max-age=31536000, immutable
