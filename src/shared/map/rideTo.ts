@@ -19,7 +19,8 @@ const PICKED_SCALE_M = 500
  * ridden drawn at rest and its get-off circles went with it. Tapping the row
  * again, an end row, another route or the card away lets the pick go. An end
  * row glides there (`toEnd`), so a rider can look along the route from end
- * to end (the owner's ask, 2026-09-29).
+ * to end (the owner's ask, 2026-09-29), in as close as a hintuan is brought
+ * (the owner's ask, 2026-10-03).
  */
 export function useRideTo(
   map: MapLibreMap | null,
@@ -47,9 +48,10 @@ export function useRideTo(
   const [atEnd, setAtEnd] = useState<{ variantId: string; end: 'from' | 'to' } | null>(null)
   const endPicked = selected && atEnd?.variantId === selected.id ? atEnd.end : null
 
-  // The camera as the first hintuan was picked: a second tap on the picked
-  // row brings it back (the owner's ask, 2026-10-02). Another hintuan picked
-  // meanwhile keeps the first one's; an end row, or another ride, lets it go.
+  // The camera as the first hintuan or end was picked: a second tap on the
+  // picked row brings it back (the owner's asks, 2026-10-02, and for the
+  // ends 2026-10-03). Another row picked meanwhile keeps the first one's;
+  // another ride lets it go.
   const before = useRef<{ center: LngLat; zoom: number; bearing: number; pitch: number } | null>(null)
 
   // A different direction is a different ride, and so is the same one opened
@@ -69,48 +71,59 @@ export function useRideTo(
     [selected, stops, live],
   )
 
+  /** Keeps the camera as the first pick is made; a later pick keeps the first one's. */
+  const remember = useCallback(() => {
+    if (!map || before.current) return
+    const c = map.getCenter()
+    before.current = { center: [c.lng, c.lat], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() }
+  }, [map])
+  /** The picked row again: the camera back where it was. */
+  const goBack = useCallback(() => {
+    const was = before.current
+    before.current = null
+    if (map && was) map.easeTo({ ...was, duration: 700 }, APP_MOVE)
+  }, [map])
+
   /** A hintuan row picks its ride (again puts it back); an end row passes null. */
   const selectedId = selected?.id
   const liveRow = live?.rowId ?? null
   const pick = useCallback(
     (id: string | null) => {
       setAtEnd(null)
-      if (id !== null && selectedId && liveRow === id) {
-        // The picked row again: let it go, and the camera back where it was.
-        const was = before.current
-        before.current = null
-        if (map && was) map.easeTo({ ...was, duration: 700 }, APP_MOVE)
-      } else if (id !== null && selectedId && !liveRow && map) {
-        const c = map.getCenter()
-        before.current = { center: [c.lng, c.lat], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() }
-      } else if (id === null) before.current = null
+      if (id !== null && selectedId && liveRow === id) goBack()
+      else if (id !== null && selectedId) remember()
+      else if (id === null) before.current = null
       setPicked((cur) =>
         id === null || !selectedId || (cur?.variantId === selectedId && cur.rowId === id)
           ? null
           : { variantId: selectedId, rowId: id },
       )
     },
-    [selectedId, liveRow, map],
+    [selectedId, liveRow, remember, goBack],
   )
 
   /**
    * An end row: the whole ride again, that end picked, and the map gliding
-   * to it at the height it is at. A second tap lets it go, the map staying
-   * put.
+   * in to it as to a picked hintuan. A second tap lets it go, the camera
+   * back where it was, as a hintuan's does.
    */
   const toEnd = useCallback(
     (end: 'from' | 'to') => {
       setPicked(null)
-      before.current = null
       const on = endPicked !== end
       setAtEnd(on && selectedId ? { variantId: selectedId, end } : null)
-      if (!on) return
+      if (!on) return goBack()
       if (!map || !selected) return
       const line = travelLine(selected, stops)
       if (line.length < 2) return
-      map.easeTo({ center: end === 'from' ? line[0] : line[line.length - 1], offset: onGlide.current?.() ?? [0, 0], duration: 700 }, APP_MOVE)
+      remember()
+      const at = end === 'from' ? line[0] : line[line.length - 1]
+      map.easeTo(
+        { center: at, zoom: zoomForScale(PICKED_SCALE_M, at[1]), offset: onGlide.current?.() ?? [0, 0], duration: 700 },
+        APP_MOVE,
+      )
     },
-    [map, selected, selectedId, stops, endPicked],
+    [map, selected, selectedId, stops, endPicked, remember, goBack],
   )
 
   // Glide to where the rider would get off, in to where the scale bar reads
