@@ -84,3 +84,10 @@ test('the wash is a hull over the chosen box and its siblings; none for a place 
   assert.ok(Math.min(...lngs) <= 121.0 && Math.max(...lngs) >= 121.001)
   assert.deepEqual(placeHull(stops, 'x', false), [])
 })
+
+// Review of 2026-10-03, finding 12: a place opened over a trip from the list
+// keeps the list behind both; the place's card, not the list, is shown.
+test("with a hotspot card open over a kept list, the card's routes are shown", () => {
+  assert.deepEqual(showingOf(all, false, all, ['a-back', 'c-back']).map((v) => v.id), ['a-back'])
+  assert.deepEqual(showingOf(all, false, all, []).map((v) => v.id), ['a-out', 'b-out'])
+})

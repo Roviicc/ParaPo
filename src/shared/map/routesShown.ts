@@ -7,8 +7,14 @@ import { isDrawn, type VariantSummary } from '../model/routes'
  */
 
 /**
- * What is shown: the routes under the tap, the way round the list is
- * showing them — or, with no list, what a hotspot's cards show.
+ * What is shown: what a hotspot's cards show, while one is open — else the
+ * routes under the tap, the way round the list is showing them.
+ *
+ * The card first: a place opened from a trip's end keeps the list the trip
+ * came from behind both, for ‹ (openPlace, keepList), and the hidden list
+ * went on deciding what was lit over the place's card (review of
+ * 2026-10-03). A card tells what it shows only while it is open, and
+ * nothing once it closes (HintuanCard's onShown).
  */
 export function showingOf<T extends VariantSummary>(
   candidates: readonly T[],
@@ -16,9 +22,9 @@ export function showingOf<T extends VariantSummary>(
   variants: readonly T[],
   cardShows: readonly string[],
 ): T[] {
-  return candidates.length > 0
-    ? candidates.filter((v) => v.reversed === back && isDrawn(v))
-    : variants.filter((v) => cardShows.includes(v.id) && isDrawn(v))
+  return cardShows.length > 0 || candidates.length === 0
+    ? variants.filter((v) => cardShows.includes(v.id) && isDrawn(v))
+    : candidates.filter((v) => v.reversed === back && isDrawn(v))
 }
 
 /**
