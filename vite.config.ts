@@ -128,7 +128,7 @@ export default defineConfig({
             return { manifest: entries.filter((e) => wanted(e.url)), warnings: [] }
           },
         ],
-        // The map has exactly one address, `/` (plus `?r=`), and only that is
+        // The map has exactly one address, `/` (with any query), and only that is
         // answered from the stored page. Any other navigation goes to the
         // server as it would without a worker — so `/studio` (with or without
         // the slash) opens the studio, and `/data/index.v4.json` typed into a tab

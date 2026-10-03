@@ -219,7 +219,16 @@ let lateClicks = 0
 /** A frame drawn after the input queue drained: the click a touch makes, if any, has been dispatched by now. */
 const settled = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0))))
 const mapTap = async (x, y) => {
-  const before = await page.evaluate(() => window.__clicks)
+  // Counted afresh on a page loaded since (openAlone): without it the count
+  // never moved, and every tap was sent a second time by hand, onto whatever
+  // the first had brought under that point (the review of 2026-10-03).
+  const before = await page.evaluate(() => {
+    if (window.__clicks === undefined) {
+      window.__clicks = 0
+      window.__map.on('click', () => window.__clicks++)
+    }
+    return window.__clicks
+  })
   await page.touchscreen.tap(x, y)
   // The page may be busy drawing for a while after the touch; only then does
   // the wait for its click start, or the click comes late, after the one
@@ -953,8 +962,15 @@ const BOX_M = 20 * M_PER_PX
 const FAR_M = 40 * M_PER_PX
 console.log(`(at zoom ${ZOOM} a pixel is ${M_PER_PX.toFixed(2)} m, so the ±20 px tap box reaches ${Math.round(BOX_M)} m)\n`)
 
-/** The direction an open trip card shows: its label is that direction's name (RouteTripDetail). */
+/**
+ * The direction an open trip card shows: with a trip open only it is lit.
+ * Its name, the card's label, is the fallback; two directions can share a
+ * name (a via is not in it), so it is not the first resort.
+ */
 const openedDirection = async () => {
+  if (!(await trip().count())) return null
+  const lit = (await litIds(page)) ?? []
+  if (lit.length === 1) return fileDirections.find((d) => d.id === lit[0]) ?? null
   const label = await tripLabel()
   return label ? (fileDirections.find((d) => d.direction_name === label) ?? null) : null
 }
@@ -962,7 +978,8 @@ const openedDirection = async () => {
 /**
  * Opens direction `d`'s trip on its own from a fresh page, as a visitor would:
  * a tap on its line where nothing else runs — the vertex with the most room
- * from every other line and every box, more than the tap box reaches. Its
+ * from every other line and every box, more than a tap reaches (the box's
+ * corner, 20√2 px, and half the hit line's width, at the suite's zoom). Its
  * own way back may share the road where `d` is the way out: a tap there opens
  * the way out (routeTaps.ts, the outbound rule). The trip links that opened a
  * given trip went on 2026-10-03; false when no vertex has the room, or the
@@ -971,11 +988,12 @@ const openedDirection = async () => {
 async function openAlone(d) {
   const r = snapshot.routes.find((o) => o.id === d.id)
   if (!r) return false
+  const reach = (20 * Math.SQRT2 + 9) * M_PER_PX
   let best = null
   for (const vi of sampleIndices(r.coords.length, 400)) {
     const p = r.coords[vi]
     const k = mPerDegLng(p[1])
-    if (distToHotspots(p, snapshot.polys, k) < BOX_M + 10) continue
+    if (distToHotspots(p, snapshot.polys, k) < reach) continue
     let clear = Infinity
     for (const o of snapshot.routes) {
       if (o.id === r.id || (!d.reversed && o.routeId === r.routeId) || distToBbox(p, o.bbox, k) > clear) continue
@@ -983,7 +1001,7 @@ async function openAlone(d) {
     }
     if (!best || clear > best.clear) best = { p, clear }
   }
-  if (!best || best.clear < BOX_M + 10) return false
+  if (!best || best.clear < reach) return false
   await page.goto(`${BASE}/`, { waitUntil: 'load' })
   await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
   await waitForSource(page, 'saved-routes')
@@ -1970,63 +1988,63 @@ if (!routeA) {
   const r = opened && snapshot.routes.find((o) => o.id === opened.id)
   if (!r) skip('  it frames the whole route, above the card', `no direction named "${await tripLabel()}" on the map`)
   else {
-  const shareFramed = await framedAboveCard(r.bbox)
-  check('  it frames the whole route, above the card', shareFramed.inside, JSON.stringify(shareFramed))
-  // Framed, not merely shown: the route fills the room the card leaves along
-  // one side or the other (its 48 px margins aside), however long it is.
-  const { box: fb } = shareFramed
-  const fill = Math.max((fb.right - fb.left) / (shareFramed.width - 96), (fb.bottom - fb.top) / (shareFramed.floor - shareFramed.map[0] - 96))
-  check('  zoomed to fit it: the route fills the room along one side', fill > 0.8 && fill < 1.05, `${Math.round(fill * 100)}% at zoom ${shareFramed.zoom}`)
+    const shareFramed = await framedAboveCard(r.bbox)
+    check('  it frames the whole route, above the card', shareFramed.inside, JSON.stringify(shareFramed))
+    // Framed, not merely shown: the route fills the room the card leaves along
+    // one side or the other (its 48 px margins aside), however long it is.
+    const { box: fb } = shareFramed
+    const fill = Math.max((fb.right - fb.left) / (shareFramed.width - 96), (fb.bottom - fb.top) / (shareFramed.floor - shareFramed.map[0] - 96))
+    check('  zoomed to fit it: the route fills the room along one side', fill > 0.8 && fill < 1.05, `${Math.round(fill * 100)}% at zoom ${shareFramed.zoom}`)
 
-  // The sheet at another height: the camera takes the route in again, in the
-  // map it leaves (the owner's ask, 2026-10-01) — at Max, the whole screen on
-  // a phone, as at Middle; in closer above Low; and back to the overview
-  // after the visitor has moved the map. Going up, no further out than
-  // 5 km on the scale bar (100 px; MapLibre's 512 px tiles), the owner's
-  // "for scrolling up only": a long route is cut, not shrunk.
-  const capZoom = Math.log2((78271.51696 * Math.cos((((r.bbox[1] + r.bbox[3]) / 2) * Math.PI) / 180) * 100) / 5000)
-  const raised = Math.max(shareFramed.zoom, capZoom)
-  const toMax = await buttonTap(handle(), async () => (await sheetState()) === 'max')
-  const atMax = await framedAboveCard(r.bbox)
-  const toLow = toMax && (await buttonTap(handle(), async () => (await sheetState()) === 'low'))
-  const atLow = await framedAboveCard(r.bbox)
-  if (!toLow) skip('  the sheet at Max, then Low: the route taken in again in the map it leaves', `the handle would not go round: data-snap=${await sheetState()}`)
-  else {
-    check(
-      '  the sheet up to Max: framed as at Middle, no further out than 5 km on the scale bar',
-      Math.abs(atMax.zoom - raised) < 0.05,
-      `zoom ${atMax.zoom}; at Middle ${shareFramed.zoom}, 5 km at ${capZoom.toFixed(2)}`,
-    )
-    check('  at Low: in closer, the whole route above the sheet', atLow.inside && atLow.zoom > shareFramed.zoom + 0.1, JSON.stringify(atLow))
-  }
-  // Up to Middle from Low: with the sheet never brought down, it is at
-  // Middle already, and no height change moves the camera (a runner that
-  // dropped the handle's taps, 2026-10-01).
-  if (!toLow) skip('  moved away, then up to Middle: the overview again', `the sheet never came down to Low: data-snap=${await sheetState()}`)
-  else {
-    await page.evaluate(() => {
-      const c = window.__map.getCenter()
-      window.__map.jumpTo({ center: [c.lng + 0.02, c.lat + 0.02], zoom: 16 })
-    })
-    await buttonTap(handle(), async () => (await sheetState()) === 'middle')
-    const back = await framedAboveCard(r.bbox)
-    check(
-      '  moved away, then up to Middle: the overview again, 5 km on the bar at the farthest',
-      Math.abs(back.zoom - raised) < 0.05 && (back.inside || capZoom > shareFramed.zoom),
-      JSON.stringify(back),
-    )
-  }
+    // The sheet at another height: the camera takes the route in again, in the
+    // map it leaves (the owner's ask, 2026-10-01) — at Max, the whole screen on
+    // a phone, as at Middle; in closer above Low; and back to the overview
+    // after the visitor has moved the map. Going up, no further out than
+    // 5 km on the scale bar (100 px; MapLibre's 512 px tiles), the owner's
+    // "for scrolling up only": a long route is cut, not shrunk.
+    const capZoom = Math.log2((78271.51696 * Math.cos((((r.bbox[1] + r.bbox[3]) / 2) * Math.PI) / 180) * 100) / 5000)
+    const raised = Math.max(shareFramed.zoom, capZoom)
+    const toMax = await buttonTap(handle(), async () => (await sheetState()) === 'max')
+    const atMax = await framedAboveCard(r.bbox)
+    const toLow = toMax && (await buttonTap(handle(), async () => (await sheetState()) === 'low'))
+    const atLow = await framedAboveCard(r.bbox)
+    if (!toLow) skip('  the sheet at Max, then Low: the route taken in again in the map it leaves', `the handle would not go round: data-snap=${await sheetState()}`)
+    else {
+      check(
+        '  the sheet up to Max: framed as at Middle, no further out than 5 km on the scale bar',
+        Math.abs(atMax.zoom - raised) < 0.05,
+        `zoom ${atMax.zoom}; at Middle ${shareFramed.zoom}, 5 km at ${capZoom.toFixed(2)}`,
+      )
+      check('  at Low: in closer, the whole route above the sheet', atLow.inside && atLow.zoom > shareFramed.zoom + 0.1, JSON.stringify(atLow))
+    }
+    // Up to Middle from Low: with the sheet never brought down, it is at
+    // Middle already, and no height change moves the camera (a runner that
+    // dropped the handle's taps, 2026-10-01).
+    if (!toLow) skip('  moved away, then up to Middle: the overview again', `the sheet never came down to Low: data-snap=${await sheetState()}`)
+    else {
+      await page.evaluate(() => {
+        const c = window.__map.getCenter()
+        window.__map.jumpTo({ center: [c.lng + 0.02, c.lat + 0.02], zoom: 16 })
+      })
+      await buttonTap(handle(), async () => (await sheetState()) === 'middle')
+      const back = await framedAboveCard(r.bbox)
+      check(
+        '  moved away, then up to Middle: the overview again, 5 km on the bar at the farthest',
+        Math.abs(back.zoom - raised) < 0.05 && (back.inside || capZoom > shareFramed.zoom),
+        JSON.stringify(back),
+      )
+    }
 
-  // Opened on its own, no list is behind the trip: ‹ only where another
-  // route sharing an end is drawn its way round (the owner's ask, 2026-09-29).
-  const fannedR = fanOf(r.id).length > 1
-  check(
-    fannedR
-      ? '  opened on its own, the trip has ‹: another route sharing an end runs its way'
-      : '  opened on its own, the trip has no ‹: no other route sharing an end runs its way',
-    (await trip().count()) > 0 && ((await card().getByRole('button', { name: 'Back' }).count()) > 0) === fannedR,
-    `trip ${await trip().count()}`,
-  )
+    // Opened on its own, no list is behind the trip: ‹ only where another
+    // route sharing an end is drawn its way round (the owner's ask, 2026-09-29).
+    const fannedR = fanOf(r.id).length > 1
+    check(
+      fannedR
+        ? '  opened on its own, the trip has ‹: another route sharing an end runs its way'
+        : '  opened on its own, the trip has no ‹: no other route sharing an end runs its way',
+      (await trip().count()) > 0 && ((await card().getByRole('button', { name: 'Back' }).count()) > 0) === fannedR,
+      `trip ${await trip().count()}`,
+    )
   }
   await closeCard()
 }

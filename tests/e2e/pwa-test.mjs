@@ -57,8 +57,11 @@ console.log(`preview at ${base}`)
  * 2026-10-03, so the line is found on a screenshot: a pixel in the colour
  * routes rest in (Map/RouteLine/surface-default, #8ec5ff), away from the
  * screen's edges. A tap there opens a trip, or the route list where routes
- * share the road, whose first row then opens one. The trip's direction,
- * from its card's label (its name), or null.
+ * share the road, whose first row then opens one. The directions it may be,
+ * with its name: the row's own when the list was used, else every direction
+ * of that name (a via is not in a name, so two can share one). Null when no
+ * trip opened. Through the list the check is weaker than the link it
+ * replaced: the list lights, and so reads, every line it lists.
  */
 async function openSomeTrip(page) {
   let at = null
@@ -84,15 +87,19 @@ async function openSomeTrip(page) {
   if (!at) return null
   await page.touchscreen.tap(at[0], at[1])
   const trip = page.locator('[data-testid="card"]:not([hidden]) [data-testid="trip"]')
-  const row = page.locator('[data-testid="chooser"] button[data-testid="chooser-item"]')
+  // A route's row (a hotspot under the tap is a row of the list too, without a direction).
+  const row = page.locator('[data-testid="chooser"] button[data-testid="chooser-item"][data-direction]')
   await Promise.race([trip.first().waitFor({ timeout: 10000 }), row.first().waitFor({ timeout: 10000 })]).catch(() => {})
+  let viaList = null
   if (!(await trip.count()) && (await row.count())) {
+    viaList = await row.first().getAttribute('data-direction')
     await row.first().tap()
     await trip.first().waitFor({ timeout: 10000 }).catch(() => {})
   }
   if (!(await trip.count())) return null
   const label = await page.locator('[data-testid="card"]:not([hidden])').filter({ has: page.locator('[data-testid="trip"]') }).first().getAttribute('aria-label')
-  return published.variants.find((v) => v.direction_name === label) ?? null
+  const ids = viaList ? [viaList] : published.variants.filter((v) => v.direction_name === label).map((v) => v.id)
+  return ids.length ? { ids, name: label } : null
 }
 
 const browser = await chromium.launch()
@@ -310,11 +317,11 @@ try {
   if (!opened) check('an opened trip reads its full line, and the worker keeps it', false, 'no trip opened: no route line found on the screen to tap')
   else {
     await page.waitForTimeout(2500)
-    const kept = await page.evaluate(async (id) => {
+    const kept = await page.evaluate(async (ids) => {
       const name = (await window.caches.keys()).find((n) => n.includes('map-lines'))
-      return !!name && (await (await window.caches.open(name)).keys()).some((r) => r.url.endsWith(`/data/lines/${id}.json`))
-    }, opened.id)
-    check('an opened trip reads its full line, and the worker keeps it', kept, `"${opened.direction_name}"`)
+      return !!name && (await (await window.caches.open(name)).keys()).some((r) => ids.some((id) => r.url.endsWith(`/data/lines/${id}.json`)))
+    }, opened.ids)
+    check('an opened trip reads its full line, and the worker keeps it', kept, `"${opened.name}"`)
   }
   await page.goto(`${base}/`, { waitUntil: 'load' })
   await page.waitForTimeout(1000)
