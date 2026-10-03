@@ -12,17 +12,6 @@ import { bboxContains, bboxMeetsSegment, bboxOf, bboxesOverlap, haversine, lineB
 /** Polygon corners in order; the closing edge is implied. */
 export type Ring = LngLat[]
 
-/** Signed doubled area (shoelace). Positive = counter-clockwise in lng/lat. */
-function ring2Area(ring: Ring): number {
-  let s = 0
-  for (let i = 0, n = ring.length; i < n; i++) {
-    const [x1, y1] = ring[i]
-    const [x2, y2] = ring[(i + 1) % n]
-    s += x1 * y2 - x2 * y1
-  }
-  return s
-}
-
 /**
  * Point-in-polygon by ray casting. A point exactly on an edge counts as
  * inside: a hotspot traced along a kerb should still claim a route running on
@@ -146,30 +135,44 @@ export function entryDistance(line: LngLat[], ring: Ring): number {
 /**
  * Area-weighted centroid. Falls back to the vertex average for a degenerate
  * (zero-area) ring so a bad trace still gets a usable label point.
+ *
+ * The shoelace sums are taken from the ring's first corner, not from 0°, and
+ * the corner added back at the end, as signedArea2 in rightOfLine.ts does.
+ * From 0° every term is about 121 × 14.7 while a box's area is about 1e-8,
+ * so the sums cancelled away the digits that mattered: a 10 m box at Manila
+ * had its centroid some 60 m off, and 23 of the 102 published hotspots had
+ * their point outside their own box (review of 2026-10-03). From the corner
+ * the terms are the box's own size, and the degenerate test below compares
+ * an area in square degrees that actually means something (1e-12 is about
+ * 0.01 m²).
  */
 export function ringCentroid(ring: Ring): LngLat {
   const n = ring.length
   if (n === 0) return [0, 0]
-  const a2 = ring2Area(ring)
+  const [ox, oy] = ring[0]
+  let a2 = 0
+  let cx = 0
+  let cy = 0
+  for (let i = 0; i < n; i++) {
+    const x1 = ring[i][0] - ox
+    const y1 = ring[i][1] - oy
+    const x2 = ring[(i + 1) % n][0] - ox
+    const y2 = ring[(i + 1) % n][1] - oy
+    const f = x1 * y2 - x2 * y1
+    a2 += f
+    cx += (x1 + x2) * f
+    cy += (y1 + y2) * f
+  }
   if (Math.abs(a2) < EPS) {
     let sx = 0
     let sy = 0
     for (const [x, y] of ring) {
-      sx += x
-      sy += y
+      sx += x - ox
+      sy += y - oy
     }
-    return [sx / n, sy / n]
+    return [ox + sx / n, oy + sy / n]
   }
-  let cx = 0
-  let cy = 0
-  for (let i = 0; i < n; i++) {
-    const [x1, y1] = ring[i]
-    const [x2, y2] = ring[(i + 1) % n]
-    const f = x1 * y2 - x2 * y1
-    cx += (x1 + x2) * f
-    cy += (y1 + y2) * f
-  }
-  return [cx / (3 * a2), cy / (3 * a2)]
+  return [ox + cx / (3 * a2), oy + cy / (3 * a2)]
 }
 
 /**
