@@ -19,8 +19,9 @@
 create or replace function pg_temp.ring_centroid(area jsonb) returns jsonb
 language plpgsql immutable as $$
 declare
-  pts jsonb := area -> 'coordinates' -> 0;
-  n int := jsonb_array_length(pts);
+  -- A box without an outer ring (none is written so) has no point to give.
+  pts jsonb := case when jsonb_typeof(area -> 'coordinates' -> 0) = 'array' then area -> 'coordinates' -> 0 end;
+  n int := coalesce(jsonb_array_length(pts), 0);
   ox float8; oy float8;
   x1 float8; y1 float8; x2 float8; y2 float8; f float8;
   a2 float8 := 0; cx float8 := 0; cy float8 := 0;
