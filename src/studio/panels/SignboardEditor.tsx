@@ -43,15 +43,22 @@ export function SignboardEditor({
     setProblem(null)
   }, [variant.id])
 
-  const run = async (change: (now: readonly string[]) => Promise<string[]>) => {
+  // `step` takes a list already written, before the change is done: what a
+  // later refusal must not take back (addSignboards).
+  const run = async (change: (now: readonly string[], step: (list: string[]) => void) => Promise<string[]>) => {
     setBusy(true)
     setProblem(null)
+    let changed = false
+    const step = (list: string[]) => {
+      setNames(list)
+      changed = true
+    }
     try {
-      setNames(await change(names))
-      onChanged()
+      step(await change(names, step))
     } catch (e) {
       setProblem(e instanceof Error ? e.message : String(e))
     } finally {
+      if (changed) onChanged()
       setBusy(false)
     }
   }
@@ -60,11 +67,7 @@ export function SignboardEditor({
     const picked = [...(files ?? [])]
     if (input.current) input.current.value = ''
     if (!picked.length) return
-    void run(async (now) => {
-      let list = [...now]
-      for (const f of picked) list = await addSignboard(variant.id, list, f)
-      return list
-    })
+    void run((now, step) => live.addSignboards(variant.id, now, picked, step, addSignboard))
   }
 
   return (
