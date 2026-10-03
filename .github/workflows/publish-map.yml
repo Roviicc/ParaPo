@@ -3,11 +3,12 @@
 #
 # Runs scripts/publish/publish-map.mjs, which reads the public tables with the
 # publishable key committed in .env.production and writes public/data/: the
-# index the public map reads (index.v3.json, with the train lines), the index
-# an app installed before them reads (index.json, without), a line file per
-# direction, and, for one release after the index shipped (2026-09-29), the
-# old single file map.json, without the trains too.
-# Then scripts/checks/check-map-data.mjs reads both indexes back: a problem the app
+# index the public map reads (index.v4.json, with the trains and the ferry),
+# the indexes older installed apps read (index.v3.json without the ferry,
+# index.json without any line), a line file per direction, and, for one
+# release after the index shipped (2026-09-29), the old single file map.json,
+# without any line too.
+# Then scripts/checks/check-map-data.mjs reads the indexes back: a problem the app
 # could not show honestly (a link to a hotspot that is not there, a route
 # whose end hotspot is missing) fails the run before the commit; a warning
 # (a line that ends far from its terminal, a hintuan the line passes without
@@ -101,11 +102,15 @@ jobs:
       - name: Check the map data
         run: node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs scripts/checks/check-map-data.mjs --markdown "$RUNNER_TEMP/data.md" 2>&1 | tee "$RUNNER_TEMP/check.log"
 
-      # The index installed apps still read, without the trains: its problems
-      # fail the run too (a route ending at a station would lose its end).
-      # Its warnings are the new index's, already reported above.
-      - name: Check the older index
-        run: node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs scripts/checks/check-map-data.mjs public/data/index.json 2>&1 | tee -a "$RUNNER_TEMP/check.log"
+      # The indexes older installed apps still read, without the ferry
+      # (shape 3) or any line (shape 2): their problems fail the run too (a
+      # route ending at a station would lose its end). Their warnings are the
+      # new index's, already reported above.
+      - name: Check the older indexes
+        run: |
+          for f in public/data/index.v3.json public/data/index.json; do
+            node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs scripts/checks/check-map-data.mjs "$f" 2>&1 | tee -a "$RUNNER_TEMP/check.log"
+          done
 
       # `git add` first: `git diff` alone cannot see a file git does not track
       # yet, and would report "unchanged" for a brand-new one forever. `-A`

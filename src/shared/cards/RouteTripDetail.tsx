@@ -8,16 +8,19 @@ import { TripTimeline, type TripTimelineProps } from "./TripTimeline";
 
 /** A ride's pesos both ways: `₱26` regular, and its discounted price — students, seniors, PWDs. */
 export type Fares = { regular: string; discounted: string };
+/** A ride nobody pays for, the ferry's (the owner's pick, 2026-10-03): the tile says Free, with no Regular or Discounted to turn. */
+export const FREE = "free";
+export type Fare = Fares | typeof FREE;
 
 type Props = Omit<TripTimelineProps, "pickedPesos"> & {
   /** Figma's Kilometer tile: the whole ride's length, in metres; written `12.8km`. */
   metres: number;
   /** …and the ride to the picked hintuan, which the tile shows while it is picked, as the fare tile does. */
   pickedMetres?: number;
-  /** The fare tile's pesos for the whole ride. Omitted when unpriced, and the tile with it. */
-  fare?: Fares;
+  /** The fare tile's pesos for the whole ride, or FREE. Omitted when unpriced, and the tile with it. */
+  fare?: Fare;
   /** …and for the ride to the picked hintuan, which the tile shows while it is picked. */
-  pickedFare?: Fares;
+  pickedFare?: Fare;
   /**
    * Whether the tile shows the Discounted fare, and where a tap says so: the
    * app keeps one for every trip (useFareKind). Without them, the card keeps
@@ -51,6 +54,8 @@ type Props = Omit<TripTimelineProps, "pickedPesos"> & {
    * studio uploaded. Empty or omitted, none is shown.
    */
   signboards?: readonly string[];
+  /** Under the tiles, a line's own fixed words (LINE_NOTES): the ferry's days and where to check for a suspension. */
+  note?: string;
   /** Under the tiles: what only the studio shows — its facts and its Edit, Extend and Delete. */
   children?: ReactNode;
 };
@@ -114,6 +119,7 @@ export function RouteTripDetail({
   otherRoutes = [],
   onOtherRoute,
   signboards = [],
+  note,
   children,
 }: Props) {
   const [own, setOwn] = useState(false);
@@ -153,7 +159,7 @@ export function RouteTripDetail({
           hintuans={hintuans}
           picked={picked}
           onPick={onPick}
-          pickedPesos={pickedFare && (discounted ? pickedFare.discounted : pickedFare.regular)}
+          pickedPesos={pickedFare && (pickedFare === FREE ? "Free" : discounted ? pickedFare.discounted : pickedFare.regular)}
           onEnd={onEnd}
           endPicked={endPicked}
           routeDirection={routeDirection}
@@ -169,7 +175,14 @@ export function RouteTripDetail({
           </span>
           <span className={NAME}>Kilometer</span>
         </div>
-        {shown && (
+        {shown === FREE ? (
+          <div className={TILE}>
+            <span data-testid="trip-fare" className={FIGURE}>
+              Free
+            </span>
+            <span className={NAME}>Fare</span>
+          </div>
+        ) : shown && (
           <button
             type="button"
             data-testid="trip-fare-turn"
@@ -199,6 +212,11 @@ export function RouteTripDetail({
           </button>
         )}
       </div>
+      {note && (
+        <p data-testid="trip-note" className="w-full px-3 pb-4 font-sn-pro text-sm/5 text-content-tertiary">
+          {note}
+        </p>
+      )}
       {signboards.length > 0 && (
         // Each board 40 tall at its own width, 8 apart, wrapping on a narrow
         // phone (3919:11447). Pictures, so nothing in a file can run.

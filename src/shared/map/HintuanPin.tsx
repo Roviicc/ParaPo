@@ -16,7 +16,7 @@ type Props = {
   label?: string | null
   /** The trip's colour: the circle is ringed in its rail's. */
   livery: Livery
-  /** Given, the name is a button that opens the hintuan's place (EndTitles does the same for the ends). */
+  /** Given, the name is a button: the public map's lets the pick go. */
   onPick?: () => void
 }
 
@@ -37,8 +37,9 @@ type Props = {
  * 3847:11777, 2026-09-30): a pill in the trip card's surface and words,
  * 10px right of the circle and centred on it, so the circle stays on the
  * point the marker is anchored to. Given `onPick`, the name is a button
- * that opens the hintuan's place (the owner's ask, 2026-10-01); the circle
- * still takes no taps.
+ * (it opened the hintuan's place, the owner's ask of 2026-10-01, until his
+ * of 2026-10-03: it lets the pick go, the camera back); the circle still
+ * takes no taps.
  *
  * Over the name, End (the owner's SelectedHintuanRouteTitle, Figma
  * 3848:12135, 2026-10-02): picked, the hintuan is where the ride ends, so

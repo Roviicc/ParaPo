@@ -131,7 +131,7 @@ export default defineConfig({
         // The map has exactly one address, `/` (plus `?r=`), and only that is
         // answered from the stored page. Any other navigation goes to the
         // server as it would without a worker — so `/studio` (with or without
-        // the slash) opens the studio, and `/data/index.v3.json` typed into a tab
+        // the slash) opens the studio, and `/data/index.v4.json` typed into a tab
         // shows the data, not the app. The studio sits inside the installed
         // app's scope regardless; the denylist is the belt to the allowlist.
         navigateFallback: 'index.html',
@@ -145,10 +145,12 @@ export default defineConfig({
             // The published map's index: fresh when the network answers in
             // time, the last copy otherwise. Only GET, only this file — the
             // studio's database reads share the origin and must never come
-            // from here. (Shapes 1 and 2, /data/map.json and /data/index.json,
-            // are older apps', each read through its own worker.)
+            // from here. (Shapes 1 to 3, /data/map.json, /data/index.json and
+            // /data/index.v3.json, are older apps', each read through its own
+            // worker; an older copy left in this store is the offline map
+            // until the new one is fetched, mapFile.ts's STORED_OLD.)
             urlPattern: ({ url, request }) =>
-              request.method === 'GET' && url.origin === self.location.origin && url.pathname === '/data/index.v3.json',
+              request.method === 'GET' && url.origin === self.location.origin && url.pathname === '/data/index.v4.json',
             handler: 'NetworkFirst',
             options: {
               cacheName: 'map-file',

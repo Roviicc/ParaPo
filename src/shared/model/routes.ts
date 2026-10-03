@@ -12,6 +12,7 @@ export type TransportMode =
   | 'tricycle'
   | 'lrt'
   | 'mrt'
+  | 'ferry'
 
 export const MODES: { value: TransportMode; label: string }[] = [
   { value: 'jeepney', label: 'Jeepney' },
@@ -22,6 +23,7 @@ export const MODES: { value: TransportMode; label: string }[] = [
   { value: 'tricycle', label: 'Tricycle' },
   { value: 'lrt', label: 'LRT' },
   { value: 'mrt', label: 'MRT' },
+  { value: 'ferry', label: 'Ferry' },
 ]
 
 /**
@@ -39,19 +41,45 @@ export const isRailLine = (code: string | null | undefined): code is RailLine =>
 
 export const isRail = (mode: TransportMode | null | undefined): boolean => !!mode && RAIL_MODES.includes(mode)
 
+/**
+ * The ferry lines (0012, the owner's ask of 2026-10-03): the Pasig River
+ * Ferry, PRFS. A ferry runs on the river as a train on its track, stopping
+ * only at its own stations, so it is a line as a train is.
+ */
+export const FERRY_MODES: readonly TransportMode[] = ['ferry']
+export const FERRY_LINES = ['PRFS'] as const
+
+/** Every mode that runs on a line of its own: the trains and the ferry. */
+export const LINE_MODES: readonly TransportMode[] = [...RAIL_MODES, ...FERRY_MODES]
+/** Every line a route_code or a station's `line` may name; 0011 and 0012 hold `stop.line` to them. */
+export const LINES: readonly string[] = [...RAIL_LINES, ...FERRY_LINES]
+
+export const isLineMode = (mode: TransportMode | null | undefined): boolean => !!mode && LINE_MODES.includes(mode)
+export const isFerry = (mode: TransportMode | null | undefined): boolean => !!mode && FERRY_MODES.includes(mode)
+
+/**
+ * A line's own words under its trip's tiles, fixed: never a live status (the
+ * owner's rule, nothing may look like live tracking). The ferry stops for
+ * weather, holidays and repairs often, and MMDA says when.
+ */
+export const LINE_NOTES: Readonly<Record<string, string>> = {
+  PRFS: 'Mon–Sat, daytime · Suspended in bad weather: check MMDA',
+}
+
 /** What `servedBy` reads of a route. `route_code` is absent from files published before 0011. */
 export type ServedRoute = { mode: TransportMode; route_code?: string | null }
 
 /**
  * Whether a direction of this route stops at this hintuan, beyond passing
- * within reach of its box. A train stops only at its own line's stations; a
- * jeep at every hintuan that is not a station — the owner's default of
- * 2026-10-02, open to change. A train with no line named stops nowhere, so
- * it can never pick up the jeep hintuans under its track.
+ * within reach of its box. A line — a train, the ferry — stops only at its
+ * own stations; a jeep at every hintuan that is not a station — the owner's
+ * default of 2026-10-02, open to change. A line with none named stops
+ * nowhere, so it can never pick up the jeep hintuans under its track or
+ * along its river.
  */
 export function servedBy(stop: { line?: string | null }, route: ServedRoute): boolean {
   const line = stop.line ?? null
-  if (!isRail(route.mode)) return line === null
+  if (!isLineMode(route.mode)) return line === null
   return line !== null && line === (route.route_code ?? null)
 }
 

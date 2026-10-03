@@ -1,12 +1,13 @@
-// The train lines' one rule (src/shared/model/routes.ts, servedBy): a train
-// stops only at its own line's stations, a jeep at every hintuan but a
-// station — the owner's default of 2026-10-02. Every question of which
-// hintuans a line passes asks it: the timeline, the ride-to cut, the links.
+// The lines' one rule (src/shared/model/routes.ts, servedBy): a train, or the
+// ferry, stops only at its own line's stations, a jeep at every hintuan but a
+// station — the owner's default of 2026-10-02, the ferry the same way since
+// 2026-10-03. Every question of which hintuans a line passes asks it: the
+// timeline, the ride-to cut, the links.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/rail-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MODES, RAIL_LINES, isRail, servedBy } from '../../src/shared/model/routes.ts'
+import { FERRY_LINES, LINES, MODES, RAIL_LINES, isFerry, isLineMode, isRail, servedBy } from '../../src/shared/model/routes.ts'
 import { hintuansAlong } from '../../src/shared/model/timeline.ts'
 import { rideCut } from '../../src/shared/model/ride.ts'
 import { linksThrough } from '../../src/studio/data/stopsGeometry.ts'
@@ -14,11 +15,29 @@ import { linksThrough } from '../../src/studio/data/stopsGeometry.ts'
 const JEEP = { mode: 'jeepney', route_code: null }
 const LRT1 = { mode: 'lrt', route_code: 'LRT-1' }
 const MRT3 = { mode: 'mrt', route_code: 'MRT-3' }
+const PRFS = { mode: 'ferry', route_code: 'PRFS' }
 
 test('only lrt and mrt are trains', () => {
   assert.deepEqual(MODES.filter((m) => isRail(m.value)).map((m) => m.value), ['lrt', 'mrt'])
   assert.equal(isRail(undefined), false)
   assert.deepEqual([...RAIL_LINES], ['LRT-1', 'LRT-2', 'MRT-3'])
+})
+
+test('the ferry is a line, not a train', () => {
+  assert.deepEqual(MODES.filter((m) => isLineMode(m.value)).map((m) => m.value), ['lrt', 'mrt', 'ferry'])
+  assert.deepEqual(MODES.filter((m) => isFerry(m.value)).map((m) => m.value), ['ferry'])
+  assert.equal(isRail('ferry'), false)
+  assert.deepEqual([...FERRY_LINES], ['PRFS'])
+  assert.deepEqual([...LINES], ['LRT-1', 'LRT-2', 'MRT-3', 'PRFS'])
+})
+
+test("the ferry stops at its own stations only, and no jeep or train at them", () => {
+  assert.equal(servedBy({ line: 'PRFS' }, PRFS), true)
+  assert.equal(servedBy({ line: null }, PRFS), false)
+  assert.equal(servedBy({ line: 'MRT-3' }, PRFS), false)
+  assert.equal(servedBy({ line: 'PRFS' }, JEEP), false)
+  assert.equal(servedBy({ line: 'PRFS' }, MRT3), false)
+  assert.equal(servedBy({ line: null }, { mode: 'ferry', route_code: null }), false)
 })
 
 test('a jeep stops at a hintuan, not at a station', () => {
@@ -79,21 +98,36 @@ test('a saved box is linked only to the directions that stop at it', () => {
   assert.deepEqual(linksThrough(ring, variants, 'LRT-1').map((l) => l.variantId), ['lrt'])
 })
 
-// The publish while the file is on its old shape (scripts/publish/withoutTrains.mjs):
-// the trains, their stations and every link to either left out, the rest as it was.
-test('the old-shape publish leaves out the trains, their stations and their links', async () => {
-  const { withoutTrains } = await import('../../scripts/publish/withoutTrains.mjs')
-  const variants = [{ id: 'jeep', route: JEEP }, { id: 'lrt', route: LRT1 }, { id: 'mrt', route: MRT3 }]
-  const stops = [{ id: 'h', line: null }, { id: 'st', line: 'LRT-1' }, { id: 'old' }]
-  const links = [
+// The publish's older shapes (scripts/publish/withoutLines.mjs): the lines an
+// older app does not know, their stations and every link to either left out,
+// the rest as it was — shape 3 without the ferry, shapes 1 and 2 without any line.
+const ROWS = {
+  variants: [{ id: 'jeep', route: JEEP }, { id: 'lrt', route: LRT1 }, { id: 'mrt', route: MRT3 }, { id: 'ferry', route: PRFS }],
+  stops: [{ id: 'h', line: null }, { id: 'st', line: 'LRT-1' }, { id: 'pier', line: 'PRFS' }, { id: 'old' }],
+  links: [
     { route_variant_id: 'jeep', stop_id: 'h' },
     { route_variant_id: 'lrt', stop_id: 'st' },
+    { route_variant_id: 'ferry', stop_id: 'pier' },
     { route_variant_id: 'jeep', stop_id: 'st' },
-  ]
-  const out = withoutTrains({ variants, stops, links })
+  ],
+}
+
+test('shape 3 leaves out the ferry, its stations and their links, and keeps the trains', async () => {
+  const { withoutLines, FERRY } = await import('../../scripts/publish/withoutLines.mjs')
+  const out = withoutLines(ROWS, FERRY)
+  assert.deepEqual(out.variants.map((v) => v.id), ['jeep', 'lrt', 'mrt'])
+  assert.deepEqual(out.stops.map((s) => s.id), ['h', 'st', 'old'])
+  assert.deepEqual(out.links.map((l) => l.route_variant_id), ['jeep', 'lrt', 'jeep'])
+  assert.deepEqual([...out.ids.variants], ['ferry'])
+  assert.deepEqual([...out.ids.stops], ['pier'])
+})
+
+test('shapes 1 and 2 leave out every line, their stations and their links', async () => {
+  const { withoutLines, EVERY_LINE } = await import('../../scripts/publish/withoutLines.mjs')
+  const out = withoutLines(ROWS, EVERY_LINE)
   assert.deepEqual(out.variants.map((v) => v.id), ['jeep'])
   assert.deepEqual(out.stops.map((s) => s.id), ['h', 'old'])
   assert.deepEqual(out.links, [{ route_variant_id: 'jeep', stop_id: 'h' }])
-  assert.deepEqual([...out.ids.variants], ['lrt', 'mrt'])
-  assert.deepEqual([...out.ids.stops], ['st'])
+  assert.deepEqual([...out.ids.variants], ['lrt', 'mrt', 'ferry'])
+  assert.deepEqual([...out.ids.stops], ['st', 'pier'])
 })

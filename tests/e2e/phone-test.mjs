@@ -740,6 +740,10 @@ const tripChecks = async () => {
         return null
       }
     }, tripId)
+    // The camera before the first pick below: a second tap on the end picked
+    // last takes it back there, as a hintuan's does (the owner's ask, 2026-10-03).
+    const camBeforeEnds = await camNow()
+    const originRow = card().locator('[data-testid="trip-origin"] button')
     for (const [end, testId] of [['to', 'trip-destination'], ['from', 'trip-origin']]) {
       const endButton = card().locator(`[data-testid="${testId}"] button`)
       // The last pass scrolled the card to its far end: back to the row first.
@@ -779,7 +783,23 @@ const tripChecks = async () => {
           after.pins === 0 && after.lit.length === 1 && after.lit[0] === tripId && after.above !== false && after.padding,
         `picked first ${wasPicked}; the destination ${destinationBefore} → ${destination}, the origin ${origin}; ${after.pins} circle(s), ${after.lit.length} lit; in the map above the card ${after.above ?? 'not measured'} (data-snap=${snapNow})`,
       )
+      if (ends?.[end]) {
+        const zoomed = await camNow()
+        const want = await page.evaluate(async (lat) => (await import('/src/shared/geo/geo.ts')).zoomForScale(500, lat), ends[end][1])
+        check('    in to 500 m on the scale bar, as a hintuan is', Math.abs(zoomed.zoom - want) < 0.05, `zoom ${zoomed.zoom.toFixed(2)}, want ${want.toFixed(2)}`)
+      }
     }
+    await originRow.first().scrollIntoViewIfNeeded()
+    await buttonTap(originRow, async () => (await card().locator('[data-testid="trip-origin"]').first().getAttribute('data-state')) === 'rest')
+    await page.waitForTimeout(300)
+    await page.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 3000 }).catch(() => {})
+    const camAfterEnd = await camNow()
+    check(
+      '  where it leaves from, tapped again, lets go, the camera back where it was before the picks',
+      (await card().locator('[data-testid="trip-origin"]').first().getAttribute('data-state')) === 'rest' &&
+        Math.abs(camAfterEnd.zoom - camBeforeEnds.zoom) < 0.01 && Math.abs(camAfterEnd.lng - camBeforeEnds.lng) < 1e-6 && Math.abs(camAfterEnd.lat - camBeforeEnds.lat) < 1e-6,
+      JSON.stringify({ camBeforeEnds, camAfterEnd }),
+    )
     // Picked again, for SWITCH — or ✕ and ‹ — to let go.
     await pickButton.scrollIntoViewIfNeeded()
     await buttonTap(pickButton, isPicked)

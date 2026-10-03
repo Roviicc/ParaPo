@@ -1,10 +1,10 @@
 // The published map against itself: do its lines, links and ends agree?
 //
-//   npm run check:data                          public/data/index.v3.json and its lines/
+//   npm run check:data                          public/data/index.v4.json and its lines/
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs scripts/checks/check-map-data.mjs [file] [--markdown out.md]
 //
 // The file is the index (schema 2 since 2026-09-29; 3, the train lines in,
-// since 2026-10-03): each direction's line is read from lines/<id>.json beside it, and a direction whose line file is
+// and 4, the ferry too, since 2026-10-03): each direction's line is read from lines/<id>.json beside it, and a direction whose line file is
 // missing or is not its own is a problem. A schema 1 file (map.json, every
 // line in it) is read as it is.
 //
@@ -27,7 +27,7 @@ import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { PASS_WITHIN_M, passBounds } from '../../src/shared/geo/pass.ts'
 import { stopLabel, stopRing } from '../../src/shared/model/stops.ts'
-import { RAIL_LINES, isRail, servedBy } from '../../src/shared/model/routes.ts'
+import { FERRY_LINES, LINES, RAIL_LINES, isFerry, isRail, servedBy } from '../../src/shared/model/routes.ts'
 import { stationIndex } from '../../src/shared/model/railFares.ts'
 import { bboxOf, bboxesOverlap, haversine, lineLength } from '../../src/shared/geo/geo.ts'
 import { distanceToRingM } from '../../src/shared/geo/ring.ts'
@@ -89,11 +89,14 @@ export function checkMapData(file) {
     if (!Array.isArray(s.point?.coordinates) || s.point.coordinates.length !== 2) problems.push(`hotspot "${label}" (${s.id}) has no point`)
     if (s.area && stopRing(s).length < 3) problems.push(`hotspot "${label}" (${s.id}) has a box with fewer than 3 corners`)
     if (s.kind === 'hintuan' && !s.area) warnings.push(`hintuan "${label}" has no box, so no line can pass it and no timeline will list it`)
-    if (s.line != null && s.kind !== 'hintuan') problems.push(`hotspot "${label}" (${s.id}) is a ${s.kind} with a train line; a station is a hintuan`)
+    if (s.line != null && s.kind !== 'hintuan') problems.push(`hotspot "${label}" (${s.id}) is a ${s.kind} with a line; a station is a hintuan`)
     if (s.line != null) {
-      if (!RAIL_LINES.includes(s.line)) problems.push(`hotspot "${label}" (${s.id}) is a station of "${s.line}", which is not a train line`)
-      // A station is priced by the name the card shows (railFares.ts): one the table does not know has no fare.
-      else if (stationIndex(s.line, label) < 0) warnings.push(`station "${label}" is not in the ${s.line} fare table, so a ride to or from it shows no fare`)
+      if (!LINES.includes(s.line)) problems.push(`hotspot "${label}" (${s.id}) is a station of "${s.line}", which is not a line`)
+      // A train's station is priced by the name the card shows (railFares.ts): one the table does not know has no fare.
+      // The ferry's ride is free, so its stations need no table.
+      else if (RAIL_LINES.includes(s.line) && stationIndex(s.line, label) < 0) {
+        warnings.push(`station "${label}" is not in the ${s.line} fare table, so a ride to or from it shows no fare`)
+      }
     }
   }
 
@@ -119,7 +122,9 @@ export function checkMapData(file) {
     const tail = stopById.get(v.route?.tail_stop_id)
     if (!head) problems.push(`${name}: its route's head hotspot ${v.route?.head_stop_id} is not in the file`)
     if (!tail) problems.push(`${name}: its route's tail hotspot ${v.route?.tail_stop_id} is not in the file`)
-    if (isRail(v.route?.mode) && !RAIL_LINES.includes(v.route?.route_code)) {
+    if (isFerry(v.route?.mode) && !FERRY_LINES.includes(v.route?.route_code)) {
+      problems.push(`${name}: a ferry route whose line ("${v.route?.route_code ?? ''}") is not a ferry line, so it stops at no station`)
+    } else if (isRail(v.route?.mode) && !RAIL_LINES.includes(v.route?.route_code)) {
       problems.push(`${name}: a train route whose line ("${v.route?.route_code ?? ''}") is not a train line, so it stops at no station`)
     } else if (isRail(v.route?.mode)) {
       // The whole ride is priced from end to end by the ends' names (railFares.ts).
@@ -212,7 +217,7 @@ export function markdownReport(file, result) {
  */
 export function readPublished(path) {
   const file = JSON.parse(readFileSync(path, 'utf8'))
-  if (file.schema !== 2 && file.schema !== 3) return { file, problems: [] }
+  if (![2, 3, 4].includes(file.schema)) return { file, problems: [] }
   const problems = []
   const variants = (file.variants ?? []).map(({ overview, ...v }) => {
     if (!overview) return { ...v, shape: null }
@@ -239,7 +244,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const args = process.argv.slice(2)
   const mdAt = args.indexOf('--markdown')
   const mdPath = mdAt >= 0 ? args[mdAt + 1] : null
-  const path = args.filter((a, i) => a !== '--markdown' && !(mdAt >= 0 && i === mdAt + 1))[0] ?? 'public/data/index.v3.json'
+  const path = args.filter((a, i) => a !== '--markdown' && !(mdAt >= 0 && i === mdAt + 1))[0] ?? 'public/data/index.v4.json'
   let file
   let reading = []
   try {

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Drawing } from '../drawing/useDrawing'
 import { haversine, type LngLat } from '../../shared/geo/geo'
-import { isRail, MODES, type RouteRow, type TransportMode, type VariantRow } from '../../shared/model/routes'
+import { isLineMode, MODES, type RouteRow, type TransportMode, type VariantRow } from '../../shared/model/routes'
 import { stopLabel, type StopRow } from '../../shared/model/stops'
 import { StopTimeline, passesThrough } from '../../shared/cards/StopTimeline'
 import { ENDS_TAKEN } from '../data/routesWrite'
@@ -297,17 +297,18 @@ export function SavePanel({
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block text-xs font-medium text-neutral-700">
             Mode
-            {/* A train line comes in by its import, with its line named; one
-                drawn here would have none and stop nowhere. And a train stays
-                one: its mode decides which hintuans both directions stop at,
-                and a save re-links only the direction saved (servedBy). */}
+            {/* A line, a train's or the ferry's, comes in by its import, with
+                its line named; one drawn here would have none and stop
+                nowhere. And a line stays one: its mode decides which hintuans
+                both directions stop at, and a save re-links only the
+                direction saved (servedBy). */}
             <select
-              disabled={routeLocked || isRail(mode)}
+              disabled={routeLocked || isLineMode(mode)}
               value={mode}
               onChange={(e) => setMode(e.target.value as TransportMode)}
               className={field}
             >
-              {MODES.filter((m) => !isRail(m.value) || m.value === mode).map((m) => (
+              {MODES.filter((m) => !isLineMode(m.value) || m.value === mode).map((m) => (
                 <option key={m.value} value={m.value}>
                   {m.label}
                 </option>
