@@ -28,9 +28,10 @@ export type StopSummary = {
   note: string | null
   created_at: string
   /**
-   * The train line this hintuan is a station of, 'LRT-1' (0011); null for
-   * every other hintuan and every terminal. Only that line's trains stop
-   * here, and no jeep does (servedBy). Absent from files published before.
+   * The line this hintuan is a station of: a train's, 'LRT-1' (0011), or the
+   * ferry's, 'PRFS' (0012); null for every other hintuan and every terminal.
+   * Only that line stops here, and no jeep does (servedBy). Absent from files
+   * published before.
    */
   line?: string | null
 }

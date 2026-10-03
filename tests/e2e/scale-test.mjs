@@ -1,7 +1,7 @@
 // The public map at scale: how it opens with 1,000 directions and 500
 // hotspots, made from today's map — 250 copies of its directions and 17 of
 // its hotspots, shifted across a 25 × 10 grid — and served to the app in
-// place of /data/index.v3.json and its lines. No tiles are fetched: a bare style
+// place of /data/index.v4.json and its lines. No tiles are fetched: a bare style
 // stands in, so this runs the same on a laptop, in this sandbox and on a
 // GitHub runner.
 //
@@ -33,7 +33,7 @@ const { check, tally } = harness()
 
 // ---------------------------------------------------------------- the map
 const data = fileURLToPath(new URL('../../public/data/', import.meta.url))
-const m = JSON.parse(readFileSync(join(data, 'index.v3.json'), 'utf8'))
+const m = JSON.parse(readFileSync(join(data, 'index.v4.json'), 'utf8'))
 const lineOf = (id) => JSON.parse(readFileSync(join(data, 'lines', `${id}.json`), 'utf8')).shape
 const mv = (c, [dx, dy]) => [c[0] + dx, c[1] + dy]
 const moved = (line, d) => line && { ...line, coordinates: line.coordinates.map((c) => mv(c, d)) }

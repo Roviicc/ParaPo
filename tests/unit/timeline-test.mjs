@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url'
 import { readPublished } from '../../scripts/checks/check-map-data.mjs'
 
 /** The committed map, every line in full: the index and its lines/ (check-map-data.mjs). */
-const published = () => readPublished(fileURLToPath(new URL('../../public/data/index.v3.json', import.meta.url))).file
+const published = () => readPublished(fileURLToPath(new URL('../../public/data/index.v4.json', import.meta.url))).file
 
 let n = 0
 const box = (name, informal = null, kind = 'hintuan') => ({ id: `s${n++}`, kind, name, informal, aliases: [], point: { type: 'Point', coordinates: [0, 0] } })

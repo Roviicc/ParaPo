@@ -1,4 +1,4 @@
-// The public map at /, on whatever the published index (public/data/index.v3.json)
+// The public map at /, on whatever the published index (public/data/index.v4.json)
 // holds today. The dev server serves that file straight from the working
 // tree, committed or not — so a passing run here says nothing about whether
 // the file was committed; `git status` does.
@@ -14,7 +14,7 @@
 // failing. Covers: the read-only public page carries none of the studio's
 // buttons or sign-in text, ships no draw-* (editor) layers, writes nothing
 // to localStorage, never calls the OSRM route snapper or the database (it
-// reads the published /data/index.v3.json, once), and tapping a route vs. a
+// reads the published /data/index.v4.json, once), and tapping a route vs. a
 // hotspot — including one hotspot with a route drawn through it — opens the
 // right card with the right content.
 import { chromium } from 'playwright'
@@ -907,7 +907,7 @@ check('no request to router.project-osrm.org', !osrmHit)
 // Since step 5 the public map is one published file; the database is never asked.
 check('no request to the database (*.supabase.co)', !supabaseHit)
 check(
-  'the map came from /data/index.v3.json, fetched once and served',
+  'the map came from /data/index.v4.json, fetched once and served',
   mapFileStatuses.length === 1 && (mapFileStatuses[0] === 200 || mapFileStatuses[0] === 304),
   `${mapFileStatuses.length} response(s): ${mapFileStatuses.join(', ') || 'none'}`,
 )

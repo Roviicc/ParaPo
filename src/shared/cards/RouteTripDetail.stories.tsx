@@ -2,7 +2,7 @@ import type { ComponentProps } from 'react'
 import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
-import { RouteTripDetail } from './RouteTripDetail'
+import { FREE, RouteTripDetail } from './RouteTripDetail'
 import { kmLabel } from '../geo/geo'
 
 /** Sample data only: the places of the owner's frames (3762:3546), not the real map. */
@@ -117,8 +117,9 @@ const pickedAsDrawn: Story['play'] = async (ctx) => {
   const rows = canvasElement.querySelectorAll<HTMLElement>('[data-testid="trip-hintuan"][data-state="selected"]')
   await expect(rows.length).toBe(1)
   const pill = rows[0].querySelector<HTMLElement>('[data-testid="trip-hintuan-fare"]')
-  await expect(pill?.textContent).toBe(args.pickedFare?.regular)
-  await expect(within(canvasElement).getByTestId('trip-fare').textContent).toBe(args.pickedFare?.regular)
+  const pesos = args.pickedFare === FREE ? 'Free' : args.pickedFare?.regular
+  await expect(pill?.textContent).toBe(pesos)
+  await expect(within(canvasElement).getByTestId('trip-fare').textContent).toBe(pesos)
   // The Kilometer tile follows the pick too.
   await expect(within(canvasElement).getByTestId('trip-km').textContent).toBe(kmLabel(args.pickedMetres ?? args.metres))
   const card = within(canvasElement).getByTestId('trip')
@@ -131,6 +132,33 @@ const pickedAsDrawn: Story['play'] = async (ctx) => {
 
 /** On a phone, the owner's frame (3778:3183, Variant2): Tala → Novaliches, its Kilometer and Expected fare, its ten hintuans folded. */
 export const Folded: Story = {}
+
+/**
+ * The ferry (the owner's picks, 2026-10-03): Free in the fare tile, with no
+ * Regular or Discounted to turn, and its fixed note under the tiles.
+ */
+export const Ferry: Story = {
+  args: {
+    routeOrigin: 'Escolta',
+    hintuans: hintuans('Lawton', 'Quinta Market', 'PUP', 'Santa Ana', 'Lambingan', 'Valenzuela', 'Hulo'),
+    routeDirection: 'Guadalupe',
+    metres: 9_800,
+    fare: FREE,
+    note: 'Mon–Sat, daytime · Suspended in bad weather: check MMDA',
+  },
+  play: async ({ canvasElement, args }) => {
+    const card = within(canvasElement)
+    await expect(card.getByTestId('trip-fare').textContent).toBe('Free')
+    await expect(card.queryByTestId('trip-fare-turn')).toBeNull()
+    await expect(card.getByTestId('trip-note').textContent).toBe(args.note)
+  },
+}
+
+/** A ferry stop picked: its pill and the tile both say Free. */
+export const FerryPicked: Story = {
+  args: { ...Ferry.args, picked: 'h3', pickedFare: FREE, pickedMetres: 3_200 },
+  play: pickedAsDrawn,
+}
 
 /** Opened: every hintuan alike — SM Fairview among them — then View less. */
 export const Opened: Story = { play: openFold }
