@@ -20,5 +20,6 @@ export async function load(url, context, next) {
   if (!url.startsWith('file:') || !/\.tsx?$/.test(url) || result.source == null) return result
   const source = String(result.source)
   if (!source.includes('import.meta.env')) return result
-  return { ...result, source: `import.meta.env ??= { DEV: false };\n${source}` }
+  // Same line as the first, so every stack trace keeps its line numbers.
+  return { ...result, source: `import.meta.env ??= { DEV: false }; ${source}` }
 }

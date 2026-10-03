@@ -209,8 +209,10 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
       // Take it back out, or the next press meets route_ends_unique for a
       // route that has no directions and cannot be reached from any card.
       // A claimed route is left: the next press claims it again, or finds
-      // the other save's directions in it.
-      if (createdRoute) await client.from('route').delete().eq('id', routeId)
+      // the other save's directions in it. So is our own when the refusal
+      // is a direction already there: another save claimed it meanwhile
+      // and its directions landed first, and they are its line.
+      if (createdRoute && error.code !== UNIQUE_VIOLATION) await client.from('route').delete().eq('id', routeId)
       throw new Error(error.message)
     }
     const saved = (data as unknown as UnnamedVariantRow[]).find((v) => v.reversed === input.reversed)

@@ -84,3 +84,16 @@ test('emptying a direction clears its signboards with its line', async () => {
   await deleteVariant({ id: 'v1', route_id: 'r1' })
   assert.deepEqual(log[0].payload.signboards, [])
 })
+
+test("a save whose own route another save's directions filled first leaves it", async () => {
+  // A inserted the route; B claimed it and its directions landed first, so
+  // A's are refused as already there. Deleting would cascade B's line away.
+  const { client, log } = fakeSupabase((q) => {
+    if (q.table === 'route' && q.op === 'insert') return { data: { id: 'r3' } }
+    if (q.table === 'route_variant' && q.op === 'insert') return { error: refused }
+    throw new Error(`unexpected ${q.op} on ${q.table}`)
+  })
+  setSupabase(client)
+  await assert.rejects(saveVariant(input))
+  assert.equal(log.filter((q) => q.op === 'delete').length, 0)
+})
