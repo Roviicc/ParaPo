@@ -69,6 +69,10 @@ export function keepsAttribute(element: string, name: string, raw: string): bool
   // In a look (fill="url(#g)", style="…"): only its own gradients and clips, nothing fetched.
   for (const m of v.matchAll(/url\(([^)]*)\)/g)) if (!m[1].replace(/["']/g, '').startsWith('#')) return false
   if (/@import|expression\(/.test(v)) return false
+  // CSS reads its own escapes, so `\75 rl(` is url( to a browser, and
+  // image-set() fetches without url() at all (review of 2026-10-03). A
+  // drawing's looks need neither.
+  if (v.includes('\\') || /image-set\(/.test(v)) return false
   return true
 }
 

@@ -127,3 +127,11 @@ test('a bare & in a text or a value comes out escaped, so the file still reads a
   assert.doesNotMatch(out, /&(?!amp;|lt;|gt;|quot;)/)
   assert.equal(clean(out), out)
 })
+
+test('a look spelled with CSS escapes, or fetching through image-set(), is dropped', () => {
+  assert.equal(keepsAttribute('rect', 'fill', '\\75 rl(https://evil.example/x)'), false)
+  assert.equal(keepsAttribute('rect', 'style', 'fill:\\75rl(//evil.example/y)'), false)
+  assert.equal(keepsAttribute('rect', 'style', "background-image:image-set('https://evil.example/x.png' 1x)"), false)
+  assert.equal(keepsAttribute('rect', 'style', "background-image:-webkit-image-set('x.png' 1x)"), false)
+  assert.equal(keepsAttribute('rect', 'style', 'fill:#7CFC00;font-family:Cubao'), true)
+})
