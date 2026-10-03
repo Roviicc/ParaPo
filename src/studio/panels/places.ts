@@ -1,6 +1,6 @@
 import { haversine, type LngLat } from '../../shared/geo/geo'
 import { placeKey } from '../../shared/model/places'
-import { stopLabel, type StopRow } from '../../shared/model/stops'
+import { normaliseName, stopLabel, type StopRow } from '../../shared/model/stops'
 
 /**
  * The places a route can end at, for the save panel's two pickers: pure, so
@@ -59,4 +59,22 @@ export function groupPlaces(stops: StopRow[]): Place[] {
  */
 export function boxFor(place: Place, to: LngLat | undefined): string {
   return place.terminal?.id ?? nearestStop(place.boxes, to)
+}
+
+/**
+ * The terminal already standing at the place this box would join, if any:
+ * a place has one terminal (H4). The database refuses the second one
+ * (0014_terminal_place_unique.sql); this says so before the save, in the
+ * form, without a round trip. The place is read as stopLabel reads it, so a
+ * box whose informal name is left blank joins the place its ground name
+ * says — before 2026-10-03 two terminals both named "Tala" with nothing
+ * informal slipped past the index, which only looked at the informal name.
+ */
+export function terminalAlreadyAt(
+  stops: StopRow[],
+  box: { id: string | null; name: string; informal: string },
+): StopRow | null {
+  const key = placeKey({ name: normaliseName(box.name), informal: normaliseName(box.informal) || null })
+  if (!key) return null
+  return stops.find((s) => s.kind === 'terminal' && s.id !== box.id && placeKey(s) === key) ?? null
 }

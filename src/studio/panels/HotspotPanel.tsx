@@ -7,6 +7,7 @@ import { linesOf } from '../data/live'
 import { saveStop } from '../data/stopsWrite'
 import { linksThrough, variantsStartingIn } from '../data/stopsGeometry'
 import type { Drawing } from '../drawing/useDrawing'
+import { terminalAlreadyAt } from './places'
 import { coarse } from '../../shared/map/MapView'
 import { FIELD_TEXT, FOOTER, OVERLAY, PANEL } from './sheet'
 
@@ -140,8 +141,17 @@ export function HotspotPanel({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    setBusy(true)
     setError(null)
+    if (kind === 'terminal') {
+      const other = terminalAlreadyAt(stops, { id: existing?.id ?? area?.stopId ?? null, name, informal })
+      if (other) {
+        setError(
+          `${stopLabel(other)} already has a terminal ("${other.name}"). A place has one terminal; draw this one as a hintuan under the same name.`,
+        )
+        return
+      }
+    }
+    setBusy(true)
     try {
       const saved = await saveStop({
         stopId: existing?.id ?? area?.stopId ?? null,

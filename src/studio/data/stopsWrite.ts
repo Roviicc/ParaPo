@@ -58,9 +58,15 @@ export async function saveStop(input: SaveStopInput): Promise<StopRow> {
     : client.from('stop').insert(row)
   const { data, error } = await query.select('*').single()
   if (error) {
-    if (error.code === '23505' && error.message.includes('stop_terminal_informal_unique')) {
+    // 0014 keys the index on the place, the informal name or else the
+    // ground name; before it, a blank informal name slipped past (review of
+    // 2026-10-03). The old name stays matched until the owner applies 0014.
+    if (
+      error.code === '23505' &&
+      (error.message.includes('stop_terminal_place_unique') || error.message.includes('stop_terminal_informal_unique'))
+    ) {
       throw new Error(
-        `There is already a terminal called "${informal}". A place has one terminal; draw the others as hintuans under the same informal name.`,
+        `There is already a terminal at "${informal || name}". A place has one terminal; draw the others as hintuans under the same name.`,
       )
     }
     throw new Error(error.message)
