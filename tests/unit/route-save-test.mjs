@@ -72,3 +72,15 @@ test('emptying a direction that matched no row says so', async () => {
   await assert.rejects(deleteVariant({ id: 'v1', route_id: 'r1' }), /Nothing was changed/)
   assert.equal(log.length, 1)
 })
+
+test('emptying a direction clears its signboards with its line', async () => {
+  const { client, log } = fakeSupabase((q) => {
+    if (q.table === 'route_variant' && q.op === 'update') return { data: [{ id: 'v1' }] }
+    if (q.table === 'route_stop' && q.op === 'delete') return {}
+    if (q.table === 'route_variant' && q.op === 'select') return { count: 1 }
+    throw new Error(`unexpected ${q.op} on ${q.table}`)
+  })
+  setSupabase(client)
+  await deleteVariant({ id: 'v1', route_id: 'r1' })
+  assert.deepEqual(log[0].payload.signboards, [])
+})

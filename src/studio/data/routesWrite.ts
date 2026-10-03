@@ -285,6 +285,11 @@ export async function deleteVariant(variant: VariantRow): Promise<void> {
       borrowed_from: null,
       borrowed_part: null,
       borrowed_m: null,
+      // Its boards go with its line: the emptied slot kept them, and the
+      // next line drawn into it would have shown another jeep's boards
+      // (review of 2026-10-03). The files stay in the bucket; the publish
+      // copies only listed ones.
+      signboards: [] as string[],
     })
     .eq('id', variant.id)
     .select('id')
