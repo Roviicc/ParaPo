@@ -248,6 +248,12 @@ if (existsSync(swPath)) {
   // handler for the page's SKIP_WAITING message — never on its own.
   const msgAt = sw.indexOf('SKIP_WAITING')
   const skipAt = sw.indexOf('skipWaiting()')
+  // A missing file is the map's page, 200 (wrangler.jsonc): each store keeps
+  // only its own type, or that page was kept as the map (2026-10-03).
+  check(
+    'sw.js keeps only JSON as the map and its lines, and only SVG as a signboard',
+    (sw.match(/startsWith\("application\/json"\)/g) ?? []).length >= 2 && sw.includes('startsWith("image/svg+xml")'),
+  )
   check(
     'sw.js waits to be told to update (one skipWaiting(), inside the SKIP_WAITING handler)',
     msgAt >= 0 && skipAt > msgAt && sw.indexOf('skipWaiting()', skipAt + 1) === -1,
