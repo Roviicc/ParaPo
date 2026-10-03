@@ -57,7 +57,9 @@
 // lie within half a metre of the thinned line, or it fails. And it refuses to
 // publish a map that shrank suddenly — a table that answers with no rows is a
 // normal HTTP 200, so without this a policy slip would blank the public map
-// and deploy it. `--force` overrides that one check, for a deliberate removal.
+// and deploy it. The signboards are held the same way (boardGuard.mjs,
+// 2026-10-03): every one gone from the bucket at once, or a sudden shrink.
+// `--force` overrides these checks, for a deliberate removal.
 //
 // The rules are the app's own, imported from src/ as check-map-data does —
 // the thinning, the rounding, a hotspot's label, the route and direction
@@ -76,6 +78,7 @@ import { stopLabel } from '../../src/shared/model/stops.ts'
 import { MAP_FILE_SCHEMA } from '../../src/commuter/mapFile.ts'
 import { cleanSignboardSvg } from '../../src/shared/model/signboardSvg.ts'
 import { EVERY_LINE, FERRY, withoutLines } from './withoutLines.mjs'
+import { boardsRefusal } from './boardGuard.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -270,11 +273,28 @@ for (const [n, t] of boardsRefused) {
   console.warn(`::warning::signboards/${n} was refused by the clean and left out: ${t.refused}`)
   boardText.set(n, null)
 }
+// A board the bucket answers 400 or 404 for is gone, and left out: said
+// one by one, as a refused one is. Every board gone at once is far more
+// likely a bucket made private than a clear-out, and the files would then be
+// deleted from the map below: refused unless told, as a shrunk map is
+// (review of 2026-10-03, finding 8).
+const boardsGone = [...boardText].filter(([n, t]) => t === null && !boardsRefused.some(([r]) => r === n)).map(([n]) => n)
+for (const n of boardsGone) console.warn(`::warning::signboards/${n} is named by a direction but gone from the bucket; left out`)
 for (const [id, names] of boardsOf) {
   const kept = names.filter((n) => boardText.get(n) !== null)
   boardsMissing += names.length - kept.length
   if (kept.length) boardsOf.set(id, kept)
   else boardsOf.delete(id)
+}
+if (!FORCE) {
+  const refusal = boardsRefusal({
+    named: boardText.size,
+    gone: boardsGone.length,
+    before: existsSync(SIGNBOARDS) ? readdirSync(SIGNBOARDS).filter((f) => f.endsWith('.svg')).length : 0,
+    after: new Set([...boardsOf.values()].flat()).size,
+    maxShrink: MAX_SHRINK,
+  })
+  if (refusal) fail(`FAIL  ${refusal}`)
 }
 
 // ---------------------------------------------------------------- assemble
