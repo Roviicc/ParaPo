@@ -11,7 +11,7 @@ import { HintuanPin } from '../shared/map/HintuanPin'
 import { StationLabels } from '../shared/map/StationLabels'
 import { EndTitles } from '../shared/map/EndTitles'
 import { lineOf, listVariants, loadStopsFromSupabase } from './data/live'
-import { isDrawn, type VariantRow } from '../shared/model/routes'
+import { isDrawn, variantLine, type VariantRow } from '../shared/model/routes'
 import { routeTimeline } from '../shared/model/ride'
 import { hotspotCount } from '../shared/model/places'
 import { stopLabel, stopRing, type StopRow } from '../shared/model/stops'
@@ -296,7 +296,7 @@ function Workshop({
           key={saved.selected.route_id}
           variant={saved.selected}
           variants={saved.variants}
-          timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
+          timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id, variantLine(saved.selected)))}
           livery={tripLivery}
           onBackToList={backFromTrip}
           onSwitch={switchTrip}

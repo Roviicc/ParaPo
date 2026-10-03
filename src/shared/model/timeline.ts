@@ -1,6 +1,5 @@
-import { haversine, type LngLat } from '../geo/geo'
+import { haversine, metresAlong, nearestOnSegment, type LngLat } from '../geo/geo'
 import { passIndex } from '../geo/pass'
-import { distanceToRingM } from '../geo/ring'
 import { placeKey } from './places'
 import { servedBy, type ServedRoute } from './routes'
 import { stopLabel, stopRing, type StopKind, type StopSummary } from './stops'
@@ -21,14 +20,28 @@ export function hintuansAlong<S extends StopSummary>(line: LngLat[], stops: read
   const along: { stop: S; index: number; at: number }[] = []
   for (const stop of stops) {
     if (stop.kind !== 'hintuan' || !stop.area || !servedBy(stop, route)) continue
-    const ring = stopRing(stop)
-    const index = passIndex(line, ring)
+    const index = passIndex(line, stopRing(stop))
     // Two boxes met on one segment, a snapped road's 20–30 m, tied and kept
     // in the order the hotspots were read (review of 2026-10-03): the one
-    // nearer the segment's start is reached first.
-    if (index >= 0) along.push({ stop, index, at: distanceToRingM(line[index], ring) })
+    // whose middle is further along that segment is reached later.
+    if (index >= 0) along.push({ stop, index, at: nearestOnSegment(stop.point.coordinates, line[index], line[index + 1] ?? line[index]).t })
   }
   return along.sort((a, b) => a.index - b.index || a.at - b.at).map(({ stop, index }) => ({ stop, index }))
+}
+
+/**
+ * The hotspots a direction is linked to, in the order its line reaches
+ * them: by `stop_sequence`, and two on one segment (the same sequence) by
+ * how far along the line their middles are — the card's timeline, as
+ * hintuansAlong orders the save panel's (review of 2026-10-03). `line` may
+ * be the overview: a position along it is, an index into it is not.
+ */
+export function orderLinked<S extends StopSummary>(linked: readonly { stop: S; sequence: number }[], line: readonly LngLat[]): S[] {
+  const keyed = linked.map((l) => ({ ...l, at: -1 }))
+  const tied = new Set<number>()
+  keyed.forEach((l, i) => keyed.forEach((m, j) => i !== j && l.sequence === m.sequence && tied.add(i)))
+  for (const i of tied) keyed[i].at = metresAlong(line, keyed[i].stop.point.coordinates)
+  return keyed.sort((a, b) => a.sequence - b.sequence || a.at - b.at).map((l) => l.stop)
 }
 
 /** One row of a direction's timeline. */

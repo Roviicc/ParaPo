@@ -125,6 +125,29 @@ export function nearestOnSegment(p: LngLat, a: LngLat, b: LngLat): { point: LngL
 }
 
 /**
+ * Metres along the line to the point of it nearest p. What breaks a tie
+ * between two hotspots met on one segment (timeline.ts): the line may be
+ * the full one or its overview, so an index into it is not to be trusted,
+ * a position along it is (2026-10-03).
+ */
+export function metresAlong(line: readonly LngLat[], p: LngLat): number {
+  if (line.length < 2) return 0
+  let best = Infinity
+  let at = 0
+  let walked = 0
+  for (let i = 1; i < line.length; i++) {
+    const [a, b] = [line[i - 1], line[i]]
+    const d = pointToSegmentM(p, a, b)
+    if (d < best) {
+      best = d
+      at = walked + haversine(a, nearestOnSegment(p, a, b).point)
+    }
+    walked += haversine(a, b)
+  }
+  return at
+}
+
+/**
  * Metres from point p to segment a–b, on the same flat patch: the one
  * point-to-segment every file measures with (the review's 6.5).
  */
