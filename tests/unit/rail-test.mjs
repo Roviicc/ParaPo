@@ -78,3 +78,22 @@ test('a saved box is linked only to the directions that stop at it', () => {
   assert.deepEqual(linksThrough(ring, variants, null).map((l) => l.variantId), ['jeep'])
   assert.deepEqual(linksThrough(ring, variants, 'LRT-1').map((l) => l.variantId), ['lrt'])
 })
+
+// The publish while the file is on its old shape (scripts/publish/withoutTrains.mjs):
+// the trains, their stations and every link to either left out, the rest as it was.
+test('the old-shape publish leaves out the trains, their stations and their links', async () => {
+  const { withoutTrains } = await import('../../scripts/publish/withoutTrains.mjs')
+  const variants = [{ id: 'jeep', route: JEEP }, { id: 'lrt', route: LRT1 }, { id: 'mrt', route: MRT3 }]
+  const stops = [{ id: 'h', line: null }, { id: 'st', line: 'LRT-1' }, { id: 'old' }]
+  const links = [
+    { route_variant_id: 'jeep', stop_id: 'h' },
+    { route_variant_id: 'lrt', stop_id: 'st' },
+    { route_variant_id: 'jeep', stop_id: 'st' },
+  ]
+  const out = withoutTrains({ variants, stops, links })
+  assert.deepEqual(out.variants.map((v) => v.id), ['jeep'])
+  assert.deepEqual(out.stops.map((s) => s.id), ['h', 'old'])
+  assert.deepEqual(out.links, [{ route_variant_id: 'jeep', stop_id: 'h' }])
+  assert.deepEqual([...out.ids.variants], ['lrt', 'mrt'])
+  assert.deepEqual([...out.ids.stops], ['st'])
+})
