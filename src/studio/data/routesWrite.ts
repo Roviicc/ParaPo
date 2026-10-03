@@ -94,7 +94,11 @@ async function claimExistingRoute(
     return { routeId: data.id as string, fillSlot: false }
   }
   const mine = directions.find((d) => d.reversed === reversed)
-  if (mine && mine.shape === null) return { routeId: data.id as string, fillSlot: true }
+  // No row this way round at all (a slot deleted by hand, a route from
+  // before 0006) is a slot to fill too: saveVariant's update finds nothing
+  // and its insert is the honest repair. It was refused as drawn already
+  // (review of 2026-10-03).
+  if (!mine || mine.shape === null) return { routeId: data.id as string, fillSlot: true }
   throw new Error(DRAWN_ALREADY)
 }
 

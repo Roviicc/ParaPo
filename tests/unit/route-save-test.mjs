@@ -97,3 +97,17 @@ test("a save whose own route another save's directions filled first leaves it", 
   await assert.rejects(saveVariant(input))
   assert.equal(log.filter((q) => q.op === 'delete').length, 0)
 })
+
+test('a route with these ends but no row this way round is filled, not refused as drawn', async () => {
+  const { client, log } = fakeSupabase((q) => {
+    if (q.table === 'route' && q.op === 'insert') return { error: refused }
+    if (q.table === 'route' && q.op === 'select') return { data: { id: 'r4', route_variant: [{ id: 'v9', reversed: true, shape: {} }] } }
+    if (q.table === 'route_variant' && q.op === 'update') return { data: null }
+    if (q.table === 'route_variant' && q.op === 'insert') return { data: { id: 'v10', route_id: 'r4', reversed: false } }
+    throw new Error(`unexpected ${q.op} on ${q.table}`)
+  })
+  setSupabase(client)
+  const saved = await saveVariant(input)
+  assert.equal(saved.id, 'v10')
+  assert.deepEqual(log.map((q) => `${q.table} ${q.op}`), ['route insert', 'route select', 'route_variant update', 'route_variant insert'])
+})
