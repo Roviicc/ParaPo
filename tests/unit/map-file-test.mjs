@@ -168,3 +168,33 @@ test('the committed older shapes are the index without its trains and stations',
     assert.equal(old.published_at, v3.published_at)
   }
 })
+
+// An app updated while offline: its worker stored /data/index.json (shape 2,
+// without the trains) and has nothing yet under the new path. That copy is
+// the map, marked stale; with none stored, the network's error stands.
+test('offline after an update, the stored shape-2 copy is the map, marked stale', async () => {
+  const offline = () => {
+    globalThis.fetch = async () => {
+      throw new TypeError('Failed to fetch')
+    }
+  }
+  const stored = { ...base, schema: 2, variants: [direction] }
+  try {
+    offline()
+    globalThis.caches = { match: async (url, opts) => (url === '/data/index.json' && opts?.cacheName === 'map-file' ? new Response(JSON.stringify(stored)) : undefined) }
+    const a = await fresh()
+    const file = await a.loadMapFile()
+    assert.equal(file.schema, 2)
+    assert.deepEqual(file.variants[0].shape, overview)
+    assert.equal(a.mapFileIsStale(), true)
+
+    globalThis.caches = { match: async () => undefined }
+    await assert.rejects((await fresh()).loadMapFile(), { message: 'Failed to fetch' })
+
+    // A stored copy that is not shape 2 is no map: the network's error stands.
+    globalThis.caches = { match: async () => new Response(JSON.stringify({ ...stored, schema: 1 })) }
+    await assert.rejects((await fresh()).loadMapFile(), { message: 'Failed to fetch' })
+  } finally {
+    delete globalThis.caches
+  }
+})

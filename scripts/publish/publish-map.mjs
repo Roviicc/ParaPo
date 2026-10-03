@@ -377,9 +377,10 @@ const { json: previousV3 } = readJson(INDEX_V3)
 // A map that shrank suddenly is far more likely a read that went wrong (a
 // policy change, a table made private) than a clear-out. Refuse it unless told.
 // The new index against its last copy, the train lines in; until it has one,
-// the old file, which never had them, against the map without them.
+// the old file against the whole map: with the trains in or not (the old
+// script published them on 2026-10-02), it is never more than the whole.
 if (!FORCE) {
-  const [was, now] = previousV3 ? [previousV3, all] : [previous, body]
+  const [was, now] = previousV3 ? [previousV3, all] : [previous, all]
   for (const key of was ? ['variants', 'stops', 'links'] : []) {
     const before = Array.isArray(was[key]) ? was[key].length : 0
     const after = now[key].length

@@ -74,37 +74,76 @@ export const MAP_FILE_TOO_NEW = 'This map was published for a newer version of t
  */
 const SERVED_FROM_HEADER = 'x-parapo-served-from'
 
+/**
+ * Shape 2's index, without the trains. An app updated from it kept its last
+ * copy in the worker's store (the map-file rule matched this path then), and
+ * has no copy of the new one until it reaches the network: offline, that
+ * copy is the map, not the load error.
+ */
+const STORED_OLD_URL = '/data/index.json'
+/** The worker's store for the map file (vite.config.ts, the map-file rule). */
+const MAP_FILE_CACHE = 'map-file'
+
 let inFlight: Promise<MapFile> | null = null
 let stale = false
+
+type RawFile = Partial<Omit<MapFile, 'variants'>> & { variants?: IndexVariant[] }
+
+/** A file read off `url` as a map of shape `schema`, its overviews as the lines the map draws first. */
+function asMap(file: RawFile, url: string, schema: number): MapFile {
+  if (
+    typeof file.published_at !== 'string' ||
+    !Array.isArray(file.variants) ||
+    !Array.isArray(file.stops) ||
+    !Array.isArray(file.links)
+  ) {
+    throw new Error(`${url} is not a published map`)
+  }
+  // Checked after the shape: a file that is not a map at all is that
+  // error, whatever number it carries.
+  if ((file.schema ?? 1) > MAP_FILE_SCHEMA) throw new Error(MAP_FILE_TOO_NEW)
+  if (file.schema !== schema) throw new Error(`${url} is shape ${file.schema ?? 1}, not the index`)
+  // The overview is what the map draws until the line itself is read.
+  const variants = file.variants.map(({ overview, ...v }) => ({ ...v, shape: overview ?? null }) as VariantSummary)
+  return { ...file, variants } as MapFile
+}
+
+/** The stored shape-2 copy, when the worker kept one; shape 3 is shape 2 with the trains in, so it reads as is. */
+async function storedOldCopy(): Promise<MapFile | null> {
+  if (typeof caches === 'undefined') return null
+  const res = await caches.match(STORED_OLD_URL, { cacheName: MAP_FILE_CACHE }).catch(() => undefined)
+  if (!res?.ok) return null
+  try {
+    return asMap((await res.json()) as RawFile, STORED_OLD_URL, 2)
+  } catch {
+    return null
+  }
+}
 
 /**
  * The published map, fetched once per page and shared by both hooks. A
  * failure is not cached, so a reload can try again. `no-cache` asks the
  * server whether the file changed rather than trusting a stale copy: the
- * answer is a cheap 304 when it has not.
+ * answer is a cheap 304 when it has not. With no answer and no copy of this
+ * file in store, the copy an older version of the app stored is shown,
+ * marked stale.
  */
 export function loadMapFile(): Promise<MapFile> {
   inFlight ??= fetch(MAP_FILE_URL, { cache: 'no-cache' })
-    .then(async (res) => {
-      if (!res.ok) throw new Error(`${MAP_FILE_URL}: HTTP ${res.status}`)
-      stale = res.headers.get(SERVED_FROM_HEADER) === 'cache'
-      const file = (await res.json()) as Partial<Omit<MapFile, 'variants'>> & { variants?: IndexVariant[] }
-      if (
-        typeof file.published_at !== 'string' ||
-        !Array.isArray(file.variants) ||
-        !Array.isArray(file.stops) ||
-        !Array.isArray(file.links)
-      ) {
-        throw new Error(`${MAP_FILE_URL} is not a published map`)
-      }
-      // Checked after the shape: a file that is not a map at all is that
-      // error, whatever number it carries.
-      if ((file.schema ?? 1) > MAP_FILE_SCHEMA) throw new Error(MAP_FILE_TOO_NEW)
-      if (file.schema !== MAP_FILE_SCHEMA) throw new Error(`${MAP_FILE_URL} is shape ${file.schema ?? 1}, not the index`)
-      // The overview is what the map draws until the line itself is read.
-      const variants = file.variants.map(({ overview, ...v }) => ({ ...v, shape: overview ?? null }) as VariantSummary)
-      return { ...file, variants } as MapFile
-    })
+    .then(
+      async (res) => {
+        if (!res.ok) throw new Error(`${MAP_FILE_URL}: HTTP ${res.status}`)
+        stale = res.headers.get(SERVED_FROM_HEADER) === 'cache'
+        return asMap((await res.json()) as RawFile, MAP_FILE_URL, MAP_FILE_SCHEMA)
+      },
+      async (e: unknown) => {
+        // No network and nothing stored under this path: an update made offline.
+        const old = await storedOldCopy()
+        if (!old) throw e
+        stale = true
+        return old
+      },
+    )
     .catch((e: unknown) => {
       inFlight = null
       throw e
