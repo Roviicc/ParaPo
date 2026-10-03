@@ -99,11 +99,17 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
   useDialogFocus(own, hidden)
   useEscape(onClose, !hidden)
 
+  // Whether this sheet put the mark on the page: only it takes it off, so a
+  // hidden sheet's change, or one unmounting, leaves another's drag alone.
+  const markedRef = useRef(false)
   useLayoutEffect(() => {
     if (!dragging) at(slide(snap))
     // What follows the sheet on the page (the LocatorButton) glides with it,
     // or keeps up with the finger.
-    own.current?.closest('[data-dock-host]')?.toggleAttribute('data-dock-dragging', dragging && !hidden)
+    const mark = dragging && !hidden
+    if (mark === markedRef.current) return
+    own.current?.closest('[data-dock-host]')?.toggleAttribute('data-dock-dragging', mark)
+    markedRef.current = mark
   }, [snap, dragging, hidden])
   // A flick that closes the sheet unmounts it mid-drag, before the effect
   // above runs with the drag over, and the page kept the attribute: the
@@ -111,7 +117,9 @@ export function BottomSheet({ label, testId, header, onClose, hidden = false, re
   // is held from the mount, as the sheet is gone from it by the cleanup.
   useLayoutEffect(() => {
     const host = own.current?.closest('[data-dock-host]')
-    return () => host?.removeAttribute('data-dock-dragging')
+    return () => {
+      if (markedRef.current) host?.removeAttribute('data-dock-dragging')
+    }
   }, [])
 
   const settle = (next: Snap | 'close') => {
