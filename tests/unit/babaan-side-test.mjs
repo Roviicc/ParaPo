@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { readPublished } from '../../scripts/checks/check-map-data.mjs'
 
 /** The committed map, every line in full: the index and its lines/ (check-map-data.mjs). */
-const published = () => readPublished(fileURLToPath(new URL('../../public/data/index.json', import.meta.url))).file
+const published = () => readPublished(fileURLToPath(new URL('../../public/data/index.v3.json', import.meta.url))).file
 
 const square = [[0, 0], [1, 0], [1, 1], [0, 1]]
 // Measured from the first corner, or a small box at 121°E is lost in the rounding.

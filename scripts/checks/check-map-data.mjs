@@ -1,10 +1,10 @@
 // The published map against itself: do its lines, links and ends agree?
 //
-//   npm run check:data                          public/data/index.json and its lines/
+//   npm run check:data                          public/data/index.v3.json and its lines/
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs scripts/checks/check-map-data.mjs [file] [--markdown out.md]
 //
-// The file is the index (schema 2, since 2026-09-29): each direction's line is
-// read from lines/<id>.json beside it, and a direction whose line file is
+// The file is the index (schema 2 since 2026-09-29; 3, the train lines in,
+// since 2026-10-03): each direction's line is read from lines/<id>.json beside it, and a direction whose line file is
 // missing or is not its own is a problem. A schema 1 file (map.json, every
 // line in it) is read as it is.
 //
@@ -212,7 +212,7 @@ export function markdownReport(file, result) {
  */
 export function readPublished(path) {
   const file = JSON.parse(readFileSync(path, 'utf8'))
-  if (file.schema !== 2) return { file, problems: [] }
+  if (file.schema !== 2 && file.schema !== 3) return { file, problems: [] }
   const problems = []
   const variants = (file.variants ?? []).map(({ overview, ...v }) => {
     if (!overview) return { ...v, shape: null }
@@ -239,7 +239,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const args = process.argv.slice(2)
   const mdAt = args.indexOf('--markdown')
   const mdPath = mdAt >= 0 ? args[mdAt + 1] : null
-  const path = args.filter((a, i) => a !== '--markdown' && !(mdAt >= 0 && i === mdAt + 1))[0] ?? 'public/data/index.json'
+  const path = args.filter((a, i) => a !== '--markdown' && !(mdAt >= 0 && i === mdAt + 1))[0] ?? 'public/data/index.v3.json'
   let file
   let reading = []
   try {
