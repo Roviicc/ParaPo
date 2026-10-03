@@ -29,8 +29,13 @@ export type SaveStopInput = {
 /**
  * Create or update a hotspot and replace its route links. Writes require a
  * signed-in editor who owns the rows; RLS enforces it on both tables.
+ *
+ * Two steps, not one transaction, as a direction's save is (saveRoute.ts):
+ * `onWritten` hears of the row the moment it is in, so a retry after the
+ * links failed updates that row instead of inserting a second box on the
+ * same ground (review of 2026-10-03, finding 4).
  */
-export async function saveStop(input: SaveStopInput): Promise<StopRow> {
+export async function saveStop(input: SaveStopInput, onWritten?: (stopId: string) => void): Promise<StopRow> {
   const client = requireSupabase()
   if (input.ring.length < 3) throw new Error('A hotspot needs at least three corners')
 
@@ -72,6 +77,7 @@ export async function saveStop(input: SaveStopInput): Promise<StopRow> {
     throw new Error(error.message)
   }
   const stop = data as StopRow
+  onWritten?.(stop.id)
 
   // Links: computed for a hintuan, chosen for a terminal. Either way the
   // sequence is where the direction first meets the outline (0 when a ticked
@@ -92,7 +98,14 @@ export async function saveStop(input: SaveStopInput): Promise<StopRow> {
             stop_sequence: Math.max(0, firstTouchIndex(variantLine(byId.get(id)!), ring)),
           }))
 
-  await replaceLinks(stop.id, links)
+  try {
+    await replaceLinks(stop.id, links)
+  } catch (err) {
+    throw new Error(
+      `The hotspot is saved, but its route links are not: ${err instanceof Error ? err.message : String(err)}. ` +
+        'Press Save again to retry.',
+    )
+  }
   return stop
 }
 

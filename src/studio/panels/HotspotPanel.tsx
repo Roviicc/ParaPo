@@ -81,6 +81,10 @@ export function HotspotPanel({
   }, [stops, existing?.id])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The row as a save wrote it, when its links failed after: the retry
+  // updates it rather than inserting the box again (SavePanel's `written`).
+  const [writtenId, setWrittenId] = useState<string | null>(null)
+  const stopId = writtenId ?? existing?.id ?? area?.stopId ?? null
 
   // The list holds overviews (0009); a link's sequence is an index into the
   // full line, so the directions the outline can reach are read in full
@@ -143,7 +147,7 @@ export function HotspotPanel({
     e.preventDefault()
     setError(null)
     if (kind === 'terminal') {
-      const other = terminalAlreadyAt(stops, { id: existing?.id ?? area?.stopId ?? null, name, informal })
+      const other = terminalAlreadyAt(stops, { id: stopId, name, informal })
       if (other) {
         setError(
           `${stopLabel(other)} already has a terminal ("${other.name}"). A place has one terminal; draw this one as a hintuan under the same name.`,
@@ -153,17 +157,20 @@ export function HotspotPanel({
     }
     setBusy(true)
     try {
-      const saved = await saveStop({
-        stopId: existing?.id ?? area?.stopId ?? null,
-        kind,
-        name,
-        informal,
-        aliases: parseAliases(aliasText, [name, informal]),
-        note,
-        ring,
-        variantIds: kind === 'terminal' ? [...ticked] : undefined,
-        variants: lines,
-      })
+      const saved = await saveStop(
+        {
+          stopId,
+          kind,
+          name,
+          informal,
+          aliases: parseAliases(aliasText, [name, informal]),
+          note,
+          ring,
+          variantIds: kind === 'terminal' ? [...ticked] : undefined,
+          variants: lines,
+        },
+        setWrittenId,
+      )
       onSaved(saved)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
