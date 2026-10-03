@@ -5,7 +5,7 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/geo-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { M_PER_DEG, bboxOf, haversine, nearestOnSegment, pointToSegmentM } from '../../src/shared/geo/geo.ts'
+import { M_PER_DEG, bboxOf, haversine, joinSegments, nearestOnSegment, pointToSegmentM } from '../../src/shared/geo/geo.ts'
 
 test('a degree of latitude is what haversine measures it', () => {
   assert.ok(Math.abs(haversine([121, 14], [121, 15]) - M_PER_DEG) < 0.001)
@@ -35,4 +35,27 @@ test('a box padded by d metres holds every point within d metres of its corners'
   assert.ok(Math.abs(haversine([121.04, s], [121.04, 14.7]) - 10) < 0.01)
   assert.ok(Math.abs(haversine([w, 14.7005], [121.04, 14.7005]) - 10) < 0.05)
   assert.ok(e > 121.041 && n > 14.701)
+})
+
+// Review of 2026-10-03, finding 7: a routed segment starts where the router
+// put the click on the road, not on the click a freehand segment ends on.
+test("a join keeps the road's first point when it is not the click before it", () => {
+  const click = [121.04, 14.7]
+  const onRoad = [121.04, 14.70015] // about 17 m north, where the router snapped the click
+  const next = [121.041, 14.70015]
+  const freehand = { snap: 'freehand', coordinates: [[121.039, 14.7], click] }
+  const routed = { snap: 'snapped', coordinates: [onRoad, next] }
+  assert.deepEqual(joinSegments([freehand, routed]), [[121.039, 14.7], click, onRoad, next])
+})
+
+test('a join that repeats the point before it, to the centimetre, is kept once', () => {
+  const a = [121.04, 14.7]
+  const b = [121.041, 14.7]
+  const c = [121.042, 14.7]
+  assert.deepEqual(joinSegments([{ coordinates: [a, b] }, { coordinates: [b, c] }]), [a, b, c])
+  // The same point a few millimetres off, as two answers of the router may give it.
+  assert.deepEqual(joinSegments([{ coordinates: [a, b] }, { coordinates: [[121.04100003, 14.7], c] }]), [a, b, c])
+  // Empty segments are skipped, and an empty drawing is no line.
+  assert.deepEqual(joinSegments([{ coordinates: [] }, { coordinates: [a, b] }, null]), [a, b])
+  assert.deepEqual(joinSegments([]), [])
 })
