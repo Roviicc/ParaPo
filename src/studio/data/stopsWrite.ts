@@ -119,11 +119,20 @@ async function replaceLinks(stopId: string, links: StopLink[]) {
   if (ins.error) throw new Error(ins.error.message)
 }
 
-/** Delete one hotspot. Its links go with it (route_stop cascades). */
+/**
+ * Delete one hotspot. Its links go with it (route_stop cascades). A delete
+ * RLS will not let through is not an error to PostgREST, only no rows: the
+ * rows are read back, and none is said (review of 2026-10-03, finding 6).
+ */
 export async function deleteStop(stop: StopRow): Promise<void> {
-  const { error } = await requireSupabase().from('stop').delete().eq('id', stop.id)
+  const { data, error } = await requireSupabase().from('stop').delete().eq('id', stop.id).select('id')
   if (error) throw new Error(error.message)
+  if (!data?.length) throw new Error(NOTHING_CHANGED)
 }
+
+/** What a write that matched no row says: the session ended, or the row is not this account's. */
+export const NOTHING_CHANGED =
+  'Nothing was changed: the session may have ended, or this is not yours to change. Sign in again and retry.'
 
 /**
  * Keep every hintuan's list honest after a direction is saved: link it to each

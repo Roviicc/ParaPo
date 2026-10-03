@@ -11,7 +11,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeSupabase } from './fixtures/fake-supabase.mjs'
 import { setSupabase } from '../../src/studio/data/supabase.ts'
-import { saveStop } from '../../src/studio/data/stopsWrite.ts'
+import { deleteStop, saveStop } from '../../src/studio/data/stopsWrite.ts'
 
 const ring = [[121.04, 14.7], [121.0401, 14.7], [121.0401, 14.7001], [121.04, 14.7001]]
 const input = { stopId: null, kind: 'hintuan', name: 'Tala Ilalim', informal: 'Tala', aliases: [], note: '', ring, variants: [] }
@@ -35,4 +35,13 @@ test('a hotspot whose links failed is updated by the retry, not inserted again',
   const stopWrites = log.filter((q) => q.table === 'stop').map((q) => q.op)
   assert.deepEqual(stopWrites, ['insert', 'update'])
   assert.deepEqual(log.filter((q) => q.table === 'stop')[1].filters, [['eq', 'id', 's1']])
+})
+
+test('a hotspot delete that matched no row says so (review of 2026-10-03, finding 6)', async () => {
+  const { client } = fakeSupabase((q) => {
+    if (q.table === 'stop' && q.op === 'delete') return { data: [] }
+    throw new Error(`unexpected ${q.op} on ${q.table}`)
+  })
+  setSupabase(client)
+  await assert.rejects(deleteStop({ id: 's1' }), /Nothing was changed/)
 })

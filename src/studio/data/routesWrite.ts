@@ -3,6 +3,7 @@ import { joinSegments, overviewOf, roundLngLat } from '../../shared/geo/geo'
 import { VARIANT_SELECT } from './live'
 import type { LineStringGeoJSON, TransportMode, UnnamedVariantRow, VariantRow } from '../../shared/model/routes'
 import { requireSupabase } from './supabase'
+import { NOTHING_CHANGED } from './stopsWrite'
 import type { BorrowPart } from '../drawing/borrow'
 
 /**
@@ -286,7 +287,11 @@ export async function deleteVariant(variant: VariantRow): Promise<void> {
       borrowed_m: null,
     })
     .eq('id', variant.id)
+    .select('id')
   if (emptied.error) throw new Error(emptied.error.message)
+  // RLS refusing an update is no rows, not an error: said, not reloaded as
+  // if done (review of 2026-10-03, finding 6).
+  if (!emptied.data?.length) throw new Error(NOTHING_CHANGED)
   const unlinked = await client.from('route_stop').delete().eq('route_variant_id', variant.id)
   if (unlinked.error) throw new Error(unlinked.error.message)
   const orphaned = await client.from('route_variant').update({ borrowed_from: null }).eq('borrowed_from', variant.id)
@@ -300,7 +305,8 @@ export async function deleteVariant(variant: VariantRow): Promise<void> {
   if (countError) throw new Error(countError.message)
   if (count === 0) {
     // Both ways empty: the route goes, its two slots with it (cascade).
-    const gone = await client.from('route').delete().eq('id', variant.route_id)
+    const gone = await client.from('route').delete().eq('id', variant.route_id).select('id')
     if (gone.error) throw new Error(gone.error.message)
+    if (!gone.data?.length) throw new Error(NOTHING_CHANGED)
   }
 }

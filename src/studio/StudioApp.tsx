@@ -196,6 +196,13 @@ function Workshop({
   }
 
   const onDeleteStop = async (s: StopRow) => {
+    // As Done does: with the session gone the delete went out on the
+    // publishable key, matched no row, came back 2xx, and the box was still
+    // there after the reload, with nothing said (review of 2026-10-03).
+    if (!signedIn) {
+      setSigningIn(true)
+      return
+    }
     // A route's end cannot go while the route names it: the database refuses
     // (0006's foreign keys), and its refusal was the notice (finding 15).
     const ending = [
@@ -233,6 +240,11 @@ function Workshop({
     : false
 
   const onDelete = async (v: VariantRow) => {
+    // Signed out, the delete would match nothing and say nothing (onDeleteStop).
+    if (!signedIn) {
+      setSigningIn(true)
+      return
+    }
     if (!window.confirm(`Delete "${v.route?.name}" — ${v.direction_name}?`)) return
     try {
       await deleteVariant(v)

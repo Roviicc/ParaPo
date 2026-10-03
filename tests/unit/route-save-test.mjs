@@ -11,7 +11,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeSupabase } from './fixtures/fake-supabase.mjs'
 import { setSupabase } from '../../src/studio/data/supabase.ts'
-import { saveVariant } from '../../src/studio/data/routesWrite.ts'
+import { deleteVariant, saveVariant } from '../../src/studio/data/routesWrite.ts'
 
 const input = {
   routeId: null,
@@ -59,4 +59,16 @@ test('a save that inserted the route takes it back out when its directions are r
   const deletes = log.filter((q) => q.op === 'delete')
   assert.equal(deletes.length, 1)
   assert.deepEqual(deletes[0].filters, [['eq', 'id', 'r2']])
+})
+
+// Finding 6: with the session gone the publishable key matches no row, and
+// PostgREST answers 2xx with nothing. That is said, not reloaded as done.
+test('emptying a direction that matched no row says so', async () => {
+  const { client, log } = fakeSupabase((q) => {
+    if (q.table === 'route_variant' && q.op === 'update') return { data: [] }
+    throw new Error(`unexpected ${q.op} on ${q.table}`)
+  })
+  setSupabase(client)
+  await assert.rejects(deleteVariant({ id: 'v1', route_id: 'r1' }), /Nothing was changed/)
+  assert.equal(log.length, 1)
 })
