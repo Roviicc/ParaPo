@@ -180,7 +180,10 @@ async function rest(path) {
 
 /**
  * A signboard from the bucket, cleaned again before it lands on the map's own
- * domain (shared/model/signboardSvg.ts): null when it is gone from the bucket.
+ * domain (shared/model/signboardSvg.ts): null when it is gone from the bucket,
+ * `{ refused }` when the clean says no. The bucket keeps whatever an editor's
+ * session sent (the studio's own clean runs in the browser), so a refused
+ * board is left out and said, never published, and never stops the map.
  */
 async function board(name) {
   const attempt = async () => {
@@ -192,7 +195,7 @@ async function board(name) {
   const text = await attempt().catch(attempt)
   if (text === null) return null
   const clean = cleanSignboardSvg(text)
-  if ('error' in clean) fail(`FAIL  signboards/${name}: ${clean.error}`)
+  if ('error' in clean) return { refused: clean.error }
   return clean.svg + '\n'
 }
 
@@ -254,6 +257,11 @@ for (const v of variantRows) {
   if (names.length) boardsOf.set(v.id, names)
 }
 await Promise.all([...boardText.keys()].map(async (n) => boardText.set(n, await board(n))))
+const boardsRefused = [...boardText].filter(([, t]) => t?.refused)
+for (const [n, t] of boardsRefused) {
+  console.warn(`::warning::signboards/${n} was refused by the clean and left out: ${t.refused}`)
+  boardText.set(n, null)
+}
 for (const [id, names] of boardsOf) {
   const kept = names.filter((n) => boardText.get(n) !== null)
   boardsMissing += names.length - kept.length
@@ -502,5 +510,5 @@ console.log(
 )
 console.log(
   `signboards/: ${boardFiles.size} file(s), ${boardsWritten} written, ${boardsRemoved} removed` +
-    (boardsMissing ? `; ${boardsMissing} named but gone from the bucket, left out` : ''),
+    (boardsMissing ? `; ${boardsMissing} named but gone from the bucket or refused, left out` : ''),
 )
