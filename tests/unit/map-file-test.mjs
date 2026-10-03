@@ -249,3 +249,20 @@ test("a server's error with a stored copy shows the copy, marked stale", async (
     delete globalThis.caches
   }
 })
+
+test('the page served in place of a missing index shows the stored copy too', async () => {
+  globalThis.caches = {
+    match: async (url, { cacheName }) =>
+      cacheName === 'map-file' && url === '/data/index.v4.json' ? new Response(JSON.stringify(base), { status: 200 }) : undefined,
+  }
+  try {
+    index('<!doctype html><title>Para Po</title>', { headers: { 'content-type': 'text/html' } })
+    const a = await fresh()
+    assert.equal((await a.loadMapFile()).schema, 4)
+    assert.equal(a.mapFileIsStale(), true)
+  } finally {
+    delete globalThis.caches
+  }
+  index('<!doctype html>', { headers: { 'content-type': 'text/html' } })
+  await assert.rejects((await fresh()).loadMapFile(), { message: '/data/index.v4.json: not JSON' })
+})

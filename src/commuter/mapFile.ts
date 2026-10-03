@@ -156,15 +156,26 @@ export function loadMapFile(): Promise<MapFile> {
   inFlight ??= fetch(MAP_FILE_URL, { cache: 'no-cache' })
     .then(
       async (res) => {
-        if (!res.ok) {
-          // The server answered, but not with the map: the stored copy, marked stale.
-          const kept = await storedCopy()
-          if (!kept) throw new Error(`${MAP_FILE_URL}: HTTP ${res.status}`)
+        // The server answered, but not with the map — an error, or the
+        // page itself, 200, which the host sends for a file it does not
+        // have (wrangler.jsonc): the stored copy, marked stale.
+        const kept = async (why: string) => {
+          const copy = await storedCopy()
+          if (!copy) throw new Error(`${MAP_FILE_URL}: ${why}`)
           stale = true
-          return kept
+          return copy
+        }
+        if (!res.ok) return kept(`HTTP ${res.status}`)
+        let raw: RawFile
+        try {
+          raw = (await res.json()) as RawFile
+        } catch {
+          return kept('not JSON')
         }
         stale = res.headers.get(SERVED_FROM_HEADER) === 'cache'
-        return asMap((await res.json()) as RawFile, MAP_FILE_URL, MAP_FILE_SCHEMA)
+        // A file that reads but is not this app's (too new, another shape)
+        // is said as it is: the banner's Reload is the answer to that.
+        return asMap(raw, MAP_FILE_URL, MAP_FILE_SCHEMA)
       },
       async (e: unknown) => {
         // No network and nothing stored under this path: an update made offline.
