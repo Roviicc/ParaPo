@@ -170,12 +170,6 @@ function Workshop({
     else setSaving(true)
   }
 
-  // The row a hotspot save wrote before its links failed, for this drawing
-  // alone (the outline being traced, by identity): the panel closed with ✕
-  // and opened again still updates that row, not a second box (review of
-  // 2026-10-03). A new trace is a new outline, and forgets it.
-  const [writtenStop, setWrittenStop] = useState<{ area: NonNullable<typeof draw.area>; id: string } | null>(null)
-
   // The hotspot being edited, when the area trace came from a saved one.
   const editingStop = draw.area?.stopId
     ? (stops.stops.find((s) => s.id === draw.area?.stopId) ?? null)
@@ -511,8 +505,9 @@ function Workshop({
           stops={stops.stops}
           onSaved={onSavedStop}
           onCancel={() => setSaving(false)}
-          written={writtenStop?.area === draw.area ? writtenStop.id : null}
-          onWritten={(id) => draw.area && setWrittenStop({ area: draw.area, id })}
+          // A row written before its links failed becomes the outline's own
+          // (adoptStop): ✕, Done and Save again, or a reload, update it.
+          onWritten={draw.adoptStop}
         />
       )}
 
