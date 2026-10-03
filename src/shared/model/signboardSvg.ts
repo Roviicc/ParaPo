@@ -32,10 +32,37 @@ const ELEMENTS = new Set([
 /** A picture held inside the file itself — what Figma writes for an image fill. */
 const DATA_PICTURE = /^data:image\/(png|jpeg|gif|webp);base64,[a-z0-9+/=\s]+$/i
 
-/** Whether an attribute stays: no handlers, links only within, url() only to its own parts. */
-export function keepsAttribute(element: string, name: string, value: string): boolean {
+const NAMED: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" }
+
+/**
+ * A value or a text as an XML reader sees it: its character references
+ * (`&#117;`, `&#x75;`) and the five named ones read as the characters they
+ * stand for. The checks below test this, not the raw file: tested raw,
+ * `fill="&#117;rl(https://…)"` passed as no url() at all, kept its
+ * reference, and read as url(https://…) in the browser (review of
+ * 2026-10-03, finding 5). Any other `&name;` is not XML without a DOCTYPE,
+ * which is refused, so it stays as written and is escaped as text. A
+ * reference to a character XML forbids becomes U+FFFD.
+ */
+export function decodeReferences(s: string): string {
+  return s.replace(/&(?:#(\d+)|#x([\da-f]+)|([a-z]+));/gi, (whole, dec: string, hex: string, name: string) => {
+    if (name) return NAMED[name] ?? whole
+    const code = dec ? Number(dec) : parseInt(hex, 16)
+    const allowed =
+      code === 0x9 || code === 0xa || code === 0xd || (code >= 0x20 && code <= 0xd7ff) ||
+      (code >= 0xe000 && code <= 0xfffd) || (code >= 0x10000 && code <= 0x10ffff)
+    return allowed ? String.fromCodePoint(code) : '\ufffd'
+  })
+}
+
+/**
+ * Whether an attribute stays: no handlers, links only within, url() only to
+ * its own parts. `value` is as written in the file; it is tested as read.
+ */
+export function keepsAttribute(element: string, name: string, raw: string): boolean {
   const n = name.toLowerCase()
   if (!/^[a-z_][\w:.-]*$/i.test(name) || n.startsWith('on')) return false
+  const value = decodeReferences(raw)
   const v = value.replace(/[\s\u0000-\u001f]/g, '').toLowerCase()
   if (/(javascript|vbscript|data):/.test(v) && !(element === 'image' && isHref(n) && DATA_PICTURE.test(value.trim()))) return false
   if (isHref(n)) return value.trim().startsWith('#') || (element === 'image' && DATA_PICTURE.test(value.trim()))
@@ -47,7 +74,13 @@ export function keepsAttribute(element: string, name: string, value: string): bo
 
 const isHref = (n: string) => n === 'href' || n.endsWith(':href')
 
-const escapeValue = (v: string) => v.replace(/&(?!(#\d+|#x[\da-f]+|[a-z]+);)/gi, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+/**
+ * Written back from what was read (decodeReferences), every `&` escaped: what
+ * the browser reads is what was tested, and a bare `&` — "TALA & FAIRVIEW"
+ * typed in a text — no longer leaves a file no XML reader opens.
+ */
+const escapeValue = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+const escapeText = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 const TAG = /<(\/?)([A-Za-z_][\w:.-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*(\/?)>/y
 const ATTR = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'))?/g
@@ -76,7 +109,7 @@ export function cleanSignboardSvg(text: string): { svg: string } | { error: stri
       const t = src.slice(i, textEnd)
       if (open.length === 0) {
         if (t.trim()) return { error: 'Not an SVG file: there is text outside the drawing.' }
-      } else if (!dropping) out.push(t.replace(/>/g, '&gt;'))
+      } else if (!dropping) out.push(escapeText(decodeReferences(t)))
       i = textEnd
       if (lt === -1) break
     }
@@ -101,7 +134,7 @@ export function cleanSignboardSvg(text: string): { svg: string } | { error: stri
       const keep: string[] = []
       for (const a of attrs.matchAll(ATTR)) {
         const value = a[2] ?? a[3] ?? ''
-        if (keepsAttribute(name, a[1], value)) keep.push(` ${a[1]}="${escapeValue(value)}"`)
+        if (keepsAttribute(name, a[1], value)) keep.push(` ${a[1]}="${escapeValue(decodeReferences(value))}"`)
       }
       out.push(`<${name}${keep.join('')}${selfClosing ? '/' : ''}>`)
     }
