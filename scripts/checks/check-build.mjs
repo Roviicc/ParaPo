@@ -147,7 +147,9 @@ check(
 // ------------------------------------------------------------------ strings
 
 const text = (files) => files.map((f) => readFileSync(join(dist, f), 'utf8')).join('\n')
-const commuter = text(commuterFiles)
+// The worker too: it runs on every visit, and the database's address in
+// it would be the public page asking the database (2026-10-03).
+const commuter = text([...commuterFiles, ...(existsSync(join(dist, 'sw.js')) ? ['sw.js'] : [])])
 const studio = text(studioFiles)
 
 const leaked = EDITOR_ONLY.filter((s) => commuter.includes(s))
