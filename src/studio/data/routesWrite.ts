@@ -109,6 +109,11 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
 
   let routeId = input.routeId
   let newRoute = !routeId
+  // Whether the route row is this call's own insert. Only then may a failed
+  // save take it back out: a route claimed from claimExistingRoute may be
+  // another save's, in flight, and deleting it cascaded that save's line
+  // away when two saves of one new route overlapped (review of 2026-10-03).
+  let createdRoute = false
   if (routeId && input.writeRoute) {
     // The route row first: its ends are what both directions' names are
     // made of, and a clash with another route's ends is refused before any
@@ -151,6 +156,7 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
       throw new Error(error.message)
     } else {
       routeId = data.id as string
+      createdRoute = true
     }
   }
 
@@ -201,7 +207,9 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
       // Two requests, not one transaction: the route row is already in.
       // Take it back out, or the next press meets route_ends_unique for a
       // route that has no directions and cannot be reached from any card.
-      await client.from('route').delete().eq('id', routeId)
+      // A claimed route is left: the next press claims it again, or finds
+      // the other save's directions in it.
+      if (createdRoute) await client.from('route').delete().eq('id', routeId)
       throw new Error(error.message)
     }
     const saved = (data as unknown as UnnamedVariantRow[]).find((v) => v.reversed === input.reversed)
