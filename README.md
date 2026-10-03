@@ -19,8 +19,8 @@ Ground-truthed jeepney routes for Metro Manila, on a map anyone can open.
 ## Two pages, one file
 
 **`/` is the public map.** It never asks the database: it reads the published
-map, `public/data/index.json` — every route and hotspot, each line as an
-overview — and a direction's full line from `public/data/lines/` when it is
+map, `public/data/index.v3.json` — every route and hotspot, the train lines
+with their stations, each line as an overview — and a direction's full line from `public/data/lines/` when it is
 lit, all published from the live tables and committed here, and draws every direction of every route, the hotspots (terminals and
 hintuans, where people board), and where a direction passes a hintuan its
 line turns orange for that stretch. A tap on a line or a box opens a card; a
@@ -90,7 +90,7 @@ with warnings, and closed by the first run with nothing to report.
 | `src/studio/` | the editor: `StudioApp.tsx`, then `auth/` (sign-in, passwords, the session), `data/` (the Supabase client, reads and writes), `drawing/` (drawing, snapping, borrowing), `panels/` (save, hotspot, the card's actions) |
 | `src/shared/` | what both draw: `model/` (routes, stops, fares, liveries — no React, no MapLibre), `geo/` (geometry), `map/` (the map and what is painted on it, the routes and hotspots hooks), `cards/` (the cards, sheets and timelines, with their stories; `useCardStack`, which card is up, and `useCardCamera`, the camera with them: the map and the cards together, for both apps), `styles/` (the one stylesheet) |
 | `src/design-system/` | the tokens, fonts and primitives (foundation ← primitives) |
-| `public/data/` | the published map, every version kept in history: `index.json`, a line per direction in `lines/`, and the older single file `map.json` for apps not yet updated |
+| `public/data/` | the published map, every version kept in history: `index.v3.json` (what the app reads), a line per direction in `lines/`, and for apps not yet updated, without the trains, `index.json` and the older single file `map.json` |
 | `supabase/migrations/` | the schema and its policies, in order |
 | `scripts/` | tools: the build guards and the data check (`checks/`), the publish (`publish/`), Node's TypeScript hook (`node/`), the research screenshots (`research/`) |
 | `tests/unit/` | the unit checks, Node's own test runner (`npm run test:unit`) |

@@ -34,7 +34,7 @@ if (!existsSync(join(root, 'dist', 'sw.js'))) {
   console.log('FAIL  dist/sw.js missing — run npm run build first')
   process.exit(1)
 }
-const published = JSON.parse(readFileSync(join(root, 'public', 'data', 'index.json'), 'utf8'))
+const published = JSON.parse(readFileSync(join(root, 'public', 'data', 'index.v3.json'), 'utf8'))
 /** A drawn direction, for the line a trip reads and the worker keeps. */
 const tripId = published.variants.find((v) => v.overview)?.id
 /** One past the shape this app reads (src/commuter/mapFile.ts, MAP_FILE_SCHEMA). */
@@ -163,7 +163,7 @@ try {
   const tiles = names.find((n) => n.includes('basemap-tiles'))
   const precache = names.find((n) => n.includes('precache'))
   check('caches: precache, map-file, basemap-meta, basemap-tiles all exist', !!(precache && mapFile && meta && tiles), names.join(', '))
-  check('map-file cache holds /data/index.json', !!mapFile && caches[mapFile].some((u) => u.endsWith('/data/index.json')))
+  check('map-file cache holds /data/index.v3.json', !!mapFile && caches[mapFile].some((u) => u.endsWith('/data/index.v3.json')))
   check('basemap-meta holds the style and the TileJSON', !!meta && caches[meta].some((u) => u.endsWith('/styles/positron')) && caches[meta].some((u) => u.endsWith('/planet')))
   check(`basemap-tiles holds tiles (${tiles ? caches[tiles].length : 0})`, !!tiles && caches[tiles].length > 0)
   check('precache holds no studio chunk', !!precache && !caches[precache].some((u) => /\/assets\/studio-/.test(u)))
@@ -179,7 +179,7 @@ try {
     ['/', '/assets/commuter-', true],
     ['/studio', null, false],
     ['/studio/', 'ParaPo Studio', false],
-    ['/data/index.json', '"published_at"', null],
+    ['/data/index.v3.json', '"published_at"', null],
     ['/manifest.webmanifest', '"short_name"', null],
   ]) {
     const r = await page.goto(`${base}${path}`, { waitUntil: 'load' })
@@ -257,14 +257,14 @@ try {
     await new Promise((r) => setTimeout(r, 6000))
     await route.continue().catch(() => {})
   }
-  await ctx.route('**/data/index.json', slow)
+  await ctx.route('**/data/index.v3.json', slow)
   await page.reload({ waitUntil: 'load' })
   const slowMap = await arrived.waitFor({ state: 'attached', timeout: 20000 }).then(() => true, () => false)
   const slowNotice = page.locator('[data-testid="offline"]')
   const slowOk = await slowNotice.waitFor({ timeout: 10000 }).then(() => true, () => false)
   const slowText = slowOk ? (await slowNotice.innerText()).trim() : '(none)'
   check(`slow network: the stored map shows with "Not refreshed · map as of ${expectedDate}"`, slowMap && slowText === `Not refreshed · map as of ${expectedDate}`, slowText)
-  await ctx.unroute('**/data/index.json', slow)
+  await ctx.unroute('**/data/index.v3.json', slow)
   await page.reload({ waitUntil: 'load' })
   await page.waitForTimeout(2000)
   check('fast again: no notice', (await page.locator('[data-testid="offline"]').count()) === 0)
@@ -287,12 +287,12 @@ try {
   // newer app waiting, reloads — here onto a map this app reads again.
   const newer = (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...published, schema: MAP_FILE_SCHEMA_NEXT }) })
-  await ctx.route('**/data/index.json', newer)
+  await ctx.route('**/data/index.v3.json', newer)
   await page.reload({ waitUntil: 'load' })
   const banner = page.getByText('This map was published for a newer version of the app.')
   const bannerShown = await banner.waitFor({ timeout: 15000 }).then(() => true, () => false)
   check('a map published for a newer app: the banner says so, with Reload', bannerShown && (await page.getByRole('button', { name: 'Reload', exact: true }).count()) > 0)
-  await ctx.unroute('**/data/index.json', newer)
+  await ctx.unroute('**/data/index.v3.json', newer)
   if (bannerShown) {
     await Promise.all([
       page.waitForEvent('load', { timeout: 20000 }).catch(() => {}),

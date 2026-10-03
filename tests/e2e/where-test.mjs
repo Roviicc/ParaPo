@@ -290,7 +290,14 @@ if (!onLine) {
         const style = getComputedStyle(eyes)
         window.__gazed = { deg: Number(dot.dataset.gaze), animation: style.animationName, translate: style.translate }
       }
-      eyes.addEventListener('transitionend', read, { once: true })
+      // The eyes' own turn ending: an eye's width or height inside them
+      // ends sooner (0.2 s) and bubbles here, mid-turn.
+      const done = (e) => {
+        if (e.target !== eyes || e.propertyName !== 'translate') return
+        eyes.removeEventListener('transitionend', done)
+        read()
+      }
+      eyes.addEventListener('transitionend', done)
       setTimeout(read, 400)
     }
     new MutationObserver(seen).observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-gaze'] })

@@ -3,8 +3,12 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs scripts/publish/publish-map.mjs
 //                                                   writes public/data/
 //
-// Three things (shape A of docs/review-2026-09-29.md, section 8, stage 7 of the
-// clean-up; since 2026-09-29):
+// Four things (shape A of docs/review-2026-09-29.md, section 8, stage 7 of the
+// clean-up; since 2026-09-29; the train lines' shape since 2026-10-03):
+//   data/index.v3.json      schema 3, what the app reads (MAP_FILE_URL): the
+//                           index below with the train lines in — a train's
+//                           `route_code`, a station's `line` — read by
+//                           servedBy (src/shared/model/routes.ts).
 //   data/index.json         schema 2: every route, its names, every hotspot,
 //                           the links, and each direction's *overview* — its
 //                           line thinned at 5 m with 5-decimal coordinates,
@@ -12,10 +16,14 @@
 //                           the whole map is seen at — and its length in
 //                           metres, measured on the full line, so a trip's
 //                           Kilometer and fare never read an overview. The
-//                           map draws from it.
+//                           map draws from it. Without the trains
+//                           (withoutTrains.mjs): an app installed before
+//                           servedBy would draw a jeep stopping at a station.
+//                           Kept a month at least after shape 3 ships.
 //   data/lines/<id>.json    each direction's full line (below), fetched when
 //                           the direction is lit or opened.
-//   data/map.json           schema 1, everything in full as before, for one
+//   data/map.json           schema 1, everything in full as before (without
+//                           the trains, as the index), for one
 //                           release: an installed app that has not updated
 //                           reads it. Drop it a month at least after the
 //                           index ships (src/commuter/mapFile.ts has the
@@ -82,6 +90,7 @@ process.on('uncaughtException', (e) => {
 const DATA = join(root, 'public', 'data')
 const OUT = join(DATA, 'map.json')
 const INDEX = join(DATA, 'index.json')
+const INDEX_V3 = join(DATA, 'index.v3.json')
 const LINES = join(DATA, 'lines')
 const SIGNBOARDS = join(DATA, 'signboards')
 /** A board's name in the bucket, as the studio writes it (signboards.ts): a uuid. Anything else is not read. */
@@ -111,8 +120,10 @@ const TIMEOUT_MS = 30_000
 
 /** map.json's shape, the one before the index: fixed, since installed apps read it as it is (src/commuter/mapFile.ts has the rules). */
 const SCHEMA = 1
-/** The index's shape: the app's own MAP_FILE_SCHEMA. */
-const INDEX_SCHEMA = MAP_FILE_SCHEMA
+/** The old index's shape, before the train lines: fixed, as map.json's, for installed apps. */
+const INDEX_SCHEMA = 2
+/** The index the app reads now: its own MAP_FILE_SCHEMA. */
+const INDEX_V3_SCHEMA = MAP_FILE_SCHEMA
 /** The data's licence, written into the file itself. See README.md, "Data and licence". */
 const LICENSE = 'ODbL-1.0'
 const ATTRIBUTION =
@@ -222,7 +233,7 @@ function maxDeviation(original, simplified) {
 // Rows ordered by id, not by when they were saved: re-saving a direction with
 // the same geometry must not reorder the file and commit a change nobody can
 // see. (The map draws them in file order, which nothing depends on.)
-const [allVariantRows, allStopRows, allLinkRows] = await Promise.all([
+const [variantRows, stopRows, linkRows] = await Promise.all([
   rest(
     'route_variant?select=id,route_id,direction_name,origin_terminal,destination_terminal,shape,confidence,reversed,signboards,' +
       'route:route(id,signboard,route_code,long_name,mode,fare_note,head_stop_id,tail_stop_id,via)&order=id.asc',
@@ -230,20 +241,6 @@ const [allVariantRows, allStopRows, allLinkRows] = await Promise.all([
   rest('stop?select=id,name,informal,aliases,kind,point,area,note,created_at,line&order=id.asc'),
   rest('route_stop?select=route_variant_id,stop_id,stop_sequence&order=route_variant_id.asc,stop_sequence.asc,stop_id.asc'),
 ])
-
-// A train line changes what the file means to an app installed before
-// servedBy (src/shared/model/routes.ts): it would paint a jeep's stretches at
-// the stations over its road, and the train's at every jeep hintuan under the
-// track. That is a new shape (src/commuter/mapFile.ts), so on the old one the
-// trains and their stations are left out (withoutTrains.mjs); the train
-// release bumps MAP_FILE_SCHEMA and publishes them whole at a new path.
-const hidden = MAP_FILE_SCHEMA <= 2 ? withoutTrains({ variants: allVariantRows, stops: allStopRows, links: allLinkRows }) : null
-const variantRows = hidden ? hidden.variants : allVariantRows
-const stopRows = hidden ? hidden.stops : allStopRows
-const linkRows = hidden ? hidden.links : allLinkRows
-if (hidden && (hidden.ids.variants.size || hidden.ids.stops.size)) {
-  console.log(`Left out until the train release: ${hidden.ids.variants.size} train direction(s), ${hidden.ids.stops.size} station(s).`)
-}
 
 // Each direction's signboards, in its order, as files (0010, the owner's ask
 // of 2026-10-01). One the bucket no longer holds is left out, said, and the
@@ -356,31 +353,37 @@ const links = linkRows.map((l) => ({
   stop_sequence: l.stop_sequence,
 }))
 
-// `published_at` is carried over when nothing else changed, so an unchanged
-// map is a byte-identical file and the daily workflow has nothing to commit.
-const body = { variants, stops, links }
-let previous = null
-let previousText = null
-try {
-  previousText = readFileSync(OUT, 'utf8')
-  previous = JSON.parse(previousText)
-} catch {}
+// The old shapes, for installed apps, without the trains (withoutTrains.mjs):
+// an app from before servedBy would paint a jeep's stretches at the stations
+// over its road, and the train's at every jeep hintuan under its track.
+const old = withoutTrains({ variants, stops, links })
+if (old.ids.variants.size || old.ids.stops.size) {
+  console.log(`Left out of the old shapes: ${old.ids.variants.size} train direction(s), ${old.ids.stops.size} station(s).`)
+}
+const all = { variants, stops, links }
+const body = { variants: old.variants, stops: old.stops, links: old.links }
+
+const readJson = (path) => {
+  try {
+    const text = readFileSync(path, 'utf8')
+    return { text, json: JSON.parse(text) }
+  } catch {
+    return { text: null, json: null }
+  }
+}
+const { text: previousText, json: previous } = readJson(OUT)
+const { json: previousV3 } = readJson(INDEX_V3)
 
 // A map that shrank suddenly is far more likely a read that went wrong (a
 // policy change, a table made private) than a clear-out. Refuse it unless told.
-// The last file is counted without the trains left out above: a file the old
-// script published with them in is not a map that shrank.
-if (previous && !FORCE) {
-  const was = hidden
-    ? {
-        variants: previous.variants?.filter((v) => !hidden.ids.variants.has(v.id)),
-        stops: previous.stops?.filter((s) => !hidden.ids.stops.has(s.id)),
-        links: previous.links?.filter((l) => !hidden.ids.variants.has(l.route_variant_id) && !hidden.ids.stops.has(l.stop_id)),
-      }
-    : previous
-  for (const key of ['variants', 'stops', 'links']) {
+// The new index against its last copy, the train lines in; until it has one,
+// the old file against the whole map: with the trains in or not (the old
+// script published them on 2026-10-02), it is never more than the whole.
+if (!FORCE) {
+  const [was, now] = previousV3 ? [previousV3, all] : [previous, all]
+  for (const key of was ? ['variants', 'stops', 'links'] : []) {
     const before = Array.isArray(was[key]) ? was[key].length : 0
-    const after = body[key].length
+    const after = now[key].length
     if (before > 0 && after < before * (1 - MAX_SHRINK)) {
       fail(
         `FAIL  ${key}: ${before} → ${after} rows, more than ${MAX_SHRINK * 100}% fewer than the published file. ` +
@@ -390,32 +393,10 @@ if (previous && !FORCE) {
   }
 }
 
-// The boards are the index's alone (map.json's shape is fixed), so a change
-// to them alone is read from the index the last publish wrote.
-let previousBoards = null
-try {
-  const was = JSON.parse(readFileSync(INDEX, 'utf8'))
-  previousBoards = JSON.stringify(was.variants.filter((v) => v.signboards).map((v) => [v.id, v.signboards]))
-} catch {}
-const boards = JSON.stringify(variants.filter((v) => boardsOf.has(v.id)).map((v) => [v.id, boardsOf.get(v.id)]))
-const same =
-  previous &&
-  JSON.stringify({ variants: previous.variants, stops: previous.stops, links: previous.links }) === JSON.stringify(body) &&
-  previousBoards === boards
-const published_at = same ? previous.published_at : new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
-
-// The terms travel inside the file, so no copy can arrive without them. The
-// shape number first: an installed app reads whatever this path serves, and
-// checks the number against the one it knows (src/commuter/mapFile.ts has the
-// rules for changing it — a new shape goes to a new path).
-const file = JSON.stringify({ schema: SCHEMA, published_at, license: LICENSE, attribution: ATTRIBUTION, ...body }) + '\n'
-mkdirSync(dirname(OUT), { recursive: true })
-writeFileSync(OUT, file)
-
-// The index: the same rows with each line's overview in place of the line,
-// under its own key — the reader knows an overview when it sees one.
-const indexBody = {
-  variants: variants.map(({ shape, ...v }) => {
+// The index's rows: each line's overview in place of the line, under its
+// own key — the reader knows an overview when it sees one.
+const indexRows = (rows) => ({
+  variants: rows.variants.map(({ shape, ...v }) => {
     const { route, ...rest } = v
     // Its signboards only when it has some: a direction without keeps the shape it had.
     const signboards = boardsOf.get(v.id)
@@ -427,13 +408,35 @@ const indexBody = {
       route,
     }
   }),
-  stops,
-  links,
-}
-const indexFile =
-  JSON.stringify({ schema: INDEX_SCHEMA, published_at, license: LICENSE, attribution: ATTRIBUTION, ...indexBody }) + '\n'
+  stops: rows.stops,
+  links: rows.links,
+})
+
+// `published_at` is carried over when nothing else changed, so an unchanged
+// map is a byte-identical file and the daily workflow has nothing to commit.
+// Read off the new index, which has everything; until there is one, a new stamp.
+const indexV3Body = indexRows(all)
+const sameText = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+const same =
+  previousV3 &&
+  sameText({ variants: previousV3.variants, stops: previousV3.stops, links: previousV3.links }, indexV3Body)
+const published_at = same ? previousV3.published_at : new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
+
+// The terms travel inside each file, so no copy can arrive without them. The
+// shape number first: an installed app reads whatever its path serves, and
+// checks the number against the one it knows (src/commuter/mapFile.ts has the
+// rules for changing it — a new shape goes to a new path).
+const stamp = (schema, rows) =>
+  JSON.stringify({ schema, published_at, license: LICENSE, attribution: ATTRIBUTION, ...rows }) + '\n'
+const file = stamp(SCHEMA, body)
+mkdirSync(dirname(OUT), { recursive: true })
+writeFileSync(OUT, file)
+const indexFile = stamp(INDEX_SCHEMA, indexRows(body))
 const previousIndex = existsSync(INDEX) ? readFileSync(INDEX, 'utf8') : null
 writeFileSync(INDEX, indexFile)
+const indexV3File = stamp(INDEX_V3_SCHEMA, indexV3Body)
+const previousIndexV3 = existsSync(INDEX_V3) ? readFileSync(INDEX_V3, 'utf8') : null
+writeFileSync(INDEX_V3, indexV3File)
 
 // A line per drawn direction, written only when it changed, and the files of
 // directions gone removed, so an unchanged map touches nothing.
@@ -444,6 +447,7 @@ for (const v of variants) {
   if (!v.shape) continue
   const path = join(LINES, `${v.id}.json`)
   // No date in it: a line file changes only when its line does.
+  // Shape 2's, which shape 3 kept: both indexes read the same files.
   const text = JSON.stringify({ schema: INDEX_SCHEMA, id: v.id, shape: v.shape }) + '\n'
   lineFiles.add(`${v.id}.json`)
   if (existsSync(path) && readFileSync(path, 'utf8') === text) continue
@@ -485,12 +489,15 @@ for (const s of stats) console.log(`  ${s.name}: ${s.before} → ${s.after} poin
 const gz = gzipSync(Buffer.from(file)).length
 console.log(
   // By the bytes, not the map content: new terms in an unchanged map are still a change to commit.
-  `${previousText === file ? 'Unchanged' : 'Wrote'} public/data/map.json: ${variants.length} direction(s), ${stops.length} hotspot(s), ` +
-    `${links.length} link(s); ${file.length} bytes, ${gz} gzipped; published_at ${published_at}`,
+  `${previousText === file ? 'Unchanged' : 'Wrote'} public/data/map.json: ${body.variants.length} direction(s), ${body.stops.length} hotspot(s), ` +
+    `${body.links.length} link(s); ${file.length} bytes, ${gz} gzipped; published_at ${published_at}`,
 )
 const indexGz = gzipSync(Buffer.from(indexFile)).length
+console.log(`${previousIndex === indexFile ? 'Unchanged' : 'Wrote'} public/data/index.json: ${indexFile.length} bytes, ${indexGz} gzipped`)
+const indexV3Gz = gzipSync(Buffer.from(indexV3File)).length
 console.log(
-  `${previousIndex === indexFile ? 'Unchanged' : 'Wrote'} public/data/index.json: ${indexFile.length} bytes, ${indexGz} gzipped; ` +
+  `${previousIndexV3 === indexV3File ? 'Unchanged' : 'Wrote'} public/data/index.v3.json: ${variants.length} direction(s), ` +
+    `${stops.length} hotspot(s), ${links.length} link(s); ${indexV3File.length} bytes, ${indexV3Gz} gzipped; ` +
     `lines/: ${lineFiles.size} file(s), ${linesWritten} written, ${linesRemoved} removed`,
 )
 console.log(
