@@ -261,9 +261,15 @@ const session = { access_token: jwt, refresh_token: 'standin', token_type: 'bear
 const b = await chromium.launch()
 const warnings = []
 /** A page on the stand-in; `signedIn` stores the faked session before the app starts. */
-async function open(signedIn, path) {
-  const context = await b.newContext({ viewport: { width: 1280, height: 800 } })
+async function open(signedIn, path, phone = false) {
+  const context = await b.newContext(
+    phone
+      ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }
+      : { viewport: { width: 1280, height: 800 } },
+  )
   const page = await context.newPage()
+  // An iPhone's notch and home bar, as env(safe-area-inset-*) reads them.
+  if (phone) await (await context.newCDPSession(page)).send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 47, bottom: 34, left: 0, right: 0 } })
   page.on('pageerror', (e) => warnings.push('pageerror: ' + String(e)))
   page.on('console', (msg) => { if (msg.type() === 'error' && /Warning|key/.test(msg.text())) warnings.push(msg.text().slice(0, 160)) })
   page.on('dialog', (d) => d.accept())
@@ -686,6 +692,56 @@ check('a line back to its start guesses one place at both ends', (await page.get
 await page.getByRole('button', { name: 'Back to map' }).click()
 await page.getByTitle('Discard this route').click()
 await page.waitForTimeout(300)
+// ---- 12. On a phone: 390×844, a notch of 47 px and a home bar of 34
+const phone = await open(true, '/studio/', true)
+const rect = (loc) => loc.first().boundingBox()
+const overlap = (a, z) => !!a && !!z && a.x < z.x + z.width && z.x < a.x + a.width && a.y < z.y + z.height && z.y < a.y + a.height
+check('phone: the credits start folded to their ⓘ', (await phone.locator('.maplibregl-compact-show').count()) === 0 && (await phone.locator('.maplibregl-ctrl-attrib').count()) === 1)
+const pill = await rect(phone.getByRole('button', { name: 'Sign out' }))
+check('phone: the account pill is below the notch', !!pill && pill.y >= 47, JSON.stringify(pill))
+const newRoute = await rect(phone.getByRole('button', { name: '+ New Route' }))
+const newHotspot = await rect(phone.getByRole('button', { name: '+ New hotspot' }))
+check('phone: the New buttons are above the home bar', !!newHotspot && newHotspot.y + newHotspot.height <= 844 - 34, JSON.stringify(newHotspot))
+await phone.evaluate(([c]) => window.__map.jumpTo({ center: c, zoom: 15 }), [at(0, 0)])
+await phone.waitForTimeout(400)
+await phone.getByRole('button', { name: '+ New Route' }).tap()
+const pbox = await phone.locator('canvas.maplibregl-canvas').boundingBox()
+for (const p of [P1, at(0, -0.003), P2]) {
+  const q = await phone.evaluate((ll) => { const r = window.__map.project(ll); return [r.x, r.y] }, p)
+  await phone.touchscreen.tap(pbox.x + q[0], pbox.y + q[1])
+  await phone.waitForTimeout(300)
+}
+await phone.waitForFunction(() => !document.body.innerText.includes('snapping…'), null, { timeout: 15000 }).catch(() => {})
+await phone.getByRole('button', { name: /Done/ }).tap()
+await phone.waitForTimeout(600)
+const sheet = await rect(phone.locator('form').filter({ has: phone.getByTestId('save-head') }))
+check('phone: the save panel fills the screen', !!sheet && sheet.x === 0 && sheet.width === 390 && sheet.height === 844, JSON.stringify(sheet))
+const heading = await rect(phone.getByRole('heading').first())
+check('  its heading clears the notch', !!heading && heading.y >= 47, JSON.stringify(heading))
+check('  no field is focused, so no keyboard springs up', await phone.evaluate(() => !/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName ?? '')))
+const small = await phone.evaluate(() => [...document.querySelectorAll('form input:not([type=checkbox]), form select')].map((e) => parseFloat(getComputedStyle(e).fontSize)).filter((px) => px < 16))
+check('  every field is 16 px, so iOS does not zoom in on it', small.length === 0, `${small.length} under 16 px`)
+const phoneSave = phone.getByRole('button', { name: /^(Save|Update)$/ })
+const saveAt = await rect(phoneSave)
+check('  Save shows at the foot, above the home bar', !!saveAt && saveAt.y + saveAt.height <= 844 - 34 && saveAt.y > 844 / 2, JSON.stringify(saveAt))
+// The keyboard up: the page 365 px shorter, as interactive-widget=resizes-content makes it.
+await phone.getByPlaceholder('Zabarte').fill('Phone Road')
+await phone.setViewportSize({ width: 390, height: 479 })
+await phone.waitForTimeout(300)
+const saveUp = await rect(phoneSave)
+check('  and still shows over a keyboard', !!saveUp && saveUp.y + saveUp.height <= 479, JSON.stringify(saveUp))
+await phone.setViewportSize({ width: 390, height: 844 })
+await phone.waitForTimeout(300)
+await phoneSave.tap()
+const phoneToast = phone.getByTestId('toast').filter({ hasText: /^Saved/ })
+for (let t = 0; t < 50 && (await phoneToast.count()) === 0; t++) await phone.waitForTimeout(100)
+const toastAt = await rect(phoneToast)
+check('phone: the saved toast fits the screen, below the notch', !!toastAt && toastAt.x >= 0 && toastAt.x + toastAt.width <= 390 && toastAt.y >= 47, JSON.stringify(toastAt))
+check('  and covers neither New button', !overlap(toastAt, newRoute) && !overlap(toastAt, newHotspot))
+const tooSmall = await phone.evaluate(() => [...document.querySelectorAll('[data-testid=toast] button')].map((e) => e.getBoundingClientRect()).filter((r) => r.height < 44).length)
+check('  its buttons are finger-sized', tooSmall === 0, `${tooSmall} under 44 px`)
+check('phone: nothing scrolls sideways', await phone.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+
 check('no page errors or React warnings (the duplicate key)', warnings.length === 0, warnings.slice(0, 3).join(' | '))
 await page.screenshot({ path: 'save-test.png' })
 await b.close()

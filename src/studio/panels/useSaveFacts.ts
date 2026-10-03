@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Drawing } from '../drawing/useDrawing'
 import { haversine, joinSegments, type LngLat } from '../../shared/geo/geo'
 import { sharedMetres } from '../drawing/borrow'
-import { directionName, isDrawn, routeName, variantLine, type RouteRow, type VariantRow } from '../../shared/model/routes'
+import { directionName, isDrawn, routeName, variantLine, type RouteRow, type TransportMode, type VariantRow } from '../../shared/model/routes'
 import { hintuansAlong, timelineFor } from '../../shared/model/timeline'
 import { stopLabel, type StopRow } from '../../shared/model/stops'
 import { placeKey } from '../../shared/model/places'
@@ -27,6 +27,7 @@ export function useSaveFacts({
   headId,
   tailId,
   via,
+  mode,
 }: {
   draw: Drawing
   existing: VariantRow | null
@@ -39,6 +40,8 @@ export function useSaveFacts({
   headId: string
   tailId: string
   via: string
+  /** The mode the panel has picked: a train's timeline lists only its stations. */
+  mode: TransportMode
 }) {
   const line = draw.controlPoints
   /**
@@ -151,12 +154,15 @@ export function useSaveFacts({
 
   const name = head && tail ? routeName(stopLabel(head), stopLabel(tail), via) : ''
   const direction = head && tail ? directionName(stopLabel(head), stopLabel(tail), reversed) : ''
+  // The line a train runs is its route's (route_code); a new route has none yet.
+  const routeCode = (existing?.route ?? parent)?.route_code ?? null
   // The snapped geometry, not the control points: a box between two clicks
   // still counts, and this is the line the save will check.
   const preview = useMemo(() => {
     const line = joinSegments(draw.segments)
-    return timelineFor(head, tail, reversed, hintuansAlong(line, stops).map((a) => a.stop), line[0])
-  }, [head, tail, reversed, draw.segments, stops])
+    const along = hintuansAlong(line, stops, { mode, route_code: routeCode }).map((a) => a.stop)
+    return timelineFor(head, tail, reversed, along, line[0])
+  }, [head, tail, reversed, draw.segments, stops, mode, routeCode])
 
   return { reversed, wrongWayRound, sameEnds, endsTaken, turnedRound, borrowParent, borrowPart, borrowedM, borrowedForSave, name, direction, preview }
 }

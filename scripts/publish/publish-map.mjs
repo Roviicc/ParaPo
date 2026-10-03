@@ -58,10 +58,11 @@ import { gzipSync } from 'node:zlib'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { OVERVIEW_M, lineLength, overviewOf, pointToSegmentM, round6, roundLngLat, simplifyLine } from '../../src/shared/geo/geo.ts'
-import { directionName, routeName } from '../../src/shared/model/routes.ts'
+import { directionName, isRail, routeName } from '../../src/shared/model/routes.ts'
 import { stopLabel } from '../../src/shared/model/stops.ts'
 import { MAP_FILE_SCHEMA } from '../../src/commuter/mapFile.ts'
 import { cleanSignboardSvg } from '../../src/shared/model/signboardSvg.ts'
+import { withoutTrains } from './withoutTrains.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -221,14 +222,28 @@ function maxDeviation(original, simplified) {
 // Rows ordered by id, not by when they were saved: re-saving a direction with
 // the same geometry must not reorder the file and commit a change nobody can
 // see. (The map draws them in file order, which nothing depends on.)
-const [variantRows, stopRows, linkRows] = await Promise.all([
+const [allVariantRows, allStopRows, allLinkRows] = await Promise.all([
   rest(
     'route_variant?select=id,route_id,direction_name,origin_terminal,destination_terminal,shape,confidence,reversed,signboards,' +
-      'route:route(id,signboard,long_name,mode,fare_note,head_stop_id,tail_stop_id,via)&order=id.asc',
+      'route:route(id,signboard,route_code,long_name,mode,fare_note,head_stop_id,tail_stop_id,via)&order=id.asc',
   ),
-  rest('stop?select=id,name,informal,aliases,kind,point,area,note,created_at&order=id.asc'),
+  rest('stop?select=id,name,informal,aliases,kind,point,area,note,created_at,line&order=id.asc'),
   rest('route_stop?select=route_variant_id,stop_id,stop_sequence&order=route_variant_id.asc,stop_sequence.asc,stop_id.asc'),
 ])
+
+// A train line changes what the file means to an app installed before
+// servedBy (src/shared/model/routes.ts): it would paint a jeep's stretches at
+// the stations over its road, and the train's at every jeep hintuan under the
+// track. That is a new shape (src/commuter/mapFile.ts), so on the old one the
+// trains and their stations are left out (withoutTrains.mjs); the train
+// release bumps MAP_FILE_SCHEMA and publishes them whole at a new path.
+const hidden = MAP_FILE_SCHEMA <= 2 ? withoutTrains({ variants: allVariantRows, stops: allStopRows, links: allLinkRows }) : null
+const variantRows = hidden ? hidden.variants : allVariantRows
+const stopRows = hidden ? hidden.stops : allStopRows
+const linkRows = hidden ? hidden.links : allLinkRows
+if (hidden && (hidden.ids.variants.size || hidden.ids.stops.size)) {
+  console.log(`Left out until the train release: ${hidden.ids.variants.size} train direction(s), ${hidden.ids.stops.size} station(s).`)
+}
 
 // Each direction's signboards, in its order, as files (0010, the owner's ask
 // of 2026-10-01). One the bucket no longer holds is left out, said, and the
@@ -314,6 +329,9 @@ const variants = variantRows.map((v) => {
       tail_stop_id: v.route.tail_stop_id,
       via: v.route.via,
       name,
+      // The train line (0011), only on a train's: every other route's file
+      // stays byte for byte what it was.
+      ...(v.route.route_code && isRail(v.route.mode) ? { route_code: v.route.route_code } : {}),
     },
   }
 })
@@ -328,6 +346,8 @@ const stops = stopRows.map((s) => ({
   area: roundGeometry(s.area),
   note: s.note,
   created_at: s.created_at,
+  // A station's line (0011), only on a station.
+  ...(s.line ? { line: s.line } : {}),
 }))
 
 const links = linkRows.map((l) => ({
@@ -348,9 +368,18 @@ try {
 
 // A map that shrank suddenly is far more likely a read that went wrong (a
 // policy change, a table made private) than a clear-out. Refuse it unless told.
+// The last file is counted without the trains left out above: a file the old
+// script published with them in is not a map that shrank.
 if (previous && !FORCE) {
+  const was = hidden
+    ? {
+        variants: previous.variants?.filter((v) => !hidden.ids.variants.has(v.id)),
+        stops: previous.stops?.filter((s) => !hidden.ids.stops.has(s.id)),
+        links: previous.links?.filter((l) => !hidden.ids.variants.has(l.route_variant_id) && !hidden.ids.stops.has(l.stop_id)),
+      }
+    : previous
   for (const key of ['variants', 'stops', 'links']) {
-    const before = Array.isArray(previous[key]) ? previous[key].length : 0
+    const before = Array.isArray(was[key]) ? was[key].length : 0
     const after = body[key].length
     if (before > 0 && after < before * (1 - MAX_SHRINK)) {
       fail(

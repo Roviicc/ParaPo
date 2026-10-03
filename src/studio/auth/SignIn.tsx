@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { getSupabase, supabaseConfigError } from '../data/supabase'
+import { coarse } from '../../shared/map/MapView'
+import { FIELD_TEXT } from '../panels/sheet'
 
 type Mode = 'signin' | 'forgot'
 
@@ -130,13 +132,13 @@ export function SignIn({ title = 'Sign in to save', notice = null, onDismiss }: 
             <input
               type="email"
               required
-              autoFocus
+              autoFocus={!coarse}
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="mt-4 w-full rounded-lg border border-neutral-300 px-3 py-2.5
-                         text-sm outline-none focus:border-neutral-900"
+              className={`mt-4 w-full rounded-lg border border-neutral-300 px-3 py-2.5
+                         ${FIELD_TEXT} outline-none focus:border-neutral-900`}
             />
 
             {mode === 'signin' && (
@@ -147,8 +149,8 @@ export function SignIn({ title = 'Sign in to save', notice = null, onDismiss }: 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5
-                           text-sm outline-none focus:border-neutral-900"
+                className={`mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5
+                           ${FIELD_TEXT} outline-none focus:border-neutral-900`}
               />
             )}
 

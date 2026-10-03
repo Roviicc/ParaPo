@@ -8,6 +8,7 @@ import { TripCard } from '../shared/cards/TripCard'
 import { useCardStack } from '../shared/cards/useCardStack'
 import { useCardCamera } from '../shared/cards/useCardCamera'
 import { HintuanPin } from '../shared/map/HintuanPin'
+import { StationLabels } from '../shared/map/StationLabels'
 import { EndTitles } from '../shared/map/EndTitles'
 import { lineOf, listVariants, loadStopsFromSupabase } from './data/live'
 import { isDrawn, type VariantRow } from '../shared/model/routes'
@@ -104,7 +105,7 @@ function Workshop({
 
   // A right-click on a saved line while drawing: decided below, once the
   // saved lines and hotspots are loaded (onFollow).
-  const draw = useDrawing(map, { onFollow: (ids, at) => onFollow(ids, at) })
+  const draw = useDrawing(map, { onFollow: (ids, at, offered) => onFollow(ids, at, offered) })
   // The list rows, each with its overview (0009): a direction's full line is
   // read when it is lit or chosen, its drawing when it is opened (below).
   const saved = useSavedRoutes(map, listVariants, {
@@ -244,12 +245,12 @@ function Workshop({
 
   return (
     <div ref={root} className="@container relative h-full w-full overflow-clip">
-      <MapView onReady={setMap} />
+      <MapView onReady={setMap} foldCredits />
 
       {/* A config or load problem is a banner, never a blank page. */}
       {(supabaseConfigError || saved.error || stops.error) && (
         <div
-          className="absolute left-1/2 top-4 z-20 max-w-xl -translate-x-1/2 rounded-lg bg-amber-50
+          className="absolute left-1/2 top-[calc(1rem+env(safe-area-inset-top))] z-20 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-lg bg-amber-50
                      px-4 py-2 text-xs text-amber-900 shadow ring-1 ring-amber-200"
         >
           {supabaseConfigError ?? `Couldn't load saved routes: ${saved.error ?? stops.error}`}
@@ -258,6 +259,10 @@ function Workshop({
 
       {/* Each lit ride's ends, named over their circles. */}
       {map && !draw.drawing && <EndTitles map={map} rides={rides} look={look} badged={inCardColour} />}
+      {/* A selected train line's stations, named along it (RouteLineLabel). */}
+      {map && !draw.drawing && saved.selected && tripLivery && (
+        <StationLabels map={map} selected={saved.selected} stops={stops.stops} livery={tripLivery} pickedId={ride.pickedId} onPick={ride.pick} />
+      )}
       {/* Keyed on the pick: another hintuan pops a fresh circle. */}
       {map && !draw.drawing && ride.pinAt && tripLivery && (
         <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} label={ride.pickedLabel} livery={tripLivery} />
@@ -430,7 +435,7 @@ function Workshop({
                   setToast(null)
                   draw.start(routeId)
                 }}
-                className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900"
+                className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900 pointer-coarse:min-h-11 pointer-coarse:px-4 pointer-coarse:text-sm"
               >
                 Draw the return trip
               </button>

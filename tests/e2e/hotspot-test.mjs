@@ -74,7 +74,7 @@ await page.waitForTimeout(300)
 await page.getByRole('button', { name: '+ New hotspot' }).click()
 await page.getByRole('menuitem', { name: /Hintuan/ }).click()
 check('toolbar shows Hintuan mode', await page.waitForSelector('text=Hintuan ·').then(() => true, () => false))
-check('freehand toggle hidden in area mode', (await page.getByRole('button', { name: /Freehand/ }).count()) === 0)
+check('Tap | Draw hidden in area mode', (await page.getByTestId('tap-draw').count()) === 0)
 
 // click 4 corners around the centre of the map
 const box = await page.locator('canvas.maplibregl-canvas').boundingBox()

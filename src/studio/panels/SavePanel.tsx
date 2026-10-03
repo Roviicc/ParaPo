@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Drawing } from '../drawing/useDrawing'
 import { haversine, type LngLat } from '../../shared/geo/geo'
-import { MODES, type RouteRow, type TransportMode, type VariantRow } from '../../shared/model/routes'
+import { isRail, MODES, type RouteRow, type TransportMode, type VariantRow } from '../../shared/model/routes'
 import { stopLabel, type StopRow } from '../../shared/model/stops'
 import { StopTimeline, passesThrough } from '../../shared/cards/StopTimeline'
 import { ENDS_TAKEN } from '../data/routesWrite'
@@ -9,6 +9,7 @@ import { saveRouteAndLinks } from '../data/saveRoute'
 import { SaveNotices } from './SaveNotices'
 import { boxFor, groupPlaces, nearestStop } from './places'
 import { useSaveFacts } from './useSaveFacts'
+import { FIELD_TEXT, FOOTER, OVERLAY, PANEL } from './sheet'
 
 type Props = {
   draw: Drawing
@@ -36,7 +37,7 @@ type Props = {
 }
 
 const field =
-  'mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none ' +
+  `mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 ${FIELD_TEXT} outline-none ` +
   'focus:border-neutral-900 disabled:bg-neutral-100 disabled:text-neutral-500'
 
 /**
@@ -117,7 +118,7 @@ export function SavePanel({
   }
 
   // What this line is, as the panel and the save see it.
-  const facts = useSaveFacts({ draw, existing, parent, slotReversed, stops, variants, head, tail, headId, tailId, via })
+  const facts = useSaveFacts({ draw, existing, parent, slotReversed, stops, variants, head, tail, headId, tailId, via, mode })
   const { reversed, wrongWayRound, sameEnds, endsTaken, turnedRound, borrowParent, borrowPart, borrowedM, name, direction, preview } =
     facts
 
@@ -174,10 +175,10 @@ export function SavePanel({
   }
 
   return (
-    <div className="absolute inset-0 z-20 grid place-items-center bg-black/30 p-4">
+    <div className={OVERLAY}>
       <form
         onSubmit={submit}
-        className="max-h-full w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+        className={PANEL}
       >
         <h2 className="text-base font-medium text-neutral-900">
           {existing ? 'Update this direction' : route ? 'Draw the return trip' : 'Save this route'}
@@ -197,7 +198,7 @@ export function SavePanel({
           direction={direction}
         />
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block text-xs font-medium text-neutral-700">
             Head <span className="text-neutral-400">(where the jeeps wait)</span>
             <select
@@ -293,16 +294,20 @@ export function SavePanel({
           />
         </label>
 
-        <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block text-xs font-medium text-neutral-700">
             Mode
+            {/* A train line comes in by its import, with its line named; one
+                drawn here would have none and stop nowhere. And a train stays
+                one: its mode decides which hintuans both directions stop at,
+                and a save re-links only the direction saved (servedBy). */}
             <select
-              disabled={routeLocked}
+              disabled={routeLocked || isRail(mode)}
               value={mode}
               onChange={(e) => setMode(e.target.value as TransportMode)}
               className={field}
             >
-              {MODES.map((m) => (
+              {MODES.filter((m) => !isRail(m.value) || m.value === mode).map((m) => (
                 <option key={m.value} value={m.value}>
                   {m.label}
                 </option>
@@ -323,7 +328,7 @@ export function SavePanel({
 
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
-        <div className="mt-5 flex gap-2">
+        <div className={FOOTER}>
           <button
             type="button"
             onClick={onCancel}

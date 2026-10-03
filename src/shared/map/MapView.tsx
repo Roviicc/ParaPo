@@ -88,6 +88,13 @@ type Props = {
    * Read once, as the map is made.
    */
   maxBounds?: [[number, number], [number, number]]
+  /**
+   * The credits start folded to their ⓘ. MapLibre opens them until the first
+   * drag, and on a phone the studio's open credits covered its account pill
+   * and the top of the map; ⓘ still opens them, as the licence asks. Read
+   * once, as the map is made.
+   */
+  foldCredits?: boolean
 }
 
 /**
@@ -100,7 +107,7 @@ export const METRO_MANILA: [[number, number], [number, number]] = [
   [121.5, 15.05],
 ]
 
-export function MapView({ onReady, zoomButtons = true, maxBounds }: Props) {
+export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const onReadyRef = useRef(onReady)
   onReadyRef.current = onReady
@@ -178,6 +185,8 @@ export function MapView({ onReady, zoomButtons = true, maxBounds }: Props) {
         new AttributionControl({ compact: true, customAttribution: ATTRIBUTION }),
         coarse ? 'top-right' : 'bottom-right',
       )
+      // What MapLibre itself does to them on the first drag.
+      if (foldCredits) map.getContainer().querySelector('.maplibregl-compact')?.classList.remove('maplibregl-compact-show')
 
       let isLoaded = false
       map.on('load', () => {

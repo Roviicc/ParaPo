@@ -24,6 +24,8 @@ const BORROW_SRC = 'draw-borrow'
 /** The drawing's points, and the wide invisible line a click finds: the events' layers. */
 export const POINT_LAYER = 'draw-point-dots'
 export const HIT_LAYER = 'draw-line-hit'
+/** The ring round the point a finger selected. */
+const SELECTED_LAYER = 'draw-point-selected'
 const AREA_FILL_LAYER = 'draw-area-fill'
 
 const ROUTE_COLOUR = MAP_PAINT['Paint/draw-line']
@@ -145,22 +147,36 @@ export function useDrawLayers(map: MapLibreMap | null): void {
         'circle-stroke-width': 2.5,
       },
     })
+    map.addLayer({
+      id: SELECTED_LAYER,
+      type: 'circle',
+      source: POINT_SRC,
+      filter: ['==', ['get', 'selected'], true],
+      paint: {
+        'circle-radius': 12,
+        'circle-opacity': 0,
+        'circle-stroke-color': ROUTE_COLOUR,
+        'circle-stroke-width': 3,
+      },
+    })
   }, [map])
 }
 
 /**
  * The drawing on the map: its segments (routed and freehand), points, a
  * hotspot's fill and closing edge, the U-turns ringed, the line being picked
- * for Extend, and the colours of a route or a hotspot's kind.
+ * for Extend, the point a finger selected ringed, and the colours of a route
+ * or a hotspot's kind.
  */
 export function useDrawRendering(
   map: MapLibreMap | null,
-  { segments, controlPoints, area, uTurns, picking }: {
+  { segments, controlPoints, area, uTurns, picking, selected }: {
     segments: Segment[]
     controlPoints: LngLat[]
     area: AreaTarget | null
     uTurns: UTurn[]
     picking: Picking | null
+    selected: number | null
   },
 ): void {
   useEffect(() => {
@@ -200,7 +216,7 @@ export function useDrawRendering(
       type: 'FeatureCollection',
       features: controlPoints.map((c, i) => ({
         type: 'Feature' as const,
-        properties: { index: i },
+        properties: { index: i, selected: i === selected },
         geometry: { type: 'Point' as const, coordinates: c },
       })),
     })
@@ -238,7 +254,7 @@ export function useDrawRendering(
         geometry: { type: 'Point' as const, coordinates: controlPoints[u.point] },
       }))
     uturnSrc?.setData({ type: 'FeatureCollection', features: [...stubs, ...rings] })
-  }, [map, segments, controlPoints, area, uTurns])
+  }, [map, segments, controlPoints, area, uTurns, selected])
 
   useEffect(() => {
     if (!map) return
@@ -270,6 +286,7 @@ export function useDrawRendering(
     map.setPaintProperty(LAYERS.drawFreehand, 'line-color', colour)
     map.setPaintProperty(LAYERS.drawFreehand, 'line-dasharray', area ? [1, 0] : [2, 1.5])
     map.setPaintProperty(POINT_LAYER, 'circle-stroke-color', colour)
+    map.setPaintProperty(SELECTED_LAYER, 'circle-stroke-color', colour)
     map.setPaintProperty(AREA_FILL_LAYER, 'fill-color', colour)
   }, [map, area])
 }
