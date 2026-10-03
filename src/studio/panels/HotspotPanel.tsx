@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { bboxOf, bboxesOverlap, OVERVIEW_M } from '../../shared/geo/geo'
 import { variantLine, type VariantRow } from '../../shared/model/routes'
 import { PASS_WITHIN_M } from '../../shared/geo/pass'
+import { ringCrossesItself } from '../../shared/geo/ring'
 import { parseAliases, stopLabel, type StopRow } from '../../shared/model/stops'
 import { linesOf } from '../data/live'
 import { saveStop } from '../data/stopsWrite'
@@ -146,6 +147,10 @@ export function HotspotPanel({
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    if (ringCrossesItself(ring)) {
+      setError('Two sides of this outline cross each other. Move a corner so the outline goes round the box once, then save.')
+      return
+    }
     if (kind === 'terminal') {
       const other = terminalAlreadyAt(stops, { id: stopId, name, informal })
       if (other) {

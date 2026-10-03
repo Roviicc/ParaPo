@@ -47,3 +47,23 @@ test('a zero-area trace gets the average of its corners', () => {
   assert.ok(haversine(c, [121.0401, 14.7]) < 0.001, `${c}`)
   assert.deepEqual(ringCentroid([]), [0, 0])
 })
+
+// Review of 2026-10-03, finding 15: a bow-tie was saved as a hotspot.
+test('an outline whose sides cross is found; a plain one, convex or not, is not', async () => {
+  const { ringCrossesItself } = await import('../../src/shared/geo/ring.ts')
+  assert.equal(ringCrossesItself(box), false)
+  // Corners 2 and 3 swapped: the sides cross in the middle.
+  assert.equal(ringCrossesItself([box[0], box[1], box[3], box[2]]), true)
+  // An L-shaped outline, not convex, does not cross itself.
+  const L = [[0, 0], [2, 0], [2, 1], [1, 1], [1, 2], [0, 2]]
+  assert.equal(ringCrossesItself(L), false)
+  // A corner dragged past the far side.
+  assert.equal(ringCrossesItself([[0, 0], [2, 0], [2, 2], [-1, -1], [0, 2]]), true)
+  assert.equal(ringCrossesItself([[0, 0], [1, 0], [0, 1]]), false)
+})
+
+test('a corner repeated where it stands is not a crossing', async () => {
+  const { ringCrossesItself } = await import('../../src/shared/geo/ring.ts')
+  assert.equal(ringCrossesItself([...box, box[0]]), false)
+  assert.equal(ringCrossesItself([box[0], box[1], box[1], box[2], box[3]]), false)
+})

@@ -65,6 +65,32 @@ export function segmentsIntersect(a: LngLat, b: LngLat, c: LngLat, d: LngLat): b
 }
 
 /**
+ * Whether two edges of the ring that do not share a corner touch or cross: a
+ * bow-tie, or a corner dragged across the far side. Such a box has no inside
+ * one can trust (pointInRing counts it by crossings) and its centroid can sit
+ * outside it, so the studio refuses it before a save (review of 2026-10-03).
+ * Plain O(n²): a box has a handful of corners.
+ */
+export function ringCrossesItself(corners: Ring): boolean {
+  // A corner repeated where it stands — the ferry's imported stations end on
+  // their first corner again — is no side: dropped before the sides are paired.
+  const ring = corners.filter((p, i) => {
+    const q = corners[(i + 1) % corners.length]
+    return corners.length < 2 || p[0] !== q[0] || p[1] !== q[1]
+  })
+  const n = ring.length
+  if (n < 4) return false
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 2; j < n; j++) {
+      // The last edge and the first share corner 0.
+      if (i === 0 && j === n - 1) continue
+      if (segmentsIntersect(ring[i], ring[(i + 1) % n], ring[j], ring[(j + 1) % n])) return true
+    }
+  }
+  return false
+}
+
+/**
  * Where along the line the polygon is first touched: the index of the first
  * vertex inside it, or, when the line crosses between two vertices, the index
  * of the vertex just before that crossing. -1 when they never meet.
