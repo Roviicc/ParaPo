@@ -8,9 +8,12 @@ type RecoveryUrl = { recovering: boolean; error: string | null }
  *
  *  - `recovering`: the link was valid and a new password should be collected
  *    (the caller should wait for the session before showing the form).
- *  - `error`: the link was rejected — expired, already used — with Supabase's
- *    own description. `recovering` is false in that case so the app behaves as
- *    plainly signed out.
+ *  - `error`: the link was rejected — expired, already used — said in our own
+ *    words, picked by Supabase's `error_code`. Never the URL's
+ *    `error_description`: anyone can write that into a link to /studio/, so
+ *    showing it would let a stranger put their words on the editor's door.
+ *    `recovering` is false in that case so the app behaves as plainly signed
+ *    out.
  *
  * Two signals, because either alone can be missed:
  *  - the URL carries `type=recovery` (hash for the implicit flow, query for
@@ -50,9 +53,14 @@ function readRecoveryUrl(): RecoveryUrl {
   if (params.get('type') !== 'recovery' && !params.get('error')) {
     return { recovering: false, error: null }
   }
-  const error = params.get('error_description') ?? params.get('error')
-  if (error) {
-    return { recovering: false, error: error.replace(/\+/g, ' ') }
+  if (params.get('error')) {
+    return { recovering: false, error: linkError(params.get('error_code')) }
   }
   return { recovering: true, error: null }
+}
+
+function linkError(code: string | null): string {
+  return code === 'otp_expired'
+    ? 'the link has expired or was already used. Ask for a new one.'
+    : 'the link could not be used. Ask for a new one.'
 }
