@@ -203,8 +203,13 @@ export default defineConfig({
               plugins: [
                 {
                   // Only JSON: a line not there is the map's page, 200 (above).
+                  // A page an older worker kept is passed over, not served.
                   cacheWillUpdate: async ({ response }) =>
                     (response.headers.get('content-type') ?? '').startsWith('application/json') ? response : null,
+                  cachedResponseWillBeUsed: async ({ cachedResponse }) =>
+                    cachedResponse && (cachedResponse.headers.get('content-type') ?? '').startsWith('application/json')
+                      ? cachedResponse
+                      : null,
                 },
               ],
             },
@@ -223,9 +228,15 @@ export default defineConfig({
               plugins: [
                 {
                   // Only an SVG: a board not there is the map's page, 200,
-                  // and cache-first would have kept it under that name for good.
+                  // and cache-first would have kept it under that name for
+                  // good. A page an older worker kept so is passed over, and
+                  // the board asked of the network again.
                   cacheWillUpdate: async ({ response }) =>
                     (response.headers.get('content-type') ?? '').startsWith('image/svg+xml') ? response : null,
+                  cachedResponseWillBeUsed: async ({ cachedResponse }) =>
+                    cachedResponse && (cachedResponse.headers.get('content-type') ?? '').startsWith('image/svg+xml')
+                      ? cachedResponse
+                      : null,
                 },
               ],
             },
