@@ -290,15 +290,18 @@ if (!onLine) {
         const style = getComputedStyle(eyes)
         window.__gazed = { deg: Number(dot.dataset.gaze), animation: style.animationName, translate: style.translate }
       }
-      // The eyes' own turn ending: an eye's width or height inside them
-      // ends sooner (0.2 s) and bubbles here, mid-turn.
-      const done = (e) => {
-        if (e.target !== eyes || e.propertyName !== 'translate') return
-        eyes.removeEventListener('transitionend', done)
-        read()
+      // Once the eyes' own turn has ended, read off the turn itself (the
+      // transition the gaze starts) rather than off a timer: on a busy
+      // runner the tap's work held the page past a 400 ms timer, which
+      // then read the eyes before they had begun to turn (PR #127's CI,
+      // 2026-10-03). A turn replaced by another is waited out again; no
+      // turn at all is read at once — eyes that never move fail as before.
+      const settle = () => {
+        const turns = eyes.getAnimations().filter((a) => a.transitionProperty === 'translate')
+        if (!turns.length) return read()
+        Promise.all(turns.map((a) => a.finished)).then(read, settle)
       }
-      eyes.addEventListener('transitionend', done)
-      setTimeout(read, 400)
+      settle()
     }
     new MutationObserver(seen).observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-gaze'] })
   })
