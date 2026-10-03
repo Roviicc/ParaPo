@@ -77,7 +77,7 @@ page.on('console', (msg) => {
   if (msg.type() === 'error') errors.push(msg.text().slice(0, 160))
 })
 await bareStyle(page)
-await page.route(/\/data\/index\.v3\.json/, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: file }))
+await page.route(/\/data\/index\.v4\.json/, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: file }))
 await page.route(/\/data\/lines\/.+\.json/, (route) => {
   const id = decodeURIComponent(new URL(route.request().url()).pathname.split('/').pop().replace(/\.json$/, ''))
   const shape = lines.get(id)

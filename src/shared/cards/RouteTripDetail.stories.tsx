@@ -144,6 +144,8 @@ export const Ferry: Story = {
     routeDirection: 'Guadalupe',
     metres: 9_800,
     fare: FREE,
+    pickedFare: FREE,
+    pickedMetres: 3_200,
     note: 'Mon–Sat, daytime · Suspended in bad weather: check MMDA',
   },
   play: async ({ canvasElement, args }) => {
@@ -156,7 +158,7 @@ export const Ferry: Story = {
 
 /** A ferry stop picked: its pill and the tile both say Free. */
 export const FerryPicked: Story = {
-  args: { ...Ferry.args, picked: 'h3', pickedFare: FREE, pickedMetres: 3_200 },
+  args: { ...Ferry.args, picked: 'h3' },
   play: pickedAsDrawn,
 }
 
