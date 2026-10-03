@@ -84,7 +84,9 @@ export function HintuanPin({ map, at, label, livery, onPick }: Props) {
       <TimelineDot rail={TIMELINE_SURFACE[livery]} selected />
       {label && (
         <Title
-          {...(onPick ? { type: 'button' as const, 'aria-label': `End, ${label}: the routes there` } : {})}
+          // Says what the tap does since the owner's ask of 2026-10-03: it
+          // lets the pick go, no longer opening the routes there.
+          {...(onPick ? { type: 'button' as const, 'aria-label': `End, ${label}: let it go` } : {})}
           className="hintuan-pin-title absolute left-full top-1/2 ml-2.5 flex max-w-56 flex-col items-center"
         >
           {/* Over the name, as over a ride's own end (EndTitles): the ride now ends here. */}
