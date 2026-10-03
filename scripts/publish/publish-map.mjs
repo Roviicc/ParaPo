@@ -58,7 +58,8 @@
 // publish a map that shrank suddenly — a table that answers with no rows is a
 // normal HTTP 200, so without this a policy slip would blank the public map
 // and deploy it. The signboards are held the same way (boardGuard.mjs,
-// 2026-10-03): every one gone from the bucket at once, or a sudden shrink.
+// 2026-10-03): many of the boards directions name gone from the bucket at
+// once, or every one of them.
 // `--force` overrides these checks, for a deliberate removal.
 //
 // The rules are the app's own, imported from src/ as check-map-data does —
@@ -274,10 +275,11 @@ for (const [n, t] of boardsRefused) {
   boardText.set(n, null)
 }
 // A board the bucket answers 400 or 404 for is gone, and left out: said
-// one by one, as a refused one is. Every board gone at once is far more
-// likely a bucket made private than a clear-out, and the files would then be
-// deleted from the map below: refused unless told, as a shrunk map is
-// (review of 2026-10-03, finding 8).
+// one by one, as a refused one is. Many boards gone at once is far more
+// likely a bucket made private than a clear-out (a board taken off in the
+// studio is unlisted first, so it is not named), and the files would then
+// be deleted from the map below: refused unless told, as a shrunk map is
+// (review of 2026-10-03, finding 8; boardGuard.mjs).
 const boardsGone = [...boardText].filter(([n, t]) => t === null && !boardsRefused.some(([r]) => r === n)).map(([n]) => n)
 for (const n of boardsGone) console.warn(`::warning::signboards/${n} is named by a direction but gone from the bucket; left out`)
 for (const [id, names] of boardsOf) {
@@ -290,8 +292,7 @@ if (!FORCE) {
   const refusal = boardsRefusal({
     named: boardText.size,
     gone: boardsGone.length,
-    before: existsSync(SIGNBOARDS) ? readdirSync(SIGNBOARDS).filter((f) => f.endsWith('.svg')).length : 0,
-    after: new Set([...boardsOf.values()].flat()).size,
+    published: boardsGone.filter((n) => existsSync(join(SIGNBOARDS, n))).length,
     maxShrink: MAX_SHRINK,
   })
   if (refusal) fail(`FAIL  ${refusal}`)
