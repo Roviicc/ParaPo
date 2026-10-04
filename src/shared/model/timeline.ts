@@ -3,6 +3,7 @@ import { passIndex } from '../geo/pass'
 import { placeKey } from './places'
 import { servedBy, type ServedRoute } from './routes'
 import { stopLabel, stopRing, type StopKind, type StopSummary } from './stops'
+import type { Ring } from '../geo/ring'
 
 /*
  * A direction as a string of places: the hintuans its line passes, in order,
@@ -19,15 +20,39 @@ import { stopLabel, stopRing, type StopKind, type StopSummary } from './stops'
 export function hintuansAlong<S extends StopSummary>(line: LngLat[], stops: readonly S[], route: ServedRoute): { stop: S; index: number }[] {
   const along: { stop: S; index: number; at: number }[] = []
   for (const stop of stops) {
-    if (stop.kind !== 'hintuan' || !stop.area || !servedBy(stop, route)) continue
-    const index = passIndex(line, stopRing(stop))
-    // Two boxes met on one segment, a snapped road's 20–30 m, tied and kept
-    // in the order the hotspots were read (review of 2026-10-03): the one
-    // whose middle is further along that segment is reached later.
-    if (index >= 0) along.push({ stop, index, at: nearestOnSegment(stop.point.coordinates, line[index], line[index + 1] ?? line[index]).t })
+    if (!listedAlong(stop, route)) continue
+    const where = passedAt(line, stopRing(stop), stop)
+    if (where) along.push({ stop, ...where })
   }
-  return along.sort((a, b) => a.index - b.index || a.at - b.at).map(({ stop, index }) => ({ stop, index }))
+  return along.sort(inPassingOrder).map(({ stop, index }) => ({ stop, index }))
 }
+
+/**
+ * Whether hintuansAlong lists this hotspot for this route, wherever the line
+ * runs: a hintuan with a box, at which the route stops (`servedBy`). Split
+ * out with passedAt and inPassingOrder for the babaan sides, which ask it of
+ * only the boxes their line cuts (the cheap-phone plan, step 8, 2026-10-04).
+ */
+export function listedAlong(stop: StopSummary, route: ServedRoute): boolean {
+  return stop.kind === 'hintuan' && !!stop.area && servedBy(stop, route)
+}
+
+/**
+ * Where along the line this box (`ring`, the stop's own) is passed: its
+ * `index` (passIndex), and `at`, how far along that segment the stop's
+ * middle is. Null when the line does not pass it.
+ */
+export function passedAt(line: LngLat[], ring: Ring, stop: StopSummary): { index: number; at: number } | null {
+  const index = passIndex(line, ring)
+  // Two boxes met on one segment, a snapped road's 20–30 m, tied and kept
+  // in the order the hotspots were read (review of 2026-10-03): the one
+  // whose middle is further along that segment is reached later.
+  return index >= 0 ? { index, at: nearestOnSegment(stop.point.coordinates, line[index], line[index + 1] ?? line[index]).t } : null
+}
+
+/** The order the line reaches what passedAt placed; a stable sort keeps ties as read. */
+export const inPassingOrder = (a: { index: number; at: number }, b: { index: number; at: number }): number =>
+  a.index - b.index || a.at - b.at
 
 /**
  * The hotspots a direction is linked to, in the order its line reaches

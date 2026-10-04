@@ -1,11 +1,12 @@
 import { useEffect, useMemo } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { HOTSPOT_COLOUR } from '../map/colours'
+import { bboxOf, bboxesOverlap, lineBounds } from './geo'
 import { rightOfLine } from './rightOfLine'
-import { ringToPolygon } from './ring'
+import { ringToPolygon, type Ring } from './ring'
 import { travelLine } from '../model/ride'
 import { isLineMode, type VariantSummary } from '../model/routes'
-import { hintuansAlong } from '../model/timeline'
+import { inPassingOrder, listedAlong, passedAt } from '../model/timeline'
 import { stopRing, type StopSummary } from '../model/stops'
 import { LAYERS, useLayerReady } from '../map/layers'
 
@@ -48,17 +49,47 @@ export function useBabaanSides(map: MapLibreMap | null, chosen: VariantSummary |
     )
   }, [map, casingReady])
 
-  const features = useMemo(() => {
-    if (!chosen || isLineMode(chosen.route?.mode)) return []
-    const line = travelLine(chosen, stops)
-    return hintuansAlong(line, stops, chosen.route).flatMap(({ stop }) => {
-      const side = rightOfLine(stopRing(stop), line)
-      return side ? [{ type: 'Feature' as const, properties: { id: stop.id }, geometry: ringToPolygon(side) }] : []
-    })
-  }, [chosen, stops])
+  const features = useMemo(() => babaanSideFeatures(chosen, stops), [chosen, stops])
 
   useEffect(() => {
     const src = map?.getSource(SRC) as GeoJSONSource | undefined
     src?.setData({ type: 'FeatureCollection', features })
   }, [map, features, casingReady])
+}
+
+/**
+ * The chosen direction's babaan sides, as the map draws them: each hintuan
+ * box it passes and cuts across (hintuansAlong, rightOfLine), its half on
+ * the line's right, in the order the line reaches them. None for a train or
+ * the ferry, or with nothing chosen.
+ *
+ * The cut is asked first, and only of the boxes the line's own box reaches
+ * (a metre wider, as rightOfLine pads its own); where along the line, of
+ * only the boxes it cuts. It was every listed hintuan placed along the
+ * whole line first, and then cut: worked out in the render of a trip tap,
+ * before its card paints, and on the first trip of a visit about 27 ms of
+ * Node at full speed (Bagong Silang Kanan 5 → Philcoa), 7 ms now (the
+ * cheap-phone plan, step 8, 2026-10-04). The same features in the same
+ * order: a box the line's box misses is crossed by none of the line, nor by
+ * a carry, which starts at an end inside the box; a box listed but not cut
+ * was dropped either way; and the sort is stable, as hintuansAlong's is.
+ * babaan-side-test holds the two against each other, word for word, on the
+ * committed map and on made-up directions.
+ */
+export function babaanSideFeatures(chosen: VariantSummary | null, stops: readonly StopSummary[]) {
+  if (!chosen || isLineMode(chosen.route?.mode)) return []
+  const line = travelLine(chosen, stops)
+  const reach = lineBounds(line)
+  const cut: { stop: StopSummary; side: Ring; index: number; at: number }[] = []
+  for (const stop of stops) {
+    if (!listedAlong(stop, chosen.route)) continue
+    const ring = stopRing(stop)
+    if (!bboxesOverlap(reach, bboxOf(ring, 1))) continue
+    const side = rightOfLine(ring, line)
+    const where = side && passedAt(line, ring, stop)
+    if (side && where) cut.push({ stop, side, ...where })
+  }
+  return cut
+    .sort(inPassingOrder)
+    .map(({ stop, side }) => ({ type: 'Feature' as const, properties: { id: stop.id }, geometry: ringToPolygon(side) }))
 }
