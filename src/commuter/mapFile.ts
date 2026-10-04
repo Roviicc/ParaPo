@@ -96,6 +96,62 @@ const MAP_FILE_CACHE = 'map-file'
 let inFlight: Promise<MapFile> | null = null
 let stale = false
 
+/**
+ * Where index.html's own script leaves its request for this file (the
+ * cheap-phone plan, step 20, 2026-10-04): vite.config.ts writes that script
+ * into the page's <head>, with MAP_FILE_URL, so the file is asked for as the
+ * page is read rather than once the app's script has come and run — 355 kB
+ * on the wire before it, about 3.3 s of a slow phone network. The script
+ * leaves a promise of the answer and, for an ok one, of its body read as
+ * JSON (undefined for a body that is not); it asks with `no-cache`, as
+ * loadMapFile does, and at low priority, so the app's own script keeps the
+ * link first.
+ */
+export const EARLY_MAP_FILE = '__parapoMapFile'
+
+/** What index.html's script leaves under EARLY_MAP_FILE. */
+export type EarlyMapFile = Promise<{ res: Response; body: Promise<unknown> | null }>
+
+/**
+ * index.html's request, taken once: the first load reads it, and a load
+ * after a failed one asks the network itself, as every load did before.
+ * Null on a page without one (the studio's, a test's).
+ */
+function takeEarly(): EarlyMapFile | null {
+  const page = globalThis as { [EARLY_MAP_FILE]?: EarlyMapFile }
+  const early = page[EARLY_MAP_FILE]
+  if (!early) return null
+  delete page[EARLY_MAP_FILE]
+  return typeof early.then === 'function' ? early : null
+}
+
+/**
+ * The network's answer for the map file, and how to read it as JSON:
+ * index.html's when it made one, else asked here. A request of index.html's
+ * that failed (no network as the page was read) is asked again here, as the
+ * page always did, so what follows is today's either way.
+ */
+function ask(): Promise<{ res: Response; json: () => Promise<unknown> }> {
+  const own = () => fetch(MAP_FILE_URL, { cache: 'no-cache' }).then((res) => ({ res, json: () => res.json() }))
+  const early = takeEarly()
+  if (!early) return own()
+  return early.then(
+    ({ res, body }) => ({
+      res,
+      // Read by the page's script from a copy of the answer, so the answer's
+      // own body is still there for an early answer that brought none.
+      json: () =>
+        body
+          ? body.then((raw) => {
+              if (raw === undefined) throw new SyntaxError(`${MAP_FILE_URL} is not JSON`)
+              return raw
+            })
+          : res.json(),
+    }),
+    own,
+  )
+}
+
 type RawFile = Partial<Omit<MapFile, 'variants'>> & { variants?: IndexVariant[] }
 
 /** A file read off `url` as a map of shape `schema`, its overviews as the lines the map draws first. */
@@ -150,12 +206,12 @@ async function storedOldCopy(
  * server whether the file changed rather than trusting a stale copy: the
  * answer is a cheap 304 when it has not. With no answer and no copy of this
  * file in store, the copy an older version of the app stored is shown,
- * marked stale.
+ * marked stale. The first load reads the request index.html made (ask).
  */
 export function loadMapFile(): Promise<MapFile> {
-  inFlight ??= fetch(MAP_FILE_URL, { cache: 'no-cache' })
+  inFlight ??= ask()
     .then(
-      async (res) => {
+      async ({ res, json }) => {
         // The server answered, but not with the map — an error, or the
         // page itself, 200, which the host sends for a file it does not
         // have (wrangler.jsonc): the stored copy, marked stale.
@@ -168,7 +224,7 @@ export function loadMapFile(): Promise<MapFile> {
         if (!res.ok) return kept(`HTTP ${res.status}`)
         let raw: RawFile
         try {
-          raw = (await res.json()) as RawFile
+          raw = (await json()) as RawFile
         } catch {
           return kept('not JSON')
         }

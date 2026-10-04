@@ -4,6 +4,7 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { EARLY_MAP_FILE, MAP_FILE_URL } from './src/commuter/mapFile.ts'
 
 /**
  * Writes .vite/modules.json: every output chunk and the source modules inside
@@ -71,6 +72,40 @@ function readOutDir(): Plugin {
   }
 }
 
+/**
+ * The map file, asked for by the map's page as it is read (the cheap-phone
+ * plan, step 20, 2026-10-04): a few lines of plain script in the <head> of
+ * the root index.html, ahead of the app's own script and stylesheets (a
+ * script after a stylesheet waits for it), so the 22 kB file comes over
+ * while the app's 355 kB still downloads, and the routes can go onto the
+ * map as soon as its style is in (the owner's Q1, MapView's `openOn`).
+ * mapFile.ts takes the answer once, under EARLY_MAP_FILE, and treats it as
+ * the one it would have fetched itself. `no-cache`, as mapFile.ts asks: the
+ * file keeps no hash in its name. Low priority: the app's script, which
+ * needs the whole link, keeps it first. The studio's page reads the live
+ * tables and gets none. Not a word of the registration here: check-build.mjs
+ * fails a page that carries one.
+ */
+function mapFileEarly(): Plugin {
+  const script =
+    `(function(){if(!window.fetch)return;` +
+    `var q=fetch(${JSON.stringify(MAP_FILE_URL)},{cache:'no-cache',priority:'low'})` +
+    `.then(function(r){return{res:r,body:r.ok?r.clone().json().catch(function(){}):null}});` +
+    `q.catch(function(){});window.${EARLY_MAP_FILE}=q})()`
+  return {
+    name: 'parapo:map-file-early',
+    transformIndexHtml: {
+      // Before Vite's own: in a build, the app's script and stylesheets are
+      // added to the <head> after what is there by then.
+      order: 'pre',
+      handler(html, ctx) {
+        if (ctx.path !== '/index.html') return html
+        return { html, tags: [{ tag: 'script', children: script, injectTo: 'head' }] }
+      },
+    },
+  }
+}
+
 /** Brand colours, measured from the logo: the wordmark's maroon and a warm off-white behind the pin. */
 const THEME_COLOUR = '#8a595a'
 const BACKGROUND_COLOUR = '#f5f1ee'
@@ -85,6 +120,7 @@ export default defineConfig({
     tailwindcss(),
     chunkModules(),
     readOutDir(),
+    mapFileEarly(),
     VitePWA({
       // The page registers the worker itself (src/commuter/pwa.ts), so the
       // plugin writes no registration script — and none into /studio/.

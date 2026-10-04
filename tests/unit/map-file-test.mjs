@@ -117,6 +117,115 @@ test('the stored-copy header marks the load stale; a network answer does not', a
   assert.equal(b.mapFileIsStale(), false)
 })
 
+// The cheap-phone plan, step 20 (2026-10-04): index.html's own script asks
+// for the file as the page is read (vite.config.ts, mapFileEarly) and leaves
+// the answer under EARLY_MAP_FILE, the body read from a copy. This is that
+// script's promise, made the way it makes it.
+const pageAsked = (res) => {
+  const q = Promise.resolve(res).then((r) => ({ res: r, body: r.ok ? r.clone().json().catch(() => {}) : null }))
+  q.catch(() => {})
+  return q
+}
+const json = (body, { status = 200, headers = {} } = {}) =>
+  new Response(typeof body === 'string' ? body : JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } })
+/** A fetch that serves `files` (serve's) and counts what it is asked. */
+const counted = (files) => {
+  const asked = []
+  serve(files)
+  const served = globalThis.fetch
+  globalThis.fetch = async (url, init) => {
+    asked.push(String(url))
+    return served(url, init)
+  }
+  return asked
+}
+
+test("step 20: index.html's request is the one read, taken once; after a failure the page asks itself", async () => {
+  const asked = counted({ '/data/index.v4.json': { ...base, published_at: 'from the page' } })
+  globalThis.__parapoMapFile = pageAsked(json({ ...base, published_at: 'from index.html' }))
+  try {
+    const a = await fresh()
+    assert.equal((await a.loadMapFile()).published_at, 'from index.html')
+    assert.deepEqual(asked, [], 'no second request')
+    assert.equal('__parapoMapFile' in globalThis, false, 'taken off the page')
+    assert.equal((await a.loadMapFile()).published_at, 'from index.html', 'kept, as a load from the page is')
+
+    // A failed one: the next load asks the network itself, never the same answer again.
+    globalThis.__parapoMapFile = pageAsked(json('gone', { status: 503 }))
+    const b = await fresh()
+    await assert.rejects(b.loadMapFile(), { message: '/data/index.v4.json: HTTP 503' })
+    assert.equal((await b.loadMapFile()).published_at, 'from the page')
+    assert.deepEqual(asked, ['/data/index.v4.json'])
+  } finally {
+    delete globalThis.__parapoMapFile
+  }
+})
+
+test('step 20: a request of index.html\'s that failed (no network as the page was read) is asked again by the page', async () => {
+  const asked = counted({ '/data/index.v4.json': base })
+  globalThis.__parapoMapFile = pageAsked(Promise.reject(new TypeError('Failed to fetch')))
+  try {
+    const { loadMapFile } = await fresh()
+    assert.equal((await loadMapFile()).schema, 4)
+    assert.deepEqual(asked, ['/data/index.v4.json'])
+  } finally {
+    delete globalThis.__parapoMapFile
+  }
+  // Failed again here, nothing stored: the network's error, as before.
+  globalThis.fetch = async () => {
+    throw new TypeError('Failed to fetch')
+  }
+  globalThis.__parapoMapFile = pageAsked(Promise.reject(new TypeError('Failed to fetch')))
+  try {
+    await assert.rejects((await fresh()).loadMapFile(), { message: 'Failed to fetch' })
+  } finally {
+    delete globalThis.__parapoMapFile
+  }
+})
+
+test("step 20: index.html's answer is read as the page's own was: an error, the page in place of the file, a stored copy, the worker's stamp", async () => {
+  const asked = counted({})
+  const stored = { '/data/index.v4.json': { ...base, published_at: '2026-09-30T00:00:00Z' } }
+  try {
+    // A server's error: the error, and with a copy in store, the copy, marked stale.
+    globalThis.__parapoMapFile = pageAsked(json('gone', { status: 503 }))
+    await assert.rejects((await fresh()).loadMapFile(), { message: '/data/index.v4.json: HTTP 503' })
+    globalThis.caches = { match: async (url, { cacheName }) => (cacheName === 'map-file' && stored[url] ? json(stored[url]) : undefined) }
+    globalThis.__parapoMapFile = pageAsked(json('gone', { status: 503 }))
+    const a = await fresh()
+    assert.equal((await a.loadMapFile()).published_at, '2026-09-30T00:00:00Z')
+    assert.equal(a.mapFileIsStale(), true)
+    // The page itself, 200, in place of a missing file: not JSON, so the copy.
+    globalThis.__parapoMapFile = pageAsked(new Response('<!doctype html><title>Para Po</title>', { headers: { 'content-type': 'text/html' } }))
+    const b = await fresh()
+    assert.equal((await b.loadMapFile()).published_at, '2026-09-30T00:00:00Z')
+    assert.equal(b.mapFileIsStale(), true)
+    delete globalThis.caches
+    globalThis.__parapoMapFile = pageAsked(new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }))
+    await assert.rejects((await fresh()).loadMapFile(), { message: '/data/index.v4.json: not JSON' })
+    // Served by the worker from its store: stale; from the network: not.
+    globalThis.__parapoMapFile = pageAsked(json(base, { headers: { 'x-parapo-served-from': 'cache' } }))
+    const c = await fresh()
+    await c.loadMapFile()
+    assert.equal(c.mapFileIsStale(), true)
+    globalThis.__parapoMapFile = pageAsked(json(base))
+    const d = await fresh()
+    await d.loadMapFile()
+    assert.equal(d.mapFileIsStale(), false)
+    // A shape this app does not know: the banner's message, as before.
+    globalThis.__parapoMapFile = pageAsked(json({ ...base, schema: 5 }))
+    const { loadMapFile, MAP_FILE_TOO_NEW } = await fresh()
+    await assert.rejects(loadMapFile(), { message: MAP_FILE_TOO_NEW })
+    // An ok answer handed over without its body read: read here.
+    globalThis.__parapoMapFile = Promise.resolve({ res: json({ ...base, published_at: 'read here' }), body: null })
+    assert.equal((await (await fresh()).loadMapFile()).published_at, 'read here')
+    assert.deepEqual(asked, [], 'never asked the network again')
+  } finally {
+    delete globalThis.caches
+    delete globalThis.__parapoMapFile
+  }
+})
+
 // The committed files, as the publish wrote them.
 const data = new URL('../../public/data/', import.meta.url)
 const read = (name) => JSON.parse(readFileSync(new URL(name, data), 'utf8'))
