@@ -9,6 +9,7 @@ import { stopRing, type StopKind, type StopSummary } from '../model/stops'
 import { STOPS_FILL_LAYER } from './tap'
 import { LAYERS, TILE_BUFFER, applyHidden, firstLayerOfType, layOutOnce } from './layers'
 import type { BoxMark } from './stopsShown'
+import { useLayerSwitch } from './layerSwitch'
 
 /*
  * The saved hotspots on the map: their source, the place wash's, their
@@ -64,6 +65,20 @@ export function namePaint(kind: StopKind) {
 }
 /** The boxes under a tap, or the chosen one, striped while they are asked about: the HotspotOverlayCard's State=Selected. */
 const HATCH = 'saved-stops-hatch'
+const HATCH_LAYERS = [HATCH] as const
+
+/**
+ * A box's feature state for its mark (none: undefined): lit (striped)
+ * when chosen, or under the tap while the sheet asks; a sibling when it
+ * shares the chosen box's place.
+ */
+export function boxState(mark: BoxMark | undefined): { lit: boolean; sibling: boolean; chosen: boolean } {
+  return {
+    lit: mark === 'lit' || mark === 'lit+sibling' || mark === 'chosen',
+    sibling: !!mark?.includes('sibling'),
+    chosen: mark === 'chosen',
+  }
+}
 const hatchOf = (kind: StopKind) => `hotspot-hatch-${kind}`
 
 /**
@@ -108,6 +123,7 @@ function boxMiddle(ring: Ring): LngLat {
  * map alike. The wash has its own source, rebuilt when the selection changes.
  */
 const SIBLINGS = 'saved-stops-siblings'
+const SIBLING_LAYERS = [SIBLINGS] as const
 const WASH_SRC = 'place-wash'
 const WASH = 'place-wash-fill'
 const WASH_EDGE = 'place-wash-edge'
@@ -268,7 +284,12 @@ export function addSavedStops(
       type: 'fill',
       source: SRC,
       filter: ['==', ['geometry-type'], 'Polygon'],
-      paint: { 'fill-color': colour, 'fill-opacity': ['case', state('sibling'), byKind(0.3, HINTUAN_STRONGER), 0] as never },
+      paint: {
+        'fill-color': colour,
+        'fill-opacity': ['case', state('sibling'), byKind(0.3, HINTUAN_STRONGER), 0] as never,
+        // Switched off while no box is a sibling (layerSwitch.ts): at once, never between.
+        'fill-layer-opacity-transition': { duration: 0, delay: 0 },
+      },
     },
     before,
   )
@@ -285,6 +306,7 @@ export function addSavedStops(
       paint: {
         'fill-pattern': ['match', ['get', 'kind'], 'terminal', hatchOf('terminal'), hatchOf('hintuan')] as never,
         'fill-opacity': ['case', state('lit'), 1, 0] as never,
+        'fill-layer-opacity-transition': { duration: 0, delay: 0 },
       },
     },
     before,
@@ -355,19 +377,24 @@ export function useSavedStopsLayers(
   // while muted. Only the boxes whose state changed are set, and none is ever
   // removed: a removal and a set of one id in the same frame leave the
   // removal in charge.
+  // The siblings' and the stripes' layers are off while no box is either,
+  // from the first 'idle' with the hotspots in, and switched here with the
+  // feature state (layerSwitch.ts).
   const was = useRef<ReadonlyMap<string, BoxMark>>(new Map())
+  const siblingSwitch = useLayerSwitch(map, SIBLING_LAYERS, stops.length > 0)
+  const hatchSwitch = useLayerSwitch(map, HATCH_LAYERS, stops.length > 0)
   useEffect(() => {
     if (!map || !map.getSource(SRC)) return
     for (const id of new Set([...was.current.keys(), ...marks.keys()])) {
-      const state = marks.get(id) ?? 'none'
+      const state = marks.get(id)
       if (was.current.get(id) === state) continue
-      map.setFeatureState(
-        { source: SRC, id },
-        { lit: state === 'lit' || state === 'lit+sibling' || state === 'chosen', sibling: state.includes('sibling'), chosen: state === 'chosen' },
-      )
+      map.setFeatureState({ source: SRC, id }, boxState(state))
     }
     was.current = marks
-  }, [map, marks])
+    const states = [...marks.values()].map(boxState)
+    siblingSwitch.set(map, states.some((s) => s.sibling))
+    hatchSwitch.set(map, states.some((s) => s.lit))
+  }, [map, marks, siblingSwitch, hatchSwitch])
 
   // The place highlight's wash: a hull over the chosen box and its siblings.
   useEffect(() => {

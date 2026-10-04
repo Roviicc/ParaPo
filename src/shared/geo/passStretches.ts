@@ -9,6 +9,7 @@ import { PASS_COLOUR, litWidth } from '../map/lineStyle'
 import { litOpacity, useLighting } from '../map/savedRoutesLayers'
 import { ROUTES_HIT_LAYER } from '../map/tap'
 import { TILE_BUFFER, applyHidden, useLayerReady } from '../map/layers'
+import { useLayerSwitch } from '../map/layerSwitch'
 
 /**
  * Where a lit direction passes a hintuan, the line turns orange for that
@@ -43,6 +44,7 @@ import { TILE_BUFFER, applyHidden, useLayerReady } from '../map/layers'
 
 const SRC = 'saved-routes-pass'
 const SELECTED_PASS = 'saved-routes-selected-pass'
+const PASS_LAYERS = [SELECTED_PASS] as const
 
 /**
  * The stretches' layer: from zoom 15, painted as the lit line is but for
@@ -55,7 +57,13 @@ export const PASS_LAYER = {
   minzoom: 15,
   // Square ends: the paint stops where the box does.
   layout: { 'line-cap': 'butt', 'line-join': 'round' },
-  paint: { 'line-color': PASS_COLOUR, 'line-width': litWidth(), 'line-opacity': litOpacity() },
+  paint: {
+    'line-color': PASS_COLOUR,
+    'line-width': litWidth(),
+    'line-opacity': litOpacity(),
+    // Switched off while nothing is lit (layerSwitch.ts): at once, never between.
+    'line-layer-opacity-transition': { duration: 0, delay: 0 },
+  },
 } as const satisfies LineLayerSpecification
 
 /**
@@ -109,8 +117,11 @@ export function usePassStretches(
   }, [map, hiddenVariantId, hitReady])
 
   // The stretches follow their direction: the same state, on this source,
-  // once it is there.
-  useLighting(map, SRC, lit, hitReady)
+  // once it is there; and their layer off while nothing is lit, from the
+  // first 'idle' once it is there. It has nothing to draw till a line is
+  // read, but its GL program is the lit line's, compiled as the map loads.
+  const passSwitch = useLayerSwitch(map, PASS_LAYERS, hitReady)
+  useLighting(map, SRC, lit, hitReady, passSwitch)
 }
 
 /** A hintuan's box as the stretches are worked out against it: its ring, and the ground a line must reach (passBounds). */

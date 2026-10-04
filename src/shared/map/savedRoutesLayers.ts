@@ -5,6 +5,7 @@ import { ROUTES_HIT_LAYER } from './tap'
 import { LAYERS, TILE_BUFFER, applyHidden, firstLayerOfType, layOutOnce } from './layers'
 import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { CASING_EXTRA, litWidth, roadWidth } from './lineStyle'
+import { useLayerSwitch, type LayerSwitch } from './layerSwitch'
 
 /*
  * The saved directions on the map: their source, their five layers, and
@@ -19,6 +20,8 @@ const LINE = ROUTES_LINE
 /** The lit directions, drawn again on top: thick, in the selected blue, or on the public map in a picked card's or an open trip's colour. */
 const SELECTED_CASING = 'saved-routes-selected-casing'
 const SELECTED = 'saved-routes-selected'
+/** The two that draw the lit directions only, switched off while none is (layerSwitch.ts). */
+const LIT_LAYERS = [SELECTED_CASING, SELECTED] as const
 const HIT = ROUTES_HIT_LAYER
 
 /**
@@ -59,8 +62,17 @@ export function litOpacity() {
  * set of the same id in one frame leave the removal in charge. `ready` is
  * for a source added once another hook's layer is there (useLayerReady):
  * the lighting is applied when it arrives, not only when `lit` changes.
+ * `switched`, the layers that draw only what is lit, are switched on with
+ * anything lit and off with nothing, here with the feature state, so the
+ * two reach the screen in one frame (layerSwitch.ts).
  */
-export function useLighting(map: MapLibreMap | null, source: string, lit: readonly string[], ready = true) {
+export function useLighting(
+  map: MapLibreMap | null,
+  source: string,
+  lit: readonly string[],
+  ready = true,
+  switched?: LayerSwitch,
+) {
   const was = useRef(new Set<string>())
   useEffect(() => {
     if (!map || !ready || !map.getSource(source)) return
@@ -68,7 +80,8 @@ export function useLighting(map: MapLibreMap | null, source: string, lit: readon
     for (const id of was.current) if (!now.has(id)) map.setFeatureState({ source, id }, { lit: false })
     for (const id of now) if (!was.current.has(id)) map.setFeatureState({ source, id }, { lit: true })
     was.current = now
-  }, [map, source, lit, ready])
+    switched?.set(map, now.size > 0)
+  }, [map, source, lit, ready, switched])
 }
 
 /**
@@ -180,7 +193,13 @@ export function addSavedRoutes(
       type: 'line',
       source: SRC,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': MAP_PAINT['Paint/casing'], 'line-width': litWidth(CASING_EXTRA), 'line-opacity': litOpacity() },
+      paint: {
+        'line-color': MAP_PAINT['Paint/casing'],
+        'line-width': litWidth(CASING_EXTRA),
+        'line-opacity': litOpacity(),
+        // Switched off while nothing is lit (layerSwitch.ts): at once, never between.
+        'line-layer-opacity-transition': { duration: 0, delay: 0 },
+      },
     },
     before,
   )
@@ -198,6 +217,7 @@ export function addSavedRoutes(
         'line-color-transition': { duration: 0, delay: 0 },
         'line-width': litWidth(),
         'line-opacity': litOpacity(),
+        'line-layer-opacity-transition': { duration: 0, delay: 0 },
       },
     },
     before,
@@ -282,5 +302,8 @@ export function useSavedRoutesLayers(
     })
   }, [map, hiddenVariantId])
 
-  useLighting(map, SRC, lit)
+  // The lit copy and its casing, off while nothing is lit, from the first
+  // 'idle' with the rows in (layerSwitch.ts).
+  const litSwitch = useLayerSwitch(map, LIT_LAYERS, rows.length > 0)
+  useLighting(map, SRC, lit, true, litSwitch)
 }
