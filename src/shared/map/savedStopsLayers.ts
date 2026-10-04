@@ -7,7 +7,7 @@ import type { LngLat } from '../geo/geo'
 import { labelGroups } from '../model/places'
 import { stopRing, type StopKind, type StopSummary } from '../model/stops'
 import { STOPS_FILL_LAYER } from './tap'
-import { LAYERS } from './layers'
+import { LAYERS, applyHidden } from './layers'
 import type { BoxMark } from './stopsShown'
 
 /*
@@ -101,6 +101,30 @@ const WASH_EDGE = 'place-wash-edge'
  */
 const ROUTES_ABOVE = LAYERS.routesCasing
 const DRAW_ABOVE = LAYERS.drawCasing
+
+/**
+ * The filter of each layer drawn from the hotspots' source, the box being
+ * edited (`hidden`, '' for none) left out: what the studio sets as it opens an
+ * outline, and sets back once it is closed. The boxes' layers get one filter,
+ * SIBLINGS too. MapLibre's worker lays out the layers of a source that share
+ * a type, a filter and a layout as one bucket; left on its first filter,
+ * SIBLINGS was a fill bucket of its own, every box triangulated and uploaded
+ * a second time (the cheap-phone plan, step 5, 2026-10-04). It never drew the
+ * box being edited: the studio closes the hotspot's card, and its siblings'
+ * marks with it, before it opens the outline, and takes no tap on a box
+ * while one is open.
+ */
+export function hiddenStopFilters(hidden: string): [string, unknown][] {
+  const boxes = ['all', ['==', ['geometry-type'], 'Polygon'], ['!=', ['get', 'id'], hidden]]
+  return [
+    [FILL, boxes],
+    [OUTLINE, boxes],
+    [SIBLINGS, boxes],
+    [HATCH, boxes],
+    [LABEL, labelsOf('terminal', hidden)],
+    [HINTUAN_LABEL, labelsOf('hintuan', hidden)],
+  ]
+}
 
 /**
  * The saved hotspots' sources and layers on `map`: laid out from `stops`, the
@@ -313,13 +337,13 @@ export function useSavedStopsLayers(
   }, [map, hull])
 
   // The hotspot being edited is drawn by the editor; hide the saved copy.
+  // Set only once there is one, and once more to show it again
+  // (applyHidden): the public map never hides one, and sets no filter.
+  const hiddenNow = useRef<string | null>(null)
   useEffect(() => {
     if (!map || !map.getLayer(FILL)) return
-    const hidden = hiddenStopId ?? ''
-    map.setFilter(FILL, ['all', ['==', ['geometry-type'], 'Polygon'], ['!=', ['get', 'id'], hidden]])
-    map.setFilter(OUTLINE, ['all', ['==', ['geometry-type'], 'Polygon'], ['!=', ['get', 'id'], hidden]])
-    map.setFilter(HATCH, ['all', ['==', ['geometry-type'], 'Polygon'], ['!=', ['get', 'id'], hidden]])
-    map.setFilter(LABEL, labelsOf('terminal', hidden))
-    map.setFilter(HINTUAN_LABEL, labelsOf('hintuan', hidden))
+    applyHidden(hiddenNow, hiddenStopId, (hidden) => {
+      for (const [id, filter] of hiddenStopFilters(hidden)) map.setFilter(id, filter as never)
+    })
   }, [map, hiddenStopId])
 }

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes'
 import { ROUTES_HIT_LAYER } from './tap'
-import { LAYERS } from './layers'
+import { LAYERS, applyHidden } from './layers'
 import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { CASING_EXTRA, litWidth, roadWidth } from './lineStyle'
 
@@ -208,10 +208,15 @@ export function useSavedRoutesLayers(
   }, [map, rows, lines])
 
   // The direction being edited is drawn by the editor; hide the saved copy.
+  // Set only once there is one, and once more to show it again
+  // (applyHidden): the public map never hides one, and sets no filter.
+  const hiddenNow = useRef<string | null>(null)
   useEffect(() => {
     if (!map || !map.getLayer(LINE)) return
-    const filter = ['!=', ['get', 'id'], hiddenVariantId ?? ''] as const
-    for (const id of [CASING, LINE, SELECTED_CASING, SELECTED, HIT]) map.setFilter(id, filter as never)
+    applyHidden(hiddenNow, hiddenVariantId, (hidden) => {
+      const filter = ['!=', ['get', 'id'], hidden] as const
+      for (const id of [CASING, LINE, SELECTED_CASING, SELECTED, HIT]) map.setFilter(id, filter as never)
+    })
   }, [map, hiddenVariantId])
 
   useLighting(map, SRC, lit)

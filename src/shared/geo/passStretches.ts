@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { servedBy, variantLine, type VariantSummary } from '../model/routes'
 import { passBounds, passStretches } from './pass'
@@ -7,7 +7,7 @@ import { bboxOf, bboxesOverlap } from './geo'
 import { PASS_COLOUR, litWidth } from '../map/lineStyle'
 import { litOpacity, useLighting } from '../map/savedRoutesLayers'
 import { ROUTES_HIT_LAYER } from '../map/tap'
-import { useLayerReady } from '../map/layers'
+import { applyHidden, useLayerReady } from '../map/layers'
 
 /**
  * Where a lit direction passes a hintuan, the line turns orange for that
@@ -87,9 +87,14 @@ export function usePassStretches(
     src.setData({ type: 'FeatureCollection', features })
   }, [map, features, hitReady])
 
+  // None over the direction being redrawn: set only once there is one, and
+  // once more to show it again (applyHidden); the public map sets none.
+  const hiddenNow = useRef<string | null>(null)
   useEffect(() => {
     if (!map || !map.getLayer(SELECTED_PASS)) return
-    map.setFilter(SELECTED_PASS, ['!=', ['get', 'id'], hiddenVariantId ?? ''] as never)
+    applyHidden(hiddenNow, hiddenVariantId, (hidden) => {
+      map.setFilter(SELECTED_PASS, ['!=', ['get', 'id'], hidden] as never)
+    })
   }, [map, hiddenVariantId, hitReady])
 
   // The stretches follow their direction: the same state, on this source,
