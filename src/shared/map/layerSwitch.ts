@@ -25,6 +25,15 @@ import type { MapLibreMap } from 'maplibre-gl'
  * program as the map loaded, as before, and a tap compiles none (step 3;
  * the suites' program checks). The same after a lost GL context is given
  * back, its programs gone with it: on, till the next 'idle'.
+ *
+ * Each change of the value asks the map for a frame. On goes at once, with
+ * the lighting that needs it; so does off when the lighting goes, a frame
+ * the feature state draws anyway. But off as the map is first idle with
+ * nothing lit would be a frame of its own, the whole map drawn again for
+ * pixels that do not change: at 1,280 × 800 with 5,000 directions
+ * (studio-scale-test) 1.4-1.7 s of SwiftShader each, two in an opening. So
+ * that waits for the map's next move, whose frames come anyway and are the
+ * ones it saves; a still map draws no frames to save.
  */
 
 /** As much of a map as a switch uses: a unit check hands it a stand-in. */
@@ -36,7 +45,9 @@ export type SwitchMap = Pick<MapLibreMap, 'getLayer' | 'getPaintProperty' | 'set
  * was in. Each layer's own type names its property; a layer not on the map
  * is passed over, and one already as wanted is left alone (each set asks
  * the map for a frame). The value is read off the map, not kept: a basemap
- * switch carries the layers across with theirs (basemap.ts).
+ * switch carries the layers across with theirs (basemap.ts). Set when what
+ * is lit comes or goes, when the map starts to move (`moved`), and on again
+ * at once when the map's programs are lost; never at the warm idle itself.
  */
 export class LayerSwitch {
   readonly layers: readonly string[]
@@ -46,15 +57,25 @@ export class LayerSwitch {
     this.layers = layers
   }
 
-  /** What is lit or marked now: anything, or nothing. */
+  /** What is lit or marked now: anything, or nothing. Applied only when that changes, with the feature state that changes with it. */
   set(map: SwitchMap, on: boolean): void {
+    if (on === this.on) return
     this.on = on
     this.apply(map)
   }
 
-  /** `map`'s first 'idle' since the data was in has come (true), or its GL context is back without its programs (false). */
+  /**
+   * `map`'s first 'idle' since the data was in has come (true): off from the
+   * next move. Or its GL context is back without its programs (false): on
+   * at once, so the frames to come compile them.
+   */
   warmed(map: SwitchMap, warm: boolean): void {
     this.warm = warm ? map : null
+    if (!warm) this.apply(map)
+  }
+
+  /** `map` starts to move: what is to be off goes off, in the frames the move draws. */
+  moved(map: SwitchMap): void {
     this.apply(map)
   }
 
@@ -99,13 +120,16 @@ export function useLayerSwitch(map: MapLibreMap | null, layers: readonly string[
       map.once('idle', warm)
     }
     const loaded = () => sw.apply(map)
+    const moved = () => sw.moved(map)
     if (sw.warm !== map) map.once('idle', warm)
     map.on('webglcontextrestored', restored)
     map.on('style.load', loaded)
+    map.on('movestart', moved)
     return () => {
       map.off('idle', warm)
       map.off('webglcontextrestored', restored)
       map.off('style.load', loaded)
+      map.off('movestart', moved)
     }
   }, [map, primed, sw])
   return sw

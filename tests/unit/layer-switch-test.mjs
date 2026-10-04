@@ -34,43 +34,63 @@ test('on till the map is warm: nothing lit leaves the layers drawing, and their 
   const m = twoLayers()
   const sw = new LayerSwitch(['lit-line', 'stripes'])
   sw.set(m, false)
-  sw.set(m, false)
+  sw.moved(m)
   assert.deepEqual(m.sets, [], 'nothing set: they are at 1, as added')
   assert.deepEqual(opacity(m), [1, 1])
-  // The first idle since the data was in: off, each by its own type's property.
-  sw.warmed(m, true)
-  assert.deepEqual(m.sets, [['lit-line', 'line-layer-opacity', 0], ['stripes', 'fill-layer-opacity', 0]])
 })
 
-test('warm, they switch with what is lit, and are set only when that changes', () => {
+test('warm, nothing lit: off from the next move, never in a frame of its own at the idle', () => {
+  const m = twoLayers()
+  const sw = new LayerSwitch(['lit-line', 'stripes'])
+  // The first idle since the data was in: nothing set yet, each set asks for a frame.
+  sw.warmed(m, true)
+  assert.deepEqual(m.sets, [])
+  // The lighting's effect run again with nothing lit, as when the hotspots load: nothing.
+  sw.set(m, false)
+  assert.deepEqual(m.sets, [])
+  // The map starts to move: off, each by its own type's property.
+  sw.moved(m)
+  assert.deepEqual(m.sets, [['lit-line', 'line-layer-opacity', 0], ['stripes', 'fill-layer-opacity', 0]])
+  sw.moved(m)
+  assert.equal(m.sets.length, 2, 'a second move sets nothing more')
+})
+
+test('warm, they switch with what is lit, at once, and are set only when that changes', () => {
   const m = twoLayers()
   const sw = new LayerSwitch(['lit-line', 'stripes'])
   sw.warmed(m, true)
+  sw.moved(m)
   m.sets.length = 0
   sw.set(m, true)
   assert.deepEqual(opacity(m), [1, 1])
   sw.set(m, true)
-  assert.equal(m.sets.length, 2, 'a second lighting sets nothing more')
+  sw.moved(m)
+  assert.equal(m.sets.length, 2, 'lit again, or moved while lit: nothing more')
+  // The lighting goes: off with it, in the frame its feature state draws.
   sw.set(m, false)
   assert.deepEqual(opacity(m), [0, 0])
   assert.equal(m.sets.length, 4)
-  // Lit before the map was warm: on, and warm changes nothing.
+  // Lit before the map was warm: on, and warm and a move change nothing.
   const early = twoLayers()
   const sw2 = new LayerSwitch(['lit-line', 'stripes'])
   sw2.set(early, true)
   sw2.warmed(early, true)
+  sw2.moved(early)
   assert.deepEqual(early.sets, [])
 })
 
-test('a lost GL context given back: on again till the next idle, their programs gone with it', () => {
+test('a lost GL context given back: on again at once, till the next idle and move, their programs gone with it', () => {
   const m = twoLayers()
   const sw = new LayerSwitch(['lit-line', 'stripes'])
   sw.warmed(m, true)
+  sw.moved(m)
+  assert.deepEqual(opacity(m), [0, 0])
   sw.warmed(m, false)
   assert.deepEqual(opacity(m), [1, 1])
-  sw.set(m, false)
+  sw.moved(m)
   assert.deepEqual(opacity(m), [1, 1], 'nothing lit, but not warm')
   sw.warmed(m, true)
+  sw.moved(m)
   assert.deepEqual(opacity(m), [0, 0])
 })
 
@@ -79,7 +99,8 @@ test('warm is one map’s: another map starts on; a layer not there is passed ov
   const b = twoLayers()
   const sw = new LayerSwitch(['lit-line', 'stripes', 'not-added-yet'])
   sw.warmed(a, true)
-  sw.set(b, false)
+  sw.moved(a)
+  sw.moved(b)
   assert.deepEqual(opacity(a), [0, 0])
   assert.deepEqual(b.sets, [])
   assert.equal(sw.value(b), 1)
@@ -89,13 +110,14 @@ test('the value is read off the map: layers carried across a basemap switch keep
   const m = twoLayers()
   const sw = new LayerSwitch(['lit-line', 'stripes'])
   sw.warmed(m, true)
+  sw.moved(m)
   // A switch carries each layer across with its paint (basemap.ts): nothing to set.
   m.sets.length = 0
-  sw.set(m, false)
+  sw.moved(m)
   assert.deepEqual(m.sets, [])
-  // Were one made again without it, unset is 1: the next lighting puts it right.
+  // Were one made again without it, unset is 1: the next move puts it right.
   delete m.layers[0].paint['line-layer-opacity']
-  sw.set(m, false)
+  sw.moved(m)
   assert.deepEqual(m.sets, [['lit-line', 'line-layer-opacity', 0]])
 })
 
