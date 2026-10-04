@@ -126,7 +126,7 @@ function bearing(a: LngLat, b: LngLat): number {
 const turn = (a: number, b: number) => Math.abs(((((a - b) % 360) + 540) % 360) - 180)
 
 /** The point on a coordinate list nearest p, the edge it lies on, and how far p is from it. */
-function nearestOnCoords(line: LngLat[], p: LngLat): { edge: number; point: LngLat; off: number } | null {
+function nearestOnCoords(line: readonly LngLat[], p: LngLat): { edge: number; point: LngLat; off: number } | null {
   let best: { edge: number; point: LngLat; off: number } | null = null
   for (let edge = 0; edge < line.length - 1; edge++) {
     const { point } = nearestOnSegment(p, line[edge], line[edge + 1])
@@ -140,7 +140,7 @@ function nearestOnCoords(line: LngLat[], p: LngLat): { edge: number; point: LngL
  * A saved direction that a right-click while drawing may mean to follow: its
  * line in travel order, and whether it ends at the place the drawing is for.
  */
-export type FollowOption<V> = { v: V; travel: LngLat[]; endsAtDestination: boolean }
+export type FollowOption<V> = { v: V; travel: readonly LngLat[]; endsAtDestination: boolean }
 
 /**
  * Which saved line a right-click means, when the drawing should join one and

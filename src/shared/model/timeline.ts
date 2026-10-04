@@ -17,7 +17,7 @@ import type { Ring } from '../geo/ring'
  * neither are the hintuans this route does not stop at (`servedBy`): the
  * jeep hintuans under a train's track, the stations over a jeep's road.
  */
-export function hintuansAlong<S extends StopSummary>(line: LngLat[], stops: readonly S[], route: ServedRoute): { stop: S; index: number }[] {
+export function hintuansAlong<S extends StopSummary>(line: readonly LngLat[], stops: readonly S[], route: ServedRoute): { stop: S; index: number }[] {
   const along: { stop: S; index: number; at: number }[] = []
   for (const stop of stops) {
     if (!listedAlong(stop, route)) continue
@@ -42,7 +42,7 @@ export function listedAlong(stop: StopSummary, route: ServedRoute): boolean {
  * `index` (passIndex), and `at`, how far along that segment the stop's
  * middle is. Null when the line does not pass it.
  */
-export function passedAt(line: LngLat[], ring: Ring, stop: StopSummary): { index: number; at: number } | null {
+export function passedAt(line: readonly LngLat[], ring: Ring, stop: StopSummary): { index: number; at: number } | null {
   const index = passIndex(line, ring)
   // Two boxes met on one segment, a snapped road's 20–30 m, tied and kept
   // in the order the hotspots were read (review of 2026-10-03): the one

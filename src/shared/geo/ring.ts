@@ -99,7 +99,7 @@ export function ringCrossesItself(corners: Ring): boolean {
  * snapped road has a vertex every ~20–30 m, so a narrow hotspot drawn across
  * a straight stretch can sit entirely between two vertices.
  */
-export function firstTouchIndex(line: LngLat[], ring: Ring): number {
+export function firstTouchIndex(line: readonly LngLat[], ring: Ring): number {
   if (ring.length < 3 || line.length === 0) return -1
   // A vertex inside the ring is inside its box, and a segment that crosses
   // its edge reaches its box: the cheap questions first, and none of the

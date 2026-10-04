@@ -81,7 +81,7 @@ export function haversine([lng1, lat1]: LngLat, [lng2, lat2]: LngLat): number {
 }
 
 /** Total length of a coordinate list, in metres. */
-export function lineLength(coords: LngLat[]): number {
+export function lineLength(coords: readonly LngLat[]): number {
   let total = 0
   for (let i = 1; i < coords.length; i++) total += haversine(coords[i - 1], coords[i])
   return total

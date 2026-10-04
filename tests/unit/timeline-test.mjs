@@ -284,3 +284,28 @@ test("the card's timeline, read from the links, puts two on one segment in the o
   assert.deepEqual(orderLinked(linked, []).map((s) => s.id), ['far', 'near', 'later'])
   assert.deepEqual(orderLinked([{ stop: first, sequence: 0 }], line).map((s) => s.id), ['first'])
 })
+
+// The cheap-phone plan, step 16 (b), 2026-10-04: travelLine's line turned
+// round is made once per line array and kept (ride.ts, reversedOf).
+import { travelLine } from '../../src/shared/model/ride.ts'
+
+test('step 16 (b): a line drawn from the far end, turned round once and kept; the same as before; a new line, turned anew', () => {
+  const file = published()
+  const turned = file.variants.filter((v) => v.shape).flatMap((v) => [v, { ...v, reversed: !v.reversed }]).filter((v) => travelLine(v, file.stops) !== v.shape.coordinates)
+  assert.ok(turned.length >= 10, `${turned.length} directions turned round`)
+  for (const v of turned) {
+    const line = travelLine(v, file.stops)
+    // As before step 16: [...line].reverse(), the same points in the other order.
+    assert.deepStrictEqual(line, [...v.shape.coordinates].reverse())
+    assert.equal(travelLine(v, file.stops), line, 'asked again: the very same array')
+    assert.equal(travelLine({ ...v }, file.stops), line, 'another object with the same line: the same line turned')
+    // A new line (a full line read, a save) is a new array: turned anew, never the old copy.
+    const fresh = { ...v, shape: { ...v.shape, coordinates: v.shape.coordinates.map(([x, y]) => [x + 0.001, y]) } }
+    const freshLine = travelLine(fresh, file.stops)
+    assert.notEqual(freshLine, line)
+    assert.deepStrictEqual(freshLine, [...fresh.shape.coordinates].reverse())
+  }
+  // A line in travel order already is the direction's own array, as before.
+  const forward = file.variants.find((v) => v.shape && travelLine(v, file.stops) === v.shape.coordinates)
+  assert.ok(forward, 'a direction drawn forward')
+})

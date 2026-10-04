@@ -25,7 +25,7 @@ export const PASS_WITHIN_M = 5
  * (both sides: route and hotspot), the save panel and the hotspot panel all
  * ask it, so what is shown is what is stored.
  */
-export function passIndex(line: LngLat[], ring: Ring): number {
+export function passIndex(line: readonly LngLat[], ring: Ring): number {
   return firstNearIndex(line, ring, PASS_WITHIN_M)
 }
 
@@ -35,7 +35,7 @@ export function passIndex(line: LngLat[], ring: Ring): number {
  * -1 if never. Two segments that do not cross are nearest at one of their
  * four ends, so that is all that is measured.
  */
-export function firstNearIndex(line: LngLat[], ring: Ring, withinM: number): number {
+export function firstNearIndex(line: readonly LngLat[], ring: Ring, withinM: number): number {
   const touch = firstTouchIndex(line, ring)
   const n = ring.length
   if (n < 3 || line.length === 0) return -1
@@ -81,7 +81,7 @@ export function passBounds(ring: Ring, withinM = PASS_WITHIN_M, stepM = 1): BBox
  * vertex every 20–30 m, so the box edges fall between vertices — and left
  * alone everywhere else. Two points at least, so a stretch is a line.
  */
-export function passStretches(line: LngLat[], ring: Ring, withinM = PASS_WITHIN_M, stepM = 1): LngLat[][] {
+export function passStretches(line: readonly LngLat[], ring: Ring, withinM = PASS_WITHIN_M, stepM = 1): LngLat[][] {
   if (ring.length < 3 || line.length < 2) return []
   // Only segments near the box's bounds are worth sampling, and only a
   // vertex inside them is worth measuring: the ring distance is the cost

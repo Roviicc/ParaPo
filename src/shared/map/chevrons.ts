@@ -61,7 +61,7 @@ export const INSET_PX = 0
  * segment's bearing, and which segments an earlier lit line already covers.
  */
 export type Measured = {
-  line: LngLat[]
+  line: readonly LngLat[]
   at: number[]
   bearing: number[]
   length: number
@@ -69,7 +69,7 @@ export type Measured = {
   covered: boolean[]
 }
 
-export function measure(line: LngLat[]): Measured {
+export function measure(line: readonly LngLat[]): Measured {
   const at = [0]
   const bearing: number[] = []
   for (let i = 1; i < line.length; i++) {

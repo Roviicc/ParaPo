@@ -85,8 +85,8 @@ const SAME_END_M = 150
  */
 export type Ride = {
   id?: string
-  line: LngLat[]
-  flow?: LngLat[]
+  line: readonly LngLat[]
+  flow?: readonly LngLat[]
   from: string
   to: string
   fromStop?: string | null

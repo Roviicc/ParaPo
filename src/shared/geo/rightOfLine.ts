@@ -26,7 +26,7 @@ function signedArea2(ring: Ring): number {
  * Works in plain degrees: which side of a line a point is on, and where two
  * segments cross, do not change when longitude is stretched.
  */
-export function rightOfLine(ring: Ring, line: LngLat[]): Ring | null {
+export function rightOfLine(ring: Ring, line: readonly LngLat[]): Ring | null {
   const n = ring.length
   if (n < 3 || line.length < 2) return null
   const [w, s, e, nn] = bboxOf(ring)
