@@ -3,7 +3,8 @@
 // its script has run (the cheap-phone plan, step 6, 2026-10-04). MapView.tsx
 // itself cannot be loaded here (Vite's `?worker&url`), so the first check
 // reads it; the second runs MapLibre's own prewarm() and Style against a
-// stand-in Worker, so an upgrade that changes what prewarm() does says so.
+// stand-in Worker, so an upgrade that changes what prewarm() does says so;
+// the third reads index.html's preconnect against basemap.ts.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/early-start-test.mjs
 import { test } from 'node:test'
