@@ -145,3 +145,64 @@ test('a line that only comes near at its end vertex gets a stub of a stretch, as
   assert.equal(back.length, 1)
   assert.deepEqual(back[0][0], end)
 })
+
+// The cheap-phone plan, step 16 (a), 2026-10-04: each direction's stretches
+// worked out once per list of boxes and kept (passStretches.ts, stretchesOf),
+// against the hook's memo as it was, kept word for word here.
+import { passBoxes, stretchesOf, stretchesPast } from '../../src/shared/geo/passStretches.ts'
+import { servedBy, variantLine } from '../../src/shared/model/routes.ts'
+
+/** usePassStretches' features before step 16, word for word (but for types). */
+function oldFeatures(variants, stops) {
+  const boxes = stops
+    .filter((s) => s.kind === 'hintuan' && s.area)
+    .map((s) => {
+      const ring = stopRing(s)
+      return { stop: s, ring, bounds: passBounds(ring) }
+    })
+  return variants.flatMap((v) => {
+    const line = variantLine(v)
+    if (line.length < 2) return []
+    const reach = bboxOf(line)
+    return boxes.filter((b) => bboxesOverlap(reach, b.bounds) && servedBy(b.stop, v.route)).flatMap(({ ring }) =>
+      passStretches(line, ring).map((coordinates) => ({
+        type: 'Feature',
+        properties: { id: v.id, route_id: v.route_id },
+        geometry: { type: 'LineString', coordinates },
+      })),
+    )
+  })
+}
+
+test('step 16 (a): the stretches kept per direction are the ones worked out before, for every direction', () => {
+  const variants = file.variants
+  const boxes = passBoxes(file.stops)
+  const kept = variants.flatMap((v) => stretchesOf(v, boxes))
+  assert.deepStrictEqual(kept, oldFeatures(variants, file.stops))
+  assert.ok(kept.length > 50, `${kept.length} stretches`)
+  // A direction with no line yet (an overview-less slot) has none.
+  assert.deepStrictEqual(stretchesOf({ ...variants[0], shape: null }, boxes), [])
+})
+
+test('step 16 (a): asked again with the same direction and boxes, the very same array; a new line or new boxes, worked out anew', () => {
+  const boxes = passBoxes(file.stops)
+  const v = file.variants.find((x) => x.shape && stretchesPast(x, boxes).length > 0)
+  const first = stretchesOf(v, boxes)
+  assert.equal(stretchesOf(v, boxes), first, 'the same direction and boxes: kept')
+  // A line arriving makes the direction a new object (useSavedRoutes' withLine): never the old stretches.
+  const turned = { ...v, shape: { ...v.shape, coordinates: [...v.shape.coordinates].reverse() } }
+  const again = stretchesOf(turned, boxes)
+  assert.notEqual(again, first)
+  assert.deepStrictEqual(again, stretchesPast(turned, boxes))
+  assert.notDeepStrictEqual(again, first, 'the stretches of the line turned round run the other way')
+  // Another list of stops makes other boxes: nothing kept from the last.
+  const moved = file.stops.map((s) => (s.kind === 'hintuan' && s.area ? { ...s, area: { ...s.area, coordinates: [s.area.coordinates[0].map(([x, y]) => [x + 0.01, y])] } } : s))
+  const otherBoxes = passBoxes(moved)
+  assert.notEqual(stretchesOf(v, otherBoxes), first)
+  assert.deepStrictEqual(stretchesOf(v, otherBoxes), stretchesPast(v, otherBoxes))
+  assert.notDeepStrictEqual(stretchesOf(v, otherBoxes), first, 'the boxes moved, and so did their stretches')
+  // The same stops again, a new list: worked out anew, the same stretches.
+  const sameAgain = passBoxes(file.stops)
+  assert.notEqual(stretchesOf(v, sameAgain), first)
+  assert.deepStrictEqual(stretchesOf(v, sameAgain), first)
+})

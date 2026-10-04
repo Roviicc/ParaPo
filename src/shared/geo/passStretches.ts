@@ -3,7 +3,8 @@ import type { GeoJSONSource, LineLayerSpecification, MapLibreMap } from 'maplibr
 import { servedBy, variantLine, type VariantSummary } from '../model/routes'
 import { passBounds, passStretches } from './pass'
 import { stopRing, type StopSummary } from '../model/stops'
-import { bboxOf, bboxesOverlap } from './geo'
+import { bboxOf, bboxesOverlap, type BBox, type LngLat } from './geo'
+import type { Ring } from './ring'
 import { PASS_COLOUR, litWidth } from '../map/lineStyle'
 import { litOpacity, useLighting } from '../map/savedRoutesLayers'
 import { ROUTES_HIT_LAYER } from '../map/tap'
@@ -76,30 +77,11 @@ export function usePassStretches(
     map.addLayer(PASS_LAYER, ROUTES_HIT_LAYER)
   }, [map, hitReady])
 
-  const features = useMemo(() => {
-    const boxes = stops
-      .filter((s) => s.kind === 'hintuan' && s.area)
-      .map((s) => {
-        const ring = stopRing(s)
-        return { stop: s, ring, bounds: passBounds(ring) }
-      })
-    return variants.flatMap((v) => {
-      const line = variantLine(v)
-      if (line.length < 2) return []
-      // Only the boxes the line's own bounds reach: on a big map, most
-      // directions and most boxes are nowhere near each other.
-      const reach = bboxOf(line)
-      // And only the hintuans it stops at: a train's track over a jeep
-      // hintuan is not a stretch of its ride (servedBy).
-      return boxes.filter((b) => bboxesOverlap(reach, b.bounds) && servedBy(b.stop, v.route)).flatMap(({ ring }) =>
-        passStretches(line, ring).map((coordinates) => ({
-          type: 'Feature' as const,
-          properties: { id: v.id, route_id: v.route_id },
-          geometry: { type: 'LineString' as const, coordinates },
-        })),
-      )
-    })
-  }, [variants, stops])
+  // The boxes once per list of stops, and each direction's stretches once
+  // per direction against them (stretchesOf): a line arriving for one
+  // direction works out that direction's alone, not every lit one's again.
+  const boxes = useMemo(() => passBoxes(stops), [stops])
+  const features = useMemo(() => variants.flatMap((v) => stretchesOf(v, boxes)), [variants, boxes])
 
   useEffect(() => {
     const src = map?.getSource(SRC) as GeoJSONSource | undefined
@@ -120,4 +102,75 @@ export function usePassStretches(
   // The stretches follow their direction: the same state, on this source,
   // once it is there.
   useLighting(map, SRC, lit, hitReady)
+}
+
+/** A hintuan's box as the stretches are worked out against it: its ring, and the ground a line must reach (passBounds). */
+export type PassBox = { stop: StopSummary; ring: Ring; bounds: BBox }
+
+/** One orange stretch, as the map's source takes it: its direction's id on it, for the lighting. */
+export type PassFeature = {
+  type: 'Feature'
+  properties: { id: string; route_id: string }
+  geometry: { type: 'LineString'; coordinates: LngLat[] }
+}
+
+/** Every hintuan with a box: what the stretches are worked out against. */
+export function passBoxes(stops: readonly StopSummary[]): readonly PassBox[] {
+  return stops
+    .filter((s) => s.kind === 'hintuan' && s.area)
+    .map((s) => {
+      const ring = stopRing(s)
+      return { stop: s, ring, bounds: passBounds(ring) }
+    })
+}
+
+const stretchesKept = new WeakMap<readonly PassBox[], WeakMap<VariantSummary, readonly PassFeature[]>>()
+
+/**
+ * One direction's orange stretches past these boxes, worked out once and
+ * kept. They were worked out for every lit direction each time any line
+ * arrived — a list of six lit routes, six times over as their lines came in
+ * (the cheap-phone plan, step 16 (a), 2026-10-04).
+ *
+ * Kept by the boxes, then by the direction, both the very objects passed,
+ * which is safe because neither is ever changed in place:
+ * - `boxes` is made from a list of stops (passBoxes, the hook's memo of
+ *   `stops`), and any other list of stops — a reload, a save — makes new
+ *   boxes, with nothing kept yet;
+ * - `v` is everything a stretch reads (its id, route_id, route and line),
+ *   and a direction whose row or line changes is a new object (the line
+ *   hook's `withLine`, a reload's new rows).
+ * What is kept goes to the map's source as it is; MapLibre copies a feature
+ * before it changes one (geojson_source_diff.ts), and nothing here does.
+ */
+export function stretchesOf(v: VariantSummary, boxes: readonly PassBox[]): readonly PassFeature[] {
+  let byDirection = stretchesKept.get(boxes)
+  if (!byDirection) {
+    byDirection = new WeakMap()
+    stretchesKept.set(boxes, byDirection)
+  }
+  let features = byDirection.get(v)
+  if (!features) {
+    features = stretchesPast(v, boxes)
+    byDirection.set(v, features)
+  }
+  return features
+}
+
+/** stretchesOf without the keeping: worked out afresh. */
+export function stretchesPast(v: VariantSummary, boxes: readonly PassBox[]): PassFeature[] {
+  const line = variantLine(v)
+  if (line.length < 2) return []
+  // Only the boxes the line's own bounds reach: on a big map, most
+  // directions and most boxes are nowhere near each other.
+  const reach = bboxOf(line)
+  // And only the hintuans it stops at: a train's track over a jeep
+  // hintuan is not a stretch of its ride (servedBy).
+  return boxes.filter((b) => bboxesOverlap(reach, b.bounds) && servedBy(b.stop, v.route)).flatMap(({ ring }) =>
+    passStretches(line, ring).map((coordinates) => ({
+      type: 'Feature' as const,
+      properties: { id: v.id, route_id: v.route_id },
+      geometry: { type: 'LineString' as const, coordinates },
+    })),
+  )
 }
