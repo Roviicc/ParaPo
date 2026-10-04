@@ -13,7 +13,8 @@
 // Covers: touch chrome — no zoom buttons, attribution moved to the top right,
 // no horizontal scroll; the forgiving ±20 px tap, with a negative control well
 // outside the box; the trip card a lone route opens (the owner's
-// RouteTripDetail, 2026-09-29) — its ends, its fold, SWITCH keeping its
+// RouteTripDetail, 2026-09-29) — its ends, its fold (its rows drawn only
+// once it is opened, 2026-10-04), SWITCH keeping its
 // colour, ‹ only where another route sharing an end runs its way; the route list
 // where two routes share a road ("N Routes", a card per place), the trip a
 // row opens in its card's colour and ‹ back to the list, every card at rest; a tap
@@ -499,15 +500,26 @@ const tripChecks = async () => {
   } else {
     const folded = (await fold.first().innerText()).trim()
     const n = Number(/^(\d+) more hintuans$/.exec(folded)?.[1] ?? NaN)
+    // The rows' insides, drawn: none on a card just opened, folded, every
+    // one from the first opening on (the cheap-phone plan, step 11, 2026-10-04).
+    const drawnRows = () => card().locator('[data-testid="trip-hintuan-pick"]').count()
+    const drawnFolded = await drawnRows()
     await buttonTap(fold, async () => (await fold.first().getAttribute('aria-expanded')) === 'true')
     const opening = await rowMotion()
     const shown = await restingRows()
     check('  its hintuans fold into one row, "N more hintuans", that opens to N rows', n > 1 && shown === n && (await fold.first().innerText()).includes('View less'), `"${folded}" opened to ${shown} row(s)`)
+    const drawnOpen = await drawnRows()
     await buttonTap(fold, async () => (await fold.first().getAttribute('aria-expanded')) === 'false')
     const folding = await rowMotion()
     check('  "View less" folds them again', (await restingRows()) === 0 && (await fold.first().innerText()).trim() === folded, await fold.first().innerText())
     // The Motion tokens: open over gentle, fold over base (the owner's "try it").
     check('  the rows open over 300 ms and fold over 200 ms', opening.startsWith('0.3s') && folding.startsWith('0.2s'), `${opening} / ${folding}`)
+    const drawnAgain = await drawnRows()
+    check(
+      '  folded rows are drawn only once opened, and stay drawn to fold in view',
+      drawnFolded === 0 && drawnOpen === n && drawnAgain === n,
+      `${drawnFolded} drawn folded as the card opened, ${drawnOpen} opened, ${drawnAgain} folded again, of ${n}`,
+    )
   }
 
   // A hintuan's row picks it (the owner's Timeline State=Selected,
