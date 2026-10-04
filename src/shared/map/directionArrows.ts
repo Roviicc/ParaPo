@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { CircleLayerSpecification, GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { haversine, metresPerPixel, type LngLat } from '../geo/geo'
-import { INSET_PX, SPEED_PX_PER_S, chevronsAt, markCovered, measure, spacingPx, type Chevron, type Measured } from './chevrons'
+import { INSET_PX, SPEED_PX_PER_S, chevronsAt, markCovered, measure, spacingPx, type Chevron, type Measured, type View } from './chevrons'
 import { MAP_CLEAR, MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { endRadius, litWidthAt } from './lineStyle'
 import type { LineLook } from './liveryLine'
@@ -204,6 +204,45 @@ export function addDirectionArrows(map: Pick<MapLibreMap, 'addSource' | 'addLaye
   map.addLayer({ id: ENDS, type: 'circle', source: ENDS_SRC, paint: ENDS_PAINT }, ROUTES_HIT_LAYER)
 }
 
+/** What of the map is on screen now, and at what zoom. */
+function viewOf(map: MapLibreMap): View {
+  const b = map.getBounds()
+  return { west: b.getWest(), east: b.getEast(), south: b.getSouth(), north: b.getNorth(), zoom: map.getZoom() }
+}
+
+/** `view` a screen wider each way: three of its widths across and three of its heights up. */
+export function widened(view: View): View {
+  const w = view.east - view.west
+  const h = view.north - view.south
+  return { west: view.west - w, east: view.east + w, south: view.south - h, north: view.north + h, zoom: view.zoom }
+}
+
+/**
+ * What a move of the map does to the chevrons, which do not flow while it
+ * moves (the cheap-phone plan, step 17, 2026-10-04):
+ * - 'hold': nothing, while the view stays inside the window they were last
+ *   drawn for (`held`) at its zoom: every chevron it can show is there,
+ *   the same polygon a draw for the view would make;
+ * - 'wide': drawn again a screen wider each way, as the map pans at the
+ *   zoom they were last drawn at (`drawnAt`) and leaves the window;
+ * - 'view': drawn for the view, while the zoom changes, each frame changing
+ *   their size and spacing.
+ * They were drawn for the view at every move: each frame of a pan was a
+ * new source for MapLibre's worker to cut into tiles.
+ */
+export function onAMove(held: View | null, drawnAt: number, now: View): 'hold' | 'wide' | 'view' {
+  if (
+    held &&
+    now.zoom === held.zoom &&
+    now.west >= held.west &&
+    now.east <= held.east &&
+    now.south >= held.south &&
+    now.north <= held.north
+  )
+    return 'hold'
+  return now.zoom === drawnAt ? 'wide' : 'view'
+}
+
 /**
  * Draw chevrons along each ride's line, flowing for as long as it is lit
  * (STEP_MS), and a circle at both ends of each (named by EndTitles);
@@ -294,10 +333,16 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     /** The zoom they rested at, or null while they flow; and the zoom the map last came to rest at. */
     let restedAt: number | null = null
     let zoomAt = map.getZoom()
-    const draw = () => {
-      const zoom = map.getZoom()
-      const bounds = map.getBounds()
-      const view = { west: bounds.getWest(), east: bounds.getEast(), south: bounds.getSouth(), north: bounds.getNorth(), zoom }
+    /** What they were last drawn for while the map moves, a screen wider each way (held), or null: the view itself. And at what zoom. */
+    let held: View | null = null
+    let drawnAt = zoomAt
+    /** Drawn for the view on screen, or for it `wide`ned a screen each way. */
+    const draw = (wide = false) => {
+      const now = viewOf(map)
+      const view = wide ? widened(now) : now
+      const zoom = view.zoom
+      held = wide ? view : null
+      drawnAt = zoom
       const across = Math.max(0, litWidthAt(zoom) - 2 * INSET_PX)
       const features: Chevron[] = []
       for (const m of measured) {
@@ -309,10 +354,21 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       src.setData({ type: 'FeatureCollection', features })
     }
     // Moved, the map draws them again where they are: a zoom changes their
-    // size and spacing, a pan brings new line on screen.
-    const onMove = () => draw()
-    const onStart = () => (moving = true)
+    // size and spacing, a pan brings new line on screen. A pan at one zoom
+    // finds them drawn a screen wider each way as it began, and draws them
+    // again only once it leaves that (onAMove); they do not flow while the
+    // map moves, so what is on screen is the same.
+    const onMove = () => {
+      const how = onAMove(held, drawnAt, viewOf(map))
+      if (how !== 'hold') draw(how === 'wide')
+    }
+    const onStart = () => {
+      moving = true
+      draw(true)
+    }
     const onEnd = () => {
+      // Back to the view itself once it stops, as the steps draw them.
+      if (held) draw()
       moving = false
       last = performance.now()
       const zoom = map.getZoom()
