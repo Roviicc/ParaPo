@@ -7,6 +7,7 @@ import {
   MapLibreMap,
   NavigationControl,
   ScaleControl,
+  prewarm,
   setWorkerUrl,
 } from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
@@ -19,6 +20,21 @@ import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&ur
  * chunk it imports) and hand back its real URL, in dev and in production.
  */
 setWorkerUrl(maplibreWorkerUrl)
+
+/**
+ * The worker is started as this module is read, not when the map is made
+ * (the cheap-phone plan, step 6, 2026-10-04). It parses every tile, so the
+ * map's 'load' waits for its script, 133 kB on the wire. Made by the map, it
+ * was asked for only after React's first render and commit, the effect, its
+ * timer and the style's lookup (a fetch of its own for "Gray, detailed").
+ * prewarm() starts the same one worker (up to three on Safari: MapLibre's
+ * WorkerPool) from the address set just above, which it reads as it starts,
+ * so it must come after setWorkerUrl; the map takes it when it is made. It
+ * lives as long as the page, as it always did once a map had been made:
+ * MapLibre's global dispatcher holds it. On the studio's sign-in, and on an
+ * auth result passed on from / (commuter/main.tsx), it starts for nothing.
+ */
+prewarm()
 
 /**
  * OpenFreeMap: OSM-derived vector tiles, no API key, no usage limits. Exported
