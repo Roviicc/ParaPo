@@ -162,6 +162,12 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
         return
       }
 
+      // The map from its making, for the builds that hand it out (see 'load'
+      // below): the cheap-phone timer stamps its 'load' and its first frame
+      // with the routes drawn from here, before any of its events can fire
+      // (the cheap-phone plan, Step 0, 2026-10-04).
+      if (import.meta.env.DEV || import.meta.env.VITE_EXPOSE_MAP === '1') (window as unknown as { __mapEarly?: MapLibreMap }).__mapEarly = map
+
       // Record how far MapLibre gets, so a silent failure at least says
       // which stage it died in.
       const t0 = performance.now()
@@ -198,8 +204,16 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
         // the production build scripts/research/phone-speed.mjs makes for itself
         // with VITE_EXPOSE_MAP=1, to time a cheap phone on the code visitors get
         // (2026-10-04); `npm run build` never sets it, and check-build.mjs fails
-        // a build that carries the map out.
-        if (import.meta.env.DEV || import.meta.env.VITE_EXPOSE_MAP === '1') (window as unknown as { __map?: MapLibreMap }).__map = map!
+        // a build that carries the map out. With it, the GL programs compiled
+        // so far by MapLibre's own key: painter.cache is MapLibre's inside, so
+        // it is read here and nowhere else, for the timer and the suites to
+        // see what a tap compiles (the cheap-phone plan, Step 0, 2026-10-04).
+        if (import.meta.env.DEV || import.meta.env.VITE_EXPOSE_MAP === '1') {
+          const shown = map!
+          const w = window as unknown as { __map?: MapLibreMap; __programs?: () => string[] }
+          w.__map = shown
+          w.__programs = () => Object.keys((shown as unknown as { painter: { cache: object } }).painter.cache)
+        }
         setReady(map)
         onReadyRef.current?.(map!)
       })

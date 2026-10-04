@@ -92,7 +92,7 @@ with warnings, and closed by the first run with nothing to report.
 | `src/design-system/` | the tokens, fonts and primitives (foundation ← primitives) |
 | `public/data/` | the published map, every version kept in history: `index.v4.json` (what the app reads), a line per direction in `lines/`, and for apps not yet updated `index.v3.json` (without the ferry), `index.json` and the older single file `map.json` (without any line) |
 | `supabase/migrations/` | the schema and its policies, in order |
-| `scripts/` | tools: the build guards and the data check (`checks/`), the publish (`publish/`), Node's TypeScript hook (`node/`), the research screenshots and the cheap-phone timer, `phone-speed.mjs` (`research/`) |
+| `scripts/` | tools: the build guards and the data check (`checks/`), the publish (`publish/`), Node's TypeScript hook (`node/`), the research screenshots and the cheap-phone timer, `phone-speed.mjs` with its parts (`research/`) |
 | `tests/unit/` | the unit checks, Node's own test runner (`npm run test:unit`) |
 | `tests/e2e/` | the headless suites, and their README |
 
