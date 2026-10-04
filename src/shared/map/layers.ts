@@ -27,6 +27,22 @@ export const LAYERS = {
 } as const
 
 /**
+ * The id of the first layer of `type` in the map's drawing order, or
+ * undefined. The same answer as `getStyle().layers.find(…)`, without the copy
+ * of the whole style getStyle makes for it, every layer serialized and
+ * cloned: the three a public map's load made (the routes', the hotspots' and
+ * the status bar's) came to 6-15 ms at 4x CPU (the cheap-phone plan, step 5,
+ * 2026-10-04). getStyle leaves out custom layers; their type is 'custom',
+ * which no caller asks for.
+ */
+export function firstLayerOfType(
+  map: Pick<MapLibreMap, 'getLayersOrder' | 'getLayer'>,
+  type: string,
+): string | undefined {
+  return map.getLayersOrder().find((id) => map.getLayer(id)?.type === type)
+}
+
+/**
  * Hides one saved thing from a hook's layers — the direction or hotspot the
  * studio is editing, which the editor draws itself — by `apply`, handed the
  * id to leave out ('' for none), and keeps in `applied` the id it last hid

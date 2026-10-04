@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes'
 import { ROUTES_HIT_LAYER } from './tap'
-import { LAYERS, applyHidden } from './layers'
+import { LAYERS, applyHidden, firstLayerOfType } from './layers'
 import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { CASING_EXTRA, litWidth, roadWidth } from './lineStyle'
 
@@ -101,7 +101,7 @@ export function useSavedRoutesLayers(
     // Under the basemap's labels, so a road painted blue still shows its
     // name. The draft's layers, when there are any, sit above the labels and
     // so above these too.
-    const before = map.getStyle().layers.find((l) => l.type === 'symbol')?.id
+    const before = firstLayerOfType(map, 'symbol')
 
     // `promoteId`: the feature state a tap sets is keyed on the direction's id.
     map.addSource(SRC, {

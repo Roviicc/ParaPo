@@ -7,7 +7,7 @@ import type { LngLat } from '../geo/geo'
 import { labelGroups } from '../model/places'
 import { stopRing, type StopKind, type StopSummary } from '../model/stops'
 import { STOPS_FILL_LAYER } from './tap'
-import { LAYERS, applyHidden } from './layers'
+import { LAYERS, applyHidden, firstLayerOfType } from './layers'
 import type { BoxMark } from './stopsShown'
 
 /*
@@ -146,7 +146,7 @@ export function useSavedStopsLayers(
       ? ROUTES_ABOVE
       : map.getLayer(DRAW_ABOVE)
         ? DRAW_ABOVE
-        : map.getStyle().layers.find((l) => l.type === 'symbol')?.id
+        : firstLayerOfType(map, 'symbol')
 
     // `promoteId`: the feature state a tap sets is keyed on the hotspot's id
     // (its box and its label point share it, so both carry the state).

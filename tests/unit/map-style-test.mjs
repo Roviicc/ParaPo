@@ -1,7 +1,9 @@
 // What the map's style costs the main thread (the cheap-phone plan, steps 1
 // and 5, 2026-10-04): the whole style is not checked against the spec, on a
 // load or a basemap switch; the public map sets no hiding filter, and the
-// studio's still hide and show; the hotspots' fills stay one bucket.
+// studio's still hide and show; the hotspots' fills stay one bucket; and the
+// layer lists and the status bar read the style without copying it, with the
+// same answers as before.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/map-style-test.mjs
 import { test } from 'node:test'
@@ -10,8 +12,9 @@ import { readFileSync } from 'node:fs'
 import { Map as MapLibreMap } from 'maplibre-gl'
 import { featureFilter, groupByLayout } from '@maplibre/maplibre-gl-style-spec'
 import { BASEMAPS, applyBasemap } from '../../src/shared/map/basemap.ts'
-import { applyHidden } from '../../src/shared/map/layers.ts'
+import { applyHidden, firstLayerOfType } from '../../src/shared/map/layers.ts'
 import { hiddenStopFilters } from '../../src/shared/map/savedStopsLayers.ts'
+import { backgroundColour } from '../../src/commuter/statusBar.ts'
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
@@ -103,4 +106,95 @@ test('the box being edited, and the name it shares, are left out of every hotspo
   for (const id of BOX_LAYERS) assert.deepEqual(b1[id], ['b2', 't1'], id)
   assert.deepEqual(b1['saved-stops-label-hintuan'], ['b3'])
   assert.deepEqual(b1['saved-stops-label'], ['t1'])
+})
+
+// ------------------------------------------------------- reading the style
+
+/**
+ * A map whose style can be swapped as a switch swaps it, counting how often
+ * its layers are listed. getStyle is MapLibre 6.7's serialize, in order and
+ * without custom layers; getPaintProperty throws on a missing layer, as
+ * MapLibre's does.
+ */
+function styledMap(layers) {
+  const m = {
+    layers,
+    listed: 0,
+    getLayersOrder() {
+      m.listed++
+      return m.layers.map((l) => l.id)
+    },
+    getLayer: (id) => m.layers.find((l) => l.id === id),
+    getStyle: () => ({ layers: m.layers.filter((l) => l.type !== 'custom') }),
+    getPaintProperty(id, name) {
+      const l = m.layers.find((x) => x.id === id)
+      if (!l) throw new TypeError(`Cannot read properties of undefined (reading 'getPaintProperty'): ${id}`)
+      return l.paint?.[name]
+    },
+  }
+  return m
+}
+const bg = (id, colour) => ({ id, type: 'background', paint: { 'background-color': colour } })
+const POSITRON = [bg('background', 'rgb(242,243,240)'), { id: 'water', type: 'fill' }, { id: 'road', type: 'line' }, { id: 'road-label', type: 'symbol' }, { id: 'place', type: 'symbol' }]
+
+test('the first layer of a type is the one getStyle would name', () => {
+  const asked = ['background', 'fill', 'line', 'symbol', 'circle']
+  for (const layers of [POSITRON, [{ id: 'sky', type: 'custom' }, ...POSITRON], [{ id: 'water', type: 'fill' }], []]) {
+    const m = styledMap(layers)
+    for (const type of asked) assert.equal(firstLayerOfType(m, type), m.getStyle().layers.find((l) => l.type === type)?.id, `${type} of ${layers.map((l) => l.id)}`)
+  }
+})
+
+test('the status bar takes the colours it took before, through taps and both kinds of switch, listing the layers once a style', () => {
+  const DARK = [bg('background', 'rgb(12,12,12)'), { id: 'water', type: 'fill' }]
+  // A design with its background under another id, the old one gone.
+  const OTHER = [{ id: 'land', type: 'fill' }, bg('bg', '#abcdef')]
+  // The old id now a fill, the background further on.
+  const TWISTED = [{ id: 'background', type: 'fill' }, bg('ground', '#123456')]
+  // No background at all, and one whose colour is an expression.
+  const BARE = [{ id: 'water', type: 'fill' }]
+  const EXPRESSED = [{ id: 'background', type: 'background', paint: { 'background-color': ['interpolate', ['linear'], ['zoom'], 5, '#000', 10, '#fff'] } }]
+  // What the map says, in order. MapLibre 6.7: a diffed switch says
+  // 'style.load' and then 'styledata'; a style built afresh, 'styledata'
+  // first ('data' from Style._load), then 'style.load', then 'styledata'.
+  const story = [
+    'mount', ...Array(20).fill('styledata'),
+    { to: DARK }, 'style.load', 'styledata',
+    { to: TWISTED }, 'styledata', 'style.load', 'styledata',
+    { to: OTHER }, 'styledata', 'style.load', 'styledata',
+    { to: POSITRON }, 'style.load', 'styledata', 'styledata',
+    { to: BARE }, 'styledata', 'style.load', 'styledata',
+    { to: EXPRESSED }, 'style.load', 'styledata',
+    { to: POSITRON }, 'styledata', 'style.load', 'styledata',
+  ]
+  const tell = (handlers) => {
+    const m = styledMap(POSITRON)
+    const set = []
+    const on = handlers(m, (c) => set.push(c))
+    for (const step of story) {
+      if (typeof step === 'object') m.layers = step.to
+      else on[step]?.()
+    }
+    return { set, m }
+  }
+  // The hook before the cheap-phone plan's step 5: the whole style, on every 'styledata'.
+  const before = tell((m, set) => {
+    const paint = () => {
+      const layer = m.getStyle()?.layers?.find((l) => l.type === 'background')
+      const colour = layer && m.getPaintProperty(layer.id, 'background-color')
+      if (typeof colour === 'string') set(colour)
+    }
+    return { mount: paint, styledata: paint }
+  })
+  const now = tell((m, set) => {
+    const b = backgroundColour(m, set)
+    return { mount: b.paint, 'style.load': b.find, styledata: b.paint }
+  })
+  assert.deepEqual(now.set, before.set)
+  assert.deepEqual([...new Set(now.set)], ['rgb(242,243,240)', 'rgb(12,12,12)', '#123456', '#abcdef'])
+  // Listed once at the mount, once a 'style.load' (7), where a style built
+  // afresh spoke first and the id found named no background (TWISTED,
+  // OTHER), and on each 'styledata' with no background at all (BARE, 2):
+  // never for the 20 'styledata' a tap's paint changes make.
+  assert.equal(now.m.listed, 1 + 7 + 2 + 2)
 })
