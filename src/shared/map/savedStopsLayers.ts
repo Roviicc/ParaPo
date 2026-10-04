@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
+import type { GeoJSONSource, MapLibreMap, SymbolLayerSpecification } from 'maplibre-gl'
 import { HOTSPOT_COLOUR, HOTSPOT_CONTENT, HOTSPOT_OPACITY } from './colours'
 import { MAP_OPACITY, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { ringToPolygon, type Ring } from '../geo/ring'
@@ -45,6 +45,23 @@ const labelsOf = (kind: StopKind, hidden = '') =>
     ['==', ['get', 'kind'], kind],
     ...(hidden ? [['!', ['in', hidden, ['get', 'ids']]]] : []),
   ] as never
+/**
+ * A kind's names' paint (the owner's frame, 3837:11308): its content colour,
+ * a white halo (Border/plain). One colour a layer, each layer holding one
+ * kind's names (labelsOf), where it was the boxes' `match` on the kind:
+ * the same pixels, and a colour that does not vary by feature is drawn by
+ * the GL program the basemap's own names compile at load. The match was a
+ * program of its own, compiled by the first frame that showed a name (from
+ * zoom 16.24, a visitor's pinch or a hotspot's glide): 5-50 ms of a cheap
+ * phone's main thread then (the cheap-phone plan, step 4, 2026-10-04).
+ */
+export function namePaint(kind: StopKind) {
+  return {
+    'text-color': HOTSPOT_CONTENT[kind],
+    'text-halo-color': MAP_PAINT['Paint/casing'],
+    'text-halo-width': 1,
+  } satisfies SymbolLayerSpecification['paint']
+}
 /** The boxes under a tap, or the chosen one, striped while they are asked about: the HotspotOverlayCard's State=Selected. */
 const HATCH = 'saved-stops-hatch'
 const hatchOf = (kind: StopKind) => `hotspot-hatch-${kind}`
@@ -256,7 +273,7 @@ export function useSavedStopsLayers(
         filter: labelsOf(kind),
         // The same size at every zoom, as it was; 12, SemiBold as near as
         // the map's fonts come, two lines over some 92 px as drawn, a white
-        // halo (Border/plain) round it.
+        // halo round it (namePaint).
         layout: {
           'text-field': ['get', 'name'],
           'text-size': 12,
@@ -266,11 +283,7 @@ export function useSavedStopsLayers(
           'text-max-width': 8,
           'text-allow-overlap': false,
         },
-        paint: {
-          'text-color': content,
-          'text-halo-color': MAP_PAINT['Paint/casing'],
-          'text-halo-width': 1,
-        },
+        paint: namePaint(kind),
       })
     }
   }, [map])

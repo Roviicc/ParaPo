@@ -10,10 +10,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { Color, createPropertyExpression, latest } from '@maplibre/maplibre-gl-style-spec'
+import { Color, createPropertyExpression, featureFilter, latest } from '@maplibre/maplibre-gl-style-spec'
 import { PASS_LAYER } from '../../src/shared/geo/passStretches.ts'
 import { ENDS_PAINT, ENDS_TWIN } from '../../src/shared/map/directionArrows.ts'
 import { WARM_SOURCE, afterIdle, warmPrograms } from '../../src/shared/map/warmPrograms.ts'
+import { hiddenStopFilters, namePaint } from '../../src/shared/map/savedStopsLayers.ts'
+import { HOTSPOT_CONTENT } from '../../src/shared/map/colours.ts'
 import { litOpacity } from '../../src/shared/map/savedRoutesLayers.ts'
 import { litWidth } from '../../src/shared/map/lineStyle.ts'
 
@@ -269,4 +271,30 @@ test('afterIdle cancelled before the idle, or after it, runs nothing; nor on a m
   lost.style = null
   browser.flush()
   assert.equal(runs, 0)
+})
+
+// ------------------------------------------------------------ step 4
+
+test("hotspot names are one colour a layer: the basemap's names' program, the same pixels as the match on the kind", () => {
+  // The colour as it was: the boxes' content colour by kind, one expression for both layers.
+  const match = ['match', ['get', 'kind'], 'terminal', HOTSPOT_CONTENT.terminal, HOTSPOT_CONTENT.hintuan]
+  const was = createPropertyExpression(match, 'paint', latest.paint_symbol['text-color']).value
+  const text = (name) => name.startsWith('text-')
+  assert.match(programOf({ type: 'symbol', paint: { 'text-color': match } }, text), /(^|\/)a_text-color(\/|$)/, 'the match was a program of its own')
+  // Each layer holds one kind's names (its filter, as the layer is added: none hidden).
+  const filters = Object.fromEntries(hiddenStopFilters(''))
+  const layers = { 'saved-stops-label': 'terminal', 'saved-stops-label-hintuan': 'hintuan' }
+  for (const [id, kind] of Object.entries(layers)) {
+    const paint = namePaint(kind)
+    assert.doesNotMatch(programOf({ type: 'symbol', paint }, text), /(^|\/)[az]_/, `${id}: one value for the layer`)
+    const f = featureFilter(filters[id], `layers.${id}.filter`)
+    for (const other of ['terminal', 'hintuan']) {
+      const name = { type: 1, properties: { id: 'x', ids: 'x', kind: other, name: 'A' } }
+      const shown = f.filter({ zoom: 17 }, name)
+      assert.equal(shown, other === kind, `${id} shows ${other} names: ${shown}`)
+      // Where a name is shown, the colour it gets is the colour the match gave it.
+      if (shown) assert.deepEqual(Color.parse(paint['text-color']), was.evaluate({ zoom: 17 }, name), `${id}, a ${other}'s name`)
+    }
+    assert.deepEqual(paint['text-halo-width'], 1)
+  }
 })
