@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -52,6 +53,24 @@ function studioWithoutManifest(): Plugin {
   }
 }
 
+/**
+ * Where this build writes, as Vite resolved it: dist/ for `npm run build`,
+ * its own folder for scripts/research/phone-speed.mjs (2026-10-04). The
+ * precache below is cut down by that build's own manifest. Read from dist/
+ * whatever the folder, as it was, the timer's build was cut down by dist/'s
+ * chunk names, and its own page's two chunks were left out of its precache.
+ */
+let outDir = 'dist'
+function readOutDir(): Plugin {
+  return {
+    name: 'parapo:out-dir',
+    apply: 'build',
+    configResolved(config) {
+      outDir = resolve(config.root, config.build.outDir)
+    },
+  }
+}
+
 /** Brand colours, measured from the logo: the wordmark's maroon and a warm off-white behind the pin. */
 const THEME_COLOUR = '#8a595a'
 const BACKGROUND_COLOUR = '#f5f1ee'
@@ -65,6 +84,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     chunkModules(),
+    readOutDir(),
     VitePWA({
       // The page registers the worker itself (src/commuter/pwa.ts), so the
       // plugin writes no registration script — and none into /studio/.
@@ -104,10 +124,11 @@ export default defineConfig({
         manifestTransforms: [
           (entries) => {
             // Written by Vite with the bundle; the worker is generated after.
-            if (!existsSync('dist/.vite/manifest.json')) {
-              throw new Error('dist/.vite/manifest.json is missing: the precache cannot be limited to the public page')
+            const manifestPath = join(outDir, '.vite', 'manifest.json')
+            if (!existsSync(manifestPath)) {
+              throw new Error(`${manifestPath} is missing: the precache cannot be limited to the public page`)
             }
-            const manifest = JSON.parse(readFileSync('dist/.vite/manifest.json', 'utf8')) as Record<
+            const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<
               string,
               { file: string; css?: string[]; assets?: string[]; imports?: string[]; dynamicImports?: string[] }
             >
