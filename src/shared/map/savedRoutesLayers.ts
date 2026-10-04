@@ -108,6 +108,25 @@ export function routesData(rows: readonly VariantSummary[]) {
 }
 
 /**
+ * The full lines of `lines` not patched into the source yet, as updateData
+ * takes them, each noted in `sent` as it goes: by id, and again for an id
+ * whose line is another object. Each arrival used to send every line read
+ * so far (the cheap-phone plan, step 10 (e), 2026-10-04).
+ */
+export function unpatched(
+  sent: Map<string, LineStringGeoJSON>,
+  lines: ReadonlyMap<string, LineStringGeoJSON>,
+): { id: string; newGeometry: LineStringGeoJSON }[] {
+  const update: { id: string; newGeometry: LineStringGeoJSON }[] = []
+  for (const [id, line] of lines) {
+    if (sent.get(id) === line) continue
+    sent.set(id, line)
+    update.push({ id, newGeometry: line })
+  }
+  return update
+}
+
+/**
  * The saved directions' source, laid out from `rows`, and its five layers,
  * added to `map` under the basemap's first label: what useSavedRoutesLayers
  * adds once a map is there, apart so a unit check can read it
@@ -207,9 +226,12 @@ export function useSavedRoutesLayers(
   hiddenVariantId: string | null | undefined,
   lit: readonly string[],
 ) {
-  // The rows the source was last laid out from (the cheap-phone plan,
-  // step 10 (c), 2026-10-04).
+  // The rows the source was last laid out from, and the full lines patched
+  // in since, each by the very array or object handed on: what was sent
+  // is not sent again (the cheap-phone plan, step 10 (c) and (e),
+  // 2026-10-04).
   const laidOut = useRef<readonly VariantSummary[] | null>(null)
+  const patched = useRef(new Map<string, LineStringGeoJSON>())
 
   // Added with the rows already in, when they are (the public map's file
   // usually comes in before the basemap's style): laid out in the one
@@ -219,24 +241,33 @@ export function useSavedRoutesLayers(
     if (!map || map.getSource(SRC)) return
     addSavedRoutes(map, rows)
     laidOut.current = rows
+    patched.current = new Map()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map])
 
   // The source is laid out from the rows as loaded — on the public map, the
   // overviews — and a full line read later is patched into it alone
-  // (updateData), not the whole source laid out again.
+  // (updateData), not the whole source laid out again. New rows lay it all
+  // out again, the full lines with it: those are patched in afresh.
   useEffect(() => {
     if (!map) return
     const src = map.getSource(SRC) as GeoJSONSource | undefined
     if (!src) return
-    layOutOnce(laidOut, rows, (next) => src.setData(routesData(next)))
+    layOutOnce(laidOut, rows, (next) => {
+      patched.current = new Map()
+      src.setData(routesData(next))
+    })
   }, [map, rows])
 
+  // Only the lines not patched in yet: each arrival sent every line read so
+  // far again, and MapLibre laid out again each tile within any of their
+  // bounds (GeoJSONSource.shouldReloadTile).
   useEffect(() => {
     if (!map || lines.size === 0) return
     const src = map.getSource(SRC) as GeoJSONSource | undefined
     if (!src) return
-    void src.updateData({ update: [...lines].map(([id, line]) => ({ id, newGeometry: line })) })
+    const update = unpatched(patched.current, lines)
+    if (update.length > 0) void src.updateData({ update })
   }, [map, rows, lines])
 
   // The direction being edited is drawn by the editor; hide the saved copy.

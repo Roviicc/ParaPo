@@ -2,7 +2,7 @@
 // of them carries 32 px past its edges, not MapLibre's 128, and every layer
 // drawn from them still fits in that (d); the routes and the hotspots are
 // laid out as their sources are added, when they are in by then, and not a
-// second time (c).
+// second time (c); and a full line read is patched into the routes once (e).
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/map-sources-test.mjs
 import { test } from 'node:test'
@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createPropertyExpression, latest } from '@maplibre/maplibre-gl-style-spec'
 import { TILE_BUFFER, layOutOnce } from '../../src/shared/map/layers.ts'
-import { addSavedRoutes, routesData } from '../../src/shared/map/savedRoutesLayers.ts'
+import { addSavedRoutes, routesData, unpatched } from '../../src/shared/map/savedRoutesLayers.ts'
 import { addSavedStops, stopsData } from '../../src/shared/map/savedStopsLayers.ts'
 import { variantLine } from '../../src/shared/model/routes.ts'
 import { stopRing } from '../../src/shared/model/stops.ts'
@@ -232,4 +232,40 @@ test('laid out once: added with the rows, the effect that follows does nothing; 
   layOutOnce(early, empty, (r) => late.push(r))
   layOutOnce(early, rows, (r) => late.push(r))
   assert.deepEqual(late, [rows])
+})
+
+// ------------------------------------------------------------ (e)
+
+const lineOf = (id) => ({ type: 'LineString', coordinates: [[121, 14], [121.01, 14.01 + id.length / 1000]] })
+
+test('each full line is patched in once: an arrival sends only the lines not sent yet', () => {
+  const sent = new Map()
+  // A list's six lines, handed on in three frames as useSavedRoutes does:
+  // each frame's map a copy of the last with the new lines set.
+  const frames = [['a', 'b'], ['c'], ['d', 'e', 'f']]
+  let lines = new Map()
+  const updates = []
+  for (const ids of frames) {
+    lines = new Map(lines)
+    for (const id of ids) lines.set(id, lineOf(id))
+    updates.push(unpatched(sent, lines))
+  }
+  assert.deepEqual(updates.map((u) => u.map((x) => x.id)), [['a', 'b'], ['c'], ['d', 'e', 'f']])
+  // Each update is the line itself, as updateData takes it.
+  assert.equal(updates[1][0].newGeometry, lines.get('c'))
+  // Before, each arrival sent every line read so far: 2 + 3 + 6.
+  assert.equal(updates.flat().length, 6)
+  // The effect run again with nothing new (a lit change, the same lines): nothing.
+  assert.deepEqual(unpatched(sent, lines), [])
+})
+
+test('a line that is another object for an id is sent again; new rows, laid out afresh, have every line sent again', () => {
+  const sent = new Map()
+  const lines = new Map([['a', lineOf('a')], ['b', lineOf('b')]])
+  unpatched(sent, lines)
+  const again = new Map(lines).set('b', lineOf('b'))
+  assert.deepEqual(unpatched(sent, again).map((x) => x.id), ['b'])
+  // The rows' effect lays the source out again from the overviews and starts a new record.
+  const fresh = new Map()
+  assert.deepEqual(unpatched(fresh, again).map((x) => x.id), ['a', 'b'])
 })
