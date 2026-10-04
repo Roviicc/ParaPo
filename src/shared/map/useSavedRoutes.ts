@@ -5,6 +5,7 @@ import type { Livery } from '../model/liveries'
 import { ROUTES_LINE, useSavedRoutesLayers } from './savedRoutesLayers'
 import { litOf, shownOf, showingOf, steady } from './routesShown'
 import { useRouteTaps } from './routeTaps'
+import { perFrame, type PerFrame } from './perFrame'
 
 /**
  * The RouteCard picked in a list of them — the route list's, or a hotspot's
@@ -153,12 +154,29 @@ export function useSavedRoutes<T extends VariantSummary>(
     byId.current = new Map(variants.map((v) => [v.id, v]))
   }, [variants])
 
+  // The full lines as they come in, handed on together once a frame
+  // (perFrame): a list's six lines were six renders of the whole app, each
+  // working out every lit line's stretches, rides and chevrons again (the
+  // cheap-phone plan, step 16 (e), 2026-10-04). Made once: setLines never
+  // changes. A reload drops what has not been handed on, as setting no
+  // lines did to what had.
+  const arrivals = useRef<PerFrame<string, LineStringGeoJSON> | null>(null)
+  arrivals.current ??= perFrame((batch) =>
+    setLines((m) => {
+      const next = new Map(m)
+      for (const [id, line] of batch) next.set(id, line)
+      return next
+    }),
+  )
+  useEffect(() => () => arrivals.current?.clear(), [])
+
   const reload = useCallback(async () => {
     setLoading(true)
     try {
       const next = await load()
       setRows(next)
       setLines(new Map())
+      arrivals.current?.clear()
       requestedRef.current.clear()
       failedRef.current.clear()
       setError(null)
@@ -225,7 +243,7 @@ export function useSavedRoutes<T extends VariantSummary>(
       failedRef.current.delete(id)
       loadLine(id).then(
         (line) => {
-          if (line) setLines((m) => new Map(m).set(id, line))
+          if (line) arrivals.current?.add(id, line)
         },
         () => {
           requestedRef.current.delete(id)
