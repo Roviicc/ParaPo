@@ -1,6 +1,7 @@
 import { useEffect, type RefObject } from 'react'
 import type { MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import type { StopSummary } from '../model/stops'
+import { canHover } from './MapView'
 import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, resolveTap, tapTargets } from './tap'
 
 /*
@@ -12,9 +13,10 @@ const FILL = STOPS_FILL_LAYER
 const ROUTES_HIT = ROUTES_HIT_LAYER
 
 /**
- * Binds the map's click, and the pointer over a box, once. The handler reads
- * today's hotspots and whether the editor is drawing through `read`, and
- * answers through the hook's setters (`set`), which never change.
+ * Binds the map's click, and the pointer over a box where a pointer can
+ * hover (canHover), once. The handler reads today's hotspots and whether
+ * the editor is drawing through `read`, and answers through the hook's
+ * setters (`set`), which never change.
  */
 export function useStopTaps<S extends StopSummary>(
   map: MapLibreMap | null,
@@ -56,12 +58,18 @@ export function useStopTaps<S extends StopSummary>(
     }
 
     map.on('click', onMapClick)
-    map.on('mouseenter', FILL, enter)
-    map.on('mouseleave', FILL, leave)
+    // The hand over a box only where a pointer can hover, as over a line
+    // (routeTaps.ts; canHover, 2026-10-04).
+    if (canHover) {
+      map.on('mouseenter', FILL, enter)
+      map.on('mouseleave', FILL, leave)
+    }
     return () => {
       map.off('click', onMapClick)
-      map.off('mouseenter', FILL, enter)
-      map.off('mouseleave', FILL, leave)
+      if (canHover) {
+        map.off('mouseenter', FILL, enter)
+        map.off('mouseleave', FILL, leave)
+      }
     }
   }, [map])
 }

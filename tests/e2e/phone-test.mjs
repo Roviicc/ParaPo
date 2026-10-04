@@ -22,9 +22,9 @@
 // by a tap on its own line (no ?r= link since the owner took trip links out,
 // 2026-10-03), the view it frames, and its ‹ listing the routes sharing an
 // end with its own; the fine-pointer desktop control (±5 px, no zoom
-// buttons for a mouse either since 2026-09-29, attribution bottom right);
-// a first tap at the opening view compiling no GL program (2026-10-04);
-// and housekeeping.
+// buttons for a mouse either since 2026-09-29, attribution bottom right,
+// the pointer a hand over a line); a first tap at the opening view
+// compiling no GL program (2026-10-04); and housekeeping.
 import { chromium } from 'playwright'
 import { BASE, harness, nodeFetch, waitForSource } from './lib/harness.mjs'
 import { centroidOf, pointInPolygon } from './lib/geo.mjs'
@@ -2285,6 +2285,18 @@ if (!routeA) {
     (await dCard.count()) === 0,
     `card count ${await dCard.count()} (the first one closed: ${closed}); saved-routes-hit is ${hitWidth} px wide, so a ±5 px box reaches ${5 + Number(hitWidth) / 2} px`,
   )
+
+  // A mouse can hover: over the line the pointer is a hand, and off it, where
+  // the click above found nothing, it is not. A phone's finger gets no hover
+  // listeners since 2026-10-04 (canHover); a desktop keeps them.
+  const cursor = () => dpage.evaluate(() => window.__map.getCanvas().style.cursor)
+  await dpage.mouse.move(box.x + anchor2[0], box.y + anchor2[1], { steps: 4 })
+  await dpage.waitForTimeout(300)
+  const over = await cursor()
+  await dpage.mouse.move(box.x + anchor2[0] + perp2[0] * 20, box.y + anchor2[1] + perp2[1] * 20, { steps: 4 })
+  await dpage.waitForTimeout(300)
+  const off = await cursor()
+  check('a mouse over the line turns the pointer to a hand, and off it back', over === 'pointer' && off === '', `over "${over}", 20 px off "${off}"`)
 }
 
 // --------------------------------------------------------- 7. housekeeping

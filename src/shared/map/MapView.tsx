@@ -80,6 +80,19 @@ const ATTRIBUTION = [
 export const coarse =
   typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
 
+/**
+ * Whether any pointer here can hover — a mouse, a trackpad — for the hand
+ * the cursor turns into over a line or a box (routeTaps.ts, stopTaps.ts).
+ * MapLibre answers a layer's mouseenter and mouseleave with a query of the
+ * rendered features on every mousemove, and a finger's tap raises one before
+ * its click, so a phone paid four queries a tap for a cursor it never shows
+ * (the cheap-phone plan, step 7, 2026-10-04). A laptop with a touch screen
+ * and a trackpad, or a phone with a mouse plugged in as the page loads, can
+ * hover and keeps them. Read once, as `coarse` is.
+ */
+export const canHover =
+  typeof window !== 'undefined' && !!window.matchMedia?.('(any-hover: hover)').matches
+
 /** Metro Manila. */
 const CENTER: [number, number] = [121.0244, 14.5995]
 const ZOOM = 11
