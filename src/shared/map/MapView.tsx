@@ -194,8 +194,12 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
         setLoaded(true)
         setError(null)
         // Dev builds expose the map so the headless suites (tests/e2e/) can read real
-        // screen positions from the drawn geometry instead of guessing.
-        if (import.meta.env.DEV) (window as unknown as { __map?: MapLibreMap }).__map = map!
+        // screen positions from the drawn geometry instead of guessing. So does
+        // the production build scripts/research/phone-speed.mjs makes for itself
+        // with VITE_EXPOSE_MAP=1, to time a cheap phone on the code visitors get
+        // (2026-10-04); `npm run build` never sets it, and check-build.mjs fails
+        // a build that carries the map out.
+        if (import.meta.env.DEV || import.meta.env.VITE_EXPOSE_MAP === '1') (window as unknown as { __map?: MapLibreMap }).__map = map!
         setReady(map)
         onReadyRef.current?.(map!)
       })
