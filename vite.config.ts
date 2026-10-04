@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -52,6 +53,27 @@ function studioWithoutManifest(): Plugin {
   }
 }
 
+/**
+ * Where this build writes: `dist`, or the folder a measurement builds into
+ * (scripts/research/phone-speed.mjs, `--outDir`). The precache's transform
+ * below reads the build's own .vite/manifest.json from it. It read
+ * `dist/…` until 2026-10-04, so a build elsewhere was limited by the last
+ * `npm run build`'s chunk names: its page's scripts, named otherwise, were
+ * left out, and its worker fetched them from the network on every visit
+ * (found by the cheap-phone plan's step 0: 364 KB on a repeat visit, where
+ * 4 KB is right). `npm run build` writes to `dist` and is as it was.
+ */
+let outDir = 'dist'
+function buildFolder(): Plugin {
+  return {
+    name: 'parapo:build-folder',
+    apply: 'build',
+    configResolved(config) {
+      outDir = resolve(config.root, config.build.outDir)
+    },
+  }
+}
+
 /** Brand colours, measured from the logo: the wordmark's maroon and a warm off-white behind the pin. */
 const THEME_COLOUR = '#8a595a'
 const BACKGROUND_COLOUR = '#f5f1ee'
@@ -65,6 +87,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     chunkModules(),
+    buildFolder(),
     VitePWA({
       // The page registers the worker itself (src/commuter/pwa.ts), so the
       // plugin writes no registration script — and none into /studio/.
@@ -104,10 +127,11 @@ export default defineConfig({
         manifestTransforms: [
           (entries) => {
             // Written by Vite with the bundle; the worker is generated after.
-            if (!existsSync('dist/.vite/manifest.json')) {
-              throw new Error('dist/.vite/manifest.json is missing: the precache cannot be limited to the public page')
+            const manifestPath = join(outDir, '.vite', 'manifest.json')
+            if (!existsSync(manifestPath)) {
+              throw new Error(`${manifestPath} is missing: the precache cannot be limited to the public page`)
             }
-            const manifest = JSON.parse(readFileSync('dist/.vite/manifest.json', 'utf8')) as Record<
+            const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<
               string,
               { file: string; css?: string[]; assets?: string[]; imports?: string[]; dynamicImports?: string[] }
             >

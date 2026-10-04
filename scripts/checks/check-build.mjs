@@ -26,7 +26,8 @@
 // Each check has a positive control on the studio side — its chunks must hold
 // studio modules, every marker and the Supabase client — or the search itself
 // is broken and a pass would mean nothing. No built file may mention the `e2e`
-// test switch, which exists only in development builds.
+// test switch, which exists only in development builds, nor hand the map to
+// the suites and the phone-speed measurement (window.__map and its kin).
 //
 // 4. The installable app (step 6) belongs to / only: the manifest link is in
 //    index.html and not in studio/index.html; the worker's precache holds the
@@ -177,6 +178,17 @@ const mentions = [...walk(dist)]
   .filter((f) => E2E.test(readFileSync(f, 'utf8')))
   .map((f) => f.slice(dist.length + 1))
 check('no production file mentions the e2e test switch', mentions.length === 0, mentions.join(', '))
+
+// The map and the speed marks the suites and the phone-speed measurement
+// read (MapView.tsx: __map, __mapEarly, __programs, __speed) are a dev or
+// VITE_EXPOSE_MAP build's only; since the cheap-phone plan's step 0,
+// 2026-10-04, they are more than one line, so this holds them out.
+const HOOKS = /\b__(map|mapEarly|programs|speed)\b/
+const hooks = [...walk(dist)]
+  .filter((f) => /\.(js|html)$/.test(f))
+  .filter((f) => HOOKS.test(readFileSync(f, 'utf8')))
+  .map((f) => f.slice(dist.length + 1))
+check('no production file exposes the map or the speed marks', hooks.length === 0, hooks.join(', '))
 
 // --------------------------------------------------------------------- pwa
 

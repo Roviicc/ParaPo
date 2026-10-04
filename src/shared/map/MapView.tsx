@@ -8,6 +8,7 @@ import {
   NavigationControl,
   ScaleControl,
   setWorkerUrl,
+  type MapSourceDataEvent,
 } from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 
@@ -70,6 +71,61 @@ const ZOOM = 11
 
 /** How long to wait before assuming the style is never arriving. */
 const LOAD_TIMEOUT_MS = 12_000
+
+/**
+ * Dev builds expose the map so the headless suites (tests/e2e/) can read real
+ * screen positions from the drawn geometry instead of guessing; so does the
+ * phone-speed measurement's own build (scripts/research/phone-speed.mjs sets
+ * VITE_EXPOSE_MAP), never a production one: there both are false, and what
+ * they guard is not in the bundle.
+ */
+const EXPOSE = import.meta.env.DEV || import.meta.env.VITE_EXPOSE_MAP === '1'
+
+/**
+ * What the measurement reads of a map from the moment it is made (the
+ * cheap-phone plan, step 0, 2026-10-04), on an exposed build only.
+ *
+ * - `__mapEarly`: the map before its 'load', where `__map` waits for it.
+ * - `__programs()`: the GL programs MapLibre has compiled, by its own key
+ *   (painter.cache, MapLibre's and not ours, read here alone), so a tap's
+ *   first-use compiles can be named.
+ * - On a page whose harness made `window.__speed` (no suite does): when
+ *   'load' fired, and the first frame drawn with our routes in it. The map
+ *   file in (the root's data-directions) is not that: the routes' source
+ *   starts empty (savedRoutesLayers.ts) and is filled only after 'load', its
+ *   tiles laid out again in the worker. So the frame counted is the first
+ *   after the source holds features and its tiles are all in.
+ */
+function exposeEarly(map: MapLibreMap) {
+  const w = window as unknown as {
+    __mapEarly?: MapLibreMap
+    __programs?: () => string[]
+    __speed?: { load?: number; routesDrawn?: number }
+  }
+  w.__mapEarly = map
+  w.__programs = () => Object.keys((map as unknown as { painter?: { cache?: object } }).painter?.cache ?? {})
+  const speed = w.__speed
+  if (!speed) return
+  map.once('load', () => {
+    speed.load = performance.now()
+  })
+  // savedRoutesLayers.ts's source and its resting line.
+  const [source, layer] = ['saved-routes', 'saved-routes-line']
+  let filled = false
+  const onData = (e: MapSourceDataEvent) => {
+    if (e.sourceId !== source || e.sourceDataType !== 'content') return
+    const data = (map.getSource(source)?.serialize() as { data?: { features?: unknown[] } } | undefined)?.data
+    filled = (data?.features?.length ?? 0) > 0
+  }
+  const onRender = () => {
+    if (!filled || !map.getLayer(layer) || !map.getSource(source) || !map.isSourceLoaded(source)) return
+    speed.routesDrawn = performance.now()
+    map.off('sourcedata', onData)
+    map.off('render', onRender)
+  }
+  map.on('sourcedata', onData)
+  map.on('render', onRender)
+}
 
 type Props = {
   /** Fires once the style is loaded, so callers may add sources immediately. */
@@ -161,6 +217,7 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
         void diagnose(basemap.url).then(setDiag)
         return
       }
+      if (EXPOSE) exposeEarly(map)
 
       // Record how far MapLibre gets, so a silent failure at least says
       // which stage it died in.
@@ -193,11 +250,7 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
         isLoaded = true
         setLoaded(true)
         setError(null)
-        // Dev builds expose the map so the headless suites (tests/e2e/) can read real
-        // screen positions from the drawn geometry instead of guessing; so does
-        // the phone-speed measurement's own build (scripts/research/phone-speed.mjs
-        // sets VITE_EXPOSE_MAP), never a production one.
-        if (import.meta.env.DEV || import.meta.env.VITE_EXPOSE_MAP === '1') (window as unknown as { __map?: MapLibreMap }).__map = map!
+        if (EXPOSE) (window as unknown as { __map?: MapLibreMap }).__map = map!
         setReady(map)
         onReadyRef.current?.(map!)
       })
