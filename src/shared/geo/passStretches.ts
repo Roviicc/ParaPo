@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
+import type { GeoJSONSource, LineLayerSpecification, MapLibreMap } from 'maplibre-gl'
 import { servedBy, variantLine, type VariantSummary } from '../model/routes'
 import { passBounds, passStretches } from './pass'
 import { stopRing, type StopSummary } from '../model/stops'
@@ -22,10 +22,40 @@ import { applyHidden, useLayerReady } from '../map/layers'
  * see-through (the owner's call). Shown from zoom 15, where a box is more
  * than a couple of pixels and the stretch no longer looks speckled — at
  * once, not faded in: a fade is a see-through line on its way.
+ *
+ * "From zoom 15" is the layer's own `minzoom`, and the stretches switch on
+ * and off with the lit line's own `litOpacity`, since 2026-10-04 (the
+ * cheap-phone plan, step 2). It was one opacity, a step at zoom 15 around
+ * the switch: an expression of the zoom and of each stretch's state, a GL
+ * program of its own that the map compiled at the first tap that lit a
+ * route, wherever the camera was (its key ended `z_line-opacity`; up to a
+ * second of a cheap phone's main thread in the harness, 5–50 ms on a
+ * phone). Now the stretches are drawn with the program the lit line and its
+ * casing compiled at load, the same pixels from 15 up, and none below it:
+ * the step drew nothing there either. Two things differ, neither on a
+ * screen held still: zooming out across 15, the stretches go at 15 rather
+ * than staying on the zoom-15 tiles shown while the map's zoom-14 ones load;
+ * and a map tilted by hand at 14-15 no longer shows them on its nearer
+ * zoom-15 tiles. Below 15 no tile carries them, and a query of the layer
+ * finds none there.
  */
 
 const SRC = 'saved-routes-pass'
 const SELECTED_PASS = 'saved-routes-selected-pass'
+
+/**
+ * The stretches' layer: from zoom 15, painted as the lit line is but for
+ * its colour, so the lit line's GL program draws it (see above).
+ */
+export const PASS_LAYER = {
+  id: SELECTED_PASS,
+  type: 'line',
+  source: SRC,
+  minzoom: 15,
+  // Square ends: the paint stops where the box does.
+  layout: { 'line-cap': 'butt', 'line-join': 'round' },
+  paint: { 'line-color': PASS_COLOUR, 'line-width': litWidth(), 'line-opacity': litOpacity() },
+} as const satisfies LineLayerSpecification
 
 /** Draw the orange stretches of the lit directions; `lit` and `hiddenVariantId` as the line hook has them. */
 export function usePassStretches(
@@ -43,17 +73,7 @@ export function usePassStretches(
     // `promoteId`: every stretch of a direction carries its id, so one feature
     // state lights them all.
     map.addSource(SRC, { type: 'geojson', promoteId: 'id', data: { type: 'FeatureCollection', features: [] } })
-    map.addLayer(
-      {
-        id: SELECTED_PASS,
-        type: 'line',
-        source: SRC,
-        // Square ends: the paint stops where the box does.
-        layout: { 'line-cap': 'butt', 'line-join': 'round' },
-        paint: { 'line-color': PASS_COLOUR, 'line-width': litWidth(), 'line-opacity': ['step', ['zoom'], 0, 15, litOpacity()] as never },
-      },
-      ROUTES_HIT_LAYER,
-    )
+    map.addLayer(PASS_LAYER, ROUTES_HIT_LAYER)
   }, [map, hitReady])
 
   const features = useMemo(() => {
