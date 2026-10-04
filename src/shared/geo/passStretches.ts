@@ -8,7 +8,7 @@ import type { Ring } from './ring'
 import { PASS_COLOUR, litWidth } from '../map/lineStyle'
 import { litOpacity, useLighting } from '../map/savedRoutesLayers'
 import { ROUTES_HIT_LAYER } from '../map/tap'
-import { applyHidden, useLayerReady } from '../map/layers'
+import { TILE_BUFFER, applyHidden, useLayerReady } from '../map/layers'
 
 /**
  * Where a lit direction passes a hintuan, the line turns orange for that
@@ -58,6 +58,18 @@ export const PASS_LAYER = {
   paint: { 'line-color': PASS_COLOUR, 'line-width': litWidth(), 'line-opacity': litOpacity() },
 } as const satisfies LineLayerSpecification
 
+/**
+ * The stretches' source and layer, added to `map` under the routes' hit
+ * area, which must be there: what usePassStretches adds, apart so a unit
+ * check can read it (map-sources-test).
+ */
+export function addPassStretches(map: Pick<MapLibreMap, 'addSource' | 'addLayer'>): void {
+  // `promoteId`: every stretch of a direction carries its id, so one feature
+  // state lights them all.
+  map.addSource(SRC, { type: 'geojson', promoteId: 'id', buffer: TILE_BUFFER, data: { type: 'FeatureCollection', features: [] } })
+  map.addLayer(PASS_LAYER, ROUTES_HIT_LAYER)
+}
+
 /** Draw the orange stretches of the lit directions; `lit` and `hiddenVariantId` as the line hook has them. */
 export function usePassStretches(
   map: MapLibreMap | null,
@@ -71,10 +83,7 @@ export function usePassStretches(
   const hitReady = useLayerReady(map, ROUTES_HIT_LAYER)
   useEffect(() => {
     if (!map || map.getSource(SRC) || !hitReady) return
-    // `promoteId`: every stretch of a direction carries its id, so one feature
-    // state lights them all.
-    map.addSource(SRC, { type: 'geojson', promoteId: 'id', data: { type: 'FeatureCollection', features: [] } })
-    map.addLayer(PASS_LAYER, ROUTES_HIT_LAYER)
+    addPassStretches(map)
   }, [map, hitReady])
 
   // The boxes once per list of stops, and each direction's stretches once

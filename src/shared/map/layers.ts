@@ -27,6 +27,22 @@ export const LAYERS = {
 } as const
 
 /**
+ * How far past its edges each tile of our GeoJSON sources carries their
+ * features, in pixels of the 512 px tile: 32, where MapLibre's default is
+ * 128 (the cheap-phone plan, step 10 (d), 2026-10-04). A tile is drawn
+ * clipped to its own square, so what it carries past its edge shows only as
+ * far as a line's half width and antialiasing reach back in, and our widest
+ * is the routes' hit area, 24 px at most: 12.5 px. Circles and names need
+ * none of it, being drawn whole from the one tile their point is in. Less
+ * carried is fewer vertices laid out, sent and drawn per tile: the chevrons
+ * fifteen times a second, the lines at every line read. Not the place
+ * wash's: its dashes start counting where its ring was cut, so a tile cut
+ * nearer would move them. map-sources-test holds every layer drawn from
+ * these sources to it, at every zoom.
+ */
+export const TILE_BUFFER = 32
+
+/**
  * The id of the first layer of `type` in the map's drawing order, or
  * undefined. The same answer as `getStyle().layers.find(…)`, without the copy
  * of the whole style getStyle makes for it, every layer serialized and

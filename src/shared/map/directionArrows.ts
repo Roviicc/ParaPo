@@ -6,7 +6,7 @@ import { MAP_CLEAR, MAP_COLOURS, MAP_PAINT } from '../../design-system/foundatio
 import { endRadius, litWidthAt } from './lineStyle'
 import type { LineLook } from './liveryLine'
 import { ROUTES_HIT_LAYER } from './tap'
-import { LAYERS, useLayerReady } from './layers'
+import { LAYERS, TILE_BUFFER, useLayerReady } from './layers'
 import { afterIdle, warmPrograms, type Twin } from './warmPrograms'
 
 /**
@@ -184,6 +184,27 @@ export function useRideColours(map: MapLibreMap | null, look: LineLook) {
 }
 
 /**
+ * The chevrons' and the end circles' sources and layers, added to `map`
+ * under the routes' hit area, which must be there: what useDirectionArrows
+ * adds, apart so a unit check can read it (map-sources-test).
+ */
+export function addDirectionArrows(map: Pick<MapLibreMap, 'addSource' | 'addLayer'>): void {
+  map.addSource(SRC, { type: 'geojson', buffer: TILE_BUFFER, data: { type: 'FeatureCollection', features: [] } })
+  map.addLayer(
+    {
+      id: CHEVRONS,
+      type: 'fill',
+      source: SRC,
+      // No fade between colours: they change with what is lit, in its frame.
+      paint: { 'fill-color': MAP_COLOURS['Map/RouteLine/Arrow/Rest'], 'fill-color-transition': { duration: 0, delay: 0 } },
+    },
+    ROUTES_HIT_LAYER,
+  )
+  map.addSource(ENDS_SRC, { type: 'geojson', buffer: TILE_BUFFER, data: { type: 'FeatureCollection', features: [] } })
+  map.addLayer({ id: ENDS, type: 'circle', source: ENDS_SRC, paint: ENDS_PAINT }, ROUTES_HIT_LAYER)
+}
+
+/**
  * Draw chevrons along each ride's line, flowing for as long as it is lit
  * (STEP_MS), and a circle at both ends of each (named by EndTitles);
  * nothing when there are none. Pass the same array while what is lit is
@@ -200,19 +221,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     // of everything, so a street name gives way to them rather than the
     // other way round.
     if (!map || map.getSource(SRC) || !hitReady) return
-    map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-    map.addLayer(
-      {
-        id: CHEVRONS,
-        type: 'fill',
-        source: SRC,
-        // No fade between colours: they change with what is lit, in its frame.
-        paint: { 'fill-color': MAP_COLOURS['Map/RouteLine/Arrow/Rest'], 'fill-color-transition': { duration: 0, delay: 0 } },
-      },
-      ROUTES_HIT_LAYER,
-    )
-    map.addSource(ENDS_SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-    map.addLayer({ id: ENDS, type: 'circle', source: ENDS_SRC, paint: ENDS_PAINT }, ROUTES_HIT_LAYER)
+    addDirectionArrows(map)
   }, [map, hitReady])
 
   // The ends: where each lit ride starts and finishes, each named once.

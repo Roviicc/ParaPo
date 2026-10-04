@@ -7,7 +7,7 @@ import type { LngLat } from '../geo/geo'
 import { labelGroups } from '../model/places'
 import { stopRing, type StopKind, type StopSummary } from '../model/stops'
 import { STOPS_FILL_LAYER } from './tap'
-import { LAYERS, applyHidden, firstLayerOfType } from './layers'
+import { LAYERS, TILE_BUFFER, applyHidden, firstLayerOfType } from './layers'
 import type { BoxMark } from './stopsShown'
 
 /*
@@ -144,6 +144,147 @@ export function hiddenStopFilters(hidden: string): [string, unknown][] {
 }
 
 /**
+ * The saved hotspots' source and the place wash's, and their layers, added
+ * to `map` under the routes: what useSavedStopsLayers adds once a map is
+ * there, apart so a unit check can read it (map-sources-test).
+ */
+export function addSavedStops(
+  map: Pick<MapLibreMap, 'addSource' | 'addLayer' | 'getLayersOrder' | 'getLayer' | 'hasImage' | 'addImage'>,
+): void {
+  // Under the routes, under the draft, and under the basemap's labels in
+  // any case: a box never hides a street name.
+  const before = map.getLayer(ROUTES_ABOVE)
+    ? ROUTES_ABOVE
+    : map.getLayer(DRAW_ABOVE)
+      ? DRAW_ABOVE
+      : firstLayerOfType(map, 'symbol')
+
+  // `promoteId`: the feature state a tap sets is keyed on the hotspot's id
+  // (its box and its label point share it, so both carry the state).
+  map.addSource(SRC, {
+    type: 'geojson',
+    promoteId: 'id',
+    buffer: TILE_BUFFER,
+    data: { type: 'FeatureCollection', features: [] },
+  })
+  // The wash keeps MapLibre's default buffer (TILE_BUFFER says why).
+  map.addSource(WASH_SRC, {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: [] },
+  })
+  // The wash sits under every box: a tint that joins them, never a thing to tap.
+  map.addLayer(
+    {
+      id: WASH,
+      type: 'fill',
+      source: WASH_SRC,
+      paint: { 'fill-color': HOTSPOT_COLOUR.terminal, 'fill-opacity': 0.1 },
+    },
+    before,
+  )
+  map.addLayer(
+    {
+      id: WASH_EDGE,
+      type: 'line',
+      source: WASH_SRC,
+      layout: { 'line-join': 'round' },
+      paint: { 'line-color': HOTSPOT_COLOUR.terminal, 'line-width': 1.5, 'line-opacity': 0.5, 'line-dasharray': [2, 2] },
+    },
+    before,
+  )
+  // The owner's HotspotOverlayCard (3837:11308, 2026-09-30): the box's
+  // surface see-through, its edge and name in its content colour.
+  const byKind = (terminal: string | number, hintuan: string | number) =>
+    ['match', ['get', 'kind'], 'terminal', terminal, hintuan] as never
+  const colour = byKind(HOTSPOT_COLOUR.terminal, HOTSPOT_COLOUR.hintuan)
+  const content = byKind(HOTSPOT_CONTENT.terminal, HOTSPOT_CONTENT.hintuan)
+  for (const kind of ['terminal', 'hintuan'] as const) {
+    if (!map.hasImage(hatchOf(kind))) map.addImage(hatchOf(kind), hatch(HOTSPOT_CONTENT[kind]), { pixelRatio: 2 })
+  }
+  map.addLayer(
+    {
+      id: FILL,
+      type: 'fill',
+      source: SRC,
+      filter: ['==', ['geometry-type'], 'Polygon'],
+      paint: { 'fill-color': colour, 'fill-opacity': byKind(HOTSPOT_OPACITY.terminal, HOTSPOT_OPACITY.hintuan) },
+    },
+    before,
+  )
+  map.addLayer(
+    {
+      id: OUTLINE,
+      type: 'line',
+      source: SRC,
+      filter: ['==', ['geometry-type'], 'Polygon'],
+      layout: { 'line-join': 'round' },
+      // 0.6 as drawn, chosen or not: the stripes say which is chosen.
+      paint: { 'line-color': content, 'line-width': 0.6 },
+    },
+    before,
+  )
+  // The chosen box's siblings, drawn stronger than the rest and outlined.
+  // Every box is in this layer and the lit one, at opacity 0 unless its
+  // feature state says so: a filter naming the boxes would lay the whole
+  // source out again at every tap (see useLighting in savedRoutesLayers.ts).
+  map.addLayer(
+    {
+      id: SIBLINGS,
+      type: 'fill',
+      source: SRC,
+      filter: ['==', ['geometry-type'], 'Polygon'],
+      paint: { 'fill-color': colour, 'fill-opacity': ['case', state('sibling'), byKind(0.3, HINTUAN_STRONGER), 0] as never },
+    },
+    before,
+  )
+  // The lit boxes — the one chosen, or everything under a tap while the
+  // sheet asks which (the routes' lit pair's idea, 2026-09-22) — striped,
+  // their fill as it was: the owner's redrawn Selected variants
+  // (2026-09-30) keep the Rest surface under the stripes.
+  map.addLayer(
+    {
+      id: HATCH,
+      type: 'fill',
+      source: SRC,
+      filter: ['==', ['geometry-type'], 'Polygon'],
+      paint: {
+        'fill-pattern': ['match', ['get', 'kind'], 'terminal', hatchOf('terminal'), hatchOf('hintuan')] as never,
+        'fill-opacity': ['case', state('lit'), 1, 0] as never,
+      },
+    },
+    before,
+  )
+  // Labels go on top of everything: a name is never worth hiding under a line.
+  // The terminals' above the hintuans', so where two collide the terminal
+  // keeps its name.
+  for (const [id, kind] of [
+    [HINTUAN_LABEL, 'hintuan'],
+    [LABEL, 'terminal'],
+  ] as const) {
+    map.addLayer({
+      id,
+      type: 'symbol',
+      source: SRC,
+      minzoom: NAMES_FROM,
+      filter: labelsOf(kind),
+      // The same size at every zoom, as it was; 12, SemiBold as near as
+      // the map's fonts come, two lines over some 92 px as drawn, a white
+      // halo round it (namePaint).
+      layout: {
+        'text-field': ['get', 'name'],
+        'text-size': 12,
+        'text-font': ['Noto Sans Bold'],
+        'text-anchor': 'center',
+        'text-justify': 'center',
+        'text-max-width': 8,
+        'text-allow-overlap': false,
+      },
+      paint: namePaint(kind),
+    })
+  }
+}
+
+/**
  * The saved hotspots' sources and layers on `map`: laid out from `stops`, the
  * one being edited hidden, each box marked as `marks` says (stopsShown.ts),
  * and the place wash over `hull`.
@@ -157,135 +298,7 @@ export function useSavedStopsLayers(
 ) {
   useEffect(() => {
     if (!map || map.getSource(SRC)) return
-    // Under the routes, under the draft, and under the basemap's labels in
-    // any case: a box never hides a street name.
-    const before = map.getLayer(ROUTES_ABOVE)
-      ? ROUTES_ABOVE
-      : map.getLayer(DRAW_ABOVE)
-        ? DRAW_ABOVE
-        : firstLayerOfType(map, 'symbol')
-
-    // `promoteId`: the feature state a tap sets is keyed on the hotspot's id
-    // (its box and its label point share it, so both carry the state).
-    map.addSource(SRC, {
-      type: 'geojson',
-      promoteId: 'id',
-      data: { type: 'FeatureCollection', features: [] },
-    })
-    map.addSource(WASH_SRC, {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features: [] },
-    })
-    // The wash sits under every box: a tint that joins them, never a thing to tap.
-    map.addLayer(
-      {
-        id: WASH,
-        type: 'fill',
-        source: WASH_SRC,
-        paint: { 'fill-color': HOTSPOT_COLOUR.terminal, 'fill-opacity': 0.1 },
-      },
-      before,
-    )
-    map.addLayer(
-      {
-        id: WASH_EDGE,
-        type: 'line',
-        source: WASH_SRC,
-        layout: { 'line-join': 'round' },
-        paint: { 'line-color': HOTSPOT_COLOUR.terminal, 'line-width': 1.5, 'line-opacity': 0.5, 'line-dasharray': [2, 2] },
-      },
-      before,
-    )
-    // The owner's HotspotOverlayCard (3837:11308, 2026-09-30): the box's
-    // surface see-through, its edge and name in its content colour.
-    const byKind = (terminal: string | number, hintuan: string | number) =>
-      ['match', ['get', 'kind'], 'terminal', terminal, hintuan] as never
-    const colour = byKind(HOTSPOT_COLOUR.terminal, HOTSPOT_COLOUR.hintuan)
-    const content = byKind(HOTSPOT_CONTENT.terminal, HOTSPOT_CONTENT.hintuan)
-    for (const kind of ['terminal', 'hintuan'] as const) {
-      if (!map.hasImage(hatchOf(kind))) map.addImage(hatchOf(kind), hatch(HOTSPOT_CONTENT[kind]), { pixelRatio: 2 })
-    }
-    map.addLayer(
-      {
-        id: FILL,
-        type: 'fill',
-        source: SRC,
-        filter: ['==', ['geometry-type'], 'Polygon'],
-        paint: { 'fill-color': colour, 'fill-opacity': byKind(HOTSPOT_OPACITY.terminal, HOTSPOT_OPACITY.hintuan) },
-      },
-      before,
-    )
-    map.addLayer(
-      {
-        id: OUTLINE,
-        type: 'line',
-        source: SRC,
-        filter: ['==', ['geometry-type'], 'Polygon'],
-        layout: { 'line-join': 'round' },
-        // 0.6 as drawn, chosen or not: the stripes say which is chosen.
-        paint: { 'line-color': content, 'line-width': 0.6 },
-      },
-      before,
-    )
-    // The chosen box's siblings, drawn stronger than the rest and outlined.
-    // Every box is in this layer and the lit one, at opacity 0 unless its
-    // feature state says so: a filter naming the boxes would lay the whole
-    // source out again at every tap (see useLighting in savedRoutesLayers.ts).
-    map.addLayer(
-      {
-        id: SIBLINGS,
-        type: 'fill',
-        source: SRC,
-        filter: ['==', ['geometry-type'], 'Polygon'],
-        paint: { 'fill-color': colour, 'fill-opacity': ['case', state('sibling'), byKind(0.3, HINTUAN_STRONGER), 0] as never },
-      },
-      before,
-    )
-    // The lit boxes — the one chosen, or everything under a tap while the
-    // sheet asks which (the routes' lit pair's idea, 2026-09-22) — striped,
-    // their fill as it was: the owner's redrawn Selected variants
-    // (2026-09-30) keep the Rest surface under the stripes.
-    map.addLayer(
-      {
-        id: HATCH,
-        type: 'fill',
-        source: SRC,
-        filter: ['==', ['geometry-type'], 'Polygon'],
-        paint: {
-          'fill-pattern': ['match', ['get', 'kind'], 'terminal', hatchOf('terminal'), hatchOf('hintuan')] as never,
-          'fill-opacity': ['case', state('lit'), 1, 0] as never,
-        },
-      },
-      before,
-    )
-    // Labels go on top of everything: a name is never worth hiding under a line.
-    // The terminals' above the hintuans', so where two collide the terminal
-    // keeps its name.
-    for (const [id, kind] of [
-      [HINTUAN_LABEL, 'hintuan'],
-      [LABEL, 'terminal'],
-    ] as const) {
-      map.addLayer({
-        id,
-        type: 'symbol',
-        source: SRC,
-        minzoom: NAMES_FROM,
-        filter: labelsOf(kind),
-        // The same size at every zoom, as it was; 12, SemiBold as near as
-        // the map's fonts come, two lines over some 92 px as drawn, a white
-        // halo round it (namePaint).
-        layout: {
-          'text-field': ['get', 'name'],
-          'text-size': 12,
-          'text-font': ['Noto Sans Bold'],
-          'text-anchor': 'center',
-          'text-justify': 'center',
-          'text-max-width': 8,
-          'text-allow-overlap': false,
-        },
-        paint: namePaint(kind),
-      })
-    }
+    addSavedStops(map)
   }, [map])
 
   useEffect(() => {

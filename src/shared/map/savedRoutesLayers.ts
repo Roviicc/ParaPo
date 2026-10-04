@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes'
 import { ROUTES_HIT_LAYER } from './tap'
-import { LAYERS, applyHidden, firstLayerOfType } from './layers'
+import { LAYERS, TILE_BUFFER, applyHidden, firstLayerOfType } from './layers'
 import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { CASING_EXTRA, litWidth, roadWidth } from './lineStyle'
 
@@ -85,6 +85,90 @@ export function useLitLineColour(map: MapLibreMap | null, colour: string) {
 }
 
 /**
+ * The saved directions' source and five layers, added to `map` under the
+ * basemap's first label: what useSavedRoutesLayers adds once a map is there,
+ * apart so a unit check can read it (map-sources-test).
+ */
+export function addSavedRoutes(map: Pick<MapLibreMap, 'addSource' | 'addLayer' | 'getLayersOrder' | 'getLayer'>): void {
+  // Under the basemap's labels, so a road painted blue still shows its
+  // name. The draft's layers, when there are any, sit above the labels and
+  // so above these too.
+  const before = firstLayerOfType(map, 'symbol')
+
+  // `promoteId`: the feature state a tap sets is keyed on the direction's id.
+  map.addSource(SRC, {
+    type: 'geojson',
+    promoteId: 'id',
+    buffer: TILE_BUFFER,
+    data: { type: 'FeatureCollection', features: [] },
+  })
+  map.addLayer(
+    {
+      id: CASING,
+      type: 'line',
+      source: SRC,
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': MAP_PAINT['Paint/casing'], 'line-width': roadWidth(CASING_EXTRA) },
+    },
+    before,
+  )
+  map.addLayer(
+    {
+      id: LINE,
+      type: 'line',
+      source: SRC,
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': MAP_COLOURS['Map/RouteLine/surface-default'], 'line-width': roadWidth(0) },
+    },
+    before,
+  )
+  // The lit directions — the one chosen, the Selected card's, or else
+  // everything a list or a hotspot's card shows — drawn once more above the
+  // rest, in the selected blue (or a card's, useLitLineColour): over a
+  // shared road, they are the line that shows. Every direction is in these
+  // layers, the unlit ones switched off: a filter naming the lit ones would
+  // lay the whole source out again at every tap (see `useLighting`).
+  map.addLayer(
+    {
+      id: SELECTED_CASING,
+      type: 'line',
+      source: SRC,
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': MAP_PAINT['Paint/casing'], 'line-width': litWidth(CASING_EXTRA), 'line-opacity': litOpacity() },
+    },
+    before,
+  )
+  map.addLayer(
+    {
+      id: SELECTED,
+      type: 'line',
+      source: SRC,
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': MAP_COLOURS['Map/RouteLine/surface-selected'],
+        // A new colour shows with the lighting it goes with, in the same
+        // frame: MapLibre's default 300 ms fade would draw the next card's
+        // routes in the last card's colour for a moment.
+        'line-color-transition': { duration: 0, delay: 0 },
+        'line-width': litWidth(),
+        'line-opacity': litOpacity(),
+      },
+    },
+    before,
+  )
+  map.addLayer(
+    {
+      id: HIT,
+      type: 'line',
+      source: SRC,
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': MAP_PAINT['Paint/hit'], 'line-width': roadWidth(14), 'line-opacity': 0 },
+    },
+    before,
+  )
+}
+
+/**
  * The saved directions' source and layers on `map`: laid out from `rows` as
  * loaded, the full `lines` read since patched in, the one being edited
  * hidden, and exactly `lit` lit.
@@ -98,81 +182,7 @@ export function useSavedRoutesLayers(
 ) {
   useEffect(() => {
     if (!map || map.getSource(SRC)) return
-    // Under the basemap's labels, so a road painted blue still shows its
-    // name. The draft's layers, when there are any, sit above the labels and
-    // so above these too.
-    const before = firstLayerOfType(map, 'symbol')
-
-    // `promoteId`: the feature state a tap sets is keyed on the direction's id.
-    map.addSource(SRC, {
-      type: 'geojson',
-      promoteId: 'id',
-      data: { type: 'FeatureCollection', features: [] },
-    })
-    map.addLayer(
-      {
-        id: CASING,
-        type: 'line',
-        source: SRC,
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': MAP_PAINT['Paint/casing'], 'line-width': roadWidth(CASING_EXTRA) },
-      },
-      before,
-    )
-    map.addLayer(
-      {
-        id: LINE,
-        type: 'line',
-        source: SRC,
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': MAP_COLOURS['Map/RouteLine/surface-default'], 'line-width': roadWidth(0) },
-      },
-      before,
-    )
-    // The lit directions — the one chosen, the Selected card's, or else
-    // everything a list or a hotspot's card shows — drawn once more above the
-    // rest, in the selected blue (or a card's, useLitLineColour): over a
-    // shared road, they are the line that shows. Every direction is in these
-    // layers, the unlit ones switched off: a filter naming the lit ones would
-    // lay the whole source out again at every tap (see `useLighting`).
-    map.addLayer(
-      {
-        id: SELECTED_CASING,
-        type: 'line',
-        source: SRC,
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': MAP_PAINT['Paint/casing'], 'line-width': litWidth(CASING_EXTRA), 'line-opacity': litOpacity() },
-      },
-      before,
-    )
-    map.addLayer(
-      {
-        id: SELECTED,
-        type: 'line',
-        source: SRC,
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: {
-          'line-color': MAP_COLOURS['Map/RouteLine/surface-selected'],
-          // A new colour shows with the lighting it goes with, in the same
-          // frame: MapLibre's default 300 ms fade would draw the next card's
-          // routes in the last card's colour for a moment.
-          'line-color-transition': { duration: 0, delay: 0 },
-          'line-width': litWidth(),
-          'line-opacity': litOpacity(),
-        },
-      },
-      before,
-    )
-    map.addLayer(
-      {
-        id: HIT,
-        type: 'line',
-        source: SRC,
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': MAP_PAINT['Paint/hit'], 'line-width': roadWidth(14), 'line-opacity': 0 },
-      },
-      before,
-    )
+    addSavedRoutes(map)
   }, [map])
 
   // The source is laid out from the rows as loaded — on the public map, the

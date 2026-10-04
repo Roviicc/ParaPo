@@ -8,7 +8,7 @@ import { travelLine } from '../model/ride'
 import { isLineMode, type VariantSummary } from '../model/routes'
 import { inPassingOrder, listedAlong, passedAt } from '../model/timeline'
 import { stopRing, type StopSummary } from '../model/stops'
-import { LAYERS, useLayerReady } from '../map/layers'
+import { LAYERS, TILE_BUFFER, useLayerReady } from '../map/layers'
 
 /**
  * The babaan side: on the chosen direction, each hintuan box it cuts across
@@ -28,25 +28,34 @@ const EDGE = 'babaan-side-edge'
 /** Under the route lines, over the boxes, as the boxes are (useSavedStops). */
 const ROUTES_ABOVE = LAYERS.routesCasing
 
+/**
+ * The babaan sides' source and layers, added to `map` under the routes'
+ * casing, which must be there: what useBabaanSides adds, apart so a unit
+ * check can read it (map-sources-test).
+ */
+export function addBabaanSides(map: Pick<MapLibreMap, 'addSource' | 'addLayer'>): void {
+  map.addSource(SRC, { type: 'geojson', buffer: TILE_BUFFER, data: { type: 'FeatureCollection', features: [] } })
+  map.addLayer(
+    { id: FILL, type: 'fill', source: SRC, paint: { 'fill-color': HOTSPOT_COLOUR.hintuan, 'fill-opacity': 0.55 } },
+    ROUTES_ABOVE,
+  )
+  map.addLayer(
+    {
+      id: EDGE,
+      type: 'line',
+      source: SRC,
+      layout: { 'line-join': 'round' },
+      paint: { 'line-color': HOTSPOT_COLOUR.hintuan, 'line-width': 2 },
+    },
+    ROUTES_ABOVE,
+  )
+}
+
 export function useBabaanSides(map: MapLibreMap | null, chosen: VariantSummary | null, stops: readonly StopSummary[]): void {
   const casingReady = useLayerReady(map, ROUTES_ABOVE)
   useEffect(() => {
     if (!map || map.getSource(SRC) || !casingReady) return
-    map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-    map.addLayer(
-      { id: FILL, type: 'fill', source: SRC, paint: { 'fill-color': HOTSPOT_COLOUR.hintuan, 'fill-opacity': 0.55 } },
-      ROUTES_ABOVE,
-    )
-    map.addLayer(
-      {
-        id: EDGE,
-        type: 'line',
-        source: SRC,
-        layout: { 'line-join': 'round' },
-        paint: { 'line-color': HOTSPOT_COLOUR.hintuan, 'line-width': 2 },
-      },
-      ROUTES_ABOVE,
-    )
+    addBabaanSides(map)
   }, [map, casingReady])
 
   const features = useMemo(() => babaanSideFeatures(chosen, stops), [chosen, stops])
