@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Para Po</title>
     <meta name="description" content="Jeepney routes in Metro Manila, drawn from the ground." />
+    <!--
+      The basemaps' host, connected to while the app's script downloads: the map asks it for its
+      style only once that script has run, and the name lookup and the TCP and TLS handshakes are
+      several round trips on a slow phone network (the cheap-phone plan, step 6, 2026-10-04).
+      `crossorigin`: MapLibre asks without credentials, on connections of their own. Offline it
+      fails silently. The studio's page, which opens on its sign-in, has none.
+    -->
+    <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
     <!-- The brand maroon, measured from the logo; the manifest in vite.config.ts carries the same. Once the map is up, the map's own colour (statusBar.ts). -->
     <meta name="theme-color" content="#8a595a" />
     <link rel="icon" type="image/png" href="/icons/favicon.png" />

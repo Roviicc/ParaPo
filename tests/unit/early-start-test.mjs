@@ -1,13 +1,15 @@
 // MapLibre's worker, started as MapView.tsx is read rather than when the map
-// is made (the cheap-phone plan, step 6, 2026-10-04). MapView.tsx itself
-// cannot be loaded here (Vite's `?worker&url`), so the first check reads it;
-// the second runs MapLibre's own prewarm() and Style against a stand-in
-// Worker, so an upgrade that changes what prewarm() does says so.
+// is made, and the basemap's host connected to from the map's page before
+// its script has run (the cheap-phone plan, step 6, 2026-10-04). MapView.tsx
+// itself cannot be loaded here (Vite's `?worker&url`), so the first check
+// reads it; the second runs MapLibre's own prewarm() and Style against a
+// stand-in Worker, so an upgrade that changes what prewarm() does says so.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/early-start-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { BASEMAPS } from '../../src/shared/map/basemap.ts'
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
@@ -84,4 +86,17 @@ test("MapLibre 6.7: prewarm() starts the one worker at the address set, there an
   // The map removed: the worker stays for the next one.
   style.dispatcher.remove(true)
   assert.equal(started[0].terminated, false)
+})
+
+test("the map's page connects early to the basemaps' host, as MapLibre will ask it", () => {
+  const html = read('../../index.html')
+  const head = html.slice(0, html.indexOf('</head>'))
+  const links = [...head.matchAll(/<link\b[^>]*\brel="preconnect"[^>]*>/g)].map((m) => m[0])
+  assert.equal(links.length, 1, 'one preconnect, in the head')
+  // Every design's style is there (and, OpenFreeMap's, its tiles, sprite and glyphs).
+  const href = /\bhref="([^"]+)"/.exec(links[0])?.[1]
+  for (const b of BASEMAPS) assert.equal(new URL(b.url).origin, href, b.id)
+  // Bare `crossorigin` is anonymous: the connections MapLibre's requests use,
+  // sent without credentials. Without it the preconnect opens one they never take.
+  assert.match(links[0], /\scrossorigin(\s|\/?>)/)
 })
