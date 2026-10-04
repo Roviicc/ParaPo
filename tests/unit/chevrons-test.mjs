@@ -71,3 +71,58 @@ test('chevrons sit every `spacing` metres from `offset`, none on a covered stret
   chevronsAt(m, 50, 100, 8, { west: 120, east: 120.5, south: 14, north: 14.5, zoom: 15 }, elsewhere)
   assert.equal(elsewhere.length, 0)
 })
+
+// The cheap-phone plan, step 16 (d), 2026-10-04: a line measured once and
+// kept (chevrons.ts), its `covered` fresh at every call.
+
+/** measure before step 16, word for word (but for types). */
+function oldMeasure(line) {
+  const at = [0]
+  const bearing = []
+  for (let i = 1; i < line.length; i++) {
+    const [ax, ay] = line[i - 1]
+    const [bx, by] = line[i]
+    at.push(at[i - 1] + haversine(line[i - 1], line[i]))
+    const dx = (bx - ax) * Math.cos((ay * Math.PI) / 180)
+    const dy = by - ay
+    bearing.push((Math.atan2(dx, dy) * 180) / Math.PI)
+  }
+  return { line, at, bearing, length: at[at.length - 1], lat: line[Math.floor(line.length / 2)][1], covered: bearing.map(() => false) }
+}
+
+test('step 16 (d): measured as before; asked again, the same measures and a fresh covered; a new line, measured anew', () => {
+  const line = [[121.04, 14.7], [121.041, 14.701], [121.043, 14.701], [121.043, 14.704]]
+  const first = measure(line)
+  assert.deepStrictEqual(first, oldMeasure(line))
+  // Covered by another lit line this time…
+  markCovered(first, [measure(line)])
+  assert.ok(first.covered.every(Boolean))
+  // …and the next time asked, nothing covered yet: covered is the call's own.
+  const again = measure(line)
+  assert.deepStrictEqual(again, oldMeasure(line))
+  assert.notEqual(again.covered, first.covered)
+  assert.ok(again.covered.every((c) => !c))
+  assert.equal(again.at, first.at, 'the measures are kept')
+  assert.equal(again.bearing, first.bearing)
+  assert.equal(again.line, line)
+  // A new line, even one with the same points, is another array: measured anew.
+  const copy = line.map((p) => [...p])
+  const other = measure(copy)
+  assert.notEqual(other.at, first.at)
+  assert.deepStrictEqual(other, oldMeasure(copy))
+  const moved = line.map(([x, y]) => [x, y + 0.001])
+  assert.notDeepStrictEqual(measure(moved).at.slice(1), [], 'measured')
+  assert.deepStrictEqual(measure(moved), oldMeasure(moved))
+})
+
+test('step 16 (d): the committed map, every line both ways, measured as before', async () => {
+  const { readPublished } = await import('../../scripts/checks/check-map-data.mjs')
+  const { fileURLToPath } = await import('node:url')
+  const file = readPublished(fileURLToPath(new URL('../../public/data/index.v4.json', import.meta.url))).file
+  for (const v of file.variants.filter((x) => x.shape)) {
+    for (const line of [v.shape.coordinates, [...v.shape.coordinates].reverse()]) {
+      assert.deepStrictEqual(measure(line), oldMeasure(line))
+      assert.deepStrictEqual(measure(line), oldMeasure(line), 'and asked again')
+    }
+  }
+})
