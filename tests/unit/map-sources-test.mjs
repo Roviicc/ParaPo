@@ -1,14 +1,20 @@
 // Our GeoJSON sources (the cheap-phone plan, step 10, 2026-10-04): each tile
 // of them carries 32 px past its edges, not MapLibre's 128, and every layer
-// drawn from them still fits in that.
+// drawn from them still fits in that (d); the routes and the hotspots are
+// laid out as their sources are added, when they are in by then, and not a
+// second time (c).
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/map-sources-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { createPropertyExpression, latest } from '@maplibre/maplibre-gl-style-spec'
-import { TILE_BUFFER } from '../../src/shared/map/layers.ts'
-import { addSavedRoutes } from '../../src/shared/map/savedRoutesLayers.ts'
-import { addSavedStops } from '../../src/shared/map/savedStopsLayers.ts'
+import { TILE_BUFFER, layOutOnce } from '../../src/shared/map/layers.ts'
+import { addSavedRoutes, routesData } from '../../src/shared/map/savedRoutesLayers.ts'
+import { addSavedStops, stopsData } from '../../src/shared/map/savedStopsLayers.ts'
+import { variantLine } from '../../src/shared/model/routes.ts'
+import { stopRing } from '../../src/shared/model/stops.ts'
+import { labelGroups } from '../../src/shared/model/places.ts'
 import { addPassStretches } from '../../src/shared/geo/passStretches.ts'
 import { addDirectionArrows } from '../../src/shared/map/directionArrows.ts'
 import { addBabaanSides } from '../../src/shared/geo/babaanSides.ts'
@@ -126,4 +132,104 @@ test('none of their lines is dashed, patterned or graded: those count from where
   for (const l of layers.filter((x) => BUFFERED.includes(x.source) && x.type === 'line')) {
     for (const name of ['line-dasharray', 'line-pattern', 'line-gradient']) assert.equal(l.paint?.[name], undefined, `${l.id}: ${name}`)
   }
+})
+
+// ------------------------------------------------------------ (c)
+
+/** The committed map as the public map reads it (mapFile.ts): each overview as the direction's line. */
+const index = JSON.parse(readFileSync(new URL('../../public/data/index.v4.json', import.meta.url), 'utf8'))
+const rows = index.variants.map(({ overview, ...v }) => ({ ...v, shape: overview ?? null }))
+const stops = index.stops
+
+/** What the routes' effect laid out before 2026-10-04, word for word. */
+const routesBefore = (rows) => ({
+  type: 'FeatureCollection',
+  features: rows
+    .map((v) => ({ v, line: variantLine(v) }))
+    .filter(({ line }) => line.length > 1)
+    .map(({ v, line }) => ({
+      type: 'Feature',
+      properties: {
+        id: v.id,
+        route_id: v.route_id,
+        name: v.route?.name ?? '',
+        mode: v.route?.mode ?? 'jeepney',
+      },
+      geometry: { type: 'LineString', coordinates: line },
+    })),
+})
+
+/** What the hotspots' effect laid out before 2026-10-04, word for word (boxMiddle as it was). */
+const boxMiddle = (ring) => {
+  const lngs = ring.map((p) => p[0])
+  const lats = ring.map((p) => p[1])
+  return [(Math.min(...lngs) + Math.max(...lngs)) / 2, (Math.min(...lats) + Math.max(...lats)) / 2]
+}
+const stopsBefore = (stops) => {
+  const withArea = stops.filter((s) => stopRing(s).length >= 3)
+  return {
+    type: 'FeatureCollection',
+    features: [
+      ...withArea.map((s) => ({
+        type: 'Feature',
+        properties: { id: s.id, kind: s.kind, name: s.name },
+        geometry: s.area,
+      })),
+      ...labelGroups(withArea.map((s) => ({ ...s, point: { type: 'Point', coordinates: boxMiddle(stopRing(s)) } }))).map((g) => ({
+        type: 'Feature',
+        properties: { id: g.ids[0], ids: g.ids.join(','), kind: g.kind, name: g.name },
+        geometry: { type: 'Point', coordinates: g.point },
+      })),
+    ],
+  }
+}
+
+test('the committed map is laid out as before: every direction with a line, every box and name', () => {
+  assert.ok(rows.length >= 20 && stops.length >= 100, `${rows.length} directions, ${stops.length} hotspots`)
+  assert.deepEqual(routesData(rows), routesBefore(rows))
+  assert.deepEqual(stopsData(stops), stopsBefore(stops))
+  // A slot, a return not drawn yet, has no line, and is left out as before.
+  const slot = { ...rows[0], id: 'slot', shape: null }
+  assert.equal(routesData([...rows, slot]).features.length, rows.length)
+  assert.deepEqual(routesData([...rows, slot]), routesBefore([...rows, slot]))
+  assert.deepEqual(routesData([]), { type: 'FeatureCollection', features: [] })
+  assert.deepEqual(stopsData([]), { type: 'FeatureCollection', features: [] })
+})
+
+test('a source is added with what is loaded by then; with nothing loaded, empty, as it was', () => {
+  const loaded = standInMap()
+  addSavedRoutes(loaded, rows)
+  addSavedStops(loaded, stops)
+  assert.deepEqual(loaded.sources.get('saved-routes').data, routesBefore(rows))
+  assert.deepEqual(loaded.sources.get('saved-stops').data, stopsBefore(stops))
+  const early = standInMap()
+  addSavedRoutes(early)
+  addSavedStops(early)
+  for (const id of ['saved-routes', 'saved-stops', 'place-wash']) assert.deepEqual(early.sources.get(id).data, { type: 'FeatureCollection', features: [] }, id)
+  // The rest of what is added does not change with what is loaded.
+  const strip = (m) => ({ layers: m.layers, sources: [...m.sources].map(([id, { data, ...spec }]) => [id, spec]) })
+  assert.deepEqual(strip(loaded), strip(early))
+})
+
+test('laid out once: added with the rows, the effect that follows does nothing; new rows are laid out', () => {
+  const laidOut = { current: null }
+  const sent = []
+  const layOut = (r) => sent.push(r)
+  // Added with the rows in: the hook notes them as laid out.
+  const first = rows
+  laidOut.current = first
+  layOutOnce(laidOut, first, layOut)
+  assert.deepEqual(sent, [])
+  // A reload's rows, even the same directions, are a new array: laid out.
+  const second = [...rows]
+  layOutOnce(laidOut, second, layOut)
+  layOutOnce(laidOut, second, layOut)
+  assert.deepEqual(sent, [second])
+  // Added before anything loaded: the empty list it started with is not laid out again; what loads is.
+  const empty = []
+  const early = { current: empty }
+  const late = []
+  layOutOnce(early, empty, (r) => late.push(r))
+  layOutOnce(early, rows, (r) => late.push(r))
+  assert.deepEqual(late, [rows])
 })

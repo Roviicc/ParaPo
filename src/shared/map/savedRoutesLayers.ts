@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes'
 import { ROUTES_HIT_LAYER } from './tap'
-import { LAYERS, TILE_BUFFER, applyHidden, firstLayerOfType } from './layers'
+import { LAYERS, TILE_BUFFER, applyHidden, firstLayerOfType, layOutOnce } from './layers'
 import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { CASING_EXTRA, litWidth, roadWidth } from './lineStyle'
 
@@ -85,11 +85,38 @@ export function useLitLineColour(map: MapLibreMap | null, colour: string) {
 }
 
 /**
- * The saved directions' source and five layers, added to `map` under the
- * basemap's first label: what useSavedRoutesLayers adds once a map is there,
- * apart so a unit check can read it (map-sources-test).
+ * The saved directions as their source takes them: one feature for each
+ * that has a line to draw, its id promoted for the lighting.
  */
-export function addSavedRoutes(map: Pick<MapLibreMap, 'addSource' | 'addLayer' | 'getLayersOrder' | 'getLayer'>): void {
+export function routesData(rows: readonly VariantSummary[]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: rows
+      .map((v) => ({ v, line: variantLine(v) }))
+      .filter(({ line }) => line.length > 1)
+      .map(({ v, line }) => ({
+        type: 'Feature' as const,
+        properties: {
+          id: v.id,
+          route_id: v.route_id,
+          name: v.route?.name ?? '',
+          mode: v.route?.mode ?? 'jeepney',
+        },
+        geometry: { type: 'LineString' as const, coordinates: line },
+      })),
+  }
+}
+
+/**
+ * The saved directions' source, laid out from `rows`, and its five layers,
+ * added to `map` under the basemap's first label: what useSavedRoutesLayers
+ * adds once a map is there, apart so a unit check can read it
+ * (map-sources-test).
+ */
+export function addSavedRoutes(
+  map: Pick<MapLibreMap, 'addSource' | 'addLayer' | 'getLayersOrder' | 'getLayer'>,
+  rows: readonly VariantSummary[] = [],
+): void {
   // Under the basemap's labels, so a road painted blue still shows its
   // name. The draft's layers, when there are any, sit above the labels and
   // so above these too.
@@ -100,7 +127,7 @@ export function addSavedRoutes(map: Pick<MapLibreMap, 'addSource' | 'addLayer' |
     type: 'geojson',
     promoteId: 'id',
     buffer: TILE_BUFFER,
-    data: { type: 'FeatureCollection', features: [] },
+    data: routesData(rows),
   })
   map.addLayer(
     {
@@ -180,9 +207,19 @@ export function useSavedRoutesLayers(
   hiddenVariantId: string | null | undefined,
   lit: readonly string[],
 ) {
+  // The rows the source was last laid out from (the cheap-phone plan,
+  // step 10 (c), 2026-10-04).
+  const laidOut = useRef<readonly VariantSummary[] | null>(null)
+
+  // Added with the rows already in, when they are (the public map's file
+  // usually comes in before the basemap's style): laid out in the one
+  // worker round trip that adds the source, not an empty one and then
+  // the rows. Later rows are the next effect's.
   useEffect(() => {
     if (!map || map.getSource(SRC)) return
-    addSavedRoutes(map)
+    addSavedRoutes(map, rows)
+    laidOut.current = rows
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map])
 
   // The source is laid out from the rows as loaded — on the public map, the
@@ -192,22 +229,7 @@ export function useSavedRoutesLayers(
     if (!map) return
     const src = map.getSource(SRC) as GeoJSONSource | undefined
     if (!src) return
-    src.setData({
-      type: 'FeatureCollection',
-      features: rows
-        .map((v) => ({ v, line: variantLine(v) }))
-        .filter(({ line }) => line.length > 1)
-        .map(({ v, line }) => ({
-          type: 'Feature' as const,
-          properties: {
-            id: v.id,
-            route_id: v.route_id,
-            name: v.route?.name ?? '',
-            mode: v.route?.mode ?? 'jeepney',
-          },
-          geometry: { type: 'LineString' as const, coordinates: line },
-        })),
-    })
+    layOutOnce(laidOut, rows, (next) => src.setData(routesData(next)))
   }, [map, rows])
 
   useEffect(() => {

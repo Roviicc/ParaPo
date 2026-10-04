@@ -7,7 +7,7 @@ import type { LngLat } from '../geo/geo'
 import { labelGroups } from '../model/places'
 import { stopRing, type StopKind, type StopSummary } from '../model/stops'
 import { STOPS_FILL_LAYER } from './tap'
-import { LAYERS, TILE_BUFFER, applyHidden, firstLayerOfType } from './layers'
+import { LAYERS, TILE_BUFFER, applyHidden, firstLayerOfType, layOutOnce } from './layers'
 import type { BoxMark } from './stopsShown'
 
 /*
@@ -144,12 +144,47 @@ export function hiddenStopFilters(hidden: string): [string, unknown][] {
 }
 
 /**
- * The saved hotspots' source and the place wash's, and their layers, added
- * to `map` under the routes: what useSavedStopsLayers adds once a map is
- * there, apart so a unit check can read it (map-sources-test).
+ * The saved hotspots as their source takes them: each box with an area,
+ * and one name for each place on the ground.
+ */
+export function stopsData(stops: readonly StopSummary[]) {
+  // The label on the map is the name written on the ground, not the informal
+  // one the cards, pickers and route names read: the map draws boxes, and the
+  // three boxes of one place would otherwise carry three identical labels.
+  // Tapping still opens a card that leads with the informal name and shows
+  // the ground name beneath it, so neither is lost. Decided 2026-09-22.
+  const withArea = stops.filter((s) => stopRing(s).length >= 3)
+  return {
+    type: 'FeatureCollection' as const,
+    features: [
+      ...withArea.map((s) => ({
+        type: 'Feature' as const,
+        properties: { id: s.id, kind: s.kind, name: s.name },
+        geometry: s.area!,
+      })),
+      // One label per hintuan: a box on each side of the road shares one
+      // (labelGroups), halfway between them; a box alone has its name in
+      // its middle (the owner's frame, 3837:11308, 2026-09-30).
+      ...labelGroups(
+        withArea.map((s) => ({ ...s, point: { type: 'Point' as const, coordinates: boxMiddle(stopRing(s)) } })),
+      ).map((g) => ({
+        type: 'Feature' as const,
+        properties: { id: g.ids[0], ids: g.ids.join(','), kind: g.kind, name: g.name },
+        geometry: { type: 'Point' as const, coordinates: g.point },
+      })),
+    ],
+  }
+}
+
+/**
+ * The saved hotspots' source, laid out from `stops`, and the place wash's,
+ * and their layers, added to `map` under the routes: what
+ * useSavedStopsLayers adds once a map is there, apart so a unit check can
+ * read it (map-sources-test).
  */
 export function addSavedStops(
   map: Pick<MapLibreMap, 'addSource' | 'addLayer' | 'getLayersOrder' | 'getLayer' | 'hasImage' | 'addImage'>,
+  stops: readonly StopSummary[] = [],
 ): void {
   // Under the routes, under the draft, and under the basemap's labels in
   // any case: a box never hides a street name.
@@ -165,7 +200,7 @@ export function addSavedStops(
     type: 'geojson',
     promoteId: 'id',
     buffer: TILE_BUFFER,
-    data: { type: 'FeatureCollection', features: [] },
+    data: stopsData(stops),
   })
   // The wash keeps MapLibre's default buffer (TILE_BUFFER says why).
   map.addSource(WASH_SRC, {
@@ -296,41 +331,23 @@ export function useSavedStopsLayers(
   marks: ReadonlyMap<string, BoxMark>,
   hull: Ring,
 ) {
+  // The hotspots the source was last laid out from (the cheap-phone plan,
+  // step 10 (c), 2026-10-04): added with them when they are already in,
+  // laid out in the one worker round trip that adds the source rather
+  // than an empty one and then the hotspots; later ones are the next
+  // effect's, and the same ones are not laid out twice.
+  const laidOut = useRef<readonly StopSummary[] | null>(null)
   useEffect(() => {
     if (!map || map.getSource(SRC)) return
-    addSavedStops(map)
+    addSavedStops(map, stops)
+    laidOut.current = stops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map])
 
   useEffect(() => {
     if (!map) return
     const src = map.getSource(SRC) as GeoJSONSource | undefined
-    if (!src) return
-    // The label on the map is the name written on the ground, not the informal
-    // one the cards, pickers and route names read: the map draws boxes, and the
-    // three boxes of one place would otherwise carry three identical labels.
-    // Tapping still opens a card that leads with the informal name and shows
-    // the ground name beneath it, so neither is lost. Decided 2026-09-22.
-    const withArea = stops.filter((s) => stopRing(s).length >= 3)
-    src.setData({
-      type: 'FeatureCollection',
-      features: [
-        ...withArea.map((s) => ({
-          type: 'Feature' as const,
-          properties: { id: s.id, kind: s.kind, name: s.name },
-          geometry: s.area!,
-        })),
-        // One label per hintuan: a box on each side of the road shares one
-        // (labelGroups), halfway between them; a box alone has its name in
-        // its middle (the owner's frame, 3837:11308, 2026-09-30).
-        ...labelGroups(
-          withArea.map((s) => ({ ...s, point: { type: 'Point' as const, coordinates: boxMiddle(stopRing(s)) } })),
-        ).map((g) => ({
-          type: 'Feature' as const,
-          properties: { id: g.ids[0], ids: g.ids.join(','), kind: g.kind, name: g.name },
-          geometry: { type: 'Point' as const, coordinates: g.point },
-        })),
-      ],
-    })
+    if (src) layOutOnce(laidOut, stops, (next) => src.setData(stopsData(next)))
   }, [map, stops])
 
   // What a tap did to each box, as feature state: lit (chosen, or under the

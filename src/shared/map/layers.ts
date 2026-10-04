@@ -82,6 +82,20 @@ export function applyHidden(
 }
 
 /**
+ * Lays a source out from `next` by `layOut`, unless it already is from that
+ * very array: `laidOut` keeps the last. A hook's source is added with what
+ * is loaded by then (the cheap-phone plan, step 10 (c), 2026-10-04), and
+ * the hook's effect for what is loaded runs straight after with the same,
+ * which no longer lays it all out a second time. Anything loaded since is a
+ * new array, and laid out as before.
+ */
+export function layOutOnce<T>(laidOut: { current: T | null }, next: T, layOut: (next: T) => void): void {
+  if (laidOut.current === next) return
+  laidOut.current = next
+  layOut(next)
+}
+
+/**
  * True once `id` is a layer on `map`, and checked again whenever the style
  * changes. An effect that places a layer against another hook's used to look
  * once and give up for good when that one was not there yet — so the order
