@@ -60,6 +60,20 @@ function idsInOrder(features: IdFeature[], key: 'id' | 'route_id' = 'id'): strin
 export type TapTargets = { routeIds: string[]; routeKeys: string[]; stopIds: string[] }
 
 /**
+ * Each tap's answer, kept for the other hook (the cheap-phone plan, step 7,
+ * 2026-10-04). Both hooks hear the map's one `click` (routeTaps, stopTaps)
+ * and each asks what it landed on: the same question, in the same task, of
+ * a map nothing has changed in between (their setters render later), so the
+ * second takes the first's answer instead of querying the rendered features
+ * again — up to three queries a tap. Keyed on the browser's event, which
+ * MapLibre hands every listener of a click, or, without one, on the point it
+ * made for them; weakly, so an answer goes with its event. The same map and
+ * the same point too, or it is asked afresh. The answer is shared: read it,
+ * never change it.
+ */
+const answered = new WeakMap<object, { map: MapLibreMap; x: number; y: number; targets: TapTargets }>()
+
+/**
  * One tap, one kind of thing (the owner's ask, 2026-09-30: "can we only
  * select one not two? select hintuan only show the card, then select route
  * show the route"). A tap inside a hotspot's box is the hotspot's, even
@@ -71,6 +85,16 @@ export type TapTargets = { routeIds: string[]; routeKeys: string[]; stopIds: str
  * their road and are one thing to choose between.
  */
 export function tapTargets(map: MapLibreMap, point: { x: number; y: number }, event?: Event): TapTargets {
+  const key: object = event ?? point
+  const kept = answered.get(key)
+  if (kept && kept.map === map && kept.x === point.x && kept.y === point.y) return kept.targets
+  const targets = queryTargets(map, point, event)
+  answered.set(key, { map, x: point.x, y: point.y, targets })
+  return targets
+}
+
+/** What a tap landed on, asked of the map: tapTargets, unkept. */
+function queryTargets(map: MapLibreMap, point: { x: number; y: number }, event?: Event): TapTargets {
   const box = tapBox(point, event)
   const features = (layer: string, where: typeof box | [number, number] = box) =>
     map.getLayer(layer) ? map.queryRenderedFeatures(where, { layers: [layer] }) : []

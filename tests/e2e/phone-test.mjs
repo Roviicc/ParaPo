@@ -24,7 +24,8 @@
 // end with its own; the fine-pointer desktop control (±5 px, no zoom
 // buttons for a mouse either since 2026-09-29, attribution bottom right,
 // the pointer a hand over a line); a first tap at the opening view
-// compiling no GL program (2026-10-04); and housekeeping.
+// compiling no GL program, and asking the map what it landed on once
+// (2026-10-04); and housekeeping.
 import { chromium } from 'playwright'
 import { BASE, harness, nodeFetch, waitForSource } from './lib/harness.mjs'
 import { centroidOf, pointInPolygon } from './lib/geo.mjs'
@@ -989,8 +990,26 @@ const litIds = (p) => p.evaluate(() => window.__lit('saved-routes'))
     }
     return null
   }, spots.slice(0, 400).map((s) => s.p))
-  if (!at) skip('a first tap on a route at the opening view compiles no GL program', 'no route vertex clear of the hotspots on the open map')
-  else {
+  if (!at) {
+    skip('a first tap on a route at the opening view compiles no GL program', 'no route vertex clear of the hotspots on the open map')
+    skip("  and asks the map what it landed on once: no hover's queries, one answer for both hooks", 'no tap')
+  } else {
+    // Every query of the rendered features, until the click's last listener
+    // (added after the app's two, so it hears the click after them). The
+    // page is loaded again below, which puts the map's own back.
+    await page.evaluate(() => {
+      const m = window.__map
+      const query = m.queryRenderedFeatures
+      window.__queries = 0
+      window.__queriesByClick = null
+      m.queryRenderedFeatures = function (...args) {
+        window.__queries++
+        return query.apply(this, args)
+      }
+      m.on('click', () => {
+        window.__queriesByClick ??= window.__queries
+      })
+    })
     await mapTap(at[0], at[1])
     const shown = page.locator('[data-testid="card"]:not([hidden]), [data-testid="chooser"]:not([hidden])')
     await shown.first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
@@ -1001,6 +1020,19 @@ const litIds = (p) => p.evaluate(() => window.__lit('saved-routes'))
       opened !== 'nothing' && added.length === 0,
       `${opened} opened; ${added.length} added${added.length ? ': ' + added.join(', ') : ''}` +
         (standIn.length ? `; and ${standIn.length} a real basemap compiles at load, which the stand-in does not: ${standIn.map((k) => k.split('/')[0]).join(', ')}` : ''),
+    )
+    // A finger cannot hover, so the routes' and the hotspots' hooks ask
+    // nothing as it moves (canHover), and the tap's question — inside a box?
+    // a route in the finger's box? a box near it? — is asked once, by the
+    // first hook, and kept for the second (tap.ts): three queries at most.
+    // Until 2026-10-04 a tap on a route asked eight: four for the hover
+    // pairs on the mousemove a touch makes, and two by each hook (the
+    // cheap-phone plan, step 7).
+    const queries = await page.evaluate(() => window.__queriesByClick)
+    check(
+      "  and asks the map what it landed on once: no hover's queries, one answer for both hooks",
+      queries !== null && queries <= 3,
+      queries === null ? 'the map heard no click' : `${queries} queries of the rendered features by the end of the click`,
     )
   }
   await page.goto(`${BASE}/`, { waitUntil: 'load' })
