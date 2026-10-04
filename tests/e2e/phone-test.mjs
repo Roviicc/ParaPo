@@ -23,11 +23,12 @@
 // 2026-10-03), the view it frames, and its ‹ listing the routes sharing an
 // end with its own; the fine-pointer desktop control (±5 px, no zoom
 // buttons for a mouse either since 2026-09-29, attribution bottom right);
+// a first tap at the opening view compiling no GL program (2026-10-04);
 // and housekeeping.
 import { chromium } from 'playwright'
 import { BASE, harness, nodeFetch, waitForSource } from './lib/harness.mjs'
 import { centroidOf, pointInPolygon } from './lib/geo.mjs'
-import { lookReaders, paintNow, rideLook } from './lib/looks.mjs'
+import { lookReaders, paintNow, programsAtRest, programsSince, rideLook } from './lib/looks.mjs'
 
 const { check, skip, tally } = harness()
 
@@ -943,6 +944,70 @@ const LOOKS = await page.evaluate(async () => {
 const wears = (seen, want) => !LOOKS || (!!want && seen.line === want.line && seen.arrow === want.arrow && seen.ends === want.line)
 /** The directions lit now, by id. */
 const litIds = (p) => p.evaluate(() => window.__lit('saved-routes'))
+
+// ------------------------------------ 1b. a first tap compiles no GL program
+// MapLibre compiles a GL program the first time it draws with it, on the
+// main thread: 5-50 ms on a phone, a second and more in a runner's software
+// GPU. The first tap that lit a route compiled two as its card came up, the
+// end circles' and the orange stretches'. Since 2026-10-04 the stretches are
+// drawn with the lit line's program, and the circles' is compiled while the
+// map is idle (the cheap-phone plan, steps 2 and 3). So, on the view the map
+// opened on with nothing tapped yet: the circles' program is there, and a
+// finger on a route line, its card up and the map settled, adds none. Then
+// the page is loaded again, for the sections below to start as they did.
+{
+  const rest = await programsAtRest(page)
+  check("at rest, before any tap, the end circles' GL program is compiled (warmPrograms)", rest.circle, rest.circle ? `after ${(rest.ms / 1000).toFixed(1)} s more` : `none in ${rest.ms / 1000} s: ${rest.keys.length} programs`)
+  // A vertex clear of every hotspot by more than a finger reaches, at the
+  // opening view, and the farthest from any other route: a trip where the
+  // map allows, else a list; the first that is on the open map.
+  const view = await page.evaluate(() => ({ zoom: window.__map.getZoom(), lat: window.__map.getCenter().lat }))
+  const reach = (20 * Math.SQRT2 + 9) * ((40075016.686 * Math.cos((view.lat * Math.PI) / 180)) / (512 * 2 ** view.zoom))
+  const spots = []
+  for (const r of snapshot.routes) {
+    for (const vi of sampleIndices(r.coords.length, 1500 / Math.max(1, snapshot.routes.length))) {
+      const p = r.coords[vi]
+      const k = mPerDegLng(p[1])
+      if (distToHotspots(p, snapshot.polys, k) < reach) continue
+      let clear = Infinity
+      for (const o of snapshot.routes) {
+        if (o.routeId === r.routeId || distToBbox(p, o.bbox, k) > clear) continue
+        clear = Math.min(clear, distToLine(p, o.coords, k))
+      }
+      spots.push({ p, clear })
+    }
+  }
+  spots.sort((a, b) => b.clear - a.clear)
+  const at = await page.evaluate((ps) => {
+    const m = window.__map
+    const c = m.getCanvas().getBoundingClientRect()
+    for (const p of ps) {
+      const q = m.project(p)
+      if (q.x < 40 || q.x > innerWidth - 40 || q.y < 160 || q.y > innerHeight - 160) continue
+      if (!document.elementFromPoint(c.left + q.x, c.top + q.y)?.classList.contains('maplibregl-canvas')) continue
+      return [c.left + q.x, c.top + q.y]
+    }
+    return null
+  }, spots.slice(0, 400).map((s) => s.p))
+  if (!at) skip('a first tap on a route at the opening view compiles no GL program', 'no route vertex clear of the hotspots on the open map')
+  else {
+    await mapTap(at[0], at[1])
+    const shown = page.locator('[data-testid="card"]:not([hidden]), [data-testid="chooser"]:not([hidden])')
+    await shown.first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
+    const opened = (await page.locator('[data-testid="chooser"]:not([hidden])').count()) ? 'the route list' : (await trip().count()) ? 'a trip' : (await card().count()) ? 'a card' : 'nothing'
+    const { added, standIn } = await programsSince(page, rest.keys)
+    check(
+      'a first tap on a route at the opening view compiles no GL program',
+      opened !== 'nothing' && added.length === 0,
+      `${opened} opened; ${added.length} added${added.length ? ': ' + added.join(', ') : ''}` +
+        (standIn.length ? `; and ${standIn.length} a real basemap compiles at load, which the stand-in does not: ${standIn.map((k) => k.split('/')[0]).join(', ')}` : ''),
+    )
+  }
+  await page.goto(`${BASE}/`, { waitUntil: 'load' })
+  await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
+  await waitForSource(page, 'saved-routes')
+  await page.waitForTimeout(1200)
+}
 
 // How far a pixel reaches on the ground — measured off the map, not looked up.
 // MapLibre serves 512 px tiles, so its zoom 16 is the scale a 256 px table calls

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react'
-import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
+import type { CircleLayerSpecification, GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { haversine, metresPerPixel, type LngLat } from '../geo/geo'
 import { INSET_PX, SPEED_PX_PER_S, chevronsAt, markCovered, measure, spacingPx, type Chevron, type Measured } from './chevrons'
-import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
+import { MAP_CLEAR, MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { endRadius, litWidthAt } from './lineStyle'
 import type { LineLook } from './liveryLine'
 import { ROUTES_HIT_LAYER } from './tap'
 import { LAYERS, useLayerReady } from './layers'
+import { afterIdle, warmPrograms, type Twin } from './warmPrograms'
 
 /**
  * Which way the jeep goes, drawn on the lit directions only, with a circle
@@ -47,6 +48,31 @@ const SRC = 'direction-arrows'
 const CHEVRONS = 'direction-arrow-chevrons'
 const ENDS_SRC = 'direction-ends'
 const ENDS = LAYERS.endCircles
+
+/**
+ * The end circles' paint: white, ringed in the selected blue, or in a
+ * picked card's or an open trip's colour (useRideColours). Every property
+ * one value for the layer, or of the zoom alone: one GL program, which
+ * ENDS_TWIN compiles while the map is idle (warmPrograms.ts).
+ */
+export const ENDS_PAINT = {
+  'circle-radius': endRadius(),
+  'circle-color': MAP_PAINT['Paint/casing'],
+  'circle-stroke-color': MAP_COLOURS['Map/RouteLine/surface-selected'],
+  'circle-stroke-color-transition': { duration: 0, delay: 0 },
+  'circle-stroke-width': 2,
+} satisfies CircleLayerSpecification['paint']
+
+/**
+ * The end circles' twin: their paint, its colours clear. Drawn once while
+ * the map is idle, it compiles their GL program, which the first tap that
+ * lit a route used to compile as its card came up (the cheap-phone plan,
+ * step 3, 2026-10-04).
+ */
+export const ENDS_TWIN = {
+  type: 'circle',
+  paint: { ...ENDS_PAINT, 'circle-color': MAP_CLEAR, 'circle-stroke-color': MAP_CLEAR },
+} as const satisfies Twin
 
 /** Two ends of one name closer than this are one place, and named once: Tala, where two rides start. */
 const SAME_END_M = 150
@@ -186,25 +212,12 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       ROUTES_HIT_LAYER,
     )
     map.addSource(ENDS_SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-    map.addLayer(
-      {
-        id: ENDS,
-        type: 'circle',
-        source: ENDS_SRC,
-        paint: {
-          'circle-radius': endRadius(),
-          'circle-color': MAP_PAINT['Paint/casing'],
-          'circle-stroke-color': MAP_COLOURS['Map/RouteLine/surface-selected'],
-          'circle-stroke-color-transition': { duration: 0, delay: 0 },
-          'circle-stroke-width': 2,
-        },
-      },
-      ROUTES_HIT_LAYER,
-    )
+    map.addLayer({ id: ENDS, type: 'circle', source: ENDS_SRC, paint: ENDS_PAINT }, ROUTES_HIT_LAYER)
   }, [map, hitReady])
 
   // The ends: where each lit ride starts and finishes, each named once.
-  // Still, so drawn once.
+  // Still, so drawn once. How many are drawn is kept for the warm-up below.
+  const endsDrawn = useRef(0)
   useEffect(() => {
     const src = map?.getSource(ENDS_SRC) as GeoJSONSource | undefined
     if (!src) return
@@ -214,7 +227,37 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       geometry: { type: 'Point' as const, coordinates: at },
     }))
     src.setData({ type: 'FeatureCollection', features })
+    endsDrawn.current = features.length
   }, [map, rides, hitReady])
+
+  // The circles' GL program, compiled while the map is idle rather than at
+  // the first tap (ENDS_TWIN): once a map, after the first 'idle' that
+  // follows their layer's arrival, and again once a lost GL context is
+  // given back, its programs gone with it. Not when ends are drawn by then:
+  // drawing them compiled it.
+  const warmed = useRef<MapLibreMap | null>(null)
+  useEffect(() => {
+    if (!map || !hitReady || !map.getLayer(ENDS) || warmed.current === map) return
+    return afterIdle(map, () => {
+      warmed.current = map
+      if (endsDrawn.current === 0) warmPrograms(map, [ENDS_TWIN])
+    })
+  }, [map, hitReady])
+  useEffect(() => {
+    if (!map) return
+    let cancel = () => {}
+    const restored = () => {
+      cancel()
+      cancel = afterIdle(map, () => {
+        if (endsDrawn.current === 0 && map.getLayer(ENDS)) warmPrograms(map, [ENDS_TWIN])
+      })
+    }
+    map.on('webglcontextrestored', restored)
+    return () => {
+      map.off('webglcontextrestored', restored)
+      cancel()
+    }
+  }, [map])
 
   const frame = useRef(0)
   useEffect(() => {

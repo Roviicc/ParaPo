@@ -16,11 +16,13 @@
 // to localStorage, never calls the OSRM route snapper or the database (it
 // reads the published /data/index.v4.json, once), and tapping a route vs. a
 // hotspot — including one hotspot with a route drawn through it — opens the
-// right card with the right content.
+// right card with the right content; and, since 2026-10-04, that the end
+// circles' GL program is compiled before any tap and a trip's tap compiles
+// none.
 import { chromium } from 'playwright'
 import { BASE, harness, nodeFetch, waitForSource } from './lib/harness.mjs'
 import { centroidOf, pointInPolygon } from './lib/geo.mjs'
-import { lookReaders, paintNow, rideLook } from './lib/looks.mjs'
+import { lookReaders, paintNow, programsAtRest, programsSince, rideLook } from './lib/looks.mjs'
 
 const { check, skip, tally } = harness()
 
@@ -264,6 +266,11 @@ const [namesFar, namesNear] = [await namesAt(16), await namesAt(17)]
 check('hotspot names only close in: none at zoom 16, some at 17', namesFar === 0 && namesNear > 0, `${namesFar} at 16, ${namesNear} at 17`)
 const drawLayers = snapshot.order.filter((id) => id.startsWith('draw-'))
 check('no editor (draw-*) layers on the public page', drawLayers.length === 0, drawLayers.join(', '))
+// The end circles' GL program is compiled while the map is idle, before any
+// tap, so the first tap that lights a route does not compile it as its card
+// comes up (warmPrograms.ts, the cheap-phone plan, step 3, 2026-10-04).
+const atRest = await programsAtRest(page)
+check("at rest, before any tap, the end circles' GL program is compiled (warmPrograms)", atRest.circle, `${atRest.keys.length} programs${atRest.circle ? '' : `, none a circle's in ${atRest.ms / 1000} s`}`)
 
 // 3. Tap each hotspot: fly to a point inside it, click, read the card.
 for (const [i, p] of snapshot.polys.entries()) {
@@ -630,6 +637,8 @@ if (PART === 1) {
   } else {
     await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 17 }), clean)
     await page.waitForTimeout(700)
+    // The GL programs before the tap, the map at rest (see "and it compiled no GL program" below).
+    const programsBefore = await programsAtRest(page)
     const box = await page.locator('canvas.maplibregl-canvas').boundingBox()
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
     await page.waitForTimeout(350)
@@ -708,6 +717,18 @@ if (PART === 1) {
       // a second apart finds them moved, in about fifteen redraws.
       const where = () =>
         page.evaluate(async () => ((await window.__src('direction-arrows'))?.features ?? []).map((f) => f.geometry.coordinates[0][0].map((v) => v.toFixed(7)).join()).join('|'))
+      // The tap compiled no GL program: the end circles' was compiled while
+      // the map was idle, and the orange stretches draw with the lit line's
+      // (the cheap-phone plan, steps 2 and 3, 2026-10-04). Read with the trip
+      // framed and the map settled, before the jump below brings a view of
+      // its own.
+      const compiled = await programsSince(page, programsBefore.keys)
+      check(
+        '  and it compiled no GL program',
+        compiled.added.length === 0,
+        `${compiled.added.length} added${compiled.added.length ? ': ' + compiled.added.join(', ') : ''}` +
+          (compiled.standIn.length ? `; and ${compiled.standIn.length} a real basemap compiles at load, which the stand-in does not: ${compiled.standIn.map((k) => k.split('/')[0]).join(', ')}` : ''),
+      )
       // The trip opens on its whole route (the owner's ask, 2026-10-01); the
       // flow is counted back where the tap was, close in, as before: a
       // runner drawing without a GPU manages a few frames a second on the

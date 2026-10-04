@@ -90,8 +90,10 @@
 //   card painted (a frame and a task after that); what opened, a list (its
 //   rows) or a trip; the TBT and longest task of the 3 s after; and the GL
 //   programs the tap compiled: window.__programs() before it and once the
-//   card is up and the map idle. The spots are chosen in the warm-up and the
-//   same every run.
+//   card is up and the map idle. Before it, the end circles' program, which
+//   the map compiles while idle since 2026-10-04 (warmPrograms.ts), is waited
+//   for, 10 s at most, and whether it was there is said (circleBefore). The
+//   spots are chosen in the warm-up and the same every run.
 // Service workers are blocked but in the sw scenario.
 //
 // How to read the numbers (the plan's own caveats, 2026-10-03):
@@ -168,6 +170,9 @@ const SETTINGS = {
   tapWindowMs: 3000,
   // After a tap, how long the card and the map have to be up and idle.
   idleCapMs: 30000,
+  // Before a tap, how long the end circles' GL program has to be compiled
+  // (warmPrograms.ts, the cheap-phone plan, step 3).
+  warmCapMs: 10000,
   // From the navigation, how long the service worker has to be installed.
   swCapMs: 120000,
 }
@@ -873,6 +878,21 @@ async function tapVisit(kind) {
       return { tapToCard: null, tapToPaint: null, opened: null, tbt: null, longest: null, capped, basemapFetched: fetched, note: `no spot for a ${kind} tap on the screen at the opening view` }
     }
     chosen[kind] ??= found.spot
+    // The end circles' GL program, compiled while the map is idle: there by
+    // now on a settled page, else waited for a little, and said.
+    const warmMs = await page.evaluate(
+      (capMs) =>
+        new Promise((done) => {
+          const t0 = performance.now()
+          const tick = () => {
+            if (window.__programs().some((k) => k.startsWith('circle/'))) return done(Math.round(performance.now() - t0))
+            if (performance.now() - t0 > capMs) return done(null)
+            setTimeout(tick, 100)
+          }
+          tick()
+        }),
+      SETTINGS.warmCapMs,
+    )
     const before = await page.evaluate(() => window.__programs())
     await page.evaluate(() => Object.assign(window.__speed, { armed: true, down: null, shown: null, painted: null, kind: null }))
     await page.touchscreen.tap(found.x, found.y)
@@ -930,6 +950,8 @@ async function tapVisit(kind) {
       newPrograms: keys.length,
       programKeys: keys,
       programsBefore: before.length,
+      circleBefore: warmMs !== null,
+      circleWaitMs: warmMs,
       idleCapped: !idle,
       capped,
       point: found.spot.p,
@@ -1113,6 +1135,7 @@ try {
     if (run.sw.swUnslowed) console.log(`  ${run.sw.swUnslowed} of the service worker's requests came back sooner than a Slow 4G round trip: not slowed`)
     for (const [s, want] of [['listTap', 'list'], ['tripTap', 'trip']]) {
       if (run[s].opened !== want) console.log(`  the ${s} opened ${run[s].opened ?? 'nothing'}, not the ${want}${run[s].note ? ` (${run[s].note})` : ''}`)
+      if (run[s].circleBefore === false) console.log(`  before the ${s}, the end circles' GL program was not compiled within ${SETTINGS.warmCapMs / 1000} s`)
       if (run[s].idleCapped) console.log(`  after the ${s}, the map was not idle within ${SETTINGS.idleCapMs / 1000} s`)
     }
     if (failedIn(run)) console.log(`  ${failedIn(run)} basemap request(s) failed`)
@@ -1159,6 +1182,9 @@ for (const scenario of ['listTap', 'tripTap']) {
   const keys = Object.keys(seen)
   console.log(`\nGL programs the ${LABELS[scenario]} compiled (runs that did):${keys.length ? '' : ' none'}`)
   for (const k of keys) console.log(`  ${seen[k]}/${runs.length}  ${k}`)
+  const warm = runs.filter((r) => r[scenario].circleBefore)
+  const waits = warm.map((r) => r[scenario].circleWaitMs).filter((ms) => ms > 0)
+  console.log(`  the end circles' program compiled before the tap: ${warm.length}/${runs.length}${waits.length ? ` (waited for in ${waits.length}, up to ${Math.max(...waits)} ms)` : ''}`)
 }
 
 const stampsBroken = LOADS.reduce((n, s) => n + runs.filter((r) => r[s].stampTrouble.length).length, 0)
