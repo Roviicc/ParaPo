@@ -885,7 +885,8 @@ async function tapVisit(kind) {
         new Promise((done) => {
           const t0 = performance.now()
           const tick = () => {
-            if (window.__programs().some((k) => k.startsWith('circle/'))) return done(Math.round(performance.now() - t0))
+            // 0 when it was there at once (Math.round made a first look's fraction of a millisecond a wait of 1).
+            if (window.__programs().some((k) => k.startsWith('circle/'))) return done(Math.floor(performance.now() - t0))
             if (performance.now() - t0 > capMs) return done(null)
             setTimeout(tick, 100)
           }
