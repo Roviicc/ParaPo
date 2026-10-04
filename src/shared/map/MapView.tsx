@@ -153,6 +153,15 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
           zoom: ZOOM,
           maxBounds,
           attributionControl: false,
+          // No check of the whole style against the spec before it is used:
+          // 82-91 ms of main thread at 4x CPU on every load, before the first
+          // tile is asked for (profiled 2026-10-04, the cheap-phone plan,
+          // step 1). The basemaps are OpenFreeMap's own and ours is built in
+          // code, so it found nothing. A basemap switch skips it too: setStyle
+          // takes this as its default (MapLibre 6.7, map.ts). A style that
+          // fails still says so, by 'error' or the 12 s timeout below, each
+          // with `diagnose`.
+          validateStyle: false,
         })
       } catch (err) {
         setError(

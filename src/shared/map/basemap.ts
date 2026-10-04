@@ -223,7 +223,12 @@ function styleTransform(b: Basemap) {
   }
 }
 
-/** Swap the basemap under everything drawn on it. */
+/**
+ * Swap the basemap under everything drawn on it. The new style is not checked
+ * against the spec as a whole: setStyle takes the map's `validateStyle: false`
+ * (MapView.tsx) as its default, so no option is passed here (the cheap-phone
+ * plan, step 1, 2026-10-04).
+ */
 export function applyBasemap(map: MapLibreMap, b: Basemap): void {
   map.setStyle(b.url, { transformStyle: styleTransform(b) })
 }
