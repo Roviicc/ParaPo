@@ -6,9 +6,11 @@
 // well as a list tap, sends the basemap through one slowed link per page,
 // counts tiles by zoom, tells the page's bytes from its workers' by the
 // headers Chrome sends, and lists the GL programs a tap compiled. What the
-// numbers mean rests on these.
+// numbers mean rests on these. Its review the same day: "routes drawn" waits
+// for a route in the routes' source, and a stamp out of order is said.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { runInNewContext } from 'node:vm'
 import {
   FINGER_REACH_PX,
   added,
@@ -19,7 +21,9 @@ import {
   mapGeometry,
   median,
   mPerDegLng,
+  routesOnMap,
   serialLink,
+  stampTrouble,
   stats,
   tileAt,
   tileMetrics,
@@ -27,6 +31,7 @@ import {
   tilesAlong,
   tripSpots,
 } from '../../scripts/research/phoneSpeedParts.mjs'
+import { ROUTES_LINE } from '../../src/shared/map/savedRoutesLayers.ts'
 
 // A small map near Manila's latitude, in metres east and north: route A's
 // two directions on one road running east for 2 km; route B 10 m north of
@@ -209,4 +214,56 @@ test('the zooms any run fetched tiles at, as metric names, lowest first', () => 
   const runs = [{ cold: { tiles: { 11: { n: 2 }, 9: { n: 4 } } } }, { cold: { tiles: { 10: { n: 2 } } } }, { cold: {} }]
   assert.deepEqual(tileMetrics(runs, 'cold'), ['tilesZ9', 'tilesZ10', 'tilesZ11'])
   assert.deepEqual(tileMetrics(runs, 'repeat'), [])
+})
+
+test('routes drawn: a route in the routes’ loaded source, not the empty source the map adds at its load', () => {
+  // A stand-in map, saying what it was asked.
+  const map = ({ source = true, layer = true, loaded = true, features = 0 } = {}) => {
+    const asked = []
+    return {
+      asked,
+      getSource: (id) => (asked.push(['getSource', id]), source ? {} : undefined),
+      getLayer: (id) => (asked.push(['getLayer', id]), layer ? {} : undefined),
+      isSourceLoaded: (id) => (asked.push(['isSourceLoaded', id]), loaded),
+      querySourceFeatures: (id) => (asked.push(['querySourceFeatures', id]), Array.from({ length: features }, () => ({}))),
+    }
+  }
+  const drawn = map({ features: 80 })
+  assert.equal(routesOnMap(drawn), true)
+  assert.deepEqual(drawn.asked, [
+    ['getSource', 'saved-routes'],
+    ['getLayer', ROUTES_LINE],
+    ['isSourceLoaded', 'saved-routes'],
+    ['querySourceFeatures', 'saved-routes'],
+  ])
+  // The source as the map adds it at 'load', before the map file is in:
+  // loaded, and empty. The stamp the review found (2026-10-04).
+  assert.equal(routesOnMap(map({ features: 0 })), false)
+  assert.equal(routesOnMap(map({ source: false, features: 80 })), false)
+  assert.equal(routesOnMap(map({ layer: false, features: 80 })), false)
+  // The map file's routes still with the worker: not drawn, and its tiles
+  // not read on such a frame.
+  const loading = map({ loaded: false, features: 80 })
+  assert.equal(routesOnMap(loading), false)
+  assert.ok(!loading.asked.some(([k]) => k === 'querySourceFeatures'))
+  // Its text alone, as the page is handed it, does the same: it uses
+  // nothing but the map.
+  const inPage = runInNewContext(`(${routesOnMap})`)
+  assert.equal(inPage(map({ features: 3 })), true)
+  assert.equal(inPage(map({ features: 0 })), false)
+})
+
+test('the load stamps’ order: routes drawn no sooner than data in, and stamped once it is in', () => {
+  // Step 0's proof run, the repeat visit (2026-10-04): data in, 'load', routes drawn.
+  assert.deepEqual(stampTrouble({ dataIn: 1351.3, mapLoad: 1509.1, routesDrawn: 2213.3 }), [])
+  // The owner's Q1: the routes drawn after data in but before the map's 'load'.
+  assert.deepEqual(stampTrouble({ dataIn: 1351, mapLoad: 3000, routesDrawn: 1800 }), [])
+  // The empty source's stamp, 'load' before the map file (the review's repro).
+  assert.deepEqual(stampTrouble({ dataIn: 4523, mapLoad: 821, routesDrawn: 1004 }), ['routes drawn stamped before the data was in'])
+  // The data in and the map settled, and no stamp.
+  assert.deepEqual(stampTrouble({ dataIn: 4523, mapLoad: 821, routesDrawn: null }), ['routes drawn never stamped, though the data was in'])
+  assert.deepEqual(stampTrouble({ dataIn: null, routesDrawn: 1004 }), ['routes drawn stamped, though the data never came in'])
+  // No data, no routes: nothing for this to say.
+  assert.deepEqual(stampTrouble({ dataIn: null, routesDrawn: null }), [])
+  assert.deepEqual(stampTrouble({}), [])
 })

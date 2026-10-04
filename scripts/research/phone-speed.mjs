@@ -62,8 +62,10 @@
 //           page has run no long task for 2 s (40 s at most), then reads:
 //           first paint (FCP); "data in", the first moment the app root's
 //           data-directions is above 0; "routes drawn", the first frame the
-//           map rendered with the routes' line layer in and their source
-//           loaded; the map's 'load'; settled, when that quiet began (all
+//           map rendered with the routes' line layer in, their source loaded
+//           and a route in its tiles (routesOnMap; a stamp sooner than data
+//           in, or none, is said and left out of the table: stampTrouble);
+//           the map's 'load'; settled, when that quiet began (all
 //           stamped in the page, from the navigation); TBT (each long task's
 //           time over 50 ms, from the navigation to settled) and the longest
 //           task; the app's bytes and requests (every response from :4175 to
@@ -122,7 +124,9 @@ import {
   headerBytes,
   listSpots,
   mapGeometry,
+  routesOnMap,
   serialLink,
+  stampTrouble,
   stats,
   tileMetrics,
   tileZoom,
@@ -362,8 +366,11 @@ const SPOTS = { list: listSpots(geometry), trip: tripSpots(geometry).slice(0, 40
 const chosen = { list: null, trip: null }
 
 // ----------------------------------------------------------------- the browser
-/** Stamps, made in the page before any of its own scripts run. */
-function stamps() {
+/**
+ * Stamps, made in the page before any of its own scripts run. `routesOnMap`
+ * is phoneSpeedParts.mjs's, handed over as its text (phonePage).
+ */
+function stamps(routesOnMap) {
   const s = (window.__speed = {
     longtasks: [],
     dataIn: null,
@@ -383,8 +390,8 @@ function stamps() {
   } catch {}
   // The map from its making (MapView hands it out as window.__mapEarly in
   // this build): its 'load', and "routes drawn", the first frame it renders
-  // with the routes' line layer in and their source loaded. Never throws
-  // into MapView.
+  // with a route in the routes' loaded source (routesOnMap). Never throws
+  // into MapView, nor into MapLibre's frame.
   let early = null
   Object.defineProperty(window, '__mapEarly', {
     configurable: true,
@@ -396,7 +403,11 @@ function stamps() {
           s.mapLoad ??= performance.now()
         })
         const drawn = () => {
-          if (m.getSource('saved-routes') && m.getLayer('saved-routes-line') && m.isSourceLoaded('saved-routes')) {
+          let yes = false
+          try {
+            yes = routesOnMap(m)
+          } catch {}
+          if (yes) {
             s.routesDrawn ??= performance.now()
             m.off('render', drawn)
           }
@@ -542,7 +553,8 @@ async function phonePage({ serviceWorkers = 'block' } = {}) {
   })
   const page = await context.newPage()
   page.on('pageerror', (e) => console.log('  page error:', String(e).split('\n')[0]))
-  await page.addInitScript(stamps)
+  // stamps' text, called with routesOnMap's: an init script has no imports.
+  await page.addInitScript({ content: `(${stamps})(${routesOnMap})` })
   let closed = false
   const fresh = () => ({
     appBytes: 0,
@@ -786,7 +798,7 @@ async function load(p, reload) {
   else await p.page.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
   const { settled, capped } = await settle(p.page)
   const r = await loadReadings(p.page, settled)
-  return { ...r, capped, ...traffic(p.counted()) }
+  return { ...r, stampTrouble: stampTrouble(r), capped, ...traffic(p.counted()) }
 }
 
 /** A first visit with the service worker allowed, read as a cold one and then to the end of the worker's install. */
@@ -810,7 +822,7 @@ async function swVisit() {
     const quiet = swReady !== null && (await p.swQuiet(SETTINGS.quietMs, SETTINGS.swCapMs))
     const n = p.counted()
     await p.close()
-    return { ...r, capped, swReady, swCapped: swReady === null || !quiet, ...traffic(n) }
+    return { ...r, stampTrouble: stampTrouble(r), capped, swReady, swCapped: swReady === null || !quiet, ...traffic(n) }
   } finally {
     await shut()
   }
@@ -952,6 +964,7 @@ async function oneRun() {
   return run
 }
 const SCENARIOS = ['cold', 'repeat', 'sw', 'listTap', 'tripTap']
+const LOADS = ['cold', 'repeat', 'sw']
 
 /** Fetches into the cache every basemap tile the taps' camera moves could ask for (tilesAlong). */
 async function fetchAlong(taps) {
@@ -1094,6 +1107,7 @@ try {
     )
     const fetched = fetchedIn(run)
     if (fetched) console.log(`  ${fetched} basemap file(s) were fetched with curl during this run: its timings carry curl's`)
+    for (const s of LOADS) for (const t of run[s].stampTrouble) console.log(`  ${s}: ${t}: left out of the table`)
     if (SCENARIOS.some((s) => run[s].capped)) console.log(`  the ${SETTINGS.settleCapMs / 1000} s cap ended a wait for the map to settle`)
     if (run.sw.swCapped) console.log('  the service worker did not finish installing in time')
     if (run.sw.swUnslowed) console.log(`  ${run.sw.swUnslowed} of the service worker's requests came back sooner than a Slow 4G round trip: not slowed`)
@@ -1119,15 +1133,17 @@ console.log(
   `\n${commit}, Chromium ${chromiumVersion}: CPU ${SETTINGS.cpuThrottlingRate}× slower, Slow 4G, ` +
     `${SETTINGS.viewport.width}×${SETTINGS.viewport.height} at ${SETTINGS.deviceScaleFactor}×. ${RUNS} run(s): median, then min–max\n`,
 )
-// A tap that opened anything but what it aimed at is left out of its scenario.
+// A tap that opened anything but what it aimed at is left out of its
+// scenario, and a broken "routes drawn" stamp out of its metric (stampTrouble).
 const counts = (scenario, r) => (scenario === 'listTap' ? r.listTap.opened === 'list' : scenario === 'tripTap' ? r.tripTap.opened === 'trip' : true)
+const broken = (scenario, r, metric) => metric === 'routesDrawn' && (r[scenario].stampTrouble?.length ?? 0) > 0
 for (const [scenario, base] of Object.entries(METRICS)) {
-  const tiles = ['cold', 'repeat', 'sw'].includes(scenario) ? tileMetrics(runs, scenario) : []
+  const tiles = LOADS.includes(scenario) ? tileMetrics(runs, scenario) : []
   const metrics = { ...base, ...Object.fromEntries(tiles.map((m) => [m, 'n'])) }
   summary[scenario] = {}
   console.log(LABELS[scenario])
   for (const [metric, unit] of Object.entries(metrics)) {
-    const xs = runs.filter((r) => counts(scenario, r)).map((r) => r[scenario][metric] ?? (tiles.includes(metric) ? 0 : null))
+    const xs = runs.filter((r) => counts(scenario, r)).map((r) => (broken(scenario, r, metric) ? null : (r[scenario][metric] ?? (tiles.includes(metric) ? 0 : null))))
     const s = stats(xs)
     summary[scenario][metric] = s
     console.log(`  ${label(metric).padEnd(26)}${show(s.median, unit).padStart(10)}   ${show(s.min, unit)}–${show(s.max, unit)}`)
@@ -1145,6 +1161,8 @@ for (const scenario of ['listTap', 'tripTap']) {
   for (const k of keys) console.log(`  ${seen[k]}/${runs.length}  ${k}`)
 }
 
+const stampsBroken = LOADS.reduce((n, s) => n + runs.filter((r) => r[s].stampTrouble.length).length, 0)
+if (stampsBroken) console.log(`\n"routes drawn" broken in ${stampsBroken} visit(s) and left out of the table: see the runs' stampTrouble`)
 const timedFetched = runs.reduce((n, r) => n + fetchedIn(r), 0)
 console.log(
   `\nbasemap files fetched with curl during the timed runs: ${timedFetched} (should be 0; the warm-up fetched ${warmUp.basemapFetched}, ` +
@@ -1167,6 +1185,7 @@ if (JSON_OUT) {
     },
     spots: { listTap: chosen.list, tripTap: chosen.trip },
     basemapFetched: { warmUp: warmUp.basemapFetched, alongTaps: warmUp.alongTaps, timed: timedFetched },
+    stampsBroken,
     throttled,
   }
   mkdirSync(dirname(JSON_OUT), { recursive: true })

@@ -219,6 +219,48 @@ export function headerBytes(status, headers) {
   return n
 }
 
+// ------------------------------------------------------------- in the page
+/**
+ * "Routes drawn": whether the frame the map has just rendered holds the
+ * routes, asked in each 'render' until it does. The routes' line layer is in,
+ * their source is loaded, and its tiles hold at least one route. The source
+ * is added empty at the map's 'load' (savedRoutesLayers.ts) and filled only
+ * once the map file is in, and a GeoJSON source with nothing in it loads like
+ * any other: without the last test, a 'load' before the map file stamped a
+ * frame with no route on it (the review of the cheap-phone plan's Step 0,
+ * 2026-10-04: the map file held back 4 s, 'load' came 3.7 s before data in
+ * and routes "drawn" 0.2 s after 'load', the source empty). The plan's steps
+ * that bring 'load' sooner make that order likely. querySourceFeatures runs
+ * only on the frames the source is loaded: under 1 ms on its empty tiles,
+ * and once, when the routes are in, 1.6–6.6 ms at 4× CPU for the 80
+ * features at the opening view.
+ *
+ * The page is handed this function's text (phone-speed.mjs's init script),
+ * so it may use nothing but `m`.
+ */
+export function routesOnMap(m) {
+  return !!(
+    m.getSource('saved-routes') &&
+    m.getLayer('saved-routes-line') &&
+    m.isSourceLoaded('saved-routes') &&
+    m.querySourceFeatures('saved-routes').length > 0
+  )
+}
+
+/**
+ * What is wrong with a visit's load stamps, in words; none when they hold.
+ * The routes are drawn from the map file, so "routes drawn" can come no
+ * sooner than "data in", which marks its arrival: a stamp before it, or none
+ * once the data is in and the map settled, is a broken stamp, and the table
+ * leaves it out. Not held against the map's 'load': the owner's Q1
+ * (2026-10-04) draws the routes as soon as the style is in, before it.
+ */
+export function stampTrouble({ dataIn = null, routesDrawn = null }) {
+  if (routesDrawn === null) return dataIn === null ? [] : ['routes drawn never stamped, though the data was in']
+  if (dataIn === null) return ['routes drawn stamped, though the data never came in']
+  return routesDrawn < dataIn ? ['routes drawn stamped before the data was in'] : []
+}
+
 /** The keys in `after` that `before` lacks, in after's order: the GL programs a tap compiled. */
 export const added = (before, after) => {
   const had = new Set(before)
