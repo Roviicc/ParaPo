@@ -3,7 +3,7 @@ import type { MapLibreMap } from 'maplibre-gl'
 import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes'
 import type { Livery } from '../model/liveries'
 import { ROUTES_LINE, useSavedRoutesLayers } from './savedRoutesLayers'
-import { litOf, shownOf, showingOf } from './routesShown'
+import { litOf, shownOf, showingOf, steady } from './routesShown'
 import { useRouteTaps } from './routeTaps'
 
 /**
@@ -175,11 +175,17 @@ export function useSavedRoutes<T extends VariantSummary>(
 
   // What is shown and what is lit (routesShown.ts).
   const showing = useMemo(() => showingOf(candidates, back, variants, cardShows), [candidates, back, variants, cardShows])
-  const litVariants = useMemo(
+  // Each kept one array while it holds the same (steady): an unrelated
+  // line's arrival lights nothing new, and the chevrons flow on.
+  const litNow = useMemo(
     () => litOf(selectedId, highlight?.ids ?? null, variants, showing),
     [selectedId, variants, highlight, showing],
   )
-  const lit = useMemo(() => litVariants.map((v) => v.id), [litVariants])
+  const litKept = useRef(litNow)
+  const litVariants = (litKept.current = steady(litKept.current, litNow))
+  const litIdsNow = useMemo(() => litVariants.map((v) => v.id), [litVariants])
+  const litIdsKept = useRef(litIdsNow)
+  const lit = (litIdsKept.current = steady(litIdsKept.current, litIdsNow))
 
   // ----------------------------------------------------------------- layers
 
@@ -230,10 +236,15 @@ export function useSavedRoutes<T extends VariantSummary>(
     [loadLine, drawn],
   )
 
-  // What is lit, and the chosen direction, get their full lines.
+  // What is lit, and the chosen direction, get their full lines: asked
+  // whenever what is lit is worked out again (litNow), as when `lit` itself
+  // was new each time, before it was kept (steady). So a lit line whose read
+  // failed is asked for again as before: as it lights, and as any other
+  // line arrives.
   useEffect(() => {
     for (const id of selectedId ? [...lit, selectedId] : lit) request(id)
-  }, [request, lit, selectedId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request, litNow, selectedId])
 
   // So do the directions on screen at street zoom, where an overview's
   // corners would show: a resting line on a street is drawn as it was drawn

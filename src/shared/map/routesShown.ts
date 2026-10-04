@@ -51,3 +51,21 @@ export function litOf<T extends VariantSummary>(
 export function shownOf(selectedId: string | null, lit: readonly string[], showing: readonly VariantSummary[]): readonly string[] {
   return selectedId || showing.length === 0 ? lit : showing.map((v) => v.id)
 }
+
+/**
+ * `next`, or `was` when the two hold the very same things in the same
+ * order: what is lit kept one array while it is unchanged (useSavedRoutes'
+ * litVariants and lit). Every full line read makes a new list of
+ * directions, and litOf made a new array of the same ones lit: a list's
+ * (its rows keep the directions as they were tapped) at each of its lines,
+ * a trip's at any other direction's. The chevrons, which start afresh with
+ * a new list of lit rides, jumped back to the start of their lines, and
+ * the rides, their ends and their names were worked out again (the
+ * cheap-phone plan, step 16 (c), 2026-10-04). Compared by identity, never
+ * by content: a lit direction whose own line arrives is a new object, and
+ * makes a new array, as its chevrons must then follow the new line.
+ */
+export function steady<A extends readonly unknown[]>(was: A, next: A): A {
+  if (was === next) return was
+  return was.length === next.length && was.every((x, i) => x === next[i]) ? was : next
+}
