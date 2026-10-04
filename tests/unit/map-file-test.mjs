@@ -266,3 +266,20 @@ test('the page served in place of a missing index shows the stored copy too', as
   index('<!doctype html>', { headers: { 'content-type': 'text/html' } })
   await assert.rejects((await fresh()).loadMapFile(), { message: '/data/index.v4.json: not JSON' })
 })
+
+// The cheap-phone plan, step 16 (g), 2026-10-04: the public map's age is set
+// anew only when it says something new (status.ts, sameAge), so a full line
+// read — a new list of directions — renders nothing more.
+test("step 16 (g): the map's age, the same date and the same copy, is the one already set; a new date or copy is the new one", async () => {
+  const { sameAge } = await import('../../src/commuter/status.ts')
+  const was = { publishedAt: '2026-09-29T11:33:22Z', stale: false }
+  assert.equal(sameAge(was, { publishedAt: '2026-09-29T11:33:22Z', stale: false }), was)
+  const newer = { publishedAt: '2026-10-04T00:00:00Z', stale: false }
+  assert.equal(sameAge(was, newer), newer)
+  const stored = { publishedAt: '2026-09-29T11:33:22Z', stale: true }
+  assert.equal(sameAge(was, stored), stored)
+  const none = { publishedAt: null, stale: false }
+  const first = { publishedAt: '2026-09-29T11:33:22Z', stale: false }
+  assert.equal(sameAge(none, first), first, 'the first read sets it')
+  assert.equal(sameAge(none, { publishedAt: null, stale: false }), none)
+})
