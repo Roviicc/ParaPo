@@ -24,7 +24,7 @@ import type { MapLibreMap } from 'maplibre-gl'
  * its data: the frames before drew it, nothing lit, and compiled its
  * program as the map loaded, as before, and a tap compiles none (step 3;
  * the suites' program checks). The same after a lost GL context is given
- * back, its programs gone with it: on, till the next 'idle'.
+ * back, its programs gone with it: on, till the next 'idle' and a move.
  *
  * Each change of the value asks the map for a frame. On goes at once, with
  * the lighting that needs it; so does off when the lighting goes, a frame
@@ -110,7 +110,8 @@ export function useLayerSwitch(map: MapLibreMap | null, layers: readonly string[
     if (!map || !primed) return
     const warm = () => sw.warmed(map, true)
     // The programs went with the context: on, so the next frames compile
-    // them again, and off at the next 'idle'. MapLibre makes the style
+    // them again, and off from the first move after the next 'idle'
+    // (2026-10-04). MapLibre makes the style
     // afresh from its own copy a frame after the context is back, these
     // layers at the opacity they had then, so a style's load is where
     // they get the switch's value: no 'idle' comes before it.
