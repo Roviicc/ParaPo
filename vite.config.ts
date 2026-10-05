@@ -142,6 +142,46 @@ function mapFileEarly(): Plugin {
   }
 }
 
+/**
+ * MapLibre's worker, built with the page instead of on its own (the
+ * cheap-phone plan, step 14, 2026-10-05). MapLibre 6 ships three files: the
+ * page's maplibre-gl.mjs and the worker's maplibre-gl-worker.mjs both import
+ * maplibre-gl-shared.mjs, most of the code. `?worker&url` built the worker as
+ * a bundle of its own, the shared file copied into it: 135 kB gzipped that
+ * the map's 'load' waits for, of code the page had just downloaded. Here the
+ * worker is a chunk of the page's own build, so it imports the page's
+ * maplibre-gl-shared chunk (the priority-3 group below), which the browser
+ * already holds, and what is left of it is a few kB.
+ *
+ * Build only: under `npm run dev` MapView.tsx's `?worker&url` reaches Vite's
+ * own worker plugin as it always did. In a build this answers that import
+ * first, with the URL of the chunk it emits. check-build.mjs proves the
+ * worker imports nothing but MapLibre's shared code and Vite's preload
+ * helper: our shared chunk, with React, in the worker would stop the map.
+ */
+export const MAPLIBRE_WORKER_URL = 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+export function maplibreWorkerWithThePage(): Plugin {
+  const resolved = '\0parapo:maplibre-worker-url'
+  return {
+    name: 'parapo:maplibre-worker',
+    apply: 'build',
+    // Ahead of Vite's worker plugin, which would build it on its own.
+    enforce: 'pre',
+    resolveId(source) {
+      return source === MAPLIBRE_WORKER_URL ? resolved : null
+    },
+    async load(id) {
+      if (id !== resolved) return null
+      const worker = await this.resolve('maplibre-gl/dist/maplibre-gl-worker.mjs')
+      if (!worker) throw new Error('maplibre-gl/dist/maplibre-gl-worker.mjs is missing')
+      const ref = this.emitFile({ type: 'chunk', id: worker.id, name: 'maplibre-gl-worker' })
+      // `new URL('maplibre-gl-worker-<hash>.js', import.meta.url).href` in
+      // the chunk that reads it, beside it in assets/.
+      return `export default import.meta.ROLLUP_FILE_URL_${ref}`
+    },
+  }
+}
+
 /** Brand colours, measured from the logo: the wordmark's maroon and a warm off-white behind the pin. */
 const THEME_COLOUR = '#8a595a'
 const BACKGROUND_COLOUR = '#f5f1ee'
@@ -152,6 +192,7 @@ const BACKGROUND_COLOUR = '#f5f1ee'
 
 export default defineConfig({
   plugins: [
+    maplibreWorkerWithThePage(),
     react(),
     tailwindcss(),
     chunkModules(),
@@ -214,8 +255,10 @@ export default defineConfig({
               for (const k of [...(chunk.imports ?? []), ...(chunk.dynamicImports ?? [])]) visit(k)
             }
             visit('index.html')
-            // MapLibre's tile worker is emitted by `?worker&url` (MapView.tsx) and
-            // Vite's manifest never lists it; without it the map draws nothing.
+            // MapLibre's tile worker is a chunk of its own (maplibreWorkerWithThePage,
+            // 2026-10-05) that no page imports, so the walk from index.html never
+            // reaches it; without it the map draws nothing. What it imports, the
+            // page imports too.
             const wanted = (url: string) =>
               !url.startsWith('assets/') || keep.has(url) || /^assets\/maplibre-gl-worker-/.test(url)
             return { manifest: entries.filter((e) => wanted(e.url)), warnings: [] }
@@ -386,17 +429,27 @@ export default defineConfig({
         commuter: 'index.html',
         studio: 'studio/index.html',
       },
-      // What both pages load, in three chunks named for what they are
-      // (the cheap-phone plan, step 12, 2026-10-05): MapLibre, React, and
-      // the shared code. As one chunk (355 kB gzipped) any change to
+      // What both pages load, in chunks named for what they are (the
+      // cheap-phone plan, step 12, 2026-10-05): MapLibre, React, and the
+      // shared code. As one chunk (355 kB gzipped) any change to
       // src/shared or src/design-system gave it a new name, and every
       // returning phone fetched MapLibre and React again with it: 363 kB
       // of a deploy's 365 kB, over a link the visitor's index and tiles
       // want too. Now the two packages keep their names until they are
       // upgraded, and such a deploy is the ~50 kB of our own code.
-      //  - maplibre: its JavaScript only. Its stylesheet stays with the
-      //    shared code's CSS (shared-*.css), ahead of index.css's safe-area
-      //    overrides of its corners, which must come after it to win.
+      //  - maplibre-gl-shared (step 14): the code MapLibre's page and
+      //    worker files share, in a chunk of its own so that the worker
+      //    (maplibreWorkerWithThePage) imports it and nothing of the page.
+      //    With it, Vite's preload helper (vite-preload): Vite wraps each
+      //    dynamic import in a build, the worker's two too (MapLibre's
+      //    importScriptInWorkers, which the app never calls), and the page's
+      //    workbox-window; left to the shared group, it would bring our code
+      //    and React into the worker.
+      //  - maplibre: maplibre-gl.mjs, its page's JavaScript. Not its
+      //    stylesheet, which stays with the shared code's CSS
+      //    (shared-*.css), ahead of index.css's safe-area overrides of its
+      //    corners, which must come after it to win; and not the worker's
+      //    file, which would bring it all into the worker.
       //  - react: react, react-dom and scheduler.
       //  - shared: a module goes in when two chunks import it — Rolldown
       //    counts lazy chunks as well as the two entries — so
@@ -409,7 +462,9 @@ export default defineConfig({
       output: {
         codeSplitting: {
           groups: [
-            { name: 'maplibre', test: /[\\/]node_modules[\\/]maplibre-gl[\\/]dist[\\/].*\.m?js$/, priority: 2 },
+            { name: 'maplibre-gl-shared', test: /[\\/]node_modules[\\/]maplibre-gl[\\/]dist[\\/]maplibre-gl-shared\.mjs$/, priority: 3 },
+            { name: 'vite-preload', test: /^\0vite\/preload-helper\.js$/, priority: 3 },
+            { name: 'maplibre', test: /[\\/]node_modules[\\/]maplibre-gl[\\/]dist[\\/]maplibre-gl\.mjs$/, priority: 2 },
             { name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/, priority: 1 },
             { name: 'shared', minShareCount: 2 },
           ],

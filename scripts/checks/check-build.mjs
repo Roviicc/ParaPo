@@ -51,6 +51,13 @@
 //    And each page asks for its stylesheets before its scripts, so over
 //    HTTP/1.1 the first paint does not wait behind them (2026-10-05).
 //
+// 7. MapLibre's worker (the cheap-phone plan, step 14, 2026-10-05) is a
+//    chunk of the page's build, a few kB, that imports MapLibre's shared
+//    code from the page's own chunk and nothing else but Vite's preload
+//    helper and Rolldown's runtime, all of which the public page loads too.
+//    Our shared chunk in its imports would run React and the app in the
+//    worker, and the map would not draw.
+//
 //   npm run build        (runs this at the end)
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { gzipSync } from 'node:zlib'
@@ -303,14 +310,26 @@ const assetFiles = readdirSync(join(dist, 'assets'))
 const fontBytes = assetFiles.filter((f) => f.endsWith('.woff2')).reduce((n, f) => n + statSync(join(dist, 'assets', f)).size, 0)
 check(`the fonts weigh under ${FONTS_MAX_KB} kB together`, fontBytes > 0 && fontBytes < FONTS_MAX_KB * 1024, `${(fontBytes / 1024).toFixed(1)} kB`)
 
-// What both pages share, gzipped, in kB: 249.7, 57.6 and 41.0 on 2026-10-05,
-// 348.3 together (the one chunk it was weighed 348.4). Each ceiling leaves
-// some headroom and none for another group's package: React in `shared` is
-// +58, MapLibre +250. `packages` is what the chunk may hold from
-// node_modules; `vendor` chunks may import no chunk of ours.
+// What both pages share, gzipped, in kB on 2026-10-05: MapLibre's page
+// file 137.4 and the code it shares with its worker 134.8 (step 14; one
+// chunk of 249.7 at step 12, the worker's share being in the worker then),
+// React 57.6 and our shared code 41.0, 370.8 together (the one chunk it was
+// weighed 348.4). Each ceiling leaves some headroom and none for another
+// group's package: React in `shared` is +58, a half of MapLibre +135.
+// `packages` is what the chunk may hold from node_modules, `only` the files
+// it may hold; `vendor` chunks may import no chunk of ours.
 const SHARED_MAX_GZ_KB = 400
+const MAPLIBRE_FILE = (name) => new RegExp(`/node_modules/maplibre-gl/dist/${name}\\.mjs$`)
 const GROUPS = [
-  { name: 'maplibre', maxGzKb: 280, vendor: true, packages: ['maplibre-gl'], holds: "maplibre-gl's JavaScript, none of our code, and imports none of it" },
+  { name: 'maplibre', maxGzKb: 160, vendor: true, packages: ['maplibre-gl'], only: MAPLIBRE_FILE('maplibre-gl'), holds: 'maplibre-gl.mjs alone, and imports none of our code' },
+  {
+    name: 'maplibre-gl-shared',
+    maxGzKb: 160,
+    vendor: true,
+    packages: ['maplibre-gl'],
+    only: MAPLIBRE_FILE('maplibre-gl-shared'),
+    holds: 'maplibre-gl-shared.mjs alone, and imports none of our code',
+  },
   { name: 'react', maxGzKb: 70, vendor: true, packages: ['react', 'react-dom', 'scheduler'], holds: 'react, react-dom and scheduler, none of our code, and imports none of it' },
   // From maplibre-gl, its stylesheet and the worker's address (MapView.tsx);
   // its JavaScript here would be over the ceiling.
@@ -320,7 +339,7 @@ const GROUPS = [
 const chunksNamed = (name) => Object.values(manifest).filter((c) => c.name === name && c.file.endsWith('.js'))
 const vendorFiles = GROUPS.filter((g) => g.vendor).flatMap((g) => chunksNamed(g.name).map((c) => c.file))
 let groupsGz = 0
-for (const { name, maxGzKb, vendor, packages, holds } of GROUPS) {
+for (const { name, maxGzKb, vendor, packages, only, holds } of GROUPS) {
   const chunks = chunksNamed(name)
   const files = chunks.map((c) => c.file)
   const gz = files.reduce((n, f) => n + gzipSync(readFileSync(join(dist, f))).length, 0)
@@ -330,7 +349,10 @@ for (const { name, maxGzKb, vendor, packages, holds } of GROUPS) {
     files.length === 1 && commuterFiles.includes(files[0]) && gz < maxGzKb * 1024,
     `${files.join(', ') || `no chunk named ${name}`}: ${(gz / 1024).toFixed(1)} kB`,
   )
-  const strays = packageModules(files).filter((p) => !packages.includes(p))
+  const strays = [
+    ...packageModules(files).filter((p) => !packages.includes(p)),
+    ...(only ? files.flatMap((f) => modules[f] ?? []).filter((id) => !only.test(id)) : []),
+  ]
   const ours = vendor ? sourceModules(files) : []
   // Rolldown's runtime is a few helpers, the same whatever we write.
   const imports = vendor
@@ -374,5 +396,49 @@ for (const page of ['index.html', 'studio/index.html']) {
     outside.map((c) => `${c}: ${last[c] ?? 'no rule'}`).join('; '),
   )
 }
+
+// 7. MapLibre's worker: its chunk, and every chunk it imports, all the way
+// down, read from Vite's manifest and from what went into each.
+const WORKER_MAX_GZ_KB = 20
+const workerChunks = chunksNamed('maplibre-gl-worker')
+const workerFile = workerChunks[0]?.file
+const workerGz = workerFile ? gzipSync(readFileSync(join(dist, workerFile))).length : 0
+check(
+  `MapLibre's worker is a chunk of the build, its own file alone, under ${WORKER_MAX_GZ_KB} kB gzipped`,
+  workerChunks.length === 1 &&
+    /^assets\/maplibre-gl-worker-[\w-]+\.js$/.test(workerFile) &&
+    (modules[workerFile] ?? []).length === 1 &&
+    MAPLIBRE_FILE('maplibre-gl-worker').test(modules[workerFile][0]) &&
+    workerGz < WORKER_MAX_GZ_KB * 1024,
+  `${workerFile ?? 'no chunk named maplibre-gl-worker'}: ${(workerGz / 1024).toFixed(1)} kB`,
+)
+const workerImports = new Set()
+const importsOf = (chunk) => {
+  for (const key of [...(chunk.imports ?? []), ...(chunk.dynamicImports ?? [])]) {
+    const c = manifest[key]
+    if (c && !workerImports.has(c.file)) {
+      workerImports.add(c.file)
+      importsOf(c)
+    }
+  }
+}
+workerChunks.forEach(importsOf)
+const WORKER_MAY_IMPORT = [MAPLIBRE_FILE('maplibre-gl-shared'), /^\0vite\/preload-helper\.js$/, /^\0rolldown\/runtime\.js$/]
+const strayInWorker = [...workerImports].flatMap((f) =>
+  (modules[f] ?? ['(no modules listed)'])
+    .filter((id) => !WORKER_MAY_IMPORT.some((re) => re.test(id)))
+    .map((id) => `${f}: ${id.replace('\0', '\\0')}`),
+)
+check(
+  "the worker imports MapLibre's shared code from the page's own chunk, and nothing else but Vite's preload helper and Rolldown's runtime: no React, none of our code",
+  workerImports.has(chunksNamed('maplibre-gl-shared')[0]?.file) && strayInWorker.length === 0,
+  strayInWorker.slice(0, 5).join(', ') || [...workerImports].join(', '),
+)
+const unloaded = [...workerImports].filter((f) => !commuterFiles.includes(f))
+check(
+  'the public page loads every chunk the worker imports, so the worker finds each one already downloaded',
+  workerImports.size > 0 && unloaded.length === 0,
+  unloaded.join(', '),
+)
 
 process.exit(failed ? 1 : 0)

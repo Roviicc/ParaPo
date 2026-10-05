@@ -18,7 +18,11 @@ import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&ur
  * computes at runtime, so no bundler can see it: the production build shipped
  * no worker, the URL 404'd silently, tiles never parsed and the map never
  * fired 'load'. `?worker&url` makes Vite bundle the worker (and the shared
- * chunk it imports) and hand back its real URL, in dev and in production.
+ * chunk it imports) and hand back its real URL. It still does in dev. In a
+ * build, vite.config.ts's maplibreWorkerWithThePage answers this import with
+ * a worker built with the page, which imports the page's own copy of
+ * MapLibre's shared code rather than carrying one (the cheap-phone plan,
+ * step 14, 2026-10-05).
  */
 setWorkerUrl(maplibreWorkerUrl)
 
