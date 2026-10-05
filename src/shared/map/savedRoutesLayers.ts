@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes'
 import { ROUTES_HIT_LAYER } from './tap'
-import { LAYERS, TILE_BUFFER, applyHidden, firstLayerOfType, layOutOnce } from './layers'
+import { LAYERS, applyHidden, firstLayerOfType, layOutOnce } from './layers'
 import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { CASING_EXTRA, litWidth, roadWidth } from './lineStyle'
 import { useLayerSwitch, type LayerSwitch } from './layerSwitch'
@@ -158,7 +158,6 @@ export function addSavedRoutes(
   map.addSource(SRC, {
     type: 'geojson',
     promoteId: 'id',
-    buffer: TILE_BUFFER,
     data: routesData(rows),
   })
   map.addLayer(

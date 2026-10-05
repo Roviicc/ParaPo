@@ -6,7 +6,7 @@ import { passBoxes, publishedStretches, stretchesPast, type PassBox, type PassFe
 import { PASS_COLOUR, litWidth } from '../map/lineStyle'
 import { litOpacity, useLighting } from '../map/savedRoutesLayers'
 import { ROUTES_HIT_LAYER } from '../map/tap'
-import { TILE_BUFFER, applyHidden, useLayerReady } from '../map/layers'
+import { applyHidden, useLayerReady } from '../map/layers'
 import { useLayerSwitch } from '../map/layerSwitch'
 
 /**
@@ -72,7 +72,7 @@ export const PASS_LAYER = {
 export function addPassStretches(map: Pick<MapLibreMap, 'addSource' | 'addLayer'>): void {
   // `promoteId`: every stretch of a direction carries its id, so one feature
   // state lights them all.
-  map.addSource(SRC, { type: 'geojson', promoteId: 'id', buffer: TILE_BUFFER, data: { type: 'FeatureCollection', features: [] } })
+  map.addSource(SRC, { type: 'geojson', promoteId: 'id', data: { type: 'FeatureCollection', features: [] } })
   map.addLayer(PASS_LAYER, ROUTES_HIT_LAYER)
 }
 

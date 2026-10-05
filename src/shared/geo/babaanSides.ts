@@ -8,7 +8,7 @@ import { travelLine } from '../model/ride'
 import { isLineMode, type VariantSummary } from '../model/routes'
 import { inPassingOrder, listedAlong, passedAt } from '../model/timeline'
 import { stopRing, type StopSummary } from '../model/stops'
-import { LAYERS, TILE_BUFFER, useLayerReady } from '../map/layers'
+import { LAYERS, useLayerReady } from '../map/layers'
 
 /**
  * The babaan side: on the chosen direction, each hintuan box it cuts across
@@ -34,7 +34,7 @@ const ROUTES_ABOVE = LAYERS.routesCasing
  * check can read it (map-sources-test).
  */
 export function addBabaanSides(map: Pick<MapLibreMap, 'addSource' | 'addLayer'>): void {
-  map.addSource(SRC, { type: 'geojson', buffer: TILE_BUFFER, data: { type: 'FeatureCollection', features: [] } })
+  map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
   map.addLayer(
     { id: FILL, type: 'fill', source: SRC, paint: { 'fill-color': HOTSPOT_COLOUR.hintuan, 'fill-opacity': 0.55 } },
     ROUTES_ABOVE,

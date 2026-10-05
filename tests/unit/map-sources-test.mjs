@@ -1,6 +1,8 @@
 // Our GeoJSON sources (the cheap-phone plan, step 10, 2026-10-04): each tile
-// of them carries 32 px past its edges, not MapLibre's 128, and every layer
-// drawn from them still fits in that (d); the routes and the hotspots are
+// of the chevrons and the end circles carries 32 px past its edges, not
+// MapLibre's 128, and every layer drawn from them still fits in that, while
+// the lines and boxes keep the 128 (d; review of step 10 (d), 2026-10-05);
+// the routes and the hotspots are
 // laid out as their sources are added, when they are in by then, and not a
 // second time (c); and a full line read is patched into the routes once (e),
 // and once more into a style made afresh (2026-10-05). And the hotspots'
@@ -21,6 +23,8 @@ import { labelGroups } from '../../src/shared/model/places.ts'
 import { addPassStretches } from '../../src/shared/geo/passStretches.ts'
 import { addDirectionArrows } from '../../src/shared/map/directionArrows.ts'
 import { addBabaanSides } from '../../src/shared/geo/babaanSides.ts'
+import { INSET_PX, chevronAt } from '../../src/shared/map/chevrons.ts'
+import { litWidthAt } from '../../src/shared/map/lineStyle.ts'
 
 /**
  * A map that keeps what is added to it, in its drawing order: a basemap of
@@ -65,7 +69,17 @@ function allAdded() {
   return map
 }
 
-const BUFFERED = ['saved-routes', 'saved-stops', 'saved-routes-pass', 'direction-arrows', 'direction-ends', 'babaan-side']
+const BUFFERED = ['direction-arrows', 'direction-ends']
+/**
+ * Our sources that keep MapLibre's 128 px: the lines and boxes, where a tile
+ * cut nearer moved their edges on screen (review of step 10 (d),
+ * 2026-10-05: the cut point is rounded to the tile's grid and kept where
+ * the rest of a line is simplified, so the stretch inside turns a little),
+ * and the place wash, whose dashes count from where its ring was cut.
+ */
+const DEFAULT_BUFFER = ['saved-routes', 'saved-stops', 'place-wash', 'saved-routes-pass', 'babaan-side']
+/** MapLibre's own buffer for a GeoJSON source given none. */
+const MAPLIBRE_BUFFER = 128
 const ZOOMS = Array.from({ length: 24 * 20 + 1 }, (_, i) => i / 20)
 
 /** A paint property's value at `zoom`, as MapLibre evaluates it; its spec's default when unset. */
@@ -96,31 +110,34 @@ function reach(layer) {
   assert.fail(`${layer.id}: a ${layer.type} layer, which this check does not read`)
 }
 
-test('the six sources carry 32 px past each tile edge; the place wash keeps MapLibre’s 128', () => {
+test('the chevrons and the end circles carry 32 px past each tile edge; the lines, the boxes and the place wash keep MapLibre’s 128', () => {
   const { sources } = allAdded()
   assert.equal(TILE_BUFFER, 32)
   for (const id of BUFFERED) assert.equal(sources.get(id)?.buffer, TILE_BUFFER, id)
-  // Its dashes start counting where its ring was cut: a tile cut nearer would move them.
-  assert.equal(sources.get('place-wash')?.buffer, undefined)
-  assert.deepEqual(
-    [...sources.keys()].filter((id) => !BUFFERED.includes(id)),
-    ['place-wash'],
-    'every other source of ours is in the list',
-  )
+  // A cut at 32 px moved the lines' and the boxes' edges by up to 41 levels
+  // of 255 on a phone's screen; nothing may change what a visitor sees.
+  for (const id of DEFAULT_BUFFER) assert.equal(sources.get(id)?.buffer, undefined, `${id} keeps MapLibre's buffer`)
+  assert.deepEqual([...sources.keys()].sort(), [...BUFFERED, ...DEFAULT_BUFFER].sort(), 'every source of ours is in one list')
 })
 
-test('every layer drawn from them reaches less than 32 px from its geometry, at every zoom', () => {
+test('every layer drawn from the two reaches less than 32 px from its geometry, and every other of ours less than 128, at every zoom', () => {
   const { layers } = allAdded()
-  const drawn = layers.filter((l) => BUFFERED.includes(l.source))
-  // Every one of the six has a layer, and each layer's reach is read.
-  assert.deepEqual([...new Set(drawn.map((l) => l.source))].sort(), [...BUFFERED].sort())
+  const ours = [...BUFFERED, ...DEFAULT_BUFFER]
+  const drawn = layers.filter((l) => ours.includes(l.source))
+  // Every source has a layer, and each layer's reach is read.
+  assert.deepEqual([...new Set(drawn.map((l) => l.source))].sort(), [...ours].sort())
   const reaches = Object.fromEntries(drawn.map((l) => [l.id, reach(l)]))
-  for (const [id, r] of Object.entries(reaches)) if (r !== null) assert.ok(r < TILE_BUFFER, `${id} reaches ${r} px`)
+  for (const l of drawn) {
+    const r = reaches[l.id]
+    if (r === null) continue
+    assert.ok(r < (BUFFERED.includes(l.source) ? TILE_BUFFER : MAPLIBRE_BUFFER), `${l.id} reaches ${r} px`)
+  }
   // The widest: the routes' hit area, 24 px at zoom 20 and up; the lit
   // line's casing, 15 px; the end circles, 8.5 px and a 2 px ring.
   assert.equal(reaches['saved-routes-hit'], 12.5)
   assert.equal(reaches['saved-routes-selected-casing'], 8)
   assert.equal(reaches['direction-end-circles'], 11.5)
+  assert.equal(reaches['direction-arrow-chevrons'], 1)
   assert.deepEqual(
     Object.entries(reaches).filter(([, r]) => r === null).map(([id]) => id).sort(),
     ['saved-stops-label', 'saved-stops-label-hintuan'],
@@ -130,11 +147,33 @@ test('every layer drawn from them reaches less than 32 px from its geometry, at 
   // 32 px are 32 px on screen or more.
 })
 
-test('none of their lines is dashed, patterned or graded: those count from where a cut line starts', () => {
+test('the two draw no line and no chevron as wide as 32 px: none is cut where a tile shows it', () => {
   const { layers } = allAdded()
-  for (const l of layers.filter((x) => BUFFERED.includes(x.source) && x.type === 'line')) {
-    for (const name of ['line-dasharray', 'line-pattern', 'line-gradient']) assert.equal(l.paint?.[name], undefined, `${l.id}: ${name}`)
+  // A line's edge moves when it is cut nearer (DEFAULT_BUFFER says how): the
+  // two draw only the chevrons' fill and the ends' circles. A circle is laid
+  // out only in the tile its point is in (MapLibre's circle_bucket.ts).
+  assert.deepEqual(
+    layers.filter((l) => BUFFERED.includes(l.source)).map((l) => [l.source, l.type]),
+    [['direction-arrows', 'fill'], ['direction-ends', 'circle']],
+  )
+  // A chevron, shaped in pixels at the view's zoom, as wide as the lit line
+  // there: from corner to corner, at every zoom and turned any way, less
+  // than 32 px, so none reaches from inside a tile to 32 px past its edge,
+  // and the polygon in the tile is the one drawn with MapLibre's 128.
+  const at = [121.03, 14.65]
+  const cosLat = Math.cos((at[1] * Math.PI) / 180)
+  let widest = 0
+  for (const zoom of ZOOMS) {
+    const degrees = 360 / (512 * 2 ** zoom)
+    for (const bearing of [0, 37, 90, 141, 225]) {
+      const ring = chevronAt(at, bearing, Math.max(0, litWidthAt(zoom) - 2 * INSET_PX), zoom).geometry.coordinates[0]
+      const px = ring.map(([x, y]) => [(x - at[0]) / degrees, (y - at[1]) / (degrees * cosLat)])
+      for (const p of px) for (const q of px) widest = Math.max(widest, Math.hypot(p[0] - q[0], p[1] - q[1]))
+    }
   }
+  assert.ok(widest < TILE_BUFFER, `a chevron ${widest} px across`)
+  // 13 px across and 22 along, at zoom 20 and up: its tip to a back corner.
+  assert.ok(Math.abs(widest - 22.85) < 0.01, `${widest}`)
 })
 
 // ------------------------------------------------------------ the hotspots' buckets (step 5)

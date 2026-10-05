@@ -7,7 +7,7 @@ import type { LngLat } from '../geo/geo'
 import { labelGroups } from '../model/places'
 import { stopRing, type StopKind, type StopSummary } from '../model/stops'
 import { STOPS_FILL_LAYER } from './tap'
-import { LAYERS, TILE_BUFFER, applyHidden, firstLayerOfType, layOutOnce } from './layers'
+import { LAYERS, applyHidden, firstLayerOfType, layOutOnce } from './layers'
 import type { BoxMark } from './stopsShown'
 import { useLayerSwitch } from './layerSwitch'
 
@@ -215,10 +215,8 @@ export function addSavedStops(
   map.addSource(SRC, {
     type: 'geojson',
     promoteId: 'id',
-    buffer: TILE_BUFFER,
     data: stopsData(stops),
   })
-  // The wash keeps MapLibre's default buffer (TILE_BUFFER says why).
   map.addSource(WASH_SRC, {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },
