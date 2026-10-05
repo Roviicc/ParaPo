@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { HintuanCard } from '../shared/cards/HintuanCard'
 import { placeKey } from '../shared/model/places'
@@ -80,6 +80,15 @@ export default function CommuterApp() {
   const needRefresh = useNeedRefresh()
 
   const { tripLivery, look, inCardColour, height } = cards
+
+  // The open trip's hintuans, worked out as the trip or the hotspots change,
+  // not at each render of the page (the cheap-phone plan, step 15,
+  // 2026-10-05): they read nothing else (timeline-test).
+  const trip = saved.selected
+  const timeline = useMemo(
+    () => (trip ? routeTimeline(trip, stops.stops, stops.stopsAlong(trip.id, variantLine(trip))) : null),
+    [trip, stops.stops, stops.stopsAlong],
+  )
 
   return (
     // `data-directions`: how many the map file brought, for the suites on a
@@ -174,7 +183,7 @@ export default function CommuterApp() {
         onUpdate={reloadToUpdate}
       />
 
-      {saved.selected && tripLivery && (
+      {saved.selected && tripLivery && timeline && (
         // One card for as long as a trip is open: SWITCH, and another
         // route from its "Other routes", leave the hintuans open or folded
         // as they were (the owner, 2026-10-01: "don't shrink it"), and the
@@ -182,7 +191,7 @@ export default function CommuterApp() {
         <TripCard
           variant={saved.selected}
           variants={saved.variants}
-          timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id, variantLine(saved.selected)))}
+          timeline={timeline}
           livery={tripLivery}
           onBackToList={hush(backFromTrip)}
           onSwitch={switchTrip}

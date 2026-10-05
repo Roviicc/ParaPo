@@ -309,3 +309,28 @@ test('step 16 (b): a line drawn from the far end, turned round once and kept; th
   const forward = file.variants.find((v) => v.shape && travelLine(v, file.stops) === v.shape.coordinates)
   assert.ok(forward, 'a direction drawn forward')
 })
+
+// The public map works a trip card's timeline out once per trip and hotspots
+// (CommuterApp's useMemo on the trip, the hotspots and their stopsAlong; the
+// cheap-phone plan, step 15, 2026-10-05), not at each render of the page:
+// so it may read nothing but what it is given, and change none of it.
+test('the committed map: a trip card\'s timeline is the same for the same trip and hotspots, and touches neither', () => {
+  const m = published()
+  let trips = 0
+  for (const v of m.variants.filter((x) => x.shape?.coordinates?.length > 1)) {
+    // As useSavedStops' stopsAlong hands them: the links in order, two on one segment as the line reaches them.
+    const along = orderLinked(
+      m.links
+        .filter((l) => l.route_variant_id === v.id)
+        .map((l) => ({ stop: m.stops.find((s) => s.id === l.stop_id), sequence: l.stop_sequence }))
+        .filter((l) => !!l.stop),
+      variantLine(v),
+    )
+    const was = structuredClone({ v, stops: m.stops, along })
+    const first = routeTimeline(v, m.stops, along)
+    assert.deepEqual(routeTimeline(v, m.stops, along), first)
+    assert.deepEqual({ v, stops: m.stops, along }, was)
+    trips++
+  }
+  assert.ok(trips > 0, 'no trips on the committed map')
+})
