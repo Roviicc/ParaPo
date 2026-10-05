@@ -2,9 +2,10 @@
 // of them carries 32 px past its edges, not MapLibre's 128, and every layer
 // drawn from them still fits in that (d); the routes and the hotspots are
 // laid out as their sources are added, when they are in by then, and not a
-// second time (c); and a full line read is patched into the routes once (e).
-// And the hotspots' three box fills, as they are added, are one bucket for
-// MapLibre's worker (step 5, 2026-10-05).
+// second time (c); and a full line read is patched into the routes once (e),
+// and once more into a style made afresh (2026-10-05). And the hotspots'
+// three box fills, as they are added, are one bucket for MapLibre's worker
+// (step 5, 2026-10-05).
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/map-sources-test.mjs
 import { test } from 'node:test'
@@ -304,4 +305,94 @@ test('a line that is another object for an id is sent again; new rows, laid out 
   // The rows' effect lays the source out again from the overviews and starts a new record.
   const fresh = new Map()
   assert.deepEqual(unpatched(fresh, again).map((x) => x.id), ['a', 'b'])
+})
+
+// Review of step 10 (e), 2026-10-05: a style made afresh. MapLibre builds
+// every source anew from its own copy of the data when a lost GL context is
+// given back (map.ts, _contextRestored) and on a basemap switch (basemap.ts),
+// and a patch reaches that copy only once the worker has answered it
+// (geojson_source.ts): a line on its way then is not in the new source.
+// The hook itself, in real React (react-dom's client, as commit-turn-test
+// renders it), on a stand-in map.
+
+/** A map of what useSavedRoutesLayers asks, each source's updateData kept; `afresh` builds the sources anew from their data as added, as a style made afresh would without the lines on their way, and says 'style.load'. */
+function routesMap() {
+  const map = standInMap()
+  const handlers = new Map()
+  const made = (spec) => ({ spec, updates: [], setData() {}, updateData(diff) { this.updates.push(diff.update.map((u) => u.id)) } })
+  const live = new Map()
+  Object.assign(map, {
+    addSource: (id, spec) => {
+      assert.ok(!live.has(id), `${id} added twice`)
+      live.set(id, made(spec))
+    },
+    getSource: (id) => live.get(id),
+    on: (type, f) => (handlers.get(type) ?? handlers.set(type, new Set()).get(type)).add(f),
+    once: (type, f) => {
+      const g = (...a) => (map.off(type, g), f(...a))
+      map.on(type, g)
+    },
+    off: (type, f) => handlers.get(type)?.delete(f),
+    fire: (type) => [...(handlers.get(type) ?? [])].forEach((f) => f({ type })),
+    setFeatureState: () => {},
+    getPaintProperty: () => undefined,
+    setPaintProperty: () => {},
+    setFilter: () => {},
+    afresh: () => {
+      for (const [id, s] of live) live.set(id, made(s.spec))
+      map.fire('style.load')
+    },
+  })
+  return map
+}
+
+test('a style made afresh gets every full line read so far, one on its way when the source was copied among them; then only new ones', async () => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true
+  globalThis.window ??= globalThis
+  globalThis.HTMLIFrameElement ??= class {}
+  const noop = () => {}
+  const container = { nodeType: 1, nodeName: 'DIV', tagName: 'DIV', namespaceURI: 'http://www.w3.org/1999/xhtml', addEventListener: noop, removeEventListener: noop }
+  globalThis.document ??= { nodeType: 9, addEventListener: noop, removeEventListener: noop, defaultView: globalThis, documentElement: container, body: container, activeElement: null }
+  container.ownerDocument = globalThis.document
+  const { createElement: h, act } = await import('react')
+  const { createRoot } = await import('react-dom/client')
+  const { useSavedRoutesLayers } = await import('../../src/shared/map/savedRoutesLayers.ts')
+
+  const map = routesMap()
+  const [a, b, c] = rows.map((r) => r.id)
+  const read = (...ids) => new Map(ids.map((id) => [id, lineOf(id)]))
+  const routes = () => map.getSource('saved-routes')
+  function Routes({ lines }) {
+    useSavedRoutesLayers(map, rows, lines, null, [])
+    return null
+  }
+  const root = createRoot({ ...container })
+  const show = (lines) => act(async () => root.render(h(Routes, { lines })))
+
+  await show(new Map())
+  assert.deepEqual(routes().spec.data, routesBefore(rows), 'added with the rows')
+  // Made afresh before any line is read: nothing to send.
+  map.afresh()
+  assert.deepEqual(routes().updates, [])
+
+  let lines = read(a)
+  await show(lines)
+  lines = new Map(lines).set(b, lineOf(b))
+  await show(lines)
+  assert.deepEqual(routes().updates, [[a], [b]], 'each line once, as it arrives')
+  // The GL context is lost with b's line on its way to the worker, and given
+  // back: the source is made again from the copy, b's overview in it.
+  map.afresh()
+  assert.deepEqual(routes().updates, [[a, b]], 'every line read so far, to the new source')
+  // And from there, only what is new.
+  lines = new Map(lines).set(c, lineOf(c))
+  await show(lines)
+  assert.deepEqual(routes().updates, [[a, b], [c]])
+  // A basemap switch, the same.
+  map.afresh()
+  assert.deepEqual(routes().updates, [[a, b, c]])
+  // Undone: a style made afresh after is no longer heard.
+  await act(async () => root.unmount())
+  map.afresh()
+  assert.deepEqual(routes().updates, [])
 })

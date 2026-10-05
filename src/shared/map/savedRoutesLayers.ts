@@ -282,12 +282,34 @@ export function useSavedRoutesLayers(
   // Only the lines not patched in yet: each arrival sent every line read so
   // far again, and MapLibre laid out again each tile within any of their
   // bounds (GeoJSONSource.shouldReloadTile).
+  //
+  // And all of them again whenever the map makes its style afresh: a lost GL
+  // context given back, or a basemap switch. MapLibre then builds the source
+  // anew from a copy of its data taken at the loss or at setStyle (map.ts),
+  // and a patch reaches that data only once the worker has answered it
+  // (geojson_source.ts): a line still on its way then, or patched in after,
+  // is not in the new source. So the record starts again at 'style.load',
+  // and every line read so far goes to the new source. Before step 10 (e)
+  // the next line read sent them all and put such a line right; since,
+  // nothing did, and it stayed drawn as its overview (review of step 10 (e),
+  // 2026-10-05).
   useEffect(() => {
-    if (!map || lines.size === 0) return
-    const src = map.getSource(SRC) as GeoJSONSource | undefined
-    if (!src) return
-    const update = unpatched(patched.current, lines)
-    if (update.length > 0) void src.updateData({ update })
+    if (!map) return
+    const send = () => {
+      const src = map.getSource(SRC) as GeoJSONSource | undefined
+      if (!src || lines.size === 0) return
+      const update = unpatched(patched.current, lines)
+      if (update.length > 0) void src.updateData({ update })
+    }
+    const afresh = () => {
+      patched.current = new Map()
+      send()
+    }
+    send()
+    map.on('style.load', afresh)
+    return () => {
+      map.off('style.load', afresh)
+    }
   }, [map, rows, lines])
 
   // The direction being edited is drawn by the editor; hide the saved copy.
