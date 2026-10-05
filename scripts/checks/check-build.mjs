@@ -62,6 +62,15 @@
 //    Our shared chunk in its imports would run React and the app in the
 //    worker, and the map would not draw.
 //
+// 8. The map file asked for as the root page is read (the cheap-phone plan,
+//    step 20, 2026-10-04; vite.config.ts, mapFileEarly): index.html carries
+//    the plain script that asks for MAP_FILE_URL and leaves the request
+//    under EARLY_MAP_FILE (both read from mapFile.ts), ahead of its module
+//    script, preloads and stylesheets; the studio's page has none. Without
+//    it the app asks for the file itself, once, and the map opens all the
+//    same, only later: no suite would say so (review of the owner's Q1,
+//    2026-10-05).
+//
 //   npm run build        (runs this at the end)
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { gzipSync } from 'node:zlib'
@@ -229,6 +238,29 @@ for (const page of ['index.html', 'studio/index.html']) {
     `${page} asks for its ${sheets.length} stylesheet(s) before its module script and its ${scripts.length - 1} preload(s)`,
     sheets.length > 0 && scripts.length > 0 && Math.max(...sheets) < Math.min(...scripts),
   )
+}
+
+// --------------------------------------------------- the early map file (8)
+
+const mapFileSource = readFileSync(join(root, 'src', 'commuter', 'mapFile.ts'), 'utf8')
+const MAP_FILE_URL = mapFileSource.match(/^export const MAP_FILE_URL = '([^']+)'$/m)?.[1]
+const EARLY_MAP_FILE = mapFileSource.match(/^export const EARLY_MAP_FILE = '([^']+)'$/m)?.[1]
+check(
+  'mapFile.ts names the map file and where the root page leaves its request for it — the search below works',
+  !!MAP_FILE_URL && !!EARLY_MAP_FILE,
+  `MAP_FILE_URL ${MAP_FILE_URL ?? 'not found'}, EARLY_MAP_FILE ${EARLY_MAP_FILE ?? 'not found'}`,
+)
+if (MAP_FILE_URL && EARLY_MAP_FILE) {
+  const head = html('index.html').slice(0, html('index.html').indexOf('</head>'))
+  const early = [...head.matchAll(/<script>([\s\S]*?)<\/script>/g)].find((m) => m[1].includes(`window.${EARLY_MAP_FILE}=`))
+  const after = [...head.matchAll(/<script type="module"|<link rel="modulepreload"|<link rel="stylesheet"/g)].map((m) => m.index)
+  check(
+    `index.html asks for ${MAP_FILE_URL} as it is read: a plain script in its head, ahead of its module script, preloads and stylesheets, leaving the request as window.${EARLY_MAP_FILE}`,
+    !!early && early[1].includes(`fetch(${JSON.stringify(MAP_FILE_URL)},`) && after.length > 0 && early.index < Math.min(...after),
+    early ? `at ${early.index}, the first script or stylesheet at ${Math.min(...after)}` : 'no such script',
+  )
+  const studioPage = html('studio/index.html')
+  check('studio/index.html asks for no map file', !studioPage.includes(EARLY_MAP_FILE) && !studioPage.includes(MAP_FILE_URL))
 }
 
 const manifestFile = join(dist, 'manifest.webmanifest')

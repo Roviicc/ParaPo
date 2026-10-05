@@ -15,7 +15,8 @@
 // map made framed on the routes where their fit framed it and kept there,
 // with the file still on its way the old opening and the routes framed as
 // they come, unless a finger has moved the map first (or, at 1280×800, an
-// arrow key or a shift-drag box zoom), and the page's own
+// arrow key or a shift-drag box zoom), the map file asked for by the page
+// as it is read and that request taken by the app, and the page's own
 // gray "Loading map…" before the app runs, taken over unchanged; the
 // forgiving ±20 px tap, with a negative control well outside the box; the
 // trip card a lone route opens (the owner's RouteTripDetail, 2026-09-29) —
@@ -214,6 +215,35 @@ function openingRecorder() {
 }
 await page.addInitScript(openingRecorder)
 
+/**
+ * In the page, before its own scripts: index.html's request for the map file
+ * (the cheap-phone plan, step 20, 2026-10-04), left for the app as
+ * window.__parapoMapFile — when the page's plain script left it, when the
+ * app first read it, and how often (mapFile.ts takes it once, and deletes it).
+ */
+function earlyFileRecorder() {
+  let left
+  window.__earlyFile = { leftAt: null, takenAt: null, reads: 0 }
+  Object.defineProperty(window, '__parapoMapFile', {
+    configurable: true,
+    get() {
+      window.__earlyFile.reads++
+      window.__earlyFile.takenAt ??= Math.round(performance.now())
+      return left
+    },
+    set(v) {
+      left = v
+      window.__earlyFile.leftAt ??= Math.round(performance.now())
+    },
+  })
+}
+await page.addInitScript(earlyFileRecorder)
+/** The map file as the app asked for it: every request of the page's but the checks' own (x-parapo-test). */
+const mapFileAsks = []
+page.on('request', (req) => {
+  if (/\/data\/index\.v4\.json/.test(req.url()) && !req.headers()['x-parapo-test']) mapFileAsks.push(req.url())
+})
+
 // ------------------------------------------------------------- 1. the pointer
 // Everything below assumes the page believes it is being touched. Playwright's
 // mobile emulation usually reports `pointer: coarse` on its own; where it does
@@ -376,6 +406,18 @@ check('no horizontal scroll at load', await noHScroll(page), `scrollWidth ${awai
     '  and stays there: the same camera at its \'load\' and at rest, never moved since',
     sameCam(opening.atLoad, want) && sameCam(now, want) && opening.moves.length === 0,
     `at 'load' ${showCam(opening.atLoad)}, now ${showCam(now)}; ${opening.moves.length} move(s)${opening.moves.length ? ': ' + opening.moves.join(', ') : ''}`,
+  )
+
+  // Step 20, which Q1's opening rests on: the page asks for the map file as
+  // it is read, and the app takes that request rather than asking again.
+  // Without the page's script the app asks once itself, and the map opens
+  // as well, a little later: no other check would say so (review of Q1,
+  // 2026-10-05).
+  const early = await page.evaluate(() => ({ ...window.__earlyFile, still: '__parapoMapFile' in window }))
+  check(
+    '  the page asked for the map file as it was read, and the app took that request, once: the one request for it (step 20)',
+    early.leftAt != null && early.takenAt != null && early.leftAt <= early.takenAt && early.reads === 1 && !early.still && mapFileAsks.length === 1,
+    `left by the page at ${early.leftAt ?? 'never'} ms, taken by the app at ${early.takenAt ?? 'never'} ms, read ${early.reads} time(s), ${early.still ? 'still there' : 'gone'}; ${mapFileAsks.length} request(s) for it`,
   )
 
   /** A fresh page on the phone (or in `ctx`) with the map file held back till `release()`: a first visit whose file is still on its way. */
