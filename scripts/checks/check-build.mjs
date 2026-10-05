@@ -42,9 +42,12 @@
 //    unnoticed. The fonts are precached. Since the cheap-phone plan's steps
 //    12 and 14 (2026-10-05) that is four chunks, named in vite.config.ts,
 //    each with a ceiling of its own: `maplibre`, `maplibre-gl-shared` and
-//    `react` hold only their packages and import none of our code, so a
-//    deploy of ours leaves their names alone, and `shared` holds our code;
-//    one in the wrong group is too heavy for its ceiling.
+//    `react` hold only their packages and import none of our code, and
+//    `shared` holds our code; one in the wrong group is too heavy for its
+//    ceiling. So a deploy of ours leaves React's name alone, and
+//    MapLibre's two unless it starts or stops importing one of MapLibre's
+//    exports: Rolldown keeps of MapLibre only what our code imports
+//    (vite.config.ts says more), and no check here can tell.
 //
 // 6. Stylesheet order (step 12 too): on each page, the last rule that places
 //    one of MapLibre's four corners is index.css's, inside the safe area, so

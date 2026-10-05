@@ -435,8 +435,16 @@ export default defineConfig({
       // src/shared or src/design-system gave it a new name, and every
       // returning phone fetched MapLibre and React again with it: 306 kB
       // of a deploy's 363 kB, over a link the visitor's index and tiles
-      // want too. Now the two packages keep their names until they are
-      // upgraded, and such a deploy is the 56 kB of our own code.
+      // want too. Now such a deploy is the 56 kB of our own code. React's
+      // chunk keeps its name until React is upgraded: it is CommonJS, kept
+      // whole. MapLibre's two keep theirs until it is upgraded, or until
+      // our code starts or stops importing one of its exports (2026-10-05):
+      // its .mjs files have no side effects (its package.json), so Rolldown
+      // keeps of them only what our code reaches. A Popup imported, or the
+      // ScaleControl dropped, renames maplibre-*.js, 137 kB gzipped that
+      // every returning phone fetches again; importing all of MapLibre
+      // renamed maplibre-gl-shared-*.js too, and with it the worker's
+      // chunk, which imports it by name.
       //  - maplibre-gl-shared (step 14): the code MapLibre's page and
       //    worker files share, in a chunk of its own so that the worker
       //    (maplibreWorkerWithThePage) imports it and nothing of the page.
