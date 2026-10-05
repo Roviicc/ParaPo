@@ -62,6 +62,37 @@ test('a line file that is not that direction\'s is refused, and a failed line is
   assert.deepEqual(await loadLine('d1'), line)
 })
 
+// The cheap-phone plan, step 13, 2026-10-05: a line file may carry its
+// direction's orange stretches and their key (src/shared/geo/linePass.ts).
+// The line read is the same object either way; the stretches are kept
+// under it, and a file without them, or with them unreadable, keeps none.
+test("step 13: a line file's orange stretches are kept under the line it brings; the line is read as before", async () => {
+  const { passBoxes, linePass, publishedStretches } = await import('../../src/shared/geo/linePass.ts')
+  // A jeep's hintuan on the line's middle point.
+  const [x, y] = line.coordinates[1]
+  const d = 0.0001
+  const stops = [{ id: 'h', kind: 'hintuan', area: { type: 'Polygon', coordinates: [[[x - d, y - d], [x + d, y - d], [x + d, y + d], [x - d, y + d], [x - d, y - d]]] } }]
+  const boxes = passBoxes(stops)
+  const row = { ...direction, route: { id: 'r1', mode: 'jeepney' } }
+  const { pass, passKey } = linePass({ ...row, shape: line }, boxes)
+  assert.ok(pass.length > 0)
+  // Made-up stretches under the true key: what comes back is the file's own, not a walk.
+  const theirs = [[[121, 14.7], [121.0001, 14.7]]]
+  serve({
+    '/data/lines/d1.json': { schema: 2, id: 'd1', shape: line, pass: theirs, passKey },
+    '/data/lines/d2.json': { schema: 2, id: 'd2', shape: line },
+    '/data/lines/d3.json': { schema: 2, id: 'd3', shape: line, pass: 'stretches', passKey },
+  })
+  const { loadLine } = await fresh()
+  for (const id of ['d1', 'd2', 'd3']) assert.deepStrictEqual(await loadLine(id), line, `${id}: the line, and only the line`)
+  const with1 = { ...row, shape: await loadLine('d1') }
+  assert.deepStrictEqual(publishedStretches(with1, boxes).map((f) => f.geometry.coordinates), theirs)
+  assert.equal(publishedStretches({ ...row, id: 'd2', shape: await loadLine('d2') }, boxes), null, 'no stretches in the file')
+  assert.equal(publishedStretches({ ...row, id: 'd3', shape: await loadLine('d3') }, boxes), null, 'stretches it cannot read')
+  // Another index's hintuans: not taken.
+  assert.equal(publishedStretches(with1, passBoxes([{ ...stops[0], id: 'h2' }])), null)
+})
+
 test('fields the app does not know are ignored, not a new shape', async () => {
   index({ ...base, fares: [{ from: 'Tala', to: 'SM Fairview', pesos: 13 }], terminals: [] })
   const { loadMapFile } = await fresh()

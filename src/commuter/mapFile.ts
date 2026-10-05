@@ -1,5 +1,6 @@
 import type { LineStringGeoJSON, VariantSummary } from '../shared/model/routes'
 import type { StopLink, StopSummary } from '../shared/model/stops'
+import { keepLinePass } from '../shared/geo/linePass'
 
 /**
  * The published map, as the public map reads it (since 2026-09-29, stage 7 of
@@ -294,6 +295,11 @@ const lines = new Map<string, Promise<LineStringGeoJSON | null>>()
  * A direction's full line, read once a page and shared. Null for a
  * direction with no line; a failure is not kept, so the next light tries
  * again — until then the map keeps the overview, which is the same road.
+ *
+ * The orange stretches the file brings with the line, since the cheap-phone
+ * plan's step 13 (2026-10-05), are kept under the line itself (linePass.ts),
+ * and painted only if they were worked out against the index's own hintuans;
+ * a file without them is read as before.
  */
 export function loadLine(id: string): Promise<LineStringGeoJSON | null> {
   let line = lines.get(id)
@@ -301,9 +307,11 @@ export function loadLine(id: string): Promise<LineStringGeoJSON | null> {
     line = fetch(`${LINES_URL}${encodeURIComponent(id)}.json`, { cache: 'no-cache' })
       .then(async (res) => {
         if (!res.ok) throw new Error(`${LINES_URL}${id}.json: HTTP ${res.status}`)
-        const file = (await res.json()) as { id?: string; shape?: LineStringGeoJSON | null }
+        const file = (await res.json()) as { id?: string; shape?: LineStringGeoJSON | null; pass?: unknown; passKey?: unknown }
         if (file.id !== id) throw new Error(`${LINES_URL}${id}.json is not that direction's line`)
-        return file.shape?.type === 'LineString' && Array.isArray(file.shape.coordinates) ? file.shape : null
+        if (file.shape?.type !== 'LineString' || !Array.isArray(file.shape.coordinates)) return null
+        keepLinePass(file.shape, file)
+        return file.shape
       })
       .catch((e: unknown) => {
         lines.delete(id)

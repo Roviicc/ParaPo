@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { GeoJSONSource, LineLayerSpecification, MapLibreMap } from 'maplibre-gl'
-import { servedBy, variantLine, type VariantSummary } from '../model/routes'
-import { passBounds, passStretches } from './pass'
-import { stopRing, type StopSummary } from '../model/stops'
-import { bboxOf, bboxesOverlap, type BBox, type LngLat } from './geo'
-import type { Ring } from './ring'
+import type { VariantSummary } from '../model/routes'
+import type { StopSummary } from '../model/stops'
+import { passBoxes, publishedStretches, stretchesPast, type PassBox, type PassFeature } from './linePass'
 import { PASS_COLOUR, litWidth } from '../map/lineStyle'
 import { litOpacity, useLighting } from '../map/savedRoutesLayers'
 import { ROUTES_HIT_LAYER } from '../map/tap'
@@ -124,25 +122,9 @@ export function usePassStretches(
   useLighting(map, SRC, lit, hitReady, passSwitch)
 }
 
-/** A hintuan's box as the stretches are worked out against it: its ring, and the ground a line must reach (passBounds). */
-export type PassBox = { stop: StopSummary; ring: Ring; bounds: BBox }
-
-/** One orange stretch, as the map's source takes it: its direction's id on it, for the lighting. */
-export type PassFeature = {
-  type: 'Feature'
-  properties: { id: string; route_id: string }
-  geometry: { type: 'LineString'; coordinates: LngLat[] }
-}
-
-/** Every hintuan with a box: what the stretches are worked out against. */
-export function passBoxes(stops: readonly StopSummary[]): readonly PassBox[] {
-  return stops
-    .filter((s) => s.kind === 'hintuan' && s.area)
-    .map((s) => {
-      const ring = stopRing(s)
-      return { stop: s, ring, bounds: passBounds(ring) }
-    })
-}
+// Worked out in linePass.ts, which the publish runs too (the cheap-phone
+// plan, step 13, 2026-10-05), and handed on from here as before.
+export { passBoxes, stretchesPast, type PassBox, type PassFeature }
 
 const stretchesKept = new WeakMap<readonly PassBox[], WeakMap<VariantSummary, readonly PassFeature[]>>()
 
@@ -157,11 +139,16 @@ const stretchesKept = new WeakMap<readonly PassBox[], WeakMap<VariantSummary, re
  * - `boxes` is made from a list of stops (passBoxes, the hook's memo of
  *   `stops`), and any other list of stops — a reload, a save — makes new
  *   boxes, with nothing kept yet;
- * - `v` is everything a stretch reads (its id, route_id, route and line),
- *   and a direction whose row or line changes is a new object (the line
- *   hook's `withLine`, a reload's new rows).
+ * - `v` is everything a stretch reads (its id, route_id, route and line,
+ *   and the stretches its line file brought with that line), and a
+ *   direction whose row or line changes is a new object (the line hook's
+ *   `withLine`, a reload's new rows).
  * What is kept goes to the map's source as it is; MapLibre copies a feature
  * before it changes one (geojson_source_diff.ts), and nothing here does.
+ *
+ * Worked out means taken from the line file when it brought them for these
+ * very boxes, and walked otherwise (linePass.ts, publishedStretches; the
+ * cheap-phone plan, step 13, 2026-10-05).
  */
 export function stretchesOf(v: VariantSummary, boxes: readonly PassBox[]): readonly PassFeature[] {
   let byDirection = stretchesKept.get(boxes)
@@ -171,26 +158,8 @@ export function stretchesOf(v: VariantSummary, boxes: readonly PassBox[]): reado
   }
   let features = byDirection.get(v)
   if (!features) {
-    features = stretchesPast(v, boxes)
+    features = publishedStretches(v, boxes) ?? stretchesPast(v, boxes)
     byDirection.set(v, features)
   }
   return features
-}
-
-/** stretchesOf without the keeping: worked out afresh. */
-export function stretchesPast(v: VariantSummary, boxes: readonly PassBox[]): PassFeature[] {
-  const line = variantLine(v)
-  if (line.length < 2) return []
-  // Only the boxes the line's own bounds reach: on a big map, most
-  // directions and most boxes are nowhere near each other.
-  const reach = bboxOf(line)
-  // And only the hintuans it stops at: a train's track over a jeep
-  // hintuan is not a stretch of its ride (servedBy).
-  return boxes.filter((b) => bboxesOverlap(reach, b.bounds) && servedBy(b.stop, v.route)).flatMap(({ ring }) =>
-    passStretches(line, ring).map((coordinates) => ({
-      type: 'Feature' as const,
-      properties: { id: v.id, route_id: v.route_id },
-      geometry: { type: 'LineString' as const, coordinates },
-    })),
-  )
 }
