@@ -263,3 +263,74 @@ test('a ferry route with no line, or a train line, is a problem', () => {
     assert.match(checkMapData(m).problems.join('\n'), /is not a ferry line/)
   }
 })
+
+// The cheap-phone plan, step 13, 2026-10-05: a line file may carry its
+// direction's orange stretches (`pass`) and their key (`passKey`), which the
+// app paints as they are when the key is the index's own. The check works
+// them out again against the file's hintuans: where the key is the file's,
+// stretches that differ are a problem; a key that is another's is a note,
+// since the app works those out itself.
+import { linePass, passBoxes } from '../../src/shared/geo/linePass.ts'
+import { PASS_TOLERANCE, sameStretches } from '../../scripts/checks/check-map-data.mjs'
+
+/** good(), its direction carrying the stretches the publish writes, or `change` of them. */
+const withPass = (change = (p) => p) => {
+  const m = good()
+  const { pass, passKey } = linePass(m.variants[0], passBoxes(m.stops))
+  assert.ok(pass.length > 0)
+  m.variants[0] = { ...m.variants[0], ...change({ pass, passKey }) }
+  return m
+}
+const passNote = (r) => r.notes.filter((n) => /orange stretches/.test(n))
+
+test('step 13: stretches a line file carries that its line and hintuans make: nothing to report', () => {
+  const r = checkMapData(withPass())
+  assert.deepEqual(r.problems, [])
+  assert.deepEqual(r.warnings, [])
+  assert.deepEqual(passNote(r), [])
+})
+
+test('step 13: stretches within a unit of the sixth decimal are the same; further off, under the file\'s own key, a problem', () => {
+  const round6 = (n) => Math.round(n * 1e6) / 1e6
+  const rounded = checkMapData(withPass(({ pass, passKey }) => ({ pass: pass.map((s) => s.map(([x, y]) => [round6(x), round6(y)])), passKey })))
+  assert.deepEqual(rounded.problems, [])
+  const nudge = (by) => ({ pass, passKey }) => ({ pass: pass.map((s, i) => s.map(([x, y], j) => (i === 0 && j === 0 ? [x + by, y] : [x, y]))), passKey })
+  assert.deepEqual(checkMapData(withPass(nudge(PASS_TOLERANCE * 0.9))).problems, [])
+  const off = checkMapData(withPass(nudge(PASS_TOLERANCE * 3)))
+  assert.equal(off.problems.length, 1)
+  assert.match(off.problems[0], /orange stretches in lines\/d\.json are not the ones its line and this file's hintuans make/)
+  // One stretch fewer, or one point fewer, is not the same either: the
+  // stretch past Mid is its two ends and the vertex at 500 m between them.
+  assert.equal(linePass(good().variants[0], passBoxes(good().stops)).pass[0].length, 3)
+  assert.equal(checkMapData(withPass(({ pass, passKey }) => ({ pass: pass.slice(1), passKey }))).problems.length, 1)
+  assert.equal(checkMapData(withPass(({ pass, passKey }) => ({ pass: [[pass[0][0], pass[0][2]], ...pass.slice(1)], passKey }))).problems.length, 1)
+  assert.equal(sameStretches([[[0, 0], [1, 1]]], [[[0, 0], [1, 1]]]), true)
+  assert.equal(sameStretches([[[0, 0], [1, 1]]], [[[0, 0]], [[1, 1]]]), false)
+})
+
+test('step 13: stretches worked out against other hintuans, or unreadable, are a note: the app works them out itself', () => {
+  for (const [what, change] of [
+    ['another key', ({ pass }) => ({ pass, passKey: 'other' })],
+    ['no key', ({ pass }) => ({ pass })],
+    ['unreadable', ({ passKey }) => ({ pass: [[[1, 2, 3]]], passKey })],
+  ]) {
+    const r = checkMapData(withPass(change))
+    assert.deepEqual(r.problems, [], what)
+    assert.deepEqual(r.warnings, [], what)
+    assert.equal(passNote(r).length, 1, what)
+    assert.match(passNote(r)[0], /^1 line file\(s\) carry orange stretches worked out against other hintuans than this file's, or unreadable/)
+  }
+  // The hintuan moved since: the key is another's, so the stale stretches are no problem.
+  const m = withPass()
+  m.stops = m.stops.map((s) => (s.id === 'Mid' ? stop('Mid', 'hintuan', 510, 0) : s))
+  const r = checkMapData(m)
+  assert.deepEqual(r.problems, [])
+  assert.equal(passNote(r).length, 1)
+})
+
+test('step 13: a line file without stretches is checked as before', () => {
+  const r = checkMapData(good())
+  assert.deepEqual(r.problems, [])
+  assert.deepEqual(passNote(r), [])
+  assert.equal('pass' in published().variants.find((v) => v.shape), false, 'the committed line files carry none yet')
+})

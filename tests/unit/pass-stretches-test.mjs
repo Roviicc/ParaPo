@@ -214,6 +214,7 @@ test('step 16 (a): asked again with the same direction and boxes, the very same 
 // and works them out as before otherwise.
 import { PASS_RULE, keepLinePass, linePass, passKey, publishedStretches, boxesReached } from '../../src/shared/geo/linePass.ts'
 import { lineFileText } from '../../scripts/publish/lineFile.mjs'
+import { checkMapData } from '../../scripts/checks/check-map-data.mjs'
 import { createHash } from 'node:crypto'
 import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -423,8 +424,8 @@ test('step 13: the publish imports nothing from npm, all the way down (its workf
 
 // The committed map, as the next publish would write it: a copy of
 // public/data in a temporary folder (TMPDIR), every line file written with
-// its stretches by the publish's own lineFileText, then read back as the
-// app reads it.
+// its stretches by the publish's own lineFileText, then read back the ways
+// the app and the check read it.
 test('step 13: on a copy of public/data, every line file written with its stretches is read by the app and painted as it works them out', async () => {
   const committed = fileURLToPath(new URL('../../public/data/', import.meta.url))
   const dir = mkdtempSync(join(tmpdir(), 'parapo-pass-'))
@@ -446,6 +447,14 @@ test('step 13: on a copy of public/data, every line file written with its stretc
       after += text.length
     }
     console.log(`  ${index.variants.filter((x) => x.shape).length} line files, ${before} -> ${after} bytes`)
+
+    // The check reads them back: the stretches are its own, and nothing is said of them.
+    const { file: back, problems } = readPublished(indexPath)
+    assert.deepEqual(problems, [])
+    assert.ok(back.variants.filter((x) => x.shape).every((x) => typeof x.passKey === 'string' && Array.isArray(x.pass)))
+    const r = checkMapData(back)
+    assert.deepEqual(r.problems, [])
+    assert.equal(r.notes.some((n) => /orange stretches/.test(n)), false, r.notes.join(' | '))
 
     // The app reads them (mapFile.ts, over a fetch that serves the copy) and paints the file's, equal to what it works out.
     globalThis.fetch = async (url) => {
