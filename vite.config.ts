@@ -349,17 +349,34 @@ export default defineConfig({
         commuter: 'index.html',
         studio: 'studio/index.html',
       },
-      // What both pages load — MapLibre, React and the shared code — in one
-      // chunk named for what it is. Left to itself it took the name of one of
-      // its modules (useSavedStops-*.js). A module goes in when two chunks
-      // import it — Rolldown counts lazy chunks as well as the two entries —
-      // so check-build.mjs, not this rule, is what proves the studio's
-      // Supabase stays out of what the public page loads. Its size is a guard
-      // there too; MapLibre is most of it and is
-      // what keeps a thousand lines smooth, so the 500 kB warning is answered
-      // by that guard rather than by splitting it.
+      // What both pages load, in three chunks named for what they are
+      // (the cheap-phone plan, step 12, 2026-10-05): MapLibre, React, and
+      // the shared code. As one chunk (355 kB gzipped) any change to
+      // src/shared or src/design-system gave it a new name, and every
+      // returning phone fetched MapLibre and React again with it: 363 kB
+      // of a deploy's 365 kB, over a link the visitor's index and tiles
+      // want too. Now the two packages keep their names until they are
+      // upgraded, and such a deploy is the ~50 kB of our own code.
+      //  - maplibre: its JavaScript only. Its stylesheet stays with the
+      //    shared code's CSS (shared-*.css), ahead of index.css's safe-area
+      //    overrides of its corners, which must come after it to win.
+      //  - react: react, react-dom and scheduler.
+      //  - shared: a module goes in when two chunks import it — Rolldown
+      //    counts lazy chunks as well as the two entries — so
+      //    check-build.mjs, not this rule, is what proves the studio's
+      //    Supabase stays out of what the public page loads. Left to itself
+      //    it took the name of one of its modules (useSavedStops-*.js).
+      // Each one's size is a guard in check-build.mjs; MapLibre is most of
+      // it and is what keeps a thousand lines smooth, so the 500 kB warning
+      // is answered by those guards rather than by splitting it further.
       output: {
-        codeSplitting: { groups: [{ name: 'shared', minShareCount: 2 }] },
+        codeSplitting: {
+          groups: [
+            { name: 'maplibre', test: /[\\/]node_modules[\\/]maplibre-gl[\\/]dist[\\/].*\.m?js$/, priority: 2 },
+            { name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/, priority: 1 },
+            { name: 'shared', minShareCount: 2 },
+          ],
+        },
       },
     },
     chunkSizeWarningLimit: 1300,

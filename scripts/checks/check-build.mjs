@@ -37,9 +37,17 @@
 //    the worker's navigation denylist; a new version waits to be asked.
 //
 // 5. Weight (stage 6 of the clean-up, 2026-09-29): the fonts are under
-//    120 kB together, and the chunk both pages share — MapLibre, React and
-//    the shared code, named `shared` in vite.config.ts — is under 400 kB
-//    gzipped, so neither creeps back unnoticed. The fonts are precached.
+//    120 kB together, and what both pages share — MapLibre, React and the
+//    shared code — is under 400 kB gzipped, so neither creeps back
+//    unnoticed. The fonts are precached. Since the cheap-phone plan's step 12
+//    (2026-10-05) that is three chunks, named in vite.config.ts, each with a
+//    ceiling of its own: `maplibre` and `react` hold only their packages and
+//    import none of our code, so a deploy of ours leaves their names alone,
+//    and one in the wrong group is too heavy for its ceiling.
+//
+// 6. Stylesheet order (step 12 too): on each page, the last rule that places
+//    one of MapLibre's four corners is index.css's, inside the safe area, so
+//    the attribution the licence asks for is never under a home indicator.
 //
 //   npm run build        (runs this at the end)
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
@@ -277,16 +285,80 @@ if (existsSync(swPath)) {
 
 // 5. Weight.
 const FONTS_MAX_KB = 120
-const SHARED_MAX_GZ_KB = 400
 const assetFiles = readdirSync(join(dist, 'assets'))
 const fontBytes = assetFiles.filter((f) => f.endsWith('.woff2')).reduce((n, f) => n + statSync(join(dist, 'assets', f)).size, 0)
 check(`the fonts weigh under ${FONTS_MAX_KB} kB together`, fontBytes > 0 && fontBytes < FONTS_MAX_KB * 1024, `${(fontBytes / 1024).toFixed(1)} kB`)
-const shared = assetFiles.filter((f) => /^shared-.*\.js$/.test(f))
-const sharedGz = shared.reduce((n, f) => n + gzipSync(readFileSync(join(dist, 'assets', f))).length, 0)
+
+// What both pages share, gzipped, in kB: 249.7, 57.6 and 41.0 on 2026-10-05,
+// 348.3 together (the one chunk it was weighed 348.4). Each ceiling leaves
+// some headroom and none for another group's package: React in `shared` is
+// +58, MapLibre +250. `packages` is what the chunk may hold from
+// node_modules; `vendor` chunks may import no chunk of ours.
+const SHARED_MAX_GZ_KB = 400
+const GROUPS = [
+  { name: 'maplibre', maxGzKb: 280, vendor: true, packages: ['maplibre-gl'], holds: "maplibre-gl's JavaScript, none of our code, and imports none of it" },
+  { name: 'react', maxGzKb: 70, vendor: true, packages: ['react', 'react-dom', 'scheduler'], holds: 'react, react-dom and scheduler, none of our code, and imports none of it' },
+  // From maplibre-gl, its stylesheet and the worker's address (MapView.tsx);
+  // its JavaScript here would be over the ceiling.
+  { name: 'shared', maxGzKb: 80, vendor: false, packages: ['maplibre-gl'], holds: 'our shared code and no package but maplibre-gl' },
+]
+// A group's chunk is the one Vite's manifest names after it.
+const chunksNamed = (name) => Object.values(manifest).filter((c) => c.name === name && c.file.endsWith('.js'))
+const vendorFiles = GROUPS.filter((g) => g.vendor).flatMap((g) => chunksNamed(g.name).map((c) => c.file))
+let groupsGz = 0
+for (const { name, maxGzKb, vendor, packages, holds } of GROUPS) {
+  const chunks = chunksNamed(name)
+  const files = chunks.map((c) => c.file)
+  const gz = files.reduce((n, f) => n + gzipSync(readFileSync(join(dist, f))).length, 0)
+  groupsGz += gz
+  check(
+    `the ${name} chunk is named, loaded by the public page, and under ${maxGzKb} kB gzipped`,
+    files.length === 1 && commuterFiles.includes(files[0]) && gz < maxGzKb * 1024,
+    `${files.join(', ') || `no chunk named ${name}`}: ${(gz / 1024).toFixed(1)} kB`,
+  )
+  const strays = packageModules(files).filter((p) => !packages.includes(p))
+  const ours = vendor ? sourceModules(files) : []
+  // Rolldown's runtime is a few helpers, the same whatever we write.
+  const imports = vendor
+    ? chunks
+        .flatMap((c) => c.imports ?? [])
+        .map((k) => manifest[k].file)
+        .filter((f) => !vendorFiles.includes(f) && !/^assets\/rolldown-runtime-[\w-]+\.js$/.test(f))
+    : []
+  check(
+    `the ${name} chunk holds ${holds}`,
+    files.length === 1 &&
+      packageModules(files).length > 0 &&
+      strays.length === 0 &&
+      (vendor ? ours.length === 0 && imports.length === 0 : sourceModules(files).length > 0),
+    [...strays, ...ours, ...imports].join(', '),
+  )
+}
 check(
-  `the shared chunk is named, and under ${SHARED_MAX_GZ_KB} kB gzipped`,
-  shared.length === 1 && commuterFiles.includes(`assets/${shared[0]}`) && sharedGz < SHARED_MAX_GZ_KB * 1024,
-  `${shared.join(', ') || 'no shared-*.js'}: ${(sharedGz / 1024).toFixed(1)} kB`,
+  `MapLibre, React and the shared code are under ${SHARED_MAX_GZ_KB} kB gzipped together`,
+  groupsGz < SHARED_MAX_GZ_KB * 1024,
+  `${(groupsGz / 1024).toFixed(1)} kB`,
 )
+
+// 6. Stylesheet order. The rules each page's stylesheets hold, in the order
+// the page links them; a rule inside an at-rule is read as if outside it.
+const CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+for (const page of ['index.html', 'studio/index.html']) {
+  const sheets = [...html(page).matchAll(/<link rel="stylesheet"[^>]*href="\/([^"]+)"/g)].map((m) => m[1])
+  const css = sheets.map((f) => readFileSync(join(dist, f), 'utf8')).join('\n')
+  const last = {}
+  for (const [, selectors, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    for (const corner of CORNERS) {
+      const places = body.split(';').some((p) => /^\s*(top|bottom|left|right)\s*:/.test(p))
+      if (places && selectors.split(',').some((s) => s.trim() === `.maplibregl-ctrl-${corner}`)) last[corner] = body
+    }
+  }
+  const outside = CORNERS.filter((c) => !/env\(safe-area-inset-/.test(last[c] ?? ''))
+  check(
+    `${page}: MapLibre's stylesheet is linked, and the last rule placing each of its corners is inside the safe area`,
+    css.includes('.maplibregl-map{') && outside.length === 0,
+    outside.map((c) => `${c}: ${last[c] ?? 'no rule'}`).join('; '),
+  )
+}
 
 process.exit(failed ? 1 : 0)
