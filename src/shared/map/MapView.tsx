@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { BasemapControl } from './BasemapControl'
 import { DEFAULT_BASEMAP, initialStyle, readBasemap, type Basemap } from './basemap'
 import { diagnose, type Diagnosis } from './diagnose'
-import { OPENING_WAIT_MS, ROUTES_FRAMING, openedOn, within, type Bounds } from './framing'
+import { OPENING_WAIT_MS, ROUTES_FRAMING, loadClock, openedOn, within, type Bounds } from './framing'
 import {
   AttributionControl,
   MapLibreMap,
@@ -94,7 +94,12 @@ export const coarse =
 const CENTER: [number, number] = [121.0244, 14.5995]
 const ZOOM = 11
 
-/** How long to wait before assuming the style is never arriving. */
+/**
+ * How long to wait before assuming the style is never arriving: from the
+ * map's making, and on the public map from its style's coming too, for its
+ * tiles and our routes (framing.ts, loadClock; review of the owner's Q1,
+ * 2026-10-05).
+ */
 const LOAD_TIMEOUT_MS = 12_000
 
 type Props = {
@@ -181,7 +186,7 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
     // cancels before any map exists, so only the surviving mount builds one.
     let cancelled = false
     let map: MapLibreMap | null = null
-    let timer = 0
+    let stopClock = () => {}
 
     const startId = window.setTimeout(async () => {
       // A URL for the plain designs; for "Gray, detailed" the style is fetched
@@ -313,7 +318,9 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
         void diagnose(basemap.url).then(setDiag)
       })
 
-      timer = window.setTimeout(() => {
+      // From the map's making; on the public map (`openOn`) again from its
+      // style's load, when its routes go on, if it has not run by then.
+      stopClock = loadClock(map, !!openOn, LOAD_TIMEOUT_MS, () => {
         setLoaded((isLoaded) => {
           if (!isLoaded) {
             setError(`The map did not finish loading within ${LOAD_TIMEOUT_MS / 1000}s.`)
@@ -332,13 +339,13 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
           }
           return isLoaded
         })
-      }, LOAD_TIMEOUT_MS)
+      })
     }, 0)
 
     return () => {
       cancelled = true
       window.clearTimeout(startId)
-      window.clearTimeout(timer)
+      stopClock()
       setReady(null)
       map?.remove()
     }

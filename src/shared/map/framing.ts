@@ -118,3 +118,42 @@ export function framesRoutes(map: object, bounds: Bounds): boolean {
   if (!opening) return true
   return !opening.moved && !sameBounds(opening.on, bounds)
 }
+
+type Styled = { once(type: string, listener: () => void): unknown }
+
+/**
+ * MapView's "did not finish loading" clock (LOAD_TIMEOUT_MS): `timedOut`
+ * runs `ms` after the map is made, unless the function returned stops it
+ * first. It was made for a style that never comes, and it waits for the
+ * map's 'load', which MapLibre fires only once every source on the map is
+ * in.
+ *
+ * The public map's (`fromStyle`, the owner's Q1) starts again as its style
+ * comes in, if it has not run by then (review of Q1, 2026-10-05). Since Q1
+ * its routes go onto the map at the style's load, so its 'load' waits for
+ * them too, and for the view framed on them (zoom 9 on a phone, ~397 kB of
+ * basemap) rather than the zoom-11 one it waited for and threw away (~189
+ * kB): 1.4 s later in the cheap-phone timer's first visit (8.16 -> 9.52 s),
+ * and on a map of thousands of directions later by the time MapLibre's
+ * worker takes to cut them. The 12 s could then run out over a map already
+ * drawn, its routes on it, with "The map failed to load". Now the style
+ * still has 12 s from the map's making, and what comes after it 12 s of its
+ * own. A basemap whose tiles never come is said so later than before, by
+ * the time its style took. The studio's map (no `fromStyle`; its routes go
+ * on at 'load') keeps the one clock from its making.
+ */
+export function loadClock(map: Styled, fromStyle: boolean, ms: number, timedOut: () => void): () => void {
+  let ran = false
+  const run = () => {
+    ran = true
+    timedOut()
+  }
+  let timer = setTimeout(run, ms)
+  if (fromStyle)
+    map.once('style.load', () => {
+      if (ran) return
+      clearTimeout(timer)
+      timer = setTimeout(run, ms)
+    })
+  return () => clearTimeout(timer)
+}
