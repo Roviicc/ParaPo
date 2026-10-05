@@ -78,12 +78,17 @@ export function useBabaanSides(map: MapLibreMap | null, chosen: VariantSummary |
  * whole line first, and then cut: worked out in the render of a trip tap,
  * before its card paints, and on the first trip of a visit about 27 ms of
  * Node at full speed (Bagong Silang Kanan 5 → Philcoa), 7 ms now (the
- * cheap-phone plan, step 8, 2026-10-04). The same features in the same
- * order: a box the line's box misses is crossed by none of the line, nor by
- * a carry, which starts at an end inside the box; a box listed but not cut
- * was dropped either way; and the sort is stable, as hintuansAlong's is.
- * babaan-side-test holds the two against each other, word for word, on the
- * committed map and on made-up directions.
+ * cheap-phone plan, step 8, 2026-10-04). In a browser at CPU 4x, on three
+ * trips opened one after another (5 runs, medians [min-max], this function
+ * and all it calls, measured 2026-10-04): 60 [46-70] -> 35 [28-41] ms on
+ * the first, 26 -> 9 and 16 -> 9 ms on the next two. So a cheap phone's
+ * first trip of a visit gains about 25 ms (review of step 8, 2026-10-05).
+ * The same features in the same order: a box the line's box misses is
+ * crossed by none of the line, nor by a carry, which starts at an end
+ * inside the box; a box listed but not cut was dropped either way; and the
+ * sort is stable, as hintuansAlong's is. babaan-side-test holds the two
+ * against each other, word for word, on the committed map and on made-up
+ * directions.
  */
 export function babaanSideFeatures(chosen: VariantSummary | null, stops: readonly StopSummary[]) {
   if (!chosen || isLineMode(chosen.route?.mode)) return []
