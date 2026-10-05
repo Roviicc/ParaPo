@@ -3,12 +3,15 @@
 // click (routeTaps, stopTaps) and ask the same question, so the second takes
 // the first's answer, kept on the browser's event, or without one on the
 // point MapLibre made for the listeners. Against a stand-in map that counts
-// its queries.
+// its queries. And the hand over a line or a box bound only where a pointer
+// can hover, from when one can (bindHover; the taps review, 2026-10-05),
+// against a stand-in map that keeps its listeners and a stand-in
+// matchMedia.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/tap-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, resolveTap, tapBox, tapTargets } from '../../src/shared/map/tap.ts'
+import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, bindHover, resolveTap, tapBox, tapTargets } from '../../src/shared/map/tap.ts'
 
 /**
  * A map with the two hit layers: `under` gives, for a layer, what a query
@@ -84,4 +87,115 @@ test('an answer is kept for its own map and its own point only', () => {
 test("the box is a finger's or a mouse's, by the event's pointer", () => {
   assert.deepEqual(tapBox({ x: 100, y: 100 }, { pointerType: 'touch' }), [[80, 80], [120, 120]])
   assert.deepEqual(tapBox({ x: 100, y: 100 }, { pointerType: 'mouse' }), [[95, 95], [105, 105]])
+})
+
+/**
+ * The page's '(any-hover: hover)', as a stand-in MediaQueryList: `heard`
+ * holds its 'change' listeners, and `change(to)` is a pointer that can hover
+ * coming (true) or going (false). Set as window.matchMedia's answer until
+ * `restore`.
+ */
+function hoverQuery(matches) {
+  const heard = new Set()
+  const asked = []
+  const query = {
+    heard,
+    asked,
+    get matches() {
+      return matches
+    },
+    addEventListener: (type, f) => type === 'change' && heard.add(f),
+    removeEventListener: (type, f) => type === 'change' && heard.delete(f),
+    change(to) {
+      matches = to
+      for (const f of [...heard]) f({ matches: to, media: '(any-hover: hover)' })
+    },
+  }
+  const had = Object.getOwnPropertyDescriptor(globalThis, 'window')
+  globalThis.window = { matchMedia: (q) => (asked.push(q), query) }
+  query.restore = () => (had ? Object.defineProperty(globalThis, 'window', had) : delete globalThis.window)
+  return query
+}
+
+/** A map that keeps the layer listeners bound to it, by event and layer. */
+function listeningMap() {
+  const bound = []
+  return {
+    bound,
+    on: (type, layer, f) => bound.push([type, layer, f]),
+    off(type, layer, f) {
+      const at = bound.findIndex((b) => b[0] === type && b[1] === layer && b[2] === f)
+      if (at >= 0) bound.splice(at, 1)
+    },
+  }
+}
+
+const enter = () => {}
+const leave = () => {}
+const pair = (layer) => [['mouseenter', layer, enter], ['mouseleave', layer, leave]]
+
+test('where a pointer can hover as the hook binds, the hand is bound at once and undone with the hook', () => {
+  const query = hoverQuery(true)
+  try {
+    const map = listeningMap()
+    const undo = bindHover(map, ROUTES_HIT_LAYER, enter, leave)
+    assert.deepEqual(query.asked, ['(any-hover: hover)'])
+    assert.deepEqual(map.bound, pair(ROUTES_HIT_LAYER))
+    assert.equal(query.heard.size, 0, 'nothing left to wait for')
+    undo()
+    assert.deepEqual(map.bound, [])
+  } finally {
+    query.restore()
+  }
+})
+
+test('a phone binds no hand, until a pointer that can hover comes; then it is bound, and kept should it go', () => {
+  const query = hoverQuery(false)
+  try {
+    const map = listeningMap()
+    const undo = bindHover(map, STOPS_FILL_LAYER, enter, leave)
+    assert.deepEqual(map.bound, [], 'a finger: no pair, so no query of the map as it moves')
+    assert.equal(query.heard.size, 1)
+    // A mouse paired, or a keyboard with a trackpad attached, mid-visit.
+    query.change(true)
+    assert.deepEqual(map.bound, pair(STOPS_FILL_LAYER))
+    assert.equal(query.heard.size, 0, 'bound once, no longer listening')
+    // Gone again: the pair stays, as before step 7, so a hand left showing
+    // is taken off by the next pointer's first move off the box.
+    query.change(false)
+    assert.deepEqual(map.bound, pair(STOPS_FILL_LAYER), 'kept')
+    query.change(true)
+    assert.deepEqual(map.bound, pair(STOPS_FILL_LAYER), 'still the one pair')
+    undo()
+    assert.deepEqual(map.bound, [])
+  } finally {
+    query.restore()
+  }
+})
+
+test('a hook undone before any pointer could hover binds nothing, then or later', () => {
+  const query = hoverQuery(false)
+  try {
+    const map = listeningMap()
+    bindHover(map, ROUTES_HIT_LAYER, enter, leave)()
+    assert.equal(query.heard.size, 0, 'no longer listening')
+    query.change(true)
+    assert.deepEqual(map.bound, [])
+  } finally {
+    query.restore()
+  }
+})
+
+test('without matchMedia the hand is bound at once, as on every device before step 7', () => {
+  const had = Object.getOwnPropertyDescriptor(globalThis, 'window')
+  globalThis.window = {}
+  try {
+    const map = listeningMap()
+    const undo = bindHover(map, ROUTES_HIT_LAYER, enter, leave)
+    assert.deepEqual(map.bound, pair(ROUTES_HIT_LAYER))
+    undo()
+    assert.deepEqual(map.bound, [])
+  } finally {
+    had ? Object.defineProperty(globalThis, 'window', had) : delete globalThis.window
+  }
 })

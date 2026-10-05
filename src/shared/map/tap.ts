@@ -1,4 +1,4 @@
-import type { MapLibreMap } from 'maplibre-gl'
+import type { MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { LAYERS } from './layers'
 
 /**
@@ -38,6 +38,52 @@ export function tapBox(
     [p.x - half, p.y - half],
     [p.x + half, p.y + half],
   ]
+}
+
+/**
+ * Binds a layer's mouseenter and mouseleave, the hand the cursor turns into
+ * over a line or a box (routeTaps.ts, stopTaps.ts), only where a pointer can
+ * hover. MapLibre answers such a pair with a query of the rendered features
+ * on every mousemove, and a finger's tap raises one before its click, so a
+ * phone paid four queries a tap for a cursor it never shows (the cheap-phone
+ * plan, step 7, 2026-10-04). Where `(any-hover: hover)` holds as the hook
+ * binds (a mouse, a trackpad, a laptop's touch screen with its trackpad),
+ * the pair is bound at once, as on every device before step 7. Where it
+ * does not, the pair waits for it to hold: a mouse paired with a phone or a
+ * tablet, a keyboard with a trackpad attached. Until the taps review
+ * (2026-10-05) the query was read once, as the page was read, and such a
+ * pointer got no hand until a reload. Once bound, the pair stays until the
+ * returned undo, the pointer gone again or not, as before step 7: unbound
+ * while the hand showed, the hand would come back with the next pointer
+ * over nothing. Without matchMedia it is bound at once, as before.
+ */
+export function bindHover(
+  map: MapLibreMap,
+  layer: string,
+  enter: (e: MapMouseEvent) => void,
+  leave: (e: MapMouseEvent) => void,
+): () => void {
+  const query =
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(any-hover: hover)')
+      : null
+  let bound = false
+  const bind = () => {
+    if (bound || (query && !query.matches)) return
+    bound = true
+    query?.removeEventListener('change', bind)
+    map.on('mouseenter', layer, enter)
+    map.on('mouseleave', layer, leave)
+  }
+  bind()
+  if (!bound) query?.addEventListener('change', bind)
+  return () => {
+    query?.removeEventListener('change', bind)
+    if (!bound) return
+    bound = false
+    map.off('mouseenter', layer, enter)
+    map.off('mouseleave', layer, leave)
+  }
 }
 
 type IdFeature = { properties?: { id?: unknown; route_id?: unknown } }

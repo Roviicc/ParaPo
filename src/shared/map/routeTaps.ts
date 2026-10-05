@@ -2,8 +2,7 @@ import { useEffect, type RefObject } from 'react'
 import type { MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { directionToOpen } from '../model/departures'
 import type { VariantSummary } from '../model/routes'
-import { canHover } from './MapView'
-import { ROUTES_HIT_LAYER, resolveTap, tapTargets } from './tap'
+import { ROUTES_HIT_LAYER, bindHover, resolveTap, tapTargets } from './tap'
 import type { Highlight } from './useSavedRoutes'
 
 /*
@@ -14,10 +13,11 @@ import type { Highlight } from './useSavedRoutes'
 const HIT = ROUTES_HIT_LAYER
 
 /**
- * Binds the map's click, and the pointer over a line where a pointer can
- * hover (canHover), once. The handler reads today's directions, what is
- * shown and whether the editor is drawing through `read`, and answers
- * through the hook's setters (`set`), which never change.
+ * Binds the map's click once, and the pointer over a line where a pointer
+ * can hover, from when one can (bindHover). The handler reads today's
+ * directions, what is shown and whether the editor is drawing through
+ * `read`, and answers through the hook's setters (`set`), which never
+ * change.
  */
 export function useRouteTaps<T extends VariantSummary>(
   map: MapLibreMap | null,
@@ -89,19 +89,14 @@ export function useRouteTaps<T extends VariantSummary>(
     }
 
     map.on('click', onMapClick)
-    // The hand over a line only where a pointer can hover: on a phone each
-    // pair cost a query of the map on every mousemove, a tap's among them
-    // (canHover, 2026-10-04).
-    if (canHover) {
-      map.on('mouseenter', HIT, enter)
-      map.on('mouseleave', HIT, leave)
-    }
+    // The hand over a line only where a pointer can hover, and from when one
+    // can: on a phone each pair cost a query of the map on every mousemove,
+    // a tap's among them (bindHover, 2026-10-04; a mouse paired later gets
+    // it too, 2026-10-05).
+    const unhover = bindHover(map, HIT, enter, leave)
     return () => {
       map.off('click', onMapClick)
-      if (canHover) {
-        map.off('mouseenter', HIT, enter)
-        map.off('mouseleave', HIT, leave)
-      }
+      unhover()
     }
   }, [map])
 }

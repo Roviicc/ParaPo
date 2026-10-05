@@ -1264,9 +1264,10 @@ const litIds = (p) => p.evaluate(() => window.__lit('saved-routes'))
         (standIn.length ? `; and ${standIn.length} a real basemap compiles at load, which the stand-in does not: ${standIn.map((k) => k.split('/')[0]).join(', ')}` : ''),
     )
     // A finger cannot hover, so the routes' and the hotspots' hooks ask
-    // nothing as it moves (canHover), and the tap's question — inside a box?
-    // a route in the finger's box? a box near it? — is asked once, by the
-    // first hook, and kept for the second (tap.ts): three queries at most.
+    // nothing as it moves (bindHover, tap.ts), and the tap's question —
+    // inside a box? a route in the finger's box? a box near it? — is asked
+    // once, by the first hook, and kept for the second (tap.ts): three
+    // queries at most.
     // Until 2026-10-04 a tap on a route asked eight: four for the hover
     // pairs on the mousemove a touch makes, and two by each hook (the
     // cheap-phone plan, step 7).
@@ -2562,7 +2563,7 @@ if (!routeA) {
 
   // A mouse can hover: over the line the pointer is a hand, and off it, where
   // the click above found nothing, it is not. A phone's finger gets no hover
-  // listeners since 2026-10-04 (canHover); a desktop keeps them.
+  // listeners since 2026-10-04 (bindHover, tap.ts); a desktop keeps them.
   const cursor = () => dpage.evaluate(() => window.__map.getCanvas().style.cursor)
   await dpage.mouse.move(box.x + anchor2[0], box.y + anchor2[1], { steps: 4 })
   await dpage.waitForTimeout(300)
