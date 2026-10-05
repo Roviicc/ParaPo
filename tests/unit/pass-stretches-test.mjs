@@ -440,10 +440,17 @@ test('step 13: on a copy of public/data, every line file written with its stretc
       const path = join(dir, 'lines', `${v.id}.json`)
       const old = readFileSync(path, 'utf8')
       const text = lineFileText(v, boxes)
-      // The line is the file's as it was, byte for byte: the stretches are added after it.
-      assert.ok(text.startsWith(old.slice(0, -2) + ','), `${v.id}: the line is as it was`)
+      // The line is the file's as it was, byte for byte: the stretches are
+      // added after it. The committed file is that line alone, as published
+      // before step 13, or with stretches after it once a nightly publish has
+      // written them (2026-10-05): either way its line is held here, not the
+      // stretches it may carry, which are written afresh.
+      const was = JSON.parse(old)
+      const line = JSON.stringify({ schema: was.schema, id: was.id, shape: was.shape })
+      assert.ok(old === line + '\n' || old.startsWith(line.slice(0, -1) + ',"pass":'), `${v.id}: the committed file is its line, then its stretches if it has any`)
+      assert.ok(text.startsWith(line.slice(0, -1) + ','), `${v.id}: the line is as it was`)
       writeFileSync(path, text)
-      before += old.length
+      before += line.length + 1
       after += text.length
     }
     console.log(`  ${index.variants.filter((x) => x.shape).length} line files, ${before} -> ${after} bytes`)
@@ -492,7 +499,11 @@ test('step 13: on a copy of public/data, every line file written with its stretc
   }
 })
 
-test("step 13: the committed line files, which carry no stretches, are worked out as before", async () => {
+// The committed line files carried no stretches when step 13 was written
+// (2026-10-05); the next nightly publish writes them. Either way each is
+// painted as worked out, and the same line as a file without stretches
+// brings it is worked out as before.
+test('step 13: the committed line files, with stretches or without, are painted as worked out, and without them worked out as before', async () => {
   const data = fileURLToPath(new URL('../../public/data/', import.meta.url))
   globalThis.fetch = async (url) => {
     try {
@@ -510,5 +521,10 @@ test("step 13: the committed line files, which carry no stretches, are worked ou
     const v = { ...row, shape: line }
     if (!('pass' in file)) assert.equal(publishedStretches(v, boxes), null, `${row.id}: nothing taken from a file without stretches`)
     assert.deepStrictEqual(stretchesOf(v, boxes), stretchesPast(v, boxes))
+    // A copy of the line is one no file brought (what a file brings is kept
+    // by the very object read): nothing taken, worked out as before.
+    const bare = { ...row, shape: structuredClone(line) }
+    assert.equal(publishedStretches(bare, boxes), null, `${row.id}: nothing taken for a line its file did not bring`)
+    assert.deepStrictEqual(stretchesOf(bare, boxes), stretchesPast(bare, boxes))
   }
 })

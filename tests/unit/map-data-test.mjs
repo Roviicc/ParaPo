@@ -332,5 +332,14 @@ test('step 13: a line file without stretches is checked as before', () => {
   const r = checkMapData(good())
   assert.deepEqual(r.problems, [])
   assert.deepEqual(passNote(r), [])
-  assert.equal('pass' in published().variants.find((v) => v.shape), false, 'the committed line files carry none yet')
+  // The committed map, its line files read as files without stretches:
+  // they carried none when step 13 was written (2026-10-05), and the next
+  // nightly publish writes them, so whatever they carry is left out here.
+  // Nothing said of stretches, and what is said of the rest is what is said
+  // with them.
+  const file = published()
+  const without = checkMapData({ ...file, variants: file.variants.map(({ pass, passKey, ...v }) => v) })
+  assert.deepEqual(without.problems, [])
+  assert.deepEqual(passNote(without), [])
+  assert.deepEqual(without.warnings, checkMapData(file).warnings)
 })
