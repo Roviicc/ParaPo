@@ -285,7 +285,8 @@ export function addSavedStops(
       paint: {
         'fill-color': colour,
         'fill-opacity': ['case', state('sibling'), byKind(0.3, HINTUAN_STRONGER), 0] as never,
-        // Switched off while no box is a sibling (layerSwitch.ts): at once, never between.
+        // Switched off while no box is a sibling, and from the start (layerSwitch.ts): at once, never between.
+        'fill-layer-opacity': 0,
         'fill-layer-opacity-transition': { duration: 0, delay: 0 },
       },
     },
@@ -304,6 +305,7 @@ export function addSavedStops(
       paint: {
         'fill-pattern': ['match', ['get', 'kind'], 'terminal', hatchOf('terminal'), hatchOf('hintuan')] as never,
         'fill-opacity': ['case', state('lit'), 1, 0] as never,
+        'fill-layer-opacity': 0,
         'fill-layer-opacity-transition': { duration: 0, delay: 0 },
       },
     },
@@ -376,11 +378,11 @@ export function useSavedStopsLayers(
   // removed: a removal and a set of one id in the same frame leave the
   // removal in charge.
   // The siblings' and the stripes' layers are off while no box is either,
-  // from the first 'idle' with the hotspots in, and switched here with the
-  // feature state (layerSwitch.ts).
+  // from the start, and switched here with the feature state; their GL
+  // programs compiled by twins while the map is idle (layerSwitch.ts).
   const was = useRef<ReadonlyMap<string, BoxMark>>(new Map())
-  const siblingSwitch = useLayerSwitch(map, SIBLING_LAYERS, stops.length > 0)
-  const hatchSwitch = useLayerSwitch(map, HATCH_LAYERS, stops.length > 0)
+  const siblingSwitch = useLayerSwitch(map, SIBLING_LAYERS, map !== null)
+  const hatchSwitch = useLayerSwitch(map, HATCH_LAYERS, map !== null)
   useEffect(() => {
     if (!map || !map.getSource(SRC)) return
     for (const id of new Set([...was.current.keys(), ...marks.keys()])) {

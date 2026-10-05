@@ -13,7 +13,10 @@ import { readFileSync } from 'node:fs'
 import { Color, createPropertyExpression, featureFilter, latest } from '@maplibre/maplibre-gl-style-spec'
 import { PASS_LAYER } from '../../src/shared/geo/passStretches.ts'
 import { ENDS_PAINT, ENDS_TWIN } from '../../src/shared/map/directionArrows.ts'
-import { WARM_SOURCE, afterIdle, warmPrograms } from '../../src/shared/map/warmPrograms.ts'
+import { WARM_SOURCE, afterIdle, warmPrograms, warmSoon } from '../../src/shared/map/warmPrograms.ts'
+import { twinsOf } from '../../src/shared/map/layerSwitch.ts'
+import { addSavedRoutes } from '../../src/shared/map/savedRoutesLayers.ts'
+import { addSavedStops } from '../../src/shared/map/savedStopsLayers.ts'
 import { hiddenStopFilters, namePaint } from '../../src/shared/map/savedStopsLayers.ts'
 import { HOTSPOT_CONTENT } from '../../src/shared/map/colours.ts'
 import { litOpacity } from '../../src/shared/map/savedRoutesLayers.ts'
@@ -142,6 +145,7 @@ function fakeMap(order = ['background', 'saved-stops-fill', 'saved-routes-casing
     },
     getLayersOrder: () => layers.map((l) => l.id),
     getCenter: () => ({ toArray: () => [121.05, 14.65] }),
+    getZoom: () => 10,
     once(type, fn) {
       once.set(type, [...(once.get(type) ?? []), fn])
       return this
@@ -159,27 +163,72 @@ function fakeMap(order = ['background', 'saved-stops-fill', 'saved-routes-casing
   }
 }
 
-test('a warm-up: one point at the middle of the view, its twin at the bottom of the stack, gone at the next idle', () => {
+test('a warm-up: a speck at the middle of the view, each twin over its own at the bottom of the stack, gone with the first move after the idle', () => {
   const map = fakeMap()
-  assert.equal(warmPrograms(map, [ENDS_TWIN]), true)
+  const line = { type: 'line', paint: { 'line-color': '#000000', 'line-width': litWidth(), 'line-opacity': litOpacity() } }
+  assert.equal(warmPrograms(map, [ENDS_TWIN, line]), true)
   const src = map.getSource(WARM_SOURCE)
-  assert.deepEqual(src.data.geometry, { type: 'Point', coordinates: [121.05, 14.65] })
-  // Over the background, under everything of ours.
-  assert.deepEqual(map.getLayersOrder(), ['background', 'warm-programs-0', 'saved-stops-fill', 'saved-routes-casing', 'direction-end-circles', 'saved-routes-hit'])
+  // A point, a line and a box, 16 px each way at the zoom (512 px tiles): no tile simplifies them away.
+  const d = (16 * 360) / (512 * 2 ** 10)
+  assert.deepEqual(
+    src.data.features.map((f) => f.geometry),
+    [
+      { type: 'Point', coordinates: [121.05, 14.65] },
+      { type: 'LineString', coordinates: [[121.05 - d, 14.65], [121.05 + d, 14.65]] },
+      { type: 'Polygon', coordinates: [[[121.05 - d, 14.65 - d], [121.05 + d, 14.65 - d], [121.05 + d, 14.65 + d], [121.05 - d, 14.65 + d], [121.05 - d, 14.65 - d]]] },
+    ],
+  )
+  // Over the background, under everything of ours, each over the speck its type draws.
+  assert.deepEqual(map.getLayersOrder(), ['background', 'warm-programs-0', 'warm-programs-1', 'saved-stops-fill', 'saved-routes-casing', 'direction-end-circles', 'saved-routes-hit'])
   assert.deepEqual(map.getLayer('warm-programs-0').paint, ENDS_TWIN.paint)
+  assert.deepEqual(map.getLayer('warm-programs-0').filter, ['==', ['geometry-type'], 'Point'])
+  assert.deepEqual(map.getLayer('warm-programs-1').paint, line.paint)
+  assert.deepEqual(map.getLayer('warm-programs-1').filter, ['==', ['geometry-type'], 'LineString'])
   // Its own source and ids: none of the editor's, and the ends' untouched.
   assert.ok(map.getLayersOrder().every((id) => !id.startsWith('draw-')))
   assert.deepEqual(map.getSource('direction-ends').data.features, [])
-  // Asked again before the idle: nothing more.
-  assert.equal(warmPrograms(map, [ENDS_TWIN]), false)
-  assert.equal(map.log.length, 2)
+  // No twins: nothing.
+  assert.equal(warmPrograms(map, []), false)
+  assert.equal(map.log.length, 3)
+  // The idle takes nothing away: that would be a frame of the whole map of its own.
   map.fire('idle')
+  assert.equal(map.log.length, 3)
+  assert.equal(map.waiting('movestart'), 1)
+  // The first move does, in the frames it draws anyway.
+  map.fire('movestart')
   assert.deepEqual(map.getLayersOrder(), ['background', 'saved-stops-fill', 'saved-routes-casing', 'direction-end-circles', 'saved-routes-hit'])
   assert.equal(map.getSource(WARM_SOURCE), undefined)
-  assert.deepEqual(map.log, ['+source warm-programs', '+layer warm-programs-0 before saved-stops-fill', '-layer warm-programs-0', '-source warm-programs'])
+  assert.deepEqual(map.log, [
+    '+source warm-programs',
+    '+layer warm-programs-0 before saved-stops-fill',
+    '+layer warm-programs-1 before saved-stops-fill',
+    '-layer warm-programs-0',
+    '-layer warm-programs-1',
+    '-source warm-programs',
+  ])
   // And again, as after a lost GL context: the same once more.
   assert.equal(warmPrograms(map, [ENDS_TWIN]), true)
   map.fire('idle')
+  map.fire('movestart')
+  assert.equal(map.getSource(WARM_SOURCE), undefined)
+})
+
+test('a warm-up still on the map is joined: beside its twins, over its specks, and all go with the move after the next idle', () => {
+  const map = fakeMap()
+  warmPrograms(map, [ENDS_TWIN])
+  map.fire('idle')
+  // Asked again before a move: on beside the first, the source as it was.
+  const fill = { type: 'fill', paint: { 'fill-color': '#000000', 'fill-opacity': ['case', ['boolean', ['feature-state', 'lit'], false], 1, 0] } }
+  assert.equal(warmPrograms(map, [fill]), true)
+  assert.deepEqual(map.getLayersOrder().slice(0, 3), ['background', 'warm-programs-1', 'warm-programs-0'])
+  assert.deepEqual(map.getLayer('warm-programs-1').filter, ['==', ['geometry-type'], 'Polygon'])
+  assert.equal(map.log.filter((l) => l.startsWith('+source')).length, 1)
+  // A move before the joined twin's idle takes nothing: it may not be drawn yet.
+  map.fire('movestart')
+  assert.ok(map.getLayer('warm-programs-1'))
+  map.fire('idle')
+  map.fire('movestart')
+  assert.ok(!map.getLayersOrder().some((id) => id.startsWith('warm-programs')))
   assert.equal(map.getSource(WARM_SOURCE), undefined)
 })
 
@@ -190,6 +239,7 @@ test('a basemap switch while the twin is there: it goes by its id all the same, 
   const twin = map.layers.splice(1, 1)[0]
   map.layers.splice(3, 0, { id: 'road' }, twin)
   map.fire('idle')
+  map.fire('movestart')
   assert.ok(!map.getLayersOrder().includes('warm-programs-0'))
   assert.equal(map.getSource(WARM_SOURCE), undefined)
   // A style rebuilt without it: nothing to take away, no error.
@@ -197,7 +247,8 @@ test('a basemap switch while the twin is there: it goes by its id all the same, 
   warmPrograms(bare, [ENDS_TWIN])
   bare.layers.splice(1, 1)
   bare.sources.delete(WARM_SOURCE)
-  assert.doesNotThrow(() => bare.fire('idle'))
+  bare.fire('idle')
+  assert.doesNotThrow(() => bare.fire('movestart'))
 })
 
 /** A browser's idle callbacks and timers, run by hand. */
@@ -271,6 +322,102 @@ test('afterIdle cancelled before the idle, or after it, runs nothing; nor on a m
   lost.style = null
   browser.flush()
   assert.equal(runs, 0)
+})
+
+test('warmSoon: the hooks that ask before the idle are one warm-up, asked as it comes; one that asks later is the next', () => {
+  const map = fakeMap()
+  const browser = fakeBrowser()
+  const line = { type: 'line', paint: { 'line-color': '#000000', 'line-opacity': litOpacity() } }
+  let ends = 0
+  warmSoon(map, () => (ends === 0 ? [ENDS_TWIN] : []), browser)
+  warmSoon(map, () => [line], browser)
+  assert.equal(browser.queue.length, 0, 'nothing before the idle')
+  map.fire('idle')
+  // Asked after the idle: the next warm-up's, not this one's.
+  let later = 0
+  warmSoon(map, () => (later++, [line]), browser)
+  assert.equal(browser.queue.length, 1, 'one warm-up for the two that asked before the idle')
+  browser.flush()
+  assert.deepEqual(map.getLayersOrder().filter((id) => id.startsWith('warm-programs')), ['warm-programs-0', 'warm-programs-1'])
+  assert.equal(later, 0)
+  // The next one, at the next idle: it joins what is still on the map.
+  map.fire('idle')
+  browser.flush()
+  assert.equal(later, 1)
+  assert.equal(map.getLayersOrder().filter((id) => id.startsWith('warm-programs')).length, 3)
+  // A provider with nothing to warm by then adds nothing; a warm-up with nothing adds no source.
+  const quiet = fakeMap()
+  ends = 1
+  warmSoon(quiet, () => (ends === 0 ? [ENDS_TWIN] : []), browser)
+  quiet.fire('idle')
+  browser.flush()
+  assert.equal(quiet.getSource(WARM_SOURCE), undefined)
+})
+
+test('warmSoon cancelled: the last one cancels the warm-up, before the idle or after it; one of two leaves the other', () => {
+  const browser = fakeBrowser()
+  const a = fakeMap()
+  const cancel = warmSoon(a, () => [ENDS_TWIN], browser)
+  cancel()
+  assert.equal(a.waiting('idle'), 0)
+  a.fire('idle')
+  assert.equal(browser.queue.length, 0)
+  const b = fakeMap()
+  const one = warmSoon(b, () => [ENDS_TWIN], browser)
+  const line = { type: 'line', paint: { 'line-color': '#000000', 'line-opacity': litOpacity() } }
+  warmSoon(b, () => [line], browser)
+  one()
+  b.fire('idle')
+  browser.flush()
+  assert.deepEqual(b.getLayersOrder().filter((id) => id.startsWith('warm-programs')), ['warm-programs-0'])
+  assert.deepEqual(b.getLayer('warm-programs-0').paint, line.paint)
+  const c = fakeMap()
+  const after = warmSoon(c, () => [ENDS_TWIN], browser)
+  c.fire('idle')
+  after()
+  browser.flush()
+  assert.equal(c.getSource(WARM_SOURCE), undefined)
+  // Asked again after a cancel: a warm-up of its own.
+  warmSoon(c, () => [ENDS_TWIN], browser)
+  c.fire('idle')
+  browser.flush()
+  assert.ok(c.getLayer('warm-programs-0'))
+})
+
+test("the switched layers' twins: each layer's type and paint but its switch, drawn by its program, unseen", () => {
+  // The five as the hooks add them: off from the start (layerSwitch.ts).
+  const sources = new Map()
+  const layers = [{ id: 'background', type: 'background' }, { id: 'road-label', type: 'symbol' }]
+  const map = {
+    addSource: (id, spec) => sources.set(id, spec),
+    addLayer: (spec, before) => layers.splice(before ? layers.findIndex((l) => l.id === before) : layers.length, 0, spec),
+    getLayer: (id) => layers.find((l) => l.id === id),
+    getLayersOrder: () => layers.map((l) => l.id),
+    hasImage: () => false,
+    addImage: () => {},
+  }
+  addSavedRoutes(map)
+  addSavedStops(map)
+  layers.push(PASS_LAYER)
+  const switched = ['saved-routes-selected-casing', 'saved-routes-selected', 'saved-routes-selected-pass', 'saved-stops-siblings', 'saved-stops-hatch']
+  const twins = twinsOf(map, [...switched, 'not-added'])
+  assert.equal(twins.length, switched.length, 'one a layer on the map; none for one not there')
+  twins.forEach((twin, i) => {
+    const layer = map.getLayer(switched[i])
+    assert.equal(twin.type, layer.type, layer.id)
+    assert.equal(programOf(twin), programOf(layer), `${layer.id}: the same program`)
+    assert.ok(!Object.keys(twin.paint).some((k) => k.includes('layer-opacity')), `${layer.id}: drawn, at 1 as when lit`)
+    const rest = Object.fromEntries(Object.entries(layer.paint).filter(([k]) => !k.includes('layer-opacity')))
+    assert.deepEqual(twin.paint, rest, `${layer.id}: the rest of its paint as it is`)
+    // Unseen: what it shows is what the feature state lights, and a speck has none.
+    const prop = `${layer.type}-opacity`
+    const e = createPropertyExpression(layer.paint[prop], 'paint', latest[`paint_${layer.type}`][prop])
+    assert.equal(e.result, 'success', layer.id)
+    assert.equal(e.value.evaluate({ zoom: 15 }, { type: layer.type === 'line' ? 2 : 3, properties: { kind: 'hintuan' } }, {}), 0, `${layer.id}: nothing to see`)
+  })
+  // A MapLibre layer is read as it serializes: its paint as set now.
+  const live = { getLayer: () => ({ serialize: () => ({ id: 'x', type: 'line', source: 's', paint: { 'line-color': '#123456', 'line-layer-opacity': 1, 'line-layer-opacity-transition': { duration: 0 } } }) }) }
+  assert.deepEqual(twinsOf(live, ['x']), [{ type: 'line', paint: { 'line-color': '#123456' } }])
 })
 
 // ------------------------------------------------------------ step 4

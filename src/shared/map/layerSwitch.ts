@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import type { MapLibreMap } from 'maplibre-gl'
+import type { LayerSpecification, MapLibreMap } from 'maplibre-gl'
+import { warmSoon, type Twin } from './warmPrograms'
 
 /*
  * The layers that draw only what is lit or marked, switched off as a whole
@@ -19,40 +20,40 @@ import type { MapLibreMap } from 'maplibre-gl'
  * it on lays nothing out again; and like the feature state, it reaches the
  * screen in the next frame drawn, so the two change together.
  *
- * A layer's GL program is compiled the first time it draws. So each starts
- * on, and switches only after the map's first 'idle' since its source had
- * its data: the frames before drew it, nothing lit, and compiled its
- * program as the map loaded, as before, and a tap compiles none (step 3;
- * the suites' program checks). The same after a lost GL context is given
- * back, its programs gone with it: on, till the next 'idle' and a move.
- *
- * Each change of the value asks the map for a frame. On goes at once, with
- * the lighting that needs it; so does off when the lighting goes, a frame
- * the feature state draws anyway. But off as the map is first idle with
- * nothing lit would be a frame of its own, the whole map drawn again for
- * pixels that do not change: at 1,280 × 800 with 5,000 directions
- * (studio-scale-test) 1.4-1.7 s of SwiftShader each, two in an opening. So
- * that waits for the map's next move, whose frames come anyway and are the
- * ones it saves; a still map draws no frames to save.
+ * Off from the start: each layer is added at 0 (its paint says so), and
+ * nothing is ever lit as a map opens. Until 2026-10-05 they started on and
+ * went off from the first move after the map's first 'idle', so that the
+ * opening's frames, which drew them with nothing lit, compiled their GL
+ * programs before any tap (step 3). Every frame of an opening drew them
+ * then, and an opening of many directions is many frames of the whole map:
+ * in the suites' maps of 5,000 directions at 1,280 x 800 on SwiftShader,
+ * 0.5-1.7 s each (timed in the page, 2026-10-05). Their programs are
+ * compiled by twins instead, as the end circles' are: each layer's type and
+ * paint over a speck of its own, drawn once while the map is idle
+ * (warmPrograms.ts, warmSoon), which the switch asks for once its layers
+ * are on the map, and again once a lost GL context is given back. A tap
+ * compiles none (the suites' program checks), and the pixels are the same:
+ * with nothing lit, the layers drew nothing to see (review of the sources
+ * group, 2026-10-05).
  */
 
 /** As much of a map as a switch uses: a unit check hands it a stand-in. */
 export type SwitchMap = Pick<MapLibreMap, 'getLayer' | 'getPaintProperty' | 'setPaintProperty'>
 
+/** A layer's property that switches it, by its type: `line-layer-opacity` or `fill-layer-opacity`. */
+const switchOf = (type: string) => `${type}-layer-opacity` as 'line-layer-opacity'
+
 /**
- * One switch over `layers`: on while anything they draw is lit (`set`),
- * and off with nothing once `warm`, the map whose idle came since its data
- * was in. Each layer's own type names its property; a layer not on the map
- * is passed over, and one already as wanted is left alone (each set asks
- * the map for a frame). The value is read off the map, not kept: a basemap
- * switch carries the layers across with theirs (basemap.ts). Set when what
- * is lit comes or goes, when the map starts to move (`moved`), and on again
- * at once when the map's programs are lost; never at the warm idle itself.
+ * One switch over `layers`: on while anything they draw is lit (`set`), off
+ * while nothing is. Each layer's own type names its property; a layer not on
+ * the map is passed over, and one already as wanted is left alone (each set
+ * asks the map for a frame). The value is read off the map, not kept: a
+ * basemap switch carries the layers across with theirs (basemap.ts), and a
+ * style made afresh after a lost GL context has it put back at its load.
  */
 export class LayerSwitch {
   readonly layers: readonly string[]
   on = false
-  warm: SwitchMap | null = null
   constructor(layers: readonly string[]) {
     this.layers = layers
   }
@@ -64,74 +65,81 @@ export class LayerSwitch {
     this.apply(map)
   }
 
-  /**
-   * `map`'s first 'idle' since the data was in has come (true): off from the
-   * next move. Or its GL context is back without its programs (false): on
-   * at once, so the frames to come compile them.
-   */
-  warmed(map: SwitchMap, warm: boolean): void {
-    this.warm = warm ? map : null
-    if (!warm) this.apply(map)
-  }
-
-  /** `map` starts to move: what is to be off goes off, in the frames the move draws. */
-  moved(map: SwitchMap): void {
-    this.apply(map)
-  }
-
-  /** The opacity the layers have on `map` now: 1, but 0 when warm and nothing is lit. */
-  value(map: SwitchMap): 0 | 1 {
-    return this.warm === map && !this.on ? 0 : 1
+  /** The opacity the layers have now: 1 while anything is lit, 0 while nothing is. */
+  value(): 0 | 1 {
+    return this.on ? 1 : 0
   }
 
   apply(map: SwitchMap): void {
-    const value = this.value(map)
+    const value = this.value()
     for (const id of this.layers) {
       const layer = map.getLayer(id)
       if (!layer) continue
-      const name = `${layer.type}-layer-opacity` as 'line-layer-opacity'
+      const name = switchOf(layer.type)
       if ((map.getPaintProperty(id, name) ?? 1) !== value) map.setPaintProperty(id, name, value)
     }
   }
 }
 
+/** As much of a map as twinsOf reads: its layers, as MapLibre serializes them. */
+type TwinMap = { getLayer: (id: string) => { serialize?: () => LayerSpecification } | undefined }
+
 /**
- * A switch over `layers` (a constant list) on `map`, warmed by the map's
- * first 'idle' once `primed` — its source has its data — and again after a
- * lost GL context is given back. The hook that lights the layers calls
- * `set` in the effect that sets their feature state. A basemap switch needs
- * nothing of it: the layers ride across with their paint (basemap.ts).
+ * A twin of each of `layers` on `map`: its type and paint as they are now,
+ * but for the switch and its transition, so that it draws (at 1, as the
+ * layer draws when lit) and by the layer's own GL program, a program being
+ * keyed on the type and on which paint varies by feature or zoom
+ * (gl-programs-test). Each paint here reads the feature state to show
+ * anything, and a twin's speck has none: unseen. A layer not on the map
+ * has none.
  */
-export function useLayerSwitch(map: MapLibreMap | null, layers: readonly string[], primed: boolean): LayerSwitch {
+export function twinsOf(map: TwinMap, layers: readonly string[]): Twin[] {
+  return layers.flatMap((id) => {
+    const layer = map.getLayer(id)
+    const spec = (typeof layer?.serialize === 'function' ? layer.serialize() : layer) as LayerSpecification | undefined
+    if (!spec || !('paint' in spec)) return []
+    const paint = Object.fromEntries(Object.entries(spec.paint ?? {}).filter(([k]) => !/-layer-opacity(-transition)?$/.test(k)))
+    return [{ type: spec.type, paint } as Twin]
+  })
+}
+
+/**
+ * A switch over `layers` (a constant list) on `map`, once they are on it
+ * (`added`): their programs compiled by twins at the map's next warm-up,
+ * and again after a lost GL context is given back, and the switch's value
+ * put back at each style's load. The hook that lights the layers calls
+ * `set` in the effect that sets their feature state. A basemap switch
+ * needs nothing of it: the layers ride across with their paint (basemap.ts).
+ */
+export function useLayerSwitch(map: MapLibreMap | null, layers: readonly string[], added: boolean): LayerSwitch {
   const kept = useRef<LayerSwitch | null>(null)
   kept.current ??= new LayerSwitch(layers)
   const sw = kept.current
+  const warmed = useRef<MapLibreMap | null>(null)
   useEffect(() => {
-    if (!map || !primed) return
-    const warm = () => sw.warmed(map, true)
-    // The programs went with the context: on, so the next frames compile
-    // them again, and off from the first move after the next 'idle'
-    // (2026-10-04). MapLibre makes the style
-    // afresh from its own copy a frame after the context is back, these
-    // layers at the opacity they had then, so a style's load is where
-    // they get the switch's value: no 'idle' comes before it.
+    if (!map || !added) return
+    const twins = () => {
+      warmed.current = map
+      return twinsOf(map as unknown as TwinMap, sw.layers)
+    }
+    // Once a map: the programs stay with its GL context.
+    let cancel = warmed.current === map ? () => {} : warmSoon(map, twins)
+    // The programs went with the context; MapLibre makes the style afresh
+    // from its own copy a frame after the context is back, these layers at
+    // the opacity they had then, so a style's load is where they get the
+    // switch's value.
     const restored = () => {
-      sw.warmed(map, false)
-      map.off('idle', warm)
-      map.once('idle', warm)
+      cancel()
+      cancel = warmSoon(map, twins)
     }
     const loaded = () => sw.apply(map)
-    const moved = () => sw.moved(map)
-    if (sw.warm !== map) map.once('idle', warm)
     map.on('webglcontextrestored', restored)
     map.on('style.load', loaded)
-    map.on('movestart', moved)
     return () => {
-      map.off('idle', warm)
+      cancel()
       map.off('webglcontextrestored', restored)
       map.off('style.load', loaded)
-      map.off('movestart', moved)
     }
-  }, [map, primed, sw])
+  }, [map, added, sw])
   return sw
 }

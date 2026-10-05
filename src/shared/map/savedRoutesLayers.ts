@@ -196,7 +196,8 @@ export function addSavedRoutes(
         'line-color': MAP_PAINT['Paint/casing'],
         'line-width': litWidth(CASING_EXTRA),
         'line-opacity': litOpacity(),
-        // Switched off while nothing is lit (layerSwitch.ts): at once, never between.
+        // Switched off while nothing is lit, and from the start (layerSwitch.ts): at once, never between.
+        'line-layer-opacity': 0,
         'line-layer-opacity-transition': { duration: 0, delay: 0 },
       },
     },
@@ -216,6 +217,7 @@ export function addSavedRoutes(
         'line-color-transition': { duration: 0, delay: 0 },
         'line-width': litWidth(),
         'line-opacity': litOpacity(),
+        'line-layer-opacity': 0,
         'line-layer-opacity-transition': { duration: 0, delay: 0 },
       },
     },
@@ -323,8 +325,8 @@ export function useSavedRoutesLayers(
     })
   }, [map, hiddenVariantId])
 
-  // The lit copy and its casing, off while nothing is lit, from the first
-  // 'idle' with the rows in (layerSwitch.ts).
-  const litSwitch = useLayerSwitch(map, LIT_LAYERS, rows.length > 0)
+  // The lit copy and its casing, off while nothing is lit, from the start;
+  // their GL program compiled by a twin while the map is idle (layerSwitch.ts).
+  const litSwitch = useLayerSwitch(map, LIT_LAYERS, map !== null)
   useLighting(map, SRC, lit, true, litSwitch)
 }

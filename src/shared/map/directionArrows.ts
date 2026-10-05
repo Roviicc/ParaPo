@@ -7,7 +7,7 @@ import { endRadius, litWidthAt } from './lineStyle'
 import type { LineLook } from './liveryLine'
 import { ROUTES_HIT_LAYER } from './tap'
 import { LAYERS, TILE_BUFFER, useLayerReady } from './layers'
-import { afterIdle, warmPrograms, type Twin } from './warmPrograms'
+import { warmSoon, type Twin } from './warmPrograms'
 
 /**
  * Which way the jeep goes, drawn on the lit directions only, with a circle
@@ -282,13 +282,14 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
   // the first tap (ENDS_TWIN): once a map, after the first 'idle' that
   // follows their layer's arrival, and again once a lost GL context is
   // given back, its programs gone with it. Not when ends are drawn by then:
-  // drawing them compiled it.
+  // drawing them compiled it. In the same warm-up as the lit layers' twins
+  // since 2026-10-05 (warmSoon; layerSwitch.ts).
   const warmed = useRef<MapLibreMap | null>(null)
   useEffect(() => {
     if (!map || !hitReady || !map.getLayer(ENDS) || warmed.current === map) return
-    return afterIdle(map, () => {
+    return warmSoon(map, () => {
       warmed.current = map
-      if (endsDrawn.current === 0) warmPrograms(map, [ENDS_TWIN])
+      return endsDrawn.current === 0 ? [ENDS_TWIN] : []
     })
   }, [map, hitReady])
   useEffect(() => {
@@ -296,9 +297,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     let cancel = () => {}
     const restored = () => {
       cancel()
-      cancel = afterIdle(map, () => {
-        if (endsDrawn.current === 0 && map.getLayer(ENDS)) warmPrograms(map, [ENDS_TWIN])
-      })
+      cancel = warmSoon(map, () => (endsDrawn.current === 0 && map.getLayer(ENDS) ? [ENDS_TWIN] : []))
     }
     map.on('webglcontextrestored', restored)
     return () => {

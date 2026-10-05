@@ -30,8 +30,10 @@ import { useLayerSwitch } from '../map/layerSwitch'
  * program of its own that the map compiled at the first tap that lit a
  * route, wherever the camera was (its key ended `z_line-opacity`; up to a
  * second of a cheap phone's main thread in the harness, 5–50 ms on a
- * phone). Now the stretches are drawn with the program the lit line and its
- * casing compiled at load, the same pixels from 15 up, and none below it:
+ * phone). Now the stretches are drawn with the program of the lit line and
+ * its casing, compiled before any tap (at load until 2026-10-05, by their
+ * twins while the map is idle since: layerSwitch.ts), the same pixels from
+ * 15 up, and none below it:
  * the step drew nothing there either. Two things differ, neither on a
  * screen held still: zooming out across 15, the stretches go at 15 rather
  * than staying on the zoom-15 tiles shown while the map's zoom-14 ones load;
@@ -59,7 +61,8 @@ export const PASS_LAYER = {
     'line-color': PASS_COLOUR,
     'line-width': litWidth(),
     'line-opacity': litOpacity(),
-    // Switched off while nothing is lit (layerSwitch.ts): at once, never between.
+    // Switched off while nothing is lit, and from the start (layerSwitch.ts): at once, never between.
+    'line-layer-opacity': 0,
     'line-layer-opacity-transition': { duration: 0, delay: 0 },
   },
 } as const satisfies LineLayerSpecification
@@ -116,8 +119,8 @@ export function usePassStretches(
 
   // The stretches follow their direction: the same state, on this source,
   // once it is there; and their layer off while nothing is lit, from the
-  // first 'idle' once it is there. It has nothing to draw till a line is
-  // read, but its GL program is the lit line's, compiled as the map loads.
+  // start. Its GL program is the lit line's, which its twin and the lit
+  // line's compile while the map is idle (layerSwitch.ts).
   const passSwitch = useLayerSwitch(map, PASS_LAYERS, hitReady)
   useLighting(map, SRC, lit, hitReady, passSwitch)
 }
