@@ -362,13 +362,31 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       const how = onAMove(held, drawnAt, viewOf(map))
       if (how !== 'hold') draw(how === 'wide')
     }
+    // A camera call made while another moves the map stops that one, which
+    // says 'moveend', and says 'movestart' at once for its own (MapLibre's
+    // easeTo: _stop, then _prepareEase): the compass camera eases at every
+    // turn of the phone of 3° or more (useLocator.ts), thirty times for a
+    // quarter turn made in a second. So the draw back to the view waits for
+    // the next frame, and is dropped if a move starts first; and a move that
+    // starts inside what is held, at its zoom, draws nothing. Back to back,
+    // such eases cost no draw, where each had cost two, one of them nine
+    // screens' worth (review of step 17, 2026-10-05). What is on screen is
+    // the same: what is held has every chevron a draw for the view makes.
+    let settle = 0
     const onStart = () => {
       moving = true
-      draw(true)
+      cancelAnimationFrame(settle)
+      settle = 0
+      if (onAMove(held, drawnAt, viewOf(map)) !== 'hold') draw(true)
     }
     const onEnd = () => {
-      // Back to the view itself once it stops, as the steps draw them.
-      if (held) draw()
+      // Back to the view itself once it stops, as the steps draw them: a
+      // frame on, and only if nothing has drawn them since.
+      if (held)
+        settle = requestAnimationFrame(() => {
+          settle = 0
+          if (held) draw()
+        })
       moving = false
       last = performance.now()
       const zoom = map.getZoom()
@@ -415,6 +433,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     if (!still) frame.current = requestAnimationFrame(tick)
     return () => {
       cancelAnimationFrame(frame.current)
+      cancelAnimationFrame(settle)
       map.off('move', onMove)
       map.off('movestart', onStart)
       map.off('moveend', onEnd)
