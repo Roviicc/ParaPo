@@ -52,6 +52,13 @@ export const LAYERS = {
  * What it saved there, in vertices in the tiles on screen: at the opening
  * view, the routes 8,592 -> 2,723 (32%) and the hotspots 3,640 -> 1,598
  * (44%); a trip framed, 3,407 -> 2,959 (87%) and 4,013 -> 2,964 (74%).
+ * And in opening the suites' maps of 5,000 directions and 510 hotspots,
+ * the main thread's long tasks, at 32 px and at 128 (on the dev server in
+ * this sandbox, runs taken in turn, 2026-10-05): scale-test 4.4 s and
+ * 5.55, medians of 16 runs each, over its 5 s budget in 3 and in 12;
+ * studio-scale-test 9.9 s and 13.35, 4 runs each, over its 10 s in 2 and
+ * in 4. Whether that is worth edges moved by a fraction of a pixel is the
+ * owner's to say.
  * Not the place wash's either: its dashes start counting where its ring
  * was cut. map-sources-test holds each source to its buffer, and every
  * layer drawn from these two to it, at every zoom.
