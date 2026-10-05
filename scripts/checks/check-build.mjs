@@ -48,6 +48,8 @@
 // 6. Stylesheet order (step 12 too): on each page, the last rule that places
 //    one of MapLibre's four corners is index.css's, inside the safe area, so
 //    the attribution the licence asks for is never under a home indicator.
+//    And each page asks for its stylesheets before its scripts, so over
+//    HTTP/1.1 the first paint does not wait behind them (2026-10-05).
 //
 //   npm run build        (runs this at the end)
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
@@ -205,6 +207,18 @@ const html = (f) => readFileSync(join(dist, f), 'utf8')
 check('index.html links the manifest', /<link rel="manifest" href="\/manifest\.webmanifest">/.test(html('index.html')))
 check('studio/index.html links no manifest — /studio/ is not installable', !/rel="manifest"/.test(html('studio/index.html')))
 check('neither page carries a registration script', !/registerSW|vite-plugin-pwa:/.test(html('index.html') + html('studio/index.html')))
+// Over HTTP/1.1 the scripts ahead of a stylesheet can take all six of a
+// host's connections, and the first paint waits a round trip
+// (vite.config.ts, stylesheetsBeforeScripts, 2026-10-05).
+for (const page of ['index.html', 'studio/index.html']) {
+  const head = html(page).slice(0, html(page).indexOf('</head>'))
+  const sheets = [...head.matchAll(/<link rel="stylesheet"/g)].map((m) => m.index)
+  const scripts = [...head.matchAll(/<script type="module"|<link rel="modulepreload"/g)].map((m) => m.index)
+  check(
+    `${page} asks for its ${sheets.length} stylesheet(s) before its module script and its ${scripts.length - 1} preload(s)`,
+    sheets.length > 0 && scripts.length > 0 && Math.max(...sheets) < Math.min(...scripts),
+  )
+}
 
 const manifestFile = join(dist, 'manifest.webmanifest')
 let webManifest = null
