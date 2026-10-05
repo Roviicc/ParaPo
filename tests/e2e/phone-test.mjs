@@ -11,10 +11,11 @@
 // taps them. A check today's data cannot support prints SKIP instead of failing.
 //
 // Covers: touch chrome — no zoom buttons, attribution moved to the top right,
-// no horizontal scroll; the opening (the owner's Q1, 2026-10-04) — the map
-// made framed on the routes where their fit framed it and kept there, with
-// the file still on its way the old opening and the routes framed as they
-// come, unless a finger has moved the map first; the
+// no horizontal scroll; the opening (the owner's Q1 and Q4, 2026-10-04) — the
+// map made framed on the routes where their fit framed it and kept there,
+// with the file still on its way the old opening and the routes framed as
+// they come, unless a finger has moved the map first, and the page's own
+// gray "Loading map…" before the app runs, taken over unchanged; the
 // forgiving ±20 px tap, with a negative control well outside the box; the
 // trip card a lone route opens (the owner's RouteTripDetail, 2026-09-29) —
 // its ends, its fold (its rows drawn only once it is opened, 2026-10-04),
@@ -324,14 +325,16 @@ check(
 const noHScroll = (p) => p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
 check('no horizontal scroll at load', await noHScroll(page), `scrollWidth ${await page.evaluate(() => document.documentElement.scrollWidth)} vs innerWidth ${await page.evaluate(() => window.innerWidth)}`)
 
-// ------------------------------------------ 1a. the opening, framed
-// The owner's Q1 (2026-10-04). The map is made framed on the routes,
+// ----------------------------------- 1a. the opening: framed, and its gray
+// The owner's Q1 and Q4 (2026-10-04). The map is made framed on the routes,
 // where their fit put it after the map's 'load' until then — the box round
 // every overview in the published file, 100 px clear of the edges, zoom 13
 // at most — so its first tiles are those of the view it keeps; the fit
 // itself no longer moves it. With the file still on its way it opens as it
 // always did and the fit frames the routes as they come, unless a finger has
-// moved the map by then.
+// moved the map by then. And before the app's script has run, the page
+// itself shows the map's gray "Loading map…", which the app's own replaces
+// unchanged.
 {
   /** The camera the routes' fit frames on page `p`'s map (useSavedRoutes, ROUTES_FRAMING). */
   const fitCamera = (p) =>
@@ -463,6 +466,60 @@ check('no horizontal scroll at load', await noHScroll(page), `scrollWidth ${awai
     )
     await p.close()
   }
+
+  // The page before the app: its own gray "Loading map…", read with no
+  // script at all, against the app's own while the map waits for its style.
+  /** "Loading map…" on page `p`: how many, and the first's text and the gray under it, as drawn. */
+  const loadingLook = (p) =>
+    p.evaluate(() => {
+      const ps = [...document.querySelectorAll('p')].filter((e) => e.textContent === 'Loading map…')
+      const el = ps[0]
+      if (!el) return { count: 0 }
+      const s = getComputedStyle(el)
+      const r = el.getBoundingClientRect()
+      // The gray: the page's own screen, or MapView's wrapper under its map.
+      const under = el.parentElement.style.backgroundColor ? el.parentElement : document.querySelector('.bg-surface-secondary')
+      const g = under ? under.getBoundingClientRect() : null
+      return {
+        count: ps.length,
+        text: [s.fontFamily, s.fontSize, s.lineHeight, s.fontWeight, s.color].join(' / '),
+        at: [r.x, r.y, r.width, r.height].map((v) => +v.toFixed(2)).join(','),
+        gray: under ? `${getComputedStyle(under).backgroundColor} ${[g.x, g.y, g.width, g.height].join(',')}` : 'none',
+        marks: document.querySelectorAll('[data-directions], [data-dock-host]').length,
+      }
+    })
+  const still = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, javaScriptEnabled: false })
+  const sp = await still.newPage()
+  await sp.goto(`${BASE}/`, { waitUntil: 'load' })
+  const own = await loadingLook(sp)
+  await still.close()
+  check(
+    "before the app runs, the page shows the map's gray \"Loading map…\", with no data-directions or data-dock-host (the owner's Q4)",
+    own.count === 1 && own.marks === 0 && own.gray.startsWith('oklch(0.97 0 none) 0,0,390,844'),
+    `${own.count} "Loading map…"; ${own.marks} marked; gray ${own.gray}`,
+  )
+  const ap = await context.newPage()
+  watch(ap)
+  await nodeFetch(ap)
+  let styleIn
+  const styleHeld = new Promise((r) => (styleIn = r))
+  await ap.route(/tiles\.openfreemap\.org\/styles\//, async (route) => {
+    await styleHeld
+    await route.fallback()
+  })
+  await ap.goto(`${BASE}/`, { waitUntil: 'load' })
+  await ap.waitForSelector('[data-directions]', { timeout: 30000 }).catch(() => {})
+  const app = await loadingLook(ap)
+  check(
+    '  the app takes it over unchanged: its own, alone, the same gray, text and place',
+    app.count === 1 && app.text === own.text && app.at === own.at && app.gray === own.gray,
+    `page: ${own.text} at ${own.at} on ${own.gray} | app: ${app.count} of them, ${app.text} at ${app.at} on ${app.gray}`,
+  )
+  styleIn()
+  await ap.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 }).catch(() => {})
+  const gone = await loadingLook(ap)
+  check('  and it goes with the map\'s \'load\'', gone.count === 0, `${gone.count} left`)
+  await ap.close()
 }
 
 // ------------------------------------------------------------------- the data
