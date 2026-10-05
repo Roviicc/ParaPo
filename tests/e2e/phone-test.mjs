@@ -238,10 +238,26 @@ function earlyFileRecorder() {
   })
 }
 await page.addInitScript(earlyFileRecorder)
-/** The map file as the app asked for it: every request of the page's but the checks' own (x-parapo-test). */
+/**
+ * The map file as the page asked for it: every request of the page's but
+ * the checks' own (x-parapo-test), each with how it ended, and the page's
+ * loads, so a second request says whether the page was loaded again.
+ */
 const mapFileAsks = []
+let pageLoads = 0
 page.on('request', (req) => {
-  if (/\/data\/index\.v4\.json/.test(req.url()) && !req.headers()['x-parapo-test']) mapFileAsks.push(req.url())
+  if (/\/data\/index\.v4\.json/.test(req.url()) && !req.headers()['x-parapo-test']) mapFileAsks.push({ req, end: 'no answer yet' })
+})
+page.on('requestfinished', async (req) => {
+  const ask = mapFileAsks.find((a) => a.req === req)
+  if (ask) ask.end = `${(await req.response().catch(() => null))?.status() ?? 'no response'}`
+})
+page.on('requestfailed', (req) => {
+  const ask = mapFileAsks.find((a) => a.req === req)
+  if (ask) ask.end = `failed: ${req.failure()?.errorText}`
+})
+page.on('framenavigated', (f) => {
+  if (f === page.mainFrame()) pageLoads++
 })
 
 // ------------------------------------------------------------- 1. the pointer
@@ -417,7 +433,7 @@ check('no horizontal scroll at load', await noHScroll(page), `scrollWidth ${awai
   check(
     '  the page asked for the map file as it was read, and the app took that request, once: the one request for it (step 20)',
     early.leftAt != null && early.takenAt != null && early.leftAt <= early.takenAt && early.reads === 1 && !early.still && mapFileAsks.length === 1,
-    `left by the page at ${early.leftAt ?? 'never'} ms, taken by the app at ${early.takenAt ?? 'never'} ms, read ${early.reads} time(s), ${early.still ? 'still there' : 'gone'}; ${mapFileAsks.length} request(s) for it`,
+    `left by the page at ${early.leftAt ?? 'never'} ms, taken by the app at ${early.takenAt ?? 'never'} ms, read ${early.reads} time(s), ${early.still ? 'still there' : 'gone'}; ${mapFileAsks.length} request(s) for it (${mapFileAsks.map((a) => a.end).join(', ')}) in ${pageLoads} load(s) of the page`,
   )
 
   /** A fresh page on the phone (or in `ctx`) with the map file held back till `release()`: a first visit whose file is still on its way. */
