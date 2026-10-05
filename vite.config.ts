@@ -431,12 +431,12 @@ export default defineConfig({
       },
       // What both pages load, in chunks named for what they are (the
       // cheap-phone plan, step 12, 2026-10-05): MapLibre, React, and the
-      // shared code. As one chunk (355 kB gzipped) any change to
+      // shared code. As one chunk (348 kB gzipped) any change to
       // src/shared or src/design-system gave it a new name, and every
-      // returning phone fetched MapLibre and React again with it: 363 kB
-      // of a deploy's 365 kB, over a link the visitor's index and tiles
+      // returning phone fetched MapLibre and React again with it: 306 kB
+      // of a deploy's 363 kB, over a link the visitor's index and tiles
       // want too. Now the two packages keep their names until they are
-      // upgraded, and such a deploy is the ~50 kB of our own code.
+      // upgraded, and such a deploy is the 56 kB of our own code.
       //  - maplibre-gl-shared (step 14): the code MapLibre's page and
       //    worker files share, in a chunk of its own so that the worker
       //    (maplibreWorkerWithThePage) imports it and nothing of the page.
