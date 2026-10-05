@@ -15,6 +15,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createPropertyExpression, groupByLayout, latest } from '@maplibre/maplibre-gl-style-spec'
 import { TILE_BUFFER, layOutOnce } from '../../src/shared/map/layers.ts'
+import { loadOnce } from '../../src/shared/map/loadOnce.ts'
 import { addSavedRoutes, routesData, unpatched } from '../../src/shared/map/savedRoutesLayers.ts'
 import { addSavedStops, hiddenStopFilters, stopsData } from '../../src/shared/map/savedStopsLayers.ts'
 import { variantLine } from '../../src/shared/model/routes.ts'
@@ -308,6 +309,27 @@ test('laid out once: added with the rows, the effect that follows does nothing; 
   layOutOnce(early, empty, (r) => late.push(r))
   layOutOnce(early, rows, (r) => late.push(r))
   assert.deepEqual(late, [rows])
+})
+
+test('read once as the hooks mount: twice in development under StrictMode was one read; another loader, or a reload, reads again', () => {
+  // The hooks' effect calls loadOnce with their loader; StrictMode runs it twice, the ref kept.
+  const loadedBy = { current: null }
+  const reads = []
+  const listVariants = () => 'routes'
+  const effect = (load) => loadOnce(loadedBy, load, () => reads.push(load()))
+  assert.equal(effect(listVariants), true)
+  assert.equal(effect(listVariants), false)
+  assert.deepEqual(reads, ['routes'])
+  // A loader of another identity (one made each render, which the hooks warn against) reads again.
+  const other = () => 'other'
+  assert.equal(effect(other), true)
+  assert.deepEqual(reads, ['routes', 'other'])
+  // Both hooks run their mount's read through it, keyed on the loader; a reload is the hook's own and reads afresh.
+  for (const file of ['useSavedRoutes.ts', 'useSavedStops.ts']) {
+    const src = readFileSync(new URL(`../../src/shared/map/${file}`, import.meta.url), 'utf8')
+    assert.match(src, /useEffect\(\(\) => \{\n\s*loadOnce\(loadedBy, load, \(\) => void reload\(\)\)\n\s*\}, \[load, reload\]\)/, file)
+    assert.equal((src.match(/void reload\(\)/g) ?? []).length, 1, `${file}: the mount's read only through loadOnce`)
+  }
 })
 
 // ------------------------------------------------------------ (e)

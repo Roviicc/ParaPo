@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
+import { loadOnce } from './loadOnce'
 import { APP_MOVE } from './MapView'
 import type { StopLink, StopSummary } from '../model/stops'
 import type { LngLat } from '../geo/geo'
@@ -79,9 +80,12 @@ export function useSavedStops<S extends StopSummary>(
     }
   }, [load])
 
+  // Once for each loader, however many times React runs the effect: twice
+  // as a page mounts in development (loadOnce.ts).
+  const loadedBy = useRef<typeof load | null>(null)
   useEffect(() => {
-    void reload()
-  }, [reload])
+    loadOnce(loadedBy, load, () => void reload())
+  }, [load, reload])
 
   // What a tap marks, and the place wash (stopsShown.ts).
   // The chosen box let go on its card (HintuanCard's `deselected`): its place's boxes all alike.

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
+import { loadOnce } from './loadOnce'
 import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes'
 import type { Livery } from '../model/liveries'
 import { ROUTES_LINE, useSavedRoutesLayers } from './savedRoutesLayers'
@@ -188,9 +189,12 @@ export function useSavedRoutes<T extends VariantSummary>(
     }
   }, [load])
 
+  // Once for each loader, however many times React runs the effect: twice
+  // as a page mounts in development (loadOnce.ts).
+  const loadedBy = useRef<typeof load | null>(null)
   useEffect(() => {
-    void reload()
-  }, [reload])
+    loadOnce(loadedBy, load, () => void reload())
+  }, [load, reload])
 
   // What is shown and what is lit (routesShown.ts).
   const showing = useMemo(() => showingOf(candidates, back, variants, cardShows), [candidates, back, variants, cardShows])
