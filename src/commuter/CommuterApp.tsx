@@ -4,7 +4,7 @@ import { HintuanCard } from '../shared/cards/HintuanCard'
 import { placeKey } from '../shared/model/places'
 import { MAP_FILE_TOO_NEW, loadLine, loadStopsFromFile, loadVariantsFromFile, openingVariants } from './mapFile'
 import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
-import { METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
+import { METRO_MANILA, MapView } from '../shared/map/MapView'
 import { routesBounds } from '../shared/map/framing'
 import { RouteCardList } from '../shared/cards/RouteCardList'
 import { useCardStack } from '../shared/cards/useCardStack'
@@ -20,12 +20,9 @@ import { Notices } from './Notices'
 import { TripCard } from '../shared/cards/TripCard'
 import { useMapAge, useOffline } from './status'
 import { useStatusBarColour } from './statusBar'
-import { Locator } from './Locator'
-import { LocatorOnMap } from './LocatorIndicatorOverlay'
-import { useLocator } from './useLocator'
-import { useLocatorMood } from './locatorMood'
-import { nearestOnLines, useGazeHush, type Subject } from './dotGaze'
-import type { LngLat } from '../shared/geo/geo'
+import { VisitorLocation } from './VisitorLocation'
+import { useTurn } from './commitTurn'
+import { useGazeHush } from './dotGaze'
 import { variantLine } from '../shared/model/routes'
 
 /**
@@ -67,31 +64,15 @@ export default function CommuterApp() {
   // picked hintuan's ride flowing only as far as there.
   const rides = useLitRides(map, saved, stops.stops, null, ride.ridden)
 
-  // The visitor's own position, when they ask for it, and the camera with
-  // them (the owner's LocatorButton, 2026-10-01): kept clear of the card on
-  // show, as a picked hintuan is.
-  const locator = useLocator(map, {
-    compass: coarse,
-    snap: cards.snap,
-    offset: clearOfOpen,
-  })
-  // How the dot feels: glad as the location comes, a boing at a tap on the
-  // button or on the dot, now and then a huff (locatorMood).
-  const { mood, face, beat, poke } = useLocatorMood(locator)
-  // …and its gaze: at what was just picked, for three seconds (dotGaze.ts) —
-  // a hintuan on the trip card, a place, a trip, a card, or the routes a tap
-  // on the map lists. Keyed by route, not direction, so SWITCH is no pick;
-  // ‹ and ✕ are hushed, so going back picks nothing.
+  // The visitor's own position, the dot and the camera with them live in
+  // VisitorLocation, so a fix, the phone's compass and the dot's moods
+  // render it alone (the cheap-phone plan, step 15, 2026-10-05). Its camera
+  // still moves here, where its hook stood: after the cards' camera above,
+  // which a sheet set to another height moves in the same commit
+  // (commitTurn.ts).
+  const locatorTurn = useTurn()
+  // The dot's gaze is hushed by ‹ and ✕: going back picks nothing (dotGaze.ts).
   const { hush, hushedAt } = useGazeHush()
-  const nearestLit = (lines: LngLat[][]) => (locator.fix ? nearestOnLines(locator.fix.at, lines) : null)
-  const routesOf = (vs: readonly { route_id: string }[]) => [...new Set(vs.map((v) => v.route_id))].sort().join() || null
-  const gazeAt: Subject[] = [
-    { key: ride.pickedId, at: () => ride.pinAt },
-    { key: stops.selected && placeKey(stops.selected), at: () => (stops.selected?.point.coordinates as LngLat | undefined) ?? null },
-    { key: saved.selected?.route_id ?? null, at: () => nearestLit(saved.selected ? [variantLine(saved.selected)] : []) },
-    { key: saved.highlight && `${saved.highlight.where}:${saved.highlight.from}`, at: () => nearestLit(saved.litVariants.map(variantLine)) },
-    { key: routesOf(saved.candidates), at: () => nearestLit(saved.litVariants.map(variantLine)) },
-  ]
   const offline = useOffline()
   // The phone's status bar in the map's colour (statusBar.ts).
   useStatusBarColour(map)
@@ -117,8 +98,27 @@ export default function CommuterApp() {
         its style is in (`openOn`, the owner's Q1 of 2026-10-04).
       */}
       <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} openOn={openOnRoutes} />
-      {map && <Locator locator={locator} docked={cards.open} />}
-      {map && locator.fix && <LocatorOnMap map={map} fix={locator.fix} heading={locator.heading} mood={mood} face={face} beat={beat} gazeAt={gazeAt} hushedAt={hushedAt} onPoke={poke} />}
+      {/*
+        The visitor's own position, and the camera with them, kept clear of
+        the card on show; the dot gazes at what was just picked.
+      */}
+      <VisitorLocation
+        map={map}
+        snap={cards.snap}
+        offset={clearOfOpen}
+        docked={cards.open}
+        cameraTurn={locatorTurn}
+        picks={{
+          pickedId: ride.pickedId,
+          pinAt: ride.pinAt,
+          place: stops.selected,
+          trip: saved.selected,
+          highlight: saved.highlight,
+          candidates: saved.candidates,
+          litVariants: saved.litVariants,
+        }}
+        hushedAt={hushedAt}
+      />
       {/* Each lit ride's ends, named over their circles; with no trip open, a tail opens its ride's. */}
       {map && (
         <EndTitles

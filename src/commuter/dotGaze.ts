@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { M_PER_DEG, nearestOnSegment, type LngLat } from '../shared/geo/geo'
+import type { Highlight } from '../shared/map/useSavedRoutes'
+import { placeKey } from '../shared/model/places'
+import { variantLine, type VariantSummary } from '../shared/model/routes'
+import type { StopSummary } from '../shared/model/stops'
 
 /**
  * The dot's gaze at what was just picked (the owner's ask, 2026-10-01: "when
@@ -69,6 +73,42 @@ export function nearestOnLines(p: LngLat, lines: readonly (readonly LngLat[])[])
  * null while nothing is; `at` says where it is, asked as it is picked.
  */
 export type Subject = { key: string | null; at: () => LngLat | null }
+
+/** What the public map has picked, for the dot to gaze at (gazeSubjects). */
+export type Picks = {
+  /** The hintuan picked on the trip card, and where its circle is (useRideTo). */
+  pickedId: string | null
+  pinAt: LngLat | null
+  /** The hotspot whose card is open. */
+  place: StopSummary | null
+  /** The open trip. */
+  trip: VariantSummary | null
+  /** The RouteCard picked, in the list or on a hotspot's card. */
+  highlight: Highlight | null
+  /** What the route list lists, and what is lit. */
+  candidates: readonly { route_id: string }[]
+  litVariants: readonly VariantSummary[]
+}
+
+/**
+ * The public map's subjects, first wins (useDotGaze): a hintuan on the trip
+ * card, a place, a trip, a card, or the routes a tap on the map lists —
+ * keyed by route, not direction, so SWITCH is no pick. A route is gazed at
+ * where it comes nearest the visitor at `from` (their fix). Built where the
+ * dot is (VisitorLocation) since 2026-10-05, word for word as CommuterApp
+ * built them.
+ */
+export function gazeSubjects(p: Picks, from: LngLat | null): Subject[] {
+  const nearestLit = (lines: LngLat[][]) => (from ? nearestOnLines(from, lines) : null)
+  const routesOf = (vs: readonly { route_id: string }[]) => [...new Set(vs.map((v) => v.route_id))].sort().join() || null
+  return [
+    { key: p.pickedId, at: () => p.pinAt },
+    { key: p.place && placeKey(p.place), at: () => (p.place?.point.coordinates as LngLat | undefined) ?? null },
+    { key: p.trip?.route_id ?? null, at: () => nearestLit(p.trip ? [variantLine(p.trip)] : []) },
+    { key: p.highlight && `${p.highlight.where}:${p.highlight.from}`, at: () => nearestLit(p.litVariants.map(variantLine)) },
+    { key: routesOf(p.candidates), at: () => nearestLit(p.litVariants.map(variantLine)) },
+  ]
+}
 
 /** A change this soon after ‹ or ✕ is the way back, not a pick. */
 const HUSH_MS = 500

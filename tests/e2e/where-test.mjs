@@ -17,7 +17,9 @@
 // camera follows; a drag lets go (TrackOwnLocation) and a tap comes back; the
 // next tap tilts the camera, 200 m on the bar, turned the way the compass says
 // (TracksTheMapBasedOnCompassFacing), and turns with it; the next puts north
-// up again, and the next tilts again; an app camera move lets go; a browser
+// up again, and the next tilts again; an app camera move lets go; a route
+// tapped draws the dot's gaze, and the card it opened set to another height
+// while the camera follows keeps the camera on the visitor; a browser
 // that refuses says so; a GPS with no fix says so without a second watch;
 // with no compass read, TrackedLocation's tap only comes back;
 // and with a mouse there is no compass, the button sitting bottom right.
@@ -318,6 +320,35 @@ if (!onLine) {
     `gaze ${deg}°; eyes ${JSON.stringify(eyes)}`,
   )
   check('  and after three seconds they wander again', await until(async () => (await dot.getAttribute('data-gaze')) === null, 4500), `${await dot.getAttribute('data-gaze')}`)
+
+  // The card that tap opened set to another height while the camera follows
+  // the visitor: the card's overview starts (useHeightOverview) and the
+  // camera following the visitor takes over in the same commit, as it did
+  // when the locator's hooks were CommuterApp's own, after the cards'. Since
+  // they moved into VisitorLocation, which React runs before the page's own
+  // effects, its camera waits for the page's turn (commitTurn.ts; the
+  // cheap-phone plan, step 15, 2026-10-05). It stays on the visitor, at the
+  // zoom it followed at.
+  // A list where routes share the road, or a trip's card: either has a handle.
+  const handle = page.locator('button[data-testid="dock-handle"]:visible').first()
+  if (!(await handle.count())) {
+    check('a card set to another height while the camera follows: it stays on the visitor', false, 'no card open after the route tap')
+  } else {
+    await button.click()
+    await until(async () => (await mode()) === 'TrackedLocation', 3000)
+    await page.waitForTimeout(1200)
+    const following = await camera(page)
+    const was = await onScreen(page, p)
+    await handle.click()
+    await page.waitForTimeout(1500)
+    const now = await camera(page)
+    const is = await onScreen(page, p)
+    check(
+      'a card set to another height while the camera follows: it stays on the visitor, at its zoom, the card\'s overview overtaken',
+      Math.abs(now.zoom - following.zoom) < 0.05 && Math.abs(is.x - is.w / 2) < 4 && is.y > 0 && is.y < is.h,
+      `zoom ${following.zoom.toFixed(2)} → ${now.zoom.toFixed(2)}, the visitor at ${is.x.toFixed(0)},${is.y.toFixed(0)} (was ${was.x.toFixed(0)},${was.y.toFixed(0)})`,
+    )
+  }
 }
 check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
 await page.close()
