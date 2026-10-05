@@ -104,11 +104,11 @@ let settled: { file: MapFile | null } | null = null
  * cheap-phone plan, step 20, 2026-10-04): vite.config.ts writes that script
  * into the page's <head>, with MAP_FILE_URL, so the file is asked for as the
  * page is read rather than once the app's script has come and run — 355 kB
- * on the wire before it, about 3.3 s of a slow phone network. The script
- * leaves a promise of the answer and, for an ok one, of its body read as
- * JSON (undefined for a body that is not); it asks with `no-cache`, as
- * loadMapFile does, and at low priority, so the app's own script keeps the
- * link first.
+ * on the wire before it when this was written, about 3.3 s of a slow phone
+ * network; 385 kB since step 14 (2026-10-05). The script leaves a promise
+ * of the answer and, for an ok one, of its body read as JSON (undefined for
+ * a body that is not); it asks with `no-cache`, as loadMapFile does, and at
+ * low priority, so the app's own script keeps the link first.
  */
 export const EARLY_MAP_FILE = '__parapoMapFile'
 

@@ -113,14 +113,14 @@ function readOutDir(): Plugin {
  * plan, step 20, 2026-10-04): a few lines of plain script in the <head> of
  * the root index.html, ahead of the app's own script and stylesheets (a
  * script after a stylesheet waits for it), so the 22 kB file comes over
- * while the app's 355 kB still downloads, and the routes can go onto the
- * map as soon as its style is in (the owner's Q1, MapView's `openOn`).
- * mapFile.ts takes the answer once, under EARLY_MAP_FILE, and treats it as
- * the one it would have fetched itself. `no-cache`, as mapFile.ts asks: the
- * file keeps no hash in its name. Low priority: the app's script, which
- * needs the whole link, keeps it first. The studio's page reads the live
- * tables and gets none. Not a word of the registration here: check-build.mjs
- * fails a page that carries one.
+ * while the app's 385 kB (355 before step 14, 2026-10-05) still downloads,
+ * and the routes can go onto the map as soon as its style is in (the
+ * owner's Q1, MapView's `openOn`). mapFile.ts takes the answer once, under
+ * EARLY_MAP_FILE, and treats it as the one it would have fetched itself.
+ * `no-cache`, as mapFile.ts asks: the file keeps no hash in its name. Low
+ * priority: the app's script, which needs the whole link, keeps it first.
+ * The studio's page reads the live tables and gets none. Not a word of the
+ * registration here: check-build.mjs fails a page that carries one.
  */
 function mapFileEarly(): Plugin {
   const script =

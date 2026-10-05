@@ -25,8 +25,9 @@
   <body>
     <!--
       The map's own "Loading map…" (MapView.tsx), drawn by the page itself, so the first thing
-      painted is the map's gray and not a white page while the app's script downloads, 355 kB
-      on the wire, about 3.3 s of a slow phone network (the owner's Q4, 2026-10-04). React empties
+      painted is the map's gray and not a white page while the app's script downloads (the
+      owner's Q4, 2026-10-04): 355 kB on the wire then, about 3.3 s of a slow phone network, and
+      385 kB since the cheap-phone plan's step 14 (2026-10-05). React empties
       #root as it first renders into it, and MapView's own takes its place in the same frame: the
       same gray (bg-surface-secondary, Tailwind's neutral-100), the same text in the same face,
       size, line and colour (text-sm, text-neutral-500), in the same place, written out here
