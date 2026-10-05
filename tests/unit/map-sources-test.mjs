@@ -3,15 +3,17 @@
 // drawn from them still fits in that (d); the routes and the hotspots are
 // laid out as their sources are added, when they are in by then, and not a
 // second time (c); and a full line read is patched into the routes once (e).
+// And the hotspots' three box fills, as they are added, are one bucket for
+// MapLibre's worker (step 5, 2026-10-05).
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/map-sources-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { createPropertyExpression, latest } from '@maplibre/maplibre-gl-style-spec'
+import { createPropertyExpression, groupByLayout, latest } from '@maplibre/maplibre-gl-style-spec'
 import { TILE_BUFFER, layOutOnce } from '../../src/shared/map/layers.ts'
 import { addSavedRoutes, routesData, unpatched } from '../../src/shared/map/savedRoutesLayers.ts'
-import { addSavedStops, stopsData } from '../../src/shared/map/savedStopsLayers.ts'
+import { addSavedStops, hiddenStopFilters, stopsData } from '../../src/shared/map/savedStopsLayers.ts'
 import { variantLine } from '../../src/shared/model/routes.ts'
 import { stopRing } from '../../src/shared/model/stops.ts'
 import { labelGroups } from '../../src/shared/model/places.ts'
@@ -131,6 +133,40 @@ test('none of their lines is dashed, patterned or graded: those count from where
   const { layers } = allAdded()
   for (const l of layers.filter((x) => BUFFERED.includes(x.source) && x.type === 'line')) {
     for (const name of ['line-dasharray', 'line-pattern', 'line-gradient']) assert.equal(l.paint?.[name], undefined, `${l.id}: ${name}`)
+  }
+})
+
+// ------------------------------------------------------------ the hotspots' buckets (step 5)
+
+/**
+ * A layer as MapLibre's worker is handed it to group (StyleLayer.serialize,
+ * style_layer_index.ts): an empty layout left out, as serialize leaves it.
+ */
+const asSerialized = ({ layout, ...spec }) => (layout && Object.keys(layout).length ? { ...spec, layout } : spec)
+
+/**
+ * The ids of each fill bucket the worker lays the hotspots' source out in:
+ * MapLibre's own groupByLayout over their type, source, zooms, filter and
+ * layout. Each bucket's boxes are triangulated and uploaded once.
+ */
+const stopFillBuckets = (layers) =>
+  groupByLayout(layers.filter((l) => l.source === 'saved-stops').map(asSerialized))
+    .filter((g) => g[0].type === 'fill')
+    .map((g) => g.map((l) => l.id).sort())
+
+test("the hotspots' three box fills are one bucket as they are added, as the public map keeps them, and with the studio's filters set", () => {
+  const { layers } = allAdded()
+  const ONE = [['saved-stops-fill', 'saved-stops-hatch', 'saved-stops-siblings']]
+  // The public map sets no filter on them (applyHidden; map-style-test), so
+  // what is added is what the worker groups, for good: one fill bucket, where
+  // a filter or a layout of SIBLINGS' or HATCH's own would make it two.
+  assert.deepEqual(stopFillBuckets(layers), ONE)
+  // The studio's, set on these very layers: none hidden, and one box hidden.
+  for (const hidden of ['', 'b1']) {
+    const set = new Map(hiddenStopFilters(hidden))
+    assert.ok(layers.some((l) => set.has(l.id)), 'the filters are for these layers')
+    const filtered = layers.map((l) => (set.has(l.id) ? { ...l, filter: set.get(l.id) } : l))
+    assert.deepEqual(stopFillBuckets(filtered), ONE, `hidden '${hidden}'`)
   }
 })
 
