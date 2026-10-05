@@ -24,6 +24,15 @@ import { countLongTasks, startProfile, whereItWent } from './lib/profile.mjs'
 
 /** Seconds from the navigation to the first route line on the screen. */
 const LINES_WITHIN_S = 5
+/**
+ * Seconds from the navigation to the map's 'load', which takes "Loading
+ * map…" away and brings the basemap control. Until 2026-10-04 the first
+ * line was read only once 'load' had come, so its 5 s held 'load' too; the
+ * line is read on its own since the routes are drawn before 'load' (the
+ * owner's Q1), and 'load' now waits for them. The same 5 s, said on its own
+ * (review of Q1, 2026-10-05); a budget of the owner's would replace it.
+ */
+const LOAD_WITHIN_S = 5
 /** Seconds the main thread may spend in long tasks while opening. */
 const BUSY_WITHIN_S = 5
 /** Seconds from a tap on a line to its orange stretches, its full line read. */
@@ -114,7 +123,7 @@ const budgetMs = LINES_WITHIN_S * 1000 + 30_000
 // Each from the navigation, side by side: the first line comes before the
 // map's 'load' since 2026-10-04, and read after it, it was stamped at the
 // 'load' (4.3-5.2 s here, the line itself on the screen at 3.1-3.2 s, as
-// before).
+// before). The 'load' has its own budget since (LOAD_WITHIN_S).
 await Promise.all([
   mark('map load', () => !!window.__map && window.__map.loaded(), budgetMs),
   mark('routes in the source', async () => ((await window.__src('saved-routes'))?.features?.length ?? 0) > 0, budgetMs),
@@ -159,6 +168,7 @@ check('every direction reached the map', routes === big.variants.length, `${rout
 check('no orange stretch is worked out at load: none is lit', stretchesAtLoad === 0, `${stretchesAtLoad} stretch(es)`)
 check(`a tap on a line reads its full line and works out its orange stretches within ${LIT_WITHIN_S} s`, stretches > 0 && litIn <= LIT_WITHIN_S * 1000, `${stretches} stretch(es) in ${s(litIn)}`)
 check(`the first line is on the screen within ${LINES_WITHIN_S} s`, marks['lines on the screen'] != null && marks['lines on the screen'] <= LINES_WITHIN_S * 1000, s(marks['lines on the screen']))
+check(`the map's 'load' within ${LOAD_WITHIN_S} s`, marks['map load'] != null && marks['map load'] <= LOAD_WITHIN_S * 1000, s(marks['map load']))
 check(`the main thread is busy under ${BUSY_WITHIN_S} s while opening`, busy <= BUSY_WITHIN_S * 1000, `${(busy / 1000).toFixed(1)} s in long tasks`)
 check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
 
