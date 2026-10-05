@@ -39,11 +39,12 @@
 // 5. Weight (stage 6 of the clean-up, 2026-09-29): the fonts are under
 //    120 kB together, and what both pages share — MapLibre, React and the
 //    shared code — is under 400 kB gzipped, so neither creeps back
-//    unnoticed. The fonts are precached. Since the cheap-phone plan's step 12
-//    (2026-10-05) that is three chunks, named in vite.config.ts, each with a
-//    ceiling of its own: `maplibre` and `react` hold only their packages and
-//    import none of our code, so a deploy of ours leaves their names alone,
-//    and one in the wrong group is too heavy for its ceiling.
+//    unnoticed. The fonts are precached. Since the cheap-phone plan's steps
+//    12 and 14 (2026-10-05) that is four chunks, named in vite.config.ts,
+//    each with a ceiling of its own: `maplibre`, `maplibre-gl-shared` and
+//    `react` hold only their packages and import none of our code, so a
+//    deploy of ours leaves their names alone, and `shared` holds our code;
+//    one in the wrong group is too heavy for its ceiling.
 //
 // 6. Stylesheet order (step 12 too): on each page, the last rule that places
 //    one of MapLibre's four corners is index.css's, inside the safe area, so
@@ -354,12 +355,14 @@ for (const { name, maxGzKb, vendor, packages, only, holds } of GROUPS) {
     ...(only ? files.flatMap((f) => modules[f] ?? []).filter((id) => !only.test(id)) : []),
   ]
   const ours = vendor ? sourceModules(files) : []
-  // Rolldown's runtime is a few helpers, the same whatever we write.
+  // Rolldown's runtime and Vite's preload helper (vite-preload, which a
+  // package's dynamic import would bring) are a few helpers each, the same
+  // whatever we write.
   const imports = vendor
     ? chunks
         .flatMap((c) => c.imports ?? [])
         .map((k) => manifest[k].file)
-        .filter((f) => !vendorFiles.includes(f) && !/^assets\/rolldown-runtime-[\w-]+\.js$/.test(f))
+        .filter((f) => !vendorFiles.includes(f) && !/^assets\/(rolldown-runtime|vite-preload)-[\w-]+\.js$/.test(f))
     : []
   check(
     `the ${name} chunk holds ${holds}`,
