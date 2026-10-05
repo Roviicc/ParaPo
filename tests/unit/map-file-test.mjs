@@ -226,6 +226,125 @@ test("step 20: index.html's answer is read as the page's own was: an error, the 
   }
 })
 
+// The owner's Q1 (2026-10-04): the public map opens framed on the routes
+// (MapView's `openOn`), asked for as the map is made. The map file's when
+// its load has ended by then, read from nothing else; the copy the worker
+// kept on an earlier visit while it is on its way, read only then; none with
+// neither.
+const kept = { ...base, published_at: '2026-09-30T00:00:00Z', variants: [{ ...direction, id: 'kept', overview: { type: 'LineString', coordinates: [[121.1, 14.6], [121.2, 14.65]] } }] }
+/** A worker's store holding `stored` by path, counting what it is asked; `gate` holds each answer back until it settles. */
+const store = (stored, gate = Promise.resolve()) => {
+  const asked = []
+  globalThis.caches = {
+    match: async (url, { cacheName }) => {
+      asked.push(url)
+      await gate
+      return cacheName === 'map-file' && stored[url] ? json(stored[url]) : undefined
+    },
+  }
+  return asked
+}
+
+test("Q1: the framing is the map file's once its load has ended, and the kept copy is not read for it", async () => {
+  index({ ...base, variants: [direction] })
+  const asked = store({ '/data/index.v4.json': kept })
+  try {
+    const { loadMapFile, openingVariants } = await fresh()
+    const file = await loadMapFile()
+    assert.deepEqual(await openingVariants(), file.variants)
+    assert.deepEqual(asked, [], 'the store not asked')
+  } finally {
+    delete globalThis.caches
+  }
+})
+
+test('Q1: while the file is on its way, the copy kept from an earlier visit frames the opening', async () => {
+  globalThis.fetch = () => new Promise(() => {})
+  const asked = store({ '/data/index.v4.json': kept })
+  try {
+    const a = await fresh()
+    void a.loadMapFile()
+    assert.deepEqual((await a.openingVariants()).map((v) => v.id), ['kept'])
+    assert.deepEqual(asked, ['/data/index.v4.json'])
+    // Before any load at all, the same; with nothing kept and no load, nothing.
+    assert.deepEqual((await (await fresh()).openingVariants()).map((v) => v.id), ['kept'])
+    store({})
+    assert.equal(await (await fresh()).openingVariants(), null)
+  } finally {
+    delete globalThis.caches
+  }
+})
+
+test('Q1: with no copy kept, the file on its way once it comes (MapView waits a second at most); none if it fails', async () => {
+  let arrive
+  globalThis.fetch = () =>
+    new Promise((done) => {
+      arrive = () => done(json({ ...base, variants: [direction] }))
+    })
+  store({})
+  try {
+    const a = await fresh()
+    void a.loadMapFile()
+    let framing = null
+    const opening = a.openingVariants().then((v) => (framing = v))
+    await new Promise((done) => setTimeout(done, 10))
+    assert.equal(framing, null, 'still waiting for the file')
+    arrive()
+    await opening
+    assert.deepEqual(framing.map((v) => v.id), ['d1'])
+    // No worker's store at all: the same.
+    delete globalThis.caches
+    const b = await fresh()
+    void b.loadMapFile()
+    const later = b.openingVariants()
+    arrive()
+    assert.deepEqual((await later).map((v) => v.id), ['d1'])
+    // The file failing, nothing kept: nothing to open on.
+    globalThis.fetch = async () => {
+      throw new TypeError('Failed to fetch')
+    }
+    const c = await fresh()
+    c.loadMapFile().catch(() => {})
+    assert.equal(await c.openingVariants(), null)
+  } finally {
+    delete globalThis.caches
+  }
+})
+
+test('Q1: a file that comes while the kept copy is read is the one opened on', async () => {
+  let arrive
+  globalThis.fetch = () =>
+    new Promise((done) => {
+      arrive = () => done(json({ ...base, variants: [direction] }))
+    })
+  let open
+  store({ '/data/index.v4.json': kept }, new Promise((done) => (open = done)))
+  try {
+    const { loadMapFile, openingVariants } = await fresh()
+    const loading = loadMapFile()
+    const framing = openingVariants()
+    await new Promise((done) => setTimeout(done, 0))
+    arrive()
+    await loading
+    open()
+    assert.deepEqual((await framing).map((v) => v.id), ['d1'])
+  } finally {
+    delete globalThis.caches
+  }
+})
+
+test('Q1: a load that failed, with no copy kept, opens on nothing; the next load is asked for again', async () => {
+  globalThis.fetch = async () => {
+    throw new TypeError('Failed to fetch')
+  }
+  const { loadMapFile, openingVariants } = await fresh()
+  await assert.rejects(loadMapFile(), { message: 'Failed to fetch' })
+  assert.equal(await openingVariants(), null)
+  index({ ...base, variants: [direction] })
+  await loadMapFile()
+  assert.deepEqual((await openingVariants()).map((v) => v.id), ['d1'])
+})
+
 // The committed files, as the publish wrote them.
 const data = new URL('../../public/data/', import.meta.url)
 const read = (name) => JSON.parse(readFileSync(new URL(name, data), 'utf8'))

@@ -11,10 +11,14 @@
 // taps them. A check today's data cannot support prints SKIP instead of failing.
 //
 // Covers: touch chrome — no zoom buttons, attribution moved to the top right,
-// no horizontal scroll; the forgiving ±20 px tap, with a negative control well
-// outside the box; the trip card a lone route opens (the owner's
-// RouteTripDetail, 2026-09-29) — its ends, its fold (its rows drawn only
-// once it is opened, 2026-10-04), SWITCH keeping its
+// no horizontal scroll; the opening (the owner's Q1, 2026-10-04) — the map
+// made framed on the routes where their fit framed it and kept there, with
+// the file still on its way the old opening and the routes framed as they
+// come, unless a finger has moved the map first; the
+// forgiving ±20 px tap, with a negative control well outside the box; the
+// trip card a lone route opens (the owner's RouteTripDetail, 2026-09-29) —
+// its ends, its fold (its rows drawn only once it is opened, 2026-10-04),
+// SWITCH keeping its
 // colour, ‹ only where another route sharing an end runs its way; the route list
 // where two routes share a road ("N Routes", a card per place), the trip a
 // row opens in its card's colour and ‹ back to the list, every card at rest; a tap
@@ -180,6 +184,34 @@ await page.addInitScript(() => {
 })
 await page.addInitScript(lookReaders)
 
+/**
+ * In the page, before the app starts: the map from its making (MapView
+ * hands it out as window.__mapEarly in dev, 2026-10-04) — the camera it was
+ * made at, the camera at its 'load', and each move of it since, a
+ * visitor's (`gesture`, one carrying the input that made it) or another.
+ */
+function openingRecorder() {
+  let early = null
+  const cam = (m) => {
+    const c = m.getCenter()
+    return { lng: c.lng, lat: c.lat, zoom: m.getZoom(), bearing: m.getBearing(), pitch: m.getPitch() }
+  }
+  window.__opening = { made: null, atLoad: null, moves: [] }
+  Object.defineProperty(window, '__mapEarly', {
+    configurable: true,
+    get: () => early,
+    set(m) {
+      early = m
+      window.__opening.made = cam(m)
+      m.on('movestart', (e) => window.__opening.moves.push(e?.originalEvent ? 'gesture' : 'other'))
+      m.once('load', () => {
+        window.__opening.atLoad = cam(m)
+      })
+    },
+  })
+}
+await page.addInitScript(openingRecorder)
+
 // ------------------------------------------------------------- 1. the pointer
 // Everything below assumes the page believes it is being touched. Playwright's
 // mobile emulation usually reports `pointer: coarse` on its own; where it does
@@ -291,6 +323,147 @@ check(
 )
 const noHScroll = (p) => p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
 check('no horizontal scroll at load', await noHScroll(page), `scrollWidth ${await page.evaluate(() => document.documentElement.scrollWidth)} vs innerWidth ${await page.evaluate(() => window.innerWidth)}`)
+
+// ------------------------------------------ 1a. the opening, framed
+// The owner's Q1 (2026-10-04). The map is made framed on the routes,
+// where their fit put it after the map's 'load' until then — the box round
+// every overview in the published file, 100 px clear of the edges, zoom 13
+// at most — so its first tiles are those of the view it keeps; the fit
+// itself no longer moves it. With the file still on its way it opens as it
+// always did and the fit frames the routes as they come, unless a finger has
+// moved the map by then.
+{
+  /** The camera the routes' fit frames on page `p`'s map (useSavedRoutes, ROUTES_FRAMING). */
+  const fitCamera = (p) =>
+    p.evaluate(async () => {
+      const f = await (await fetch('/data/index.v4.json', { headers: { 'x-parapo-test': '1' } })).json()
+      let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity]
+      for (const v of f.variants) {
+        for (const [x, y] of v.overview?.coordinates ?? []) {
+          if (x < w) w = x
+          if (x > e) e = x
+          if (y < s) s = y
+          if (y > n) n = y
+        }
+      }
+      const c = window.__map.cameraForBounds([[w, s], [e, n]], { padding: 100, maxZoom: 13 })
+      return { lng: c.center.lng, lat: c.center.lat, zoom: c.zoom, bearing: 0, pitch: 0 }
+    })
+  const camOf = (p) =>
+    p.evaluate(() => {
+      const m = window.__map
+      const c = m.getCenter()
+      return { lng: c.lng, lat: c.lat, zoom: m.getZoom(), bearing: m.getBearing(), pitch: m.getPitch() }
+    })
+  /** The same camera, to a billionth of a degree and of a zoom level. */
+  const sameCam = (a, b) =>
+    !!a && !!b && ['lng', 'lat', 'zoom', 'bearing', 'pitch'].every((k) => Math.abs(a[k] - b[k]) < 1e-9)
+  const showCam = (c) => (c ? `${c.lng.toFixed(5)},${c.lat.toFixed(5)} z${c.zoom.toFixed(4)}` : 'none')
+
+  const want = await fitCamera(page)
+  const opening = await page.evaluate(() => window.__opening)
+  const now = await camOf(page)
+  check(
+    "the map is made framed on the routes, where their fit framed it: padding 100, zoom 13 at most (the owner's Q1)",
+    sameCam(opening.made, want),
+    `made at ${showCam(opening.made)}; the fit's ${showCam(want)}`,
+  )
+  check(
+    '  and stays there: the same camera at its \'load\' and at rest, never moved since',
+    sameCam(opening.atLoad, want) && sameCam(now, want) && opening.moves.length === 0,
+    `at 'load' ${showCam(opening.atLoad)}, now ${showCam(now)}; ${opening.moves.length} move(s)${opening.moves.length ? ': ' + opening.moves.join(', ') : ''}`,
+  )
+
+  /** A fresh page on the phone with the map file held back till `release()`: a first visit whose file is still on its way. */
+  const heldBack = async () => {
+    const p = await context.newPage()
+    watch(p)
+    await nodeFetch(p)
+    await p.addInitScript(openingRecorder)
+    let release
+    const held = new Promise((r) => (release = r))
+    await p.route(/\/data\/index\.v4\.json/, async (route) => {
+      await held
+      await route.fallback()
+    })
+    await p.goto(`${BASE}/`, { waitUntil: 'load' })
+    await p.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
+    return { p, release }
+  }
+  /** Lets the file through, and waits for the routes on the map, then for anything their coming moves. */
+  const routesCome = async (p, release) => {
+    release()
+    const until = Date.now() + 20000
+    while (Date.now() < until) {
+      const on = await p.evaluate(async () => ((await window.__map.getSource('saved-routes')?.getData())?.features.length ?? 0) > 0)
+      if (on) break
+      await p.waitForTimeout(100)
+    }
+    await p.waitForTimeout(1500)
+    await p.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 5000 }).catch(() => {})
+  }
+
+  // With no file to frame on, the old opening; the fit then frames the
+  // routes as they come, and the camera ends where it always ended.
+  {
+    const { p, release } = await heldBack()
+    const made = await p.evaluate(() => window.__opening.made)
+    await routesCome(p, release)
+    const end = await camOf(p)
+    const fit = await fitCamera(p)
+    check(
+      '  the file still on its way: the map opens as it did (zoom 11), and the routes are framed as they come, the fit\'s camera',
+      made?.zoom === 11 && sameCam(end, fit),
+      `made at ${showCam(made)}; ends at ${showCam(end)}; the fit's ${showCam(fit)}`,
+    )
+    await p.close()
+  }
+
+  // A finger on the map before they come keeps it where it took it.
+  {
+    const { p, release } = await heldBack()
+    const before = await camOf(p)
+    const x = 195
+    const y = 422
+    const pdc = await context.newCDPSession(p)
+    let how = 'touch'
+    try {
+      await pdc.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
+      for (let i = 1; i <= 8; i++) {
+        await pdc.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x - 15 * i, y: y - 20 * i }] })
+        await p.waitForTimeout(16)
+      }
+      // Held still before letting go: no fling to carry it on.
+      await p.waitForTimeout(250)
+      await pdc.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    } catch {}
+    await p.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 5000 }).catch(() => {})
+    if (sameCam(await camOf(p), before)) {
+      // The runner made no touch of it: the same drag with a mouse.
+      how = 'mouse'
+      await p.mouse.move(x, y)
+      await p.mouse.down()
+      for (let i = 1; i <= 8; i++) {
+        await p.mouse.move(x - 15 * i, y - 20 * i)
+        await p.waitForTimeout(16)
+      }
+      await p.waitForTimeout(250)
+      await p.mouse.up()
+      await p.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 5000 }).catch(() => {})
+    }
+    const dragged = await camOf(p)
+    await routesCome(p, release)
+    const end = await camOf(p)
+    const fit = await fitCamera(p)
+    const moves = await p.evaluate(() => window.__opening.moves)
+    check(
+      '  a finger moving the map before they come keeps it where it took it: the fit does not take it back',
+      !sameCam(dragged, before) && sameCam(end, dragged) && !sameCam(end, fit) && moves.every((m) => m === 'gesture'),
+      `dragged by ${how} from ${showCam(before)} to ${showCam(dragged)}; ends at ${showCam(end)}; the fit's ${showCam(fit)}; moves: ${moves.join(', ') || 'none'}`,
+    )
+    await p.close()
+  }
+}
 
 // ------------------------------------------------------------------- the data
 const snapshot = await page.evaluate(async () => {

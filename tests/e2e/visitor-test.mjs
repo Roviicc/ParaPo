@@ -18,7 +18,8 @@
 // hotspot — including one hotspot with a route drawn through it — opens the
 // right card with the right content; and, since 2026-10-04, that the end
 // circles' GL program is compiled before any tap and a trip's tap compiles
-// none.
+// none, and that the map is made framed on the routes, where their fit
+// framed it, and stays there (the owner's Q1).
 import { chromium } from 'playwright'
 import { BASE, harness, nodeFetch, waitForSource } from './lib/harness.mjs'
 import { centroidOf, pointInPolygon } from './lib/geo.mjs'
@@ -114,6 +115,25 @@ await page.addInitScript(() => {
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
 })
 await page.addInitScript(lookReaders)
+// The map from its making (window.__mapEarly, MapView, in dev): the camera
+// it was made at, the camera at its 'load', and how many times it has moved.
+await page.addInitScript(() => {
+  let early = null
+  const cam = (m) => ({ lng: m.getCenter().lng, lat: m.getCenter().lat, zoom: m.getZoom(), bearing: m.getBearing(), pitch: m.getPitch() })
+  window.__opening = { made: null, atLoad: null, moves: 0 }
+  Object.defineProperty(window, '__mapEarly', {
+    configurable: true,
+    get: () => early,
+    set(m) {
+      early = m
+      window.__opening.made = cam(m)
+      m.on('movestart', () => window.__opening.moves++)
+      m.once('load', () => {
+        window.__opening.atLoad = cam(m)
+      })
+    },
+  })
+})
 const errors = []
 page.on('pageerror', (e) => errors.push(String(e)))
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 160)) })
@@ -146,6 +166,45 @@ await page.goto(`${BASE}/`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
 await waitForSource(page, 'saved-stops')
 await page.waitForTimeout(1200)
+
+// 0. The map is made framed on the routes (the owner's Q1, 2026-10-04):
+// where their fit put it after the map's 'load' until then — the box round
+// every overview in the published file, 100 px clear of the edges, zoom 13
+// at most — and the fit no longer moves it. phone-test holds the same at a
+// phone's size, and a finger moving the map before the routes come.
+{
+  const { opening, want, now } = await page.evaluate(async () => {
+    const m = window.__map
+    const f = await (await fetch('/data/index.v4.json', { headers: { 'x-parapo-test': '1' } })).json()
+    let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity]
+    for (const v of f.variants) {
+      for (const [x, y] of v.overview?.coordinates ?? []) {
+        if (x < w) w = x
+        if (x > e) e = x
+        if (y < s) s = y
+        if (y > n) n = y
+      }
+    }
+    const c = m.cameraForBounds([[w, s], [e, n]], { padding: 100, maxZoom: 13 })
+    return {
+      opening: window.__opening,
+      want: { lng: c.center.lng, lat: c.center.lat, zoom: c.zoom, bearing: 0, pitch: 0 },
+      now: { lng: m.getCenter().lng, lat: m.getCenter().lat, zoom: m.getZoom(), bearing: m.getBearing(), pitch: m.getPitch() },
+    }
+  })
+  const same = (a, b) => !!a && !!b && ['lng', 'lat', 'zoom', 'bearing', 'pitch'].every((k) => Math.abs(a[k] - b[k]) < 1e-9)
+  const show = (c) => (c ? `${c.lng.toFixed(5)},${c.lat.toFixed(5)} z${c.zoom.toFixed(4)}` : 'none')
+  check(
+    "the map is made framed on the routes, where their fit framed it: padding 100, zoom 13 at most (the owner's Q1)",
+    same(opening.made, want),
+    `made at ${show(opening.made)}; the fit's ${show(want)}`,
+  )
+  check(
+    "  and stays there: the same camera at its 'load' and at rest, never moved since",
+    same(opening.atLoad, want) && same(now, want) && opening.moves === 0,
+    `at 'load' ${show(opening.atLoad)}, now ${show(now)}; ${opening.moves} move(s)`,
+  )
+}
 
 // 1. No editor chrome on the visitor page.
 check('no + New Route button', (await page.getByRole('button', { name: '+ New Route' }).count()) === 0)

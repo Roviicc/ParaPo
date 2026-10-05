@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { BasemapControl } from './BasemapControl'
 import { DEFAULT_BASEMAP, initialStyle, readBasemap, type Basemap } from './basemap'
 import { diagnose, type Diagnosis } from './diagnose'
+import { OPENING_WAIT_MS, ROUTES_FRAMING, openedOn, within, type Bounds } from './framing'
 import {
   AttributionControl,
   MapLibreMap,
@@ -101,7 +102,10 @@ const ZOOM = 11
 const LOAD_TIMEOUT_MS = 12_000
 
 type Props = {
-  /** Fires once the style is loaded, so callers may add sources immediately. */
+  /**
+   * Fires once the map can take sources and layers: at its 'load', or with
+   * `openOn` as soon as its style is in.
+   */
   onReady?: (map: MapLibreMap) => void
   /**
    * MapLibre's +, − and compass, top right, for a mouse (never a finger:
@@ -124,6 +128,21 @@ type Props = {
    * once, as the map is made.
    */
   foldCredits?: boolean
+  /**
+   * The public map's (the owner's Q1, 2026-10-04): the routes' framing to
+   * open on, from the map file in by then, the copy kept from an earlier
+   * visit, or the file on its way (mapFile.ts, openingVariants), null for
+   * none. It is asked for as the map is about to be made, waited for a
+   * second at most (OPENING_WAIT_MS), and the map is made framed on it — as
+   * the routes' own fit (useSavedRoutes) left it, padding 100, zoom 13 at
+   * most — so its first tiles are those of the view it keeps, not of a fixed
+   * centre at zoom 11 a fit then threw away. And `onReady` fires as soon as
+   * the style is in, so the routes are drawn while the basemap's tiles
+   * still come; "Loading map…" stays until the map's 'load' all the same.
+   * Without it (the studio), the map opens at the centre and `onReady`
+   * waits for 'load', as always. Read once, as the map is made.
+   */
+  openOn?: () => Promise<Bounds | null>
 }
 
 /**
@@ -136,7 +155,7 @@ export const METRO_MANILA: [[number, number], [number, number]] = [
   [121.5, 15.05],
 ]
 
-export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = false }: Props) {
+export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = false, openOn }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const onReadyRef = useRef(onReady)
   onReadyRef.current = onReady
@@ -171,7 +190,12 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
     const startId = window.setTimeout(async () => {
       // A URL for the plain designs; for "Gray, detailed" the style is fetched
       // and extended first, since `Map` has no transform hook of its own.
-      const style = await initialStyle(basemap)
+      // Beside it, the public map's framing (`openOn`): none if it fails or
+      // has not come within OPENING_WAIT_MS.
+      const [style, framing] = await Promise.all([
+        initialStyle(basemap),
+        openOn ? within(openOn(), OPENING_WAIT_MS, null) : null,
+      ])
       if (cancelled || !containerRef.current) return
 
       try {
@@ -191,6 +215,13 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
           // fails still says so, by 'error' or the 12 s timeout below, each
           // with `diagnose`.
           validateStyle: false,
+          // Framed on the routes from its making, the public map's (the
+          // owner's Q1, 2026-10-04): MapLibre fits these bounds as the map is
+          // made, with no animation, on the same size and limits a fit made
+          // later would meet, so the camera is the one the routes' own fit
+          // put it at after 'load' (useSavedRoutes; visitor-test and
+          // phone-test hold it to cameraForBounds of the map file's routes).
+          ...(framing ? { bounds: framing, fitBoundsOptions: ROUTES_FRAMING } : {}),
         })
       } catch (err) {
         setError(
@@ -203,8 +234,23 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
       // The map from its making, for the builds that hand it out (see 'load'
       // below): the cheap-phone timer stamps its 'load' and its first frame
       // with the routes drawn from here, before any of its events can fire
-      // (the cheap-phone plan, Step 0, 2026-10-04).
+      // (the cheap-phone plan, Step 0, 2026-10-04). So do the suites, for
+      // the camera it was made at and the first lines it draws, before its
+      // 'load' on the public map (the owner's Q1, 2026-10-04).
       if (import.meta.env.DEV || import.meta.env.VITE_EXPOSE_MAP === '1') (window as unknown as { __mapEarly?: MapLibreMap }).__mapEarly = map
+
+      // The public map (the owner's Q1, 2026-10-04): what it opened framed
+      // on, and the visitor's gestures from now on, for the routes' own fit
+      // to leave a map they have moved alone (framing.ts). And the map is
+      // handed over as soon as its style is in, for the routes to go on it
+      // then, not after every basemap tile in view has come and been read
+      // ('load'): the first 'style.load' only, the one of this style, never
+      // a basemap switch's. Registered here, before anything can load.
+      if (openOn) {
+        openedOn(map, framing)
+        const made = map
+        made.once('style.load', () => onReadyRef.current?.(made))
+      }
 
       // Record how far MapLibre gets, so a silent failure at least says
       // which stage it died in.
@@ -253,7 +299,8 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
           w.__programs = () => Object.keys((shown as unknown as { painter: { cache: object } }).painter.cache)
         }
         setReady(map)
-        onReadyRef.current?.(map!)
+        // The public map's was handed over at its style's load (above).
+        if (!openOn) onReadyRef.current?.(map!)
       })
 
       map.on('error', (e) => {
@@ -299,7 +346,7 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
       setReady(null)
       map?.remove()
     }
-    // `basemap` and `zoomButtons` are read once at mount and never change afterwards.
+    // `basemap`, `zoomButtons` and `openOn` are read once at mount and never change afterwards.
   }, [])
 
   return (

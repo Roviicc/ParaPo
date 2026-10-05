@@ -95,6 +95,8 @@ const MAP_FILE_CACHE = 'map-file'
 
 let inFlight: Promise<MapFile> | null = null
 let stale = false
+/** How the last load ended, once it has: its map, or null for a failure; null while it is on its way (openingVariants). */
+let settled: { file: MapFile | null } | null = null
 
 /**
  * Where index.html's own script leaves its request for this file (the
@@ -209,7 +211,9 @@ async function storedOldCopy(
  * marked stale. The first load reads the request index.html made (ask).
  */
 export function loadMapFile(): Promise<MapFile> {
-  inFlight ??= ask()
+  if (inFlight) return inFlight
+  settled = null
+  inFlight = ask()
     .then(
       async ({ res, json }) => {
         // The server answered, but not with the map — an error, or the
@@ -241,11 +245,47 @@ export function loadMapFile(): Promise<MapFile> {
         return old
       },
     )
-    .catch((e: unknown) => {
-      inFlight = null
-      throw e
-    })
+    .then(
+      (file) => {
+        settled = { file }
+        return file
+      },
+      (e: unknown) => {
+        inFlight = null
+        settled = { file: null }
+        throw e
+      },
+    )
   return inFlight
+}
+
+/**
+ * The directions the public map opens framed on (the owner's Q1,
+ * 2026-10-04; MapView's `openOn`), asked as the map is about to be made:
+ * the map file's, when its load has ended by then; the copy the worker
+ * kept on an earlier visit when it has not (storedCopy, read only then: it
+ * costs a parse of the whole file), unless the file comes while it is
+ * read; and with no copy kept, the file once it comes. MapView waits for
+ * it no more than a second (OPENING_WAIT_MS), and opens as it always did
+ * without it, the routes framed as they come; as it does after a load that
+ * failed. Without that wait a visit with no worker — a first one whose
+ * script beat the file, a second one before the worker was installed —
+ * opened at zoom 11 while the file was asked again (a 304, a round trip),
+ * and fetched that view's tiles only to throw them away. When the copy kept
+ * and the file then brought differ, the routes' own fit takes the camera on
+ * to the file's framing, unless the visitor has moved the map by then
+ * (framing.ts, framesRoutes).
+ */
+export async function openingVariants(): Promise<VariantSummary[] | null> {
+  // The load's end as it is now: undefined while it is on its way.
+  const ended = () => (settled ? (settled.file?.variants ?? null) : undefined)
+  const now = ended()
+  if (now !== undefined) return now
+  const copy = await storedCopy().catch(() => null)
+  const since = ended()
+  if (since !== undefined) return since
+  if (copy) return copy.variants
+  return inFlight ? inFlight.then((file) => file.variants, () => null) : null
 }
 
 const lines = new Map<string, Promise<LineStringGeoJSON | null>>()

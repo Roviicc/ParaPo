@@ -2,9 +2,10 @@ import { useState } from 'react'
 import type { MapLibreMap } from 'maplibre-gl'
 import { HintuanCard } from '../shared/cards/HintuanCard'
 import { placeKey } from '../shared/model/places'
-import { MAP_FILE_TOO_NEW, loadLine, loadStopsFromFile, loadVariantsFromFile } from './mapFile'
+import { MAP_FILE_TOO_NEW, loadLine, loadStopsFromFile, loadVariantsFromFile, openingVariants } from './mapFile'
 import { reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
 import { METRO_MANILA, MapView, coarse } from '../shared/map/MapView'
+import { routesBounds } from '../shared/map/framing'
 import { RouteCardList } from '../shared/cards/RouteCardList'
 import { useCardStack } from '../shared/cards/useCardStack'
 import { useCardCamera } from '../shared/cards/useCardCamera'
@@ -26,6 +27,14 @@ import { useLocatorMood } from './locatorMood'
 import { nearestOnLines, useGazeHush, type Subject } from './dotGaze'
 import type { LngLat } from '../shared/geo/geo'
 import { variantLine } from '../shared/model/routes'
+
+/**
+ * The routes' framing the map opens on (the owner's Q1, 2026-10-04): their
+ * box as the map file or the copy kept from an earlier visit has them
+ * (openingVariants), the box the routes' own fit frames (useSavedRoutes).
+ * Module-level, as the loaders below are.
+ */
+const openOnRoutes = () => openingVariants().then((variants) => (variants ? routesBounds(variants) : null))
 
 /**
  * The public map at /. Everything published so far and a card for whatever is
@@ -103,7 +112,11 @@ export default function CommuterApp() {
         the owner's notes on his screenshot, "annoying for users"
         (2026-09-29).
       */}
-      <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} />
+      {/*
+        Opened framed on the routes, and handed over to draw them as soon as
+        its style is in (`openOn`, the owner's Q1 of 2026-10-04).
+      */}
+      <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} openOn={openOnRoutes} />
       {map && <Locator locator={locator} docked={cards.open} />}
       {map && locator.fix && <LocatorOnMap map={map} fix={locator.fix} heading={locator.heading} mood={mood} face={face} beat={beat} gazeAt={gazeAt} hushedAt={hushedAt} onPoke={poke} />}
       {/* Each lit ride's ends, named over their circles; with no trip open, a tail opens its ride's. */}

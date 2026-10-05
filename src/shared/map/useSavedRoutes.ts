@@ -6,6 +6,7 @@ import { ROUTES_LINE, useSavedRoutesLayers } from './savedRoutesLayers'
 import { litOf, shownOf, showingOf, steady } from './routesShown'
 import { useRouteTaps } from './routeTaps'
 import { perFrame, type PerFrame } from './perFrame'
+import { ROUTES_FRAMING, framesRoutes, routesBounds } from './framing'
 
 /**
  * The RouteCard picked in a list of them — the route list's, or a hotspot's
@@ -210,21 +211,17 @@ export function useSavedRoutes<T extends VariantSummary>(
   useSavedRoutesLayers(map, rows, lines, opts.hiddenVariantId, lit)
 
   // Open on the routes, not on a fixed centre. Once, on first load, and never
-  // while drawing: a draft already has a view the user chose.
+  // while drawing: a draft already has a view the user chose. The public map
+  // opens framed on them itself, from its making (MapView's `openOn`, the
+  // owner's Q1, 2026-10-04): there only if what came frames otherwise, and
+  // never once the visitor has moved the map (framesRoutes).
   const fittedRef = useRef(false)
   useEffect(() => {
     if (!map || fittedRef.current || drawingRef.current) return
-    const coords = variants.flatMap(variantLine)
-    if (coords.length < 2) return
+    const bounds = routesBounds(variants)
+    if (!bounds) return
     fittedRef.current = true
-    let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity]
-    for (const [x, y] of coords) {
-      if (x < w) w = x
-      if (x > e) e = x
-      if (y < s) s = y
-      if (y > n) n = y
-    }
-    map.fitBounds([[w, s], [e, n]], { padding: 100, maxZoom: 13, duration: 0 })
+    if (framesRoutes(map, bounds)) map.fitBounds(bounds, { ...ROUTES_FRAMING, duration: 0 })
   }, [map, variants])
 
   // Reading a direction's full line, once. One that failed (offline, never
