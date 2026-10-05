@@ -10,14 +10,19 @@ import type { Ring } from './ring'
  *
  * Working out where a lit line passes its hintuans is a metre-by-metre walk
  * of the line near every box it reaches, done on the phone as each lit
- * line's full line arrives: 79 ms of the main thread after a six-route list
- * tap in the cheap-phone timer (CPU 4× slower), 39 ms after a trip tap. The
- * publish works it out once a night instead (scripts/publish/lineFile.mjs),
- * with these very functions, and writes it into each line file beside the
- * line: `pass`, the stretches, and `passKey`, a short hash of what they were
- * worked out against — the id and the rounded box of every hintuan the
- * route stops at whose ground the line reaches. Pure, and nothing from npm:
- * the publish workflow runs without `npm ci`.
+ * line's full line arrives. In the cheap-phone timer (CPU 4× slower), on an
+ * unminified build with the profiler attached, 79 ms of the main thread
+ * after a six-route list tap and 39 ms after a trip tap (the medians of
+ * three). On the minified build, as shipped, taking them from the file
+ * took 41 ms off the list tap's total blocking time (207 -> 166 ms); the
+ * trip tap's change (208 -> 193 ms) was within its run-to-run spread. The
+ * publish works the stretches out once a night instead
+ * (scripts/publish/lineFile.mjs), with these very functions, and writes
+ * them into each line file beside the line: `pass`, the stretches, and
+ * `passKey`, a short hash of what they were worked out against — the id
+ * and the rounded box of every hintuan the route stops at whose ground the
+ * line reaches. Pure, and nothing from npm: the publish workflow runs
+ * without `npm ci`.
  *
  * The app works the key out again from the index it has, and takes the
  * stretches from the file only when the two agree; otherwise it walks the
