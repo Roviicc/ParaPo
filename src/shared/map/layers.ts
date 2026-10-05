@@ -57,7 +57,13 @@ export const LAYERS = {
  * this sandbox, runs taken in turn, 2026-10-05): scale-test 4.4 s and
  * 5.55, medians of 16 runs each, over its 5 s budget in 3 and in 12;
  * studio-scale-test 9.9 s and 13.35, 4 runs each, over its 10 s in 2 and
- * in 4. Whether that is worth edges moved by a fraction of a pixel is the
+ * in 4. Since the lit layers start off (layerSwitch.ts) and the studio
+ * reads its list once as it opens (loadOnce.ts), both at 128 (the review
+ * of the sources group, 2026-10-05): scale-test 4.45-4.55 s, over 5 s in 2
+ * of 20 runs; studio-scale-test 7.5 s, in none of 4. scale-test's "the
+ * map's 'load' within 5 s" (35150da) still fails when the routes go on
+ * before the map's first frame, 'load' waiting for them: 5.3-6.3 s at 128.
+ * Whether 32 px is worth edges moved by a fraction of a pixel is the
  * owner's to say.
  * Not the place wash's either: its dashes start counting where its ring
  * was cut. map-sources-test holds each source to its buffer, and every
