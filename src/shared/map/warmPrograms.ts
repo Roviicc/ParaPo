@@ -22,6 +22,21 @@ import type { CircleLayerSpecification, MapLibreMap } from 'maplibre-gl'
  * own: never `draw-…`, which the studio's editor owns and the public page
  * must not carry (visitor-test), and never a feature in the ends' source,
  * which the suites count (group-test, the `__src` readers).
+ *
+ * What it costs (review of step 3, 2026-10-05): the twin's frame is new
+ * work on every load, first visit or repeat, the studio's too, whether a
+ * tap follows or not; only a visit that taps gets it back, as a tap with
+ * no compile. In the cheap-phone timer (CPU 4x, SwiftShader; 3 runs
+ * against step 5's, medians) that frame is one long task of 235-468 ms
+ * after the first idle: total blocking time 600 -> 1,130 ms on a first
+ * visit, 290 -> 816 on a repeat one and 670 -> 1,271 on a first visit with
+ * the service worker, each range clear of the one before, the longest task
+ * 277-296 -> 491-550 ms and the page settled 1.7-1.8 s later; against a
+ * list tap's 1,453 -> 170 ms and a trip tap's 718 -> 256. On a phone, one
+ * first-use program, 5-50 ms, while the visitor looks at the map. Keeping
+ * it is the owner's call (asked 2026-10-05); without it (its calls in
+ * useDirectionArrows, directionArrows.ts), the first tap compiles the
+ * program again.
  */
 
 /** The twins' source; each twin is `warm-programs-<n>`. */
