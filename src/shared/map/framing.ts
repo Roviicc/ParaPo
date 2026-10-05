@@ -61,8 +61,21 @@ export function within<T>(p: Promise<T>, ms: number, none: T): Promise<T> {
   })
 }
 
-/** A visitor's gestures: MapLibre's, each carrying the input that made it (originalEvent); the app's own moves carry none. */
-const GESTURES = ['dragstart', 'zoomstart', 'rotatestart', 'pitchstart'] as const
+/**
+ * A visitor's gestures: MapLibre's, each carrying the input that made it
+ * (originalEvent); the app's own moves carry none (APP_MOVE, or no event
+ * data at all). A drag, a zoom, a turn or a tilt, and two that none of
+ * those four carry (review of the owner's Q1, 2026-10-05; MapLibre 6.7):
+ * - 'movestart', for an arrow key's pan: the keys ease the map with its
+ *   zoom, bearing and pitch kept (handler/keyboard.ts), so the one event
+ *   that carries the key is 'movestart'. Any 'movestart' with an input is
+ *   a visitor's (MapLibre's handlers, the keys, its controls' buttons); a
+ *   resize carries none, nor do the app's moves.
+ * - 'boxzoomstart', for a shift-drag's box: MapLibre zooms to it with no
+ *   input (box_zoom.ts, fitScreenCoordinates), so it is noted as the box
+ *   is drawn, and no fit moves the map under it.
+ */
+const GESTURES = ['dragstart', 'zoomstart', 'rotatestart', 'pitchstart', 'movestart', 'boxzoomstart'] as const
 
 type Listener = (e: { originalEvent?: unknown }) => void
 type Watched = { on(type: string, listener: Listener): unknown; off(type: string, listener: Listener): unknown }
@@ -75,8 +88,9 @@ const openings = new WeakMap<object, Opening>()
  * The public map's opening (the owner's Q1, 2026-10-04): MapView makes the
  * map framed on the routes, `on` (null when it had none to frame on, and
  * opened as it always did), and calls this as soon as the map is made. From
- * then on the visitor's first drag, zoom, turn or tilt is noted, so the
- * routes' framing never takes the map back from under a finger
+ * then on the visitor's first drag, zoom, turn or tilt, pan by the arrow
+ * keys or box drawn to zoom to (GESTURES) is noted, so the routes' framing
+ * never takes the map back from under a finger, a key or a mouse
  * (framesRoutes). The studio's map is never recorded here.
  */
 export function openedOn(map: Watched, on: Bounds | null): void {

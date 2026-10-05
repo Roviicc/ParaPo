@@ -14,7 +14,8 @@
 // no horizontal scroll; the opening (the owner's Q1 and Q4, 2026-10-04) — the
 // map made framed on the routes where their fit framed it and kept there,
 // with the file still on its way the old opening and the routes framed as
-// they come, unless a finger has moved the map first, and the page's own
+// they come, unless a finger has moved the map first (or, at 1280×800, an
+// arrow key or a shift-drag box zoom), and the page's own
 // gray "Loading map…" before the app runs, taken over unchanged; the
 // forgiving ±20 px tap, with a negative control well outside the box; the
 // trip card a lone route opens (the owner's RouteTripDetail, 2026-09-29) —
@@ -377,9 +378,9 @@ check('no horizontal scroll at load', await noHScroll(page), `scrollWidth ${awai
     `at 'load' ${showCam(opening.atLoad)}, now ${showCam(now)}; ${opening.moves.length} move(s)${opening.moves.length ? ': ' + opening.moves.join(', ') : ''}`,
   )
 
-  /** A fresh page on the phone with the map file held back till `release()`: a first visit whose file is still on its way. */
-  const heldBack = async () => {
-    const p = await context.newPage()
+  /** A fresh page on the phone (or in `ctx`) with the map file held back till `release()`: a first visit whose file is still on its way. */
+  const heldBack = async (ctx = context) => {
+    const p = await ctx.newPage()
     watch(p)
     await nodeFetch(p)
     await p.addInitScript(openingRecorder)
@@ -465,6 +466,48 @@ check('no horizontal scroll at load', await noHScroll(page), `scrollWidth ${awai
       `dragged by ${how} from ${showCam(before)} to ${showCam(dragged)}; ends at ${showCam(end)}; the fit's ${showCam(fit)}; moves: ${moves.join(', ') || 'none'}`,
     )
     await p.close()
+  }
+
+  // On a desktop, the two inputs no drag, zoom, turn or tilt event carries
+  // (review of the owner's Q1, 2026-10-05): an arrow key's pan, which
+  // MapLibre eases with its zoom, bearing and pitch kept, so only its
+  // 'movestart' carries the key; and a shift-drag's box, which it zooms to
+  // with no input at all. Either, made before the routes come, keeps the map
+  // where the visitor took it, as a finger does.
+  {
+    const wide = await b.newContext({ viewport: { width: 1280, height: 800 } })
+    for (const input of ['an arrow key', 'a shift-drag box zoom']) {
+      const { p, release } = await heldBack(wide)
+      const before = await camOf(p)
+      const canvas = p.locator('canvas.maplibregl-canvas')
+      if (input === 'an arrow key') {
+        // The map's canvas takes the keys once it has the focus, as a click on it gives it.
+        await canvas.focus()
+        await p.keyboard.press('ArrowRight')
+      } else {
+        const r = await canvas.boundingBox()
+        await p.keyboard.down('Shift')
+        await p.mouse.move(r.x + 500, r.y + 300)
+        await p.mouse.down()
+        await p.mouse.move(r.x + 600, r.y + 380, { steps: 6 })
+        await p.mouse.up()
+        await p.keyboard.up('Shift')
+      }
+      await p.waitForTimeout(600)
+      await p.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 5000 }).catch(() => {})
+      const moved = await camOf(p)
+      await routesCome(p, release)
+      const end = await camOf(p)
+      const fit = await fitCamera(p)
+      const moves = await p.evaluate(() => window.__opening.moves)
+      check(
+        `  on a desktop, ${input} moving the map before they come keeps it where it took it`,
+        !sameCam(moved, before) && sameCam(end, moved) && !sameCam(end, fit) && moves.length === 1,
+        `from ${showCam(before)} to ${showCam(moved)}; ends at ${showCam(end)}; the fit's ${showCam(fit)}; moves: ${moves.join(', ') || 'none'}`,
+      )
+      await p.close()
+    }
+    await wide.close()
   }
 
   // The page before the app: its own gray "Loading map…", read with no

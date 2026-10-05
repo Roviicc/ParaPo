@@ -108,7 +108,7 @@ test("a visitor's drag, zoom, turn or tilt before the routes come keeps the map 
   for (const type of ['dragstart', 'zoomstart', 'rotatestart', 'pitchstart']) {
     const map = eventedMap()
     openedOn(map, null)
-    assert.equal(map.count(), 4, 'four gestures listened for')
+    assert.equal(map.count(), 6, 'six gestures listened for')
     map.fire(type, { originalEvent: { type: 'touchmove' } })
     assert.equal(framesRoutes(map, box), false, `after a ${type}`)
     assert.equal(map.count(), 0, 'and no longer listened for once one came')
@@ -120,14 +120,42 @@ test("a visitor's drag, zoom, turn or tilt before the routes come keeps the map 
   }
 })
 
-test("the app's own moves are no gesture: they carry no input (a fit, a glide, APP_MOVE)", () => {
+// Two inputs that none of the four above carry (review of the owner's Q1,
+// 2026-10-05), as MapLibre 6.7 fires them: an arrow key eases the map with
+// its zoom, bearing and pitch kept, so only its 'movestart' carries the key
+// (handler/keyboard.ts, camera.ts _prepareEase); a shift-drag's box fires
+// 'boxzoomstart' with the mouse, then zooms with no input (box_zoom.ts,
+// fitScreenCoordinates).
+test("a visitor's pan by the arrow keys, or box drawn to zoom to, keeps the map where they took it", () => {
+  const key = eventedMap()
+  openedOn(key, null)
+  key.fire('movestart', { originalEvent: { type: 'keydown', key: 'ArrowRight' } })
+  key.fire('move', { originalEvent: { type: 'keydown' } })
+  assert.equal(framesRoutes(key, box), false, 'after an arrow key')
+  assert.equal(key.count(), 0, 'and no longer listened for')
+
+  const shift = eventedMap()
+  openedOn(shift, box)
+  shift.fire('boxzoomstart', { originalEvent: { type: 'mousemove', shiftKey: true } })
+  // The zoom to the box as MapLibre makes it: no input on its events.
+  shift.fire('movestart', {})
+  shift.fire('zoomstart', {})
+  assert.equal(framesRoutes(shift, other), false, 'after a box zoom, a different box is not framed either')
+  assert.equal(shift.count(), 0)
+})
+
+test("the app's own moves are no gesture: they carry no input (a fit, a glide, APP_MOVE, a resize)", () => {
   const map = eventedMap()
   openedOn(map, null)
   map.fire('zoomstart', {})
   map.fire('dragstart', { appMove: true })
-  map.fire('movestart', { originalEvent: {} })
+  map.fire('movestart', {})
+  map.fire('movestart', { appMove: true })
+  // A resize hands MapLibre's ResizeObserver entries on as its event data.
+  map.fire('movestart', { 0: { contentRect: {} } })
+  map.fire('boxzoomstart', {})
   assert.equal(framesRoutes(map, box), true)
-  assert.equal(map.count(), 4)
+  assert.equal(map.count(), 6)
 })
 
 test('within: the value that comes in time; none for one that fails or comes late', async () => {
