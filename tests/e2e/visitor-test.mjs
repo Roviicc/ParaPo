@@ -18,7 +18,8 @@
 // hotspot — including one hotspot with a route drawn through it — opens the
 // right card with the right content; and, since 2026-10-04, that the end
 // circles' GL program is compiled before any tap and a trip's tap compiles
-// none, and that the map is made framed on the routes, where their fit
+// none (since 2026-10-05 asked of it as the first tap of a page of its
+// own), and that the map is made framed on the routes, where their fit
 // framed it, and stays there (the owner's Q1).
 import { chromium } from 'playwright'
 import { BASE, harness, nodeFetch, waitForSource } from './lib/harness.mjs'
@@ -683,6 +684,56 @@ if (PART !== 1) {
   }
 }
 
+// The GL programs a tap at `at`, at zoom 17, adds as the first tap of a page
+// of its own, once its trip is framed and the map settled, read as 4b's own
+// tap was until 2026-10-05: `{ opened, circle, added, standIn }`, `opened`
+// whether a trip came up, `circle` whether the end circles' program was
+// there before it (programsAtRest, programsSince). A page of its own, not
+// this one loaded again: section 5 counts this page's map file once. Its
+// errors and requests are watched as this page's are.
+const firstTapPrograms = async (at) => {
+  const p = await b.newPage({ viewport: { width: 1280, height: 800 } })
+  try {
+    await nodeFetch(p)
+    await p.addInitScript(() => {
+      window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
+    })
+    p.on('pageerror', (e) => errors.push(String(e)))
+    p.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 160)) })
+    p.on('request', (req) => {
+      if (/router\.project-osrm\.org/.test(req.url())) osrmHit = true
+      if (/\.supabase\.co/.test(req.url())) supabaseHit = true
+    })
+    await p.goto(`${BASE}/`, { waitUntil: 'load' })
+    await p.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
+    await waitForSource(p, 'saved-routes')
+    await p.waitForTimeout(1200)
+    await p.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 17 }), at)
+    await p.waitForTimeout(700)
+    const rest = await programsAtRest(p)
+    const box = await p.locator('canvas.maplibregl-canvas').boundingBox()
+    await p.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    const opened = await p
+      .locator('[data-testid="card"] [data-testid="trip"]')
+      .first()
+      .waitFor({ state: 'visible', timeout: 10000 })
+      .then(() => true, () => false)
+    // The trip framed on its whole route, as 4b waits for it, then the map settled.
+    await p.waitForTimeout(350)
+    await p.evaluate(
+      () =>
+        new Promise((done) => {
+          const m = window.__map
+          if (m.isMoving()) m.once('moveend', () => setTimeout(done, 50))
+          else setTimeout(done, 800)
+        }),
+    )
+    return { opened, circle: rest.circle, ...(await programsSince(p, rest.keys)) }
+  } finally {
+    await p.close()
+  }
+}
+
 // 4b. Rest and lit: every direction rests in one light blue, opaque; one
 // route alone under the tap opens its card directly, drawn in its trip card's colour over
 // the rest; closing the card lights nothing again. Nothing fades and nothing
@@ -696,8 +747,6 @@ if (PART === 1) {
   } else {
     await page.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 17 }), clean)
     await page.waitForTimeout(700)
-    // The GL programs before the tap, the map at rest (see "and it compiled no GL program" below).
-    const programsBefore = await programsAtRest(page)
     const box = await page.locator('canvas.maplibregl-canvas').boundingBox()
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
     await page.waitForTimeout(350)
@@ -778,14 +827,18 @@ if (PART === 1) {
         page.evaluate(async () => ((await window.__src('direction-arrows'))?.features ?? []).map((f) => f.geometry.coordinates[0][0].map((v) => v.toFixed(7)).join()).join('|'))
       // The tap compiled no GL program: the end circles' was compiled while
       // the map was idle, and the orange stretches draw with the lit line's
-      // (the cheap-phone plan, steps 2 and 3, 2026-10-04). Read with the trip
-      // framed and the map settled, before the jump below brings a view of
-      // its own.
-      const compiled = await programsSince(page, programsBefore.keys)
+      // (the cheap-phone plan, steps 2 and 3, 2026-10-04). Asked of this tap
+      // made again as the first of a page of its own (firstTapPrograms): on
+      // this page the taps of 3, 4 and 4a lit routes at zoom 18 and opened a
+      // trip on its whole route, its ends in view, so both programs were
+      // compiled long before this tap, steps 2 and 3 or not (review of steps
+      // 2 and 3, 2026-10-05).
+      const compiled = await firstTapPrograms(clean)
       check(
         '  and it compiled no GL program',
-        compiled.added.length === 0,
-        `${compiled.added.length} added${compiled.added.length ? ': ' + compiled.added.join(', ') : ''}` +
+        compiled.opened && compiled.added.length === 0,
+        `the same tap, the first of a page of its own: ${compiled.opened ? 'its trip' : 'no trip'} opened, the circles' program ${compiled.circle ? 'there before it' : 'not there before it'}; ` +
+          `${compiled.added.length} added${compiled.added.length ? ': ' + compiled.added.join(', ') : ''}` +
           (compiled.standIn.length ? `; and ${compiled.standIn.length} a real basemap compiles at load, which the stand-in does not: ${compiled.standIn.map((k) => k.split('/')[0]).join(', ')}` : ''),
       )
       // The trip opens on its whole route (the owner's ask, 2026-10-01); the
