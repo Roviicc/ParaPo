@@ -39,6 +39,7 @@ import { useFollow } from './drawing/useFollow'
 import { useSaveTarget } from './panels/useSaveTarget'
 import { usePasswordRecovery } from './auth/usePasswordRecovery'
 import { useSession } from './auth/useSession'
+import { useWalkLinks } from './walk/useWalkLinks'
 
 /**
  * The editor at /studio/. Signed out, the page is only its front door: the
@@ -135,6 +136,10 @@ function Workshop({
   // What the lit routes wear on the map, as on the public map (useLitRides);
   // none of the orange over the direction being redrawn.
   const rides = useLitRides(map, saved, stops.stops, draw.target.variantId, ride.ridden)
+
+  // The walking-link trial, Caloocan's (2026-10-06): read-only, from a file
+  // in the studio's own bundle, never the database (walk/walkLinks.ts).
+  useWalkLinks(map, draw.drawing)
 
   // The pill counts routes, not directions: a route is two rows, one of them
   // perhaps an empty slot, and five routes once read "10 routes" (finding 7).
