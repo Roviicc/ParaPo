@@ -1,4 +1,4 @@
-import type { MapLibreMap } from 'maplibre-gl'
+import type { MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { LAYERS } from './layers'
 
 /**
@@ -40,6 +40,52 @@ export function tapBox(
   ]
 }
 
+/**
+ * Binds a layer's mouseenter and mouseleave, the hand the cursor turns into
+ * over a line or a box (routeTaps.ts, stopTaps.ts), only where a pointer can
+ * hover. MapLibre answers such a pair with a query of the rendered features
+ * on every mousemove, and a finger's tap raises one before its click, so a
+ * phone paid four queries a tap for a cursor it never shows (the cheap-phone
+ * plan, step 7, 2026-10-04). Where `(any-hover: hover)` holds as the hook
+ * binds (a mouse, a trackpad, a laptop's touch screen with its trackpad),
+ * the pair is bound at once, as on every device before step 7. Where it
+ * does not, the pair waits for it to hold: a mouse paired with a phone or a
+ * tablet, a keyboard with a trackpad attached. Until the taps review
+ * (2026-10-05) the query was read once, as the page was read, and such a
+ * pointer got no hand until a reload. Once bound, the pair stays until the
+ * returned undo, the pointer gone again or not, as before step 7: unbound
+ * while the hand showed, the hand would come back with the next pointer
+ * over nothing. Without matchMedia it is bound at once, as before.
+ */
+export function bindHover(
+  map: MapLibreMap,
+  layer: string,
+  enter: (e: MapMouseEvent) => void,
+  leave: (e: MapMouseEvent) => void,
+): () => void {
+  const query =
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(any-hover: hover)')
+      : null
+  let bound = false
+  const bind = () => {
+    if (bound || (query && !query.matches)) return
+    bound = true
+    query?.removeEventListener('change', bind)
+    map.on('mouseenter', layer, enter)
+    map.on('mouseleave', layer, leave)
+  }
+  bind()
+  if (!bound) query?.addEventListener('change', bind)
+  return () => {
+    query?.removeEventListener('change', bind)
+    if (!bound) return
+    bound = false
+    map.off('mouseenter', layer, enter)
+    map.off('mouseleave', layer, leave)
+  }
+}
+
 type IdFeature = { properties?: { id?: unknown; route_id?: unknown } }
 
 /**
@@ -60,6 +106,20 @@ function idsInOrder(features: IdFeature[], key: 'id' | 'route_id' = 'id'): strin
 export type TapTargets = { routeIds: string[]; routeKeys: string[]; stopIds: string[] }
 
 /**
+ * Each tap's answer, kept for the other hook (the cheap-phone plan, step 7,
+ * 2026-10-04). Both hooks hear the map's one `click` (routeTaps, stopTaps)
+ * and each asks what it landed on: the same question, in the same task, of
+ * a map nothing has changed in between (their setters render later), so the
+ * second takes the first's answer instead of querying the rendered features
+ * again — up to three queries a tap. Keyed on the browser's event, which
+ * MapLibre hands every listener of a click, or, without one, on the point it
+ * made for them; weakly, so an answer goes with its event. The same map and
+ * the same point too, or it is asked afresh. The answer is shared: read it,
+ * never change it.
+ */
+const answered = new WeakMap<object, { map: MapLibreMap; x: number; y: number; targets: TapTargets }>()
+
+/**
  * One tap, one kind of thing (the owner's ask, 2026-09-30: "can we only
  * select one not two? select hintuan only show the card, then select route
  * show the route"). A tap inside a hotspot's box is the hotspot's, even
@@ -71,6 +131,16 @@ export type TapTargets = { routeIds: string[]; routeKeys: string[]; stopIds: str
  * their road and are one thing to choose between.
  */
 export function tapTargets(map: MapLibreMap, point: { x: number; y: number }, event?: Event): TapTargets {
+  const key: object = event ?? point
+  const kept = answered.get(key)
+  if (kept && kept.map === map && kept.x === point.x && kept.y === point.y) return kept.targets
+  const targets = queryTargets(map, point, event)
+  answered.set(key, { map, x: point.x, y: point.y, targets })
+  return targets
+}
+
+/** What a tap landed on, asked of the map: tapTargets, unkept. */
+function queryTargets(map: MapLibreMap, point: { x: number; y: number }, event?: Event): TapTargets {
   const box = tapBox(point, event)
   const features = (layer: string, where: typeof box | [number, number] = box) =>
     map.getLayer(layer) ? map.queryRenderedFeatures(where, { layers: [layer] }) : []

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react'
-import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
+import type { CircleLayerSpecification, GeoJSONSource, MapLibreMap } from 'maplibre-gl'
 import { haversine, metresPerPixel, type LngLat } from '../geo/geo'
-import { INSET_PX, SPEED_PX_PER_S, chevronsAt, markCovered, measure, spacingPx, type Chevron, type Measured } from './chevrons'
-import { MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
+import { INSET_PX, SPEED_PX_PER_S, chevronsAt, markCovered, measure, spacingPx, type Chevron, type Measured, type View } from './chevrons'
+import { MAP_CLEAR, MAP_COLOURS, MAP_PAINT } from '../../design-system/foundation/mapColours'
 import { endRadius, litWidthAt } from './lineStyle'
 import type { LineLook } from './liveryLine'
 import { ROUTES_HIT_LAYER } from './tap'
-import { LAYERS, useLayerReady } from './layers'
+import { LAYERS, TILE_BUFFER, useLayerReady } from './layers'
+import { warmSoon, type Twin } from './warmPrograms'
 
 /**
  * Which way the jeep goes, drawn on the lit directions only, with a circle
@@ -48,6 +49,31 @@ const CHEVRONS = 'direction-arrow-chevrons'
 const ENDS_SRC = 'direction-ends'
 const ENDS = LAYERS.endCircles
 
+/**
+ * The end circles' paint: white, ringed in the selected blue, or in a
+ * picked card's or an open trip's colour (useRideColours). Every property
+ * one value for the layer, or of the zoom alone: one GL program, which
+ * ENDS_TWIN compiles while the map is idle (warmPrograms.ts).
+ */
+export const ENDS_PAINT = {
+  'circle-radius': endRadius(),
+  'circle-color': MAP_PAINT['Paint/casing'],
+  'circle-stroke-color': MAP_COLOURS['Map/RouteLine/surface-selected'],
+  'circle-stroke-color-transition': { duration: 0, delay: 0 },
+  'circle-stroke-width': 2,
+} satisfies CircleLayerSpecification['paint']
+
+/**
+ * The end circles' twin: their paint, its colours clear. Drawn once while
+ * the map is idle, it compiles their GL program, which the first tap that
+ * lit a route used to compile as its card came up (the cheap-phone plan,
+ * step 3, 2026-10-04).
+ */
+export const ENDS_TWIN = {
+  type: 'circle',
+  paint: { ...ENDS_PAINT, 'circle-color': MAP_CLEAR, 'circle-stroke-color': MAP_CLEAR },
+} as const satisfies Twin
+
 /** Two ends of one name closer than this are one place, and named once: Tala, where two rides start. */
 const SAME_END_M = 150
 
@@ -59,8 +85,8 @@ const SAME_END_M = 150
  */
 export type Ride = {
   id?: string
-  line: LngLat[]
-  flow?: LngLat[]
+  line: readonly LngLat[]
+  flow?: readonly LngLat[]
   from: string
   to: string
   fromStop?: string | null
@@ -158,6 +184,66 @@ export function useRideColours(map: MapLibreMap | null, look: LineLook) {
 }
 
 /**
+ * The chevrons' and the end circles' sources and layers, added to `map`
+ * under the routes' hit area, which must be there: what useDirectionArrows
+ * adds, apart so a unit check can read it (map-sources-test).
+ */
+export function addDirectionArrows(map: Pick<MapLibreMap, 'addSource' | 'addLayer'>): void {
+  map.addSource(SRC, { type: 'geojson', buffer: TILE_BUFFER, data: { type: 'FeatureCollection', features: [] } })
+  map.addLayer(
+    {
+      id: CHEVRONS,
+      type: 'fill',
+      source: SRC,
+      // No fade between colours: they change with what is lit, in its frame.
+      paint: { 'fill-color': MAP_COLOURS['Map/RouteLine/Arrow/Rest'], 'fill-color-transition': { duration: 0, delay: 0 } },
+    },
+    ROUTES_HIT_LAYER,
+  )
+  map.addSource(ENDS_SRC, { type: 'geojson', buffer: TILE_BUFFER, data: { type: 'FeatureCollection', features: [] } })
+  map.addLayer({ id: ENDS, type: 'circle', source: ENDS_SRC, paint: ENDS_PAINT }, ROUTES_HIT_LAYER)
+}
+
+/** What of the map is on screen now, and at what zoom. */
+function viewOf(map: MapLibreMap): View {
+  const b = map.getBounds()
+  return { west: b.getWest(), east: b.getEast(), south: b.getSouth(), north: b.getNorth(), zoom: map.getZoom() }
+}
+
+/** `view` a screen wider each way: three of its widths across and three of its heights up. */
+export function widened(view: View): View {
+  const w = view.east - view.west
+  const h = view.north - view.south
+  return { west: view.west - w, east: view.east + w, south: view.south - h, north: view.north + h, zoom: view.zoom }
+}
+
+/**
+ * What a move of the map does to the chevrons, which do not flow while it
+ * moves (the cheap-phone plan, step 17, 2026-10-04):
+ * - 'hold': nothing, while the view stays inside the window they were last
+ *   drawn for (`held`) at its zoom: every chevron it can show is there,
+ *   the same polygon a draw for the view would make;
+ * - 'wide': drawn again a screen wider each way, as the map pans at the
+ *   zoom they were last drawn at (`drawnAt`) and leaves the window;
+ * - 'view': drawn for the view, while the zoom changes, each frame changing
+ *   their size and spacing.
+ * They were drawn for the view at every move: each frame of a pan was a
+ * new source for MapLibre's worker to cut into tiles.
+ */
+export function onAMove(held: View | null, drawnAt: number, now: View): 'hold' | 'wide' | 'view' {
+  if (
+    held &&
+    now.zoom === held.zoom &&
+    now.west >= held.west &&
+    now.east <= held.east &&
+    now.south >= held.south &&
+    now.north <= held.north
+  )
+    return 'hold'
+  return now.zoom === drawnAt ? 'wide' : 'view'
+}
+
+/**
  * Draw chevrons along each ride's line, flowing for as long as it is lit
  * (STEP_MS), and a circle at both ends of each (named by EndTitles);
  * nothing when there are none. Pass the same array while what is lit is
@@ -174,37 +260,12 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     // of everything, so a street name gives way to them rather than the
     // other way round.
     if (!map || map.getSource(SRC) || !hitReady) return
-    map.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-    map.addLayer(
-      {
-        id: CHEVRONS,
-        type: 'fill',
-        source: SRC,
-        // No fade between colours: they change with what is lit, in its frame.
-        paint: { 'fill-color': MAP_COLOURS['Map/RouteLine/Arrow/Rest'], 'fill-color-transition': { duration: 0, delay: 0 } },
-      },
-      ROUTES_HIT_LAYER,
-    )
-    map.addSource(ENDS_SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-    map.addLayer(
-      {
-        id: ENDS,
-        type: 'circle',
-        source: ENDS_SRC,
-        paint: {
-          'circle-radius': endRadius(),
-          'circle-color': MAP_PAINT['Paint/casing'],
-          'circle-stroke-color': MAP_COLOURS['Map/RouteLine/surface-selected'],
-          'circle-stroke-color-transition': { duration: 0, delay: 0 },
-          'circle-stroke-width': 2,
-        },
-      },
-      ROUTES_HIT_LAYER,
-    )
+    addDirectionArrows(map)
   }, [map, hitReady])
 
   // The ends: where each lit ride starts and finishes, each named once.
-  // Still, so drawn once.
+  // Still, so drawn once. How many are drawn is kept for the warm-up below.
+  const endsDrawn = useRef(0)
   useEffect(() => {
     const src = map?.getSource(ENDS_SRC) as GeoJSONSource | undefined
     if (!src) return
@@ -214,7 +275,36 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       geometry: { type: 'Point' as const, coordinates: at },
     }))
     src.setData({ type: 'FeatureCollection', features })
+    endsDrawn.current = features.length
   }, [map, rides, hitReady])
+
+  // The circles' GL program, compiled while the map is idle rather than at
+  // the first tap (ENDS_TWIN): once a map, after the first 'idle' that
+  // follows their layer's arrival, and again once a lost GL context is
+  // given back, its programs gone with it. Not when ends are drawn by then:
+  // drawing them compiled it. In the same warm-up as the lit layers' twins
+  // since 2026-10-05 (warmSoon; layerSwitch.ts).
+  const warmed = useRef<MapLibreMap | null>(null)
+  useEffect(() => {
+    if (!map || !hitReady || !map.getLayer(ENDS) || warmed.current === map) return
+    return warmSoon(map, () => {
+      warmed.current = map
+      return endsDrawn.current === 0 ? [ENDS_TWIN] : []
+    })
+  }, [map, hitReady])
+  useEffect(() => {
+    if (!map) return
+    let cancel = () => {}
+    const restored = () => {
+      cancel()
+      cancel = warmSoon(map, () => (endsDrawn.current === 0 && map.getLayer(ENDS) ? [ENDS_TWIN] : []))
+    }
+    map.on('webglcontextrestored', restored)
+    return () => {
+      map.off('webglcontextrestored', restored)
+      cancel()
+    }
+  }, [map])
 
   const frame = useRef(0)
   useEffect(() => {
@@ -242,10 +332,16 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     /** The zoom they rested at, or null while they flow; and the zoom the map last came to rest at. */
     let restedAt: number | null = null
     let zoomAt = map.getZoom()
-    const draw = () => {
-      const zoom = map.getZoom()
-      const bounds = map.getBounds()
-      const view = { west: bounds.getWest(), east: bounds.getEast(), south: bounds.getSouth(), north: bounds.getNorth(), zoom }
+    /** What they were last drawn for while the map moves, a screen wider each way (held), or null: the view itself. And at what zoom. */
+    let held: View | null = null
+    let drawnAt = zoomAt
+    /** Drawn for the view on screen, or for it `wide`ned a screen each way. */
+    const draw = (wide = false) => {
+      const now = viewOf(map)
+      const view = wide ? widened(now) : now
+      const zoom = view.zoom
+      held = wide ? view : null
+      drawnAt = zoom
       const across = Math.max(0, litWidthAt(zoom) - 2 * INSET_PX)
       const features: Chevron[] = []
       for (const m of measured) {
@@ -257,10 +353,39 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       src.setData({ type: 'FeatureCollection', features })
     }
     // Moved, the map draws them again where they are: a zoom changes their
-    // size and spacing, a pan brings new line on screen.
-    const onMove = () => draw()
-    const onStart = () => (moving = true)
+    // size and spacing, a pan brings new line on screen. A pan at one zoom
+    // finds them drawn a screen wider each way as it began, and draws them
+    // again only once it leaves that (onAMove); they do not flow while the
+    // map moves, so what is on screen is the same.
+    const onMove = () => {
+      const how = onAMove(held, drawnAt, viewOf(map))
+      if (how !== 'hold') draw(how === 'wide')
+    }
+    // A camera call made while another moves the map stops that one, which
+    // says 'moveend', and says 'movestart' at once for its own (MapLibre's
+    // easeTo: _stop, then _prepareEase): the compass camera eases at every
+    // turn of the phone of 3° or more (useLocator.ts), thirty times for a
+    // quarter turn made in a second. So the draw back to the view waits for
+    // the next frame, and is dropped if a move starts first; and a move that
+    // starts inside what is held, at its zoom, draws nothing. Back to back,
+    // such eases cost no draw, where each had cost two, one of them nine
+    // screens' worth (review of step 17, 2026-10-05). What is on screen is
+    // the same: what is held has every chevron a draw for the view makes.
+    let settle = 0
+    const onStart = () => {
+      moving = true
+      cancelAnimationFrame(settle)
+      settle = 0
+      if (onAMove(held, drawnAt, viewOf(map)) !== 'hold') draw(true)
+    }
     const onEnd = () => {
+      // Back to the view itself once it stops, as the steps draw them: a
+      // frame on, and only if nothing has drawn them since.
+      if (held)
+        settle = requestAnimationFrame(() => {
+          settle = 0
+          if (held) draw()
+        })
       moving = false
       last = performance.now()
       const zoom = map.getZoom()
@@ -307,6 +432,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
     if (!still) frame.current = requestAnimationFrame(tick)
     return () => {
       cancelAnimationFrame(frame.current)
+      cancelAnimationFrame(settle)
       map.off('move', onMove)
       map.off('movestart', onStart)
       map.off('moveend', onEnd)

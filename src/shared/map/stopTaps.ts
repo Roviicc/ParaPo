@@ -1,7 +1,7 @@
 import { useEffect, type RefObject } from 'react'
 import type { MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import type { StopSummary } from '../model/stops'
-import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, resolveTap, tapTargets } from './tap'
+import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, bindHover, resolveTap, tapTargets } from './tap'
 
 /*
  * A tap on the saved hotspots: what it opens, lists or lets go. Split from
@@ -12,9 +12,10 @@ const FILL = STOPS_FILL_LAYER
 const ROUTES_HIT = ROUTES_HIT_LAYER
 
 /**
- * Binds the map's click, and the pointer over a box, once. The handler reads
- * today's hotspots and whether the editor is drawing through `read`, and
- * answers through the hook's setters (`set`), which never change.
+ * Binds the map's click once, and the pointer over a box where a pointer
+ * can hover, from when one can (bindHover). The handler reads today's
+ * hotspots and whether the editor is drawing through `read`, and answers
+ * through the hook's setters (`set`), which never change.
  */
 export function useStopTaps<S extends StopSummary>(
   map: MapLibreMap | null,
@@ -56,12 +57,13 @@ export function useStopTaps<S extends StopSummary>(
     }
 
     map.on('click', onMapClick)
-    map.on('mouseenter', FILL, enter)
-    map.on('mouseleave', FILL, leave)
+    // The hand over a box only where a pointer can hover, and from when one
+    // can, as over a line (routeTaps.ts; bindHover, 2026-10-04 and
+    // 2026-10-05).
+    const unhover = bindHover(map, FILL, enter, leave)
     return () => {
       map.off('click', onMapClick)
-      map.off('mouseenter', FILL, enter)
-      map.off('mouseleave', FILL, leave)
+      unhover()
     }
   }, [map])
 }

@@ -463,6 +463,20 @@ export function useDrawing(
     [reset],
   )
 
+  /**
+   * The outline being traced is now this saved hotspot: a save wrote its row
+   * and failed after it (its links). Held in the area, so the panel closed
+   * and opened again, or the page reloaded from its draft, updates that row
+   * rather than inserting the box a second time (review of 2026-10-03).
+   */
+  const adoptStop = useCallback((stopId: string) => {
+    const a = areaRef.current
+    if (!a || a.stopId === stopId) return
+    const next = { ...a, stopId }
+    setArea(next)
+    areaRef.current = next
+  }, [])
+
   /** Open a saved hotspot's outline for editing. */
   const loadArea = useCallback(
     (kind: HotspotKind, stopId: string, ring: LngLat[]) => {
@@ -609,6 +623,7 @@ export function useDrawing(
     start,
     startArea,
     loadArea,
+    adoptStop,
     cancel,
     undo,
     addPoint,

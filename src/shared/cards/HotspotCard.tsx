@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Departures } from './Departures'
 import type { Livery } from '../model/liveries'
 import { RouteCardStack, type PickedPlace } from './RouteCardStack'
@@ -27,7 +27,8 @@ type Props = {
   routeCards?: {
     selected: string | null
     onSelect: (place: PickedPlace | null) => void
-    onShown: (ids: readonly string[]) => void
+    /** What the RouteCards show while the card is open; null once it closes. */
+    onShown: (ids: readonly string[] | null) => void
   }
   /** Every hotspot, so the card can name the place this box belongs to and list its siblings. */
   stops?: readonly StopSummary[]
@@ -95,11 +96,12 @@ export function HotspotCard({
   const showsKey = routeCards ? drawnDepartures(linked, back).flatMap((p) => p.directions.map((d) => d.v.id)).join('\n') : ''
   const onShown = useRef(routeCards?.onShown)
   onShown.current = routeCards?.onShown
-  useEffect(() => {
+  // Before the first paint, and null once closed, as HintuanCard's (2026-10-03).
+  useLayoutEffect(() => {
     const tell = onShown.current
     if (!tell) return
     tell(showsKey ? showsKey.split('\n') : [])
-    return () => tell([])
+    return () => tell(null)
   }, [showsKey])
 
   return (

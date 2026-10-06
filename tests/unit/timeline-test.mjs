@@ -7,7 +7,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { SAME_HINTUAN_M, labelGroups, placeBoxes, placeSummary } from '../../src/shared/model/places.ts'
-import { drawnFromTheEnd, timelineFor, hintuansAlong } from '../../src/shared/model/timeline.ts'
+import { drawnFromTheEnd, timelineFor, hintuansAlong, orderLinked } from '../../src/shared/model/timeline.ts'
 import { variantLine } from '../../src/shared/model/routes.ts'
 import { rideCut, routeTimeline } from '../../src/shared/model/ride.ts'
 import { otherRoutesFrom, sharingAnEnd } from '../../src/shared/model/departures.ts'
@@ -245,4 +245,92 @@ test('other routes: none where none leave, or the file carries no ends', () => {
   assert.deepEqual(idsOf(otherRoutesFrom(far, far.at(-2))), [])
   const old = [...drawn('a', undefined, undefined), ...drawn('b', undefined, undefined)]
   assert.deepEqual(idsOf(otherRoutesFrom(old, old[0])), [])
+})
+
+// Review of 2026-10-03, finding 17: two hintuans met on one segment tied on
+// its index and kept the order the hotspots were read in.
+test('two hintuans on one segment are listed in the order the line reaches them', () => {
+  const m = 1 / 111_000
+  const box = (id, x0) => ({
+    id,
+    kind: 'hintuan',
+    name: id,
+    informal: null,
+    aliases: [],
+    line: null,
+    area: { type: 'Polygon', coordinates: [[[121 + x0 * m, 14.7 - 3 * m], [121 + (x0 + 4) * m, 14.7 - 3 * m], [121 + (x0 + 4) * m, 14.7 - 1 * m], [121 + x0 * m, 14.7 - 1 * m], [121 + x0 * m, 14.7 - 3 * m]]] },
+    point: { type: 'Point', coordinates: [121 + (x0 + 2) * m, 14.7 - 2 * m] },
+  })
+  // One 30 m segment, eastward; the far box read first.
+  const line = [[121, 14.7], [121 + 30 * m, 14.7]]
+  const along = hintuansAlong(line, [box('far', 20), box('near', 5)], { mode: 'jeepney', route_code: null })
+  assert.deepEqual(along.map((a) => a.stop.id), ['near', 'far'])
+  assert.deepEqual(along.map((a) => a.index), [0, 0])
+})
+
+test("the card's timeline, read from the links, puts two on one segment in the order the line reaches them", () => {
+  const m = 1 / 111_000
+  const at = (id, x) => ({ id, point: { type: 'Point', coordinates: [121 + x * m, 14.7 - 2 * m] } })
+  const line = [[121, 14.7], [121 + 30 * m, 14.7], [121 + 60 * m, 14.7]]
+  const [first, far, near, later] = [at('first', -1), at('far', 22), at('near', 7), at('later', 45)]
+  // Stored by sequence; the two on segment 0 in the order they were read.
+  const linked = [
+    { stop: later, sequence: 1 },
+    { stop: far, sequence: 0 },
+    { stop: near, sequence: 0 },
+  ]
+  assert.deepEqual(orderLinked(linked, line).map((s) => s.id), ['near', 'far', 'later'])
+  // Without a line, as the links were read, by sequence alone.
+  assert.deepEqual(orderLinked(linked, []).map((s) => s.id), ['far', 'near', 'later'])
+  assert.deepEqual(orderLinked([{ stop: first, sequence: 0 }], line).map((s) => s.id), ['first'])
+})
+
+// The cheap-phone plan, step 16 (b), 2026-10-04: travelLine's line turned
+// round is made once per line array and kept (ride.ts, reversedOf).
+import { travelLine } from '../../src/shared/model/ride.ts'
+
+test('step 16 (b): a line drawn from the far end, turned round once and kept; the same as before; a new line, turned anew', () => {
+  const file = published()
+  const turned = file.variants.filter((v) => v.shape).flatMap((v) => [v, { ...v, reversed: !v.reversed }]).filter((v) => travelLine(v, file.stops) !== v.shape.coordinates)
+  assert.ok(turned.length >= 10, `${turned.length} directions turned round`)
+  for (const v of turned) {
+    const line = travelLine(v, file.stops)
+    // As before step 16: [...line].reverse(), the same points in the other order.
+    assert.deepStrictEqual(line, [...v.shape.coordinates].reverse())
+    assert.equal(travelLine(v, file.stops), line, 'asked again: the very same array')
+    assert.equal(travelLine({ ...v }, file.stops), line, 'another object with the same line: the same line turned')
+    // A new line (a full line read, a save) is a new array: turned anew, never the old copy.
+    const fresh = { ...v, shape: { ...v.shape, coordinates: v.shape.coordinates.map(([x, y]) => [x + 0.001, y]) } }
+    const freshLine = travelLine(fresh, file.stops)
+    assert.notEqual(freshLine, line)
+    assert.deepStrictEqual(freshLine, [...fresh.shape.coordinates].reverse())
+  }
+  // A line in travel order already is the direction's own array, as before.
+  const forward = file.variants.find((v) => v.shape && travelLine(v, file.stops) === v.shape.coordinates)
+  assert.ok(forward, 'a direction drawn forward')
+})
+
+// The public map works a trip card's timeline out once per trip and hotspots
+// (CommuterApp's useMemo on the trip, the hotspots and their stopsAlong; the
+// cheap-phone plan, step 15, 2026-10-05), not at each render of the page:
+// so it may read nothing but what it is given, and change none of it.
+test('the committed map: a trip card\'s timeline is the same for the same trip and hotspots, and touches neither', () => {
+  const m = published()
+  let trips = 0
+  for (const v of m.variants.filter((x) => x.shape?.coordinates?.length > 1)) {
+    // As useSavedStops' stopsAlong hands them: the links in order, two on one segment as the line reaches them.
+    const along = orderLinked(
+      m.links
+        .filter((l) => l.route_variant_id === v.id)
+        .map((l) => ({ stop: m.stops.find((s) => s.id === l.stop_id), sequence: l.stop_sequence }))
+        .filter((l) => !!l.stop),
+      variantLine(v),
+    )
+    const was = structuredClone({ v, stops: m.stops, along })
+    const first = routeTimeline(v, m.stops, along)
+    assert.deepEqual(routeTimeline(v, m.stops, along), first)
+    assert.deepEqual({ v, stops: m.stops, along }, was)
+    trips++
+  }
+  assert.ok(trips > 0, 'no trips on the committed map')
 })

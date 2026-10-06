@@ -11,7 +11,7 @@ import { HintuanPin } from '../shared/map/HintuanPin'
 import { StationLabels } from '../shared/map/StationLabels'
 import { EndTitles } from '../shared/map/EndTitles'
 import { lineOf, listVariants, loadStopsFromSupabase } from './data/live'
-import { isDrawn, type VariantRow } from '../shared/model/routes'
+import { isDrawn, variantLine, type VariantRow } from '../shared/model/routes'
 import { routeTimeline } from '../shared/model/ride'
 import { hotspotCount } from '../shared/model/places'
 import { stopLabel, stopRing, type StopRow } from '../shared/model/stops'
@@ -196,6 +196,13 @@ function Workshop({
   }
 
   const onDeleteStop = async (s: StopRow) => {
+    // As Done does: with the session gone the delete went out on the
+    // publishable key, matched no row, came back 2xx, and the box was still
+    // there after the reload, with nothing said (review of 2026-10-03).
+    if (!signedIn) {
+      setSigningIn(true)
+      return
+    }
     // A route's end cannot go while the route names it: the database refuses
     // (0006's foreign keys), and its refusal was the notice (finding 15).
     const ending = [
@@ -233,6 +240,11 @@ function Workshop({
     : false
 
   const onDelete = async (v: VariantRow) => {
+    // Signed out, the delete would match nothing and say nothing (onDeleteStop).
+    if (!signedIn) {
+      setSigningIn(true)
+      return
+    }
     if (!window.confirm(`Delete "${v.route?.name}" — ${v.direction_name}?`)) return
     try {
       await deleteVariant(v)
@@ -278,7 +290,7 @@ function Workshop({
           key={saved.selected.route_id}
           variant={saved.selected}
           variants={saved.variants}
-          timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id))}
+          timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id, variantLine(saved.selected)))}
           livery={tripLivery}
           onBackToList={backFromTrip}
           onSwitch={switchTrip}
@@ -493,6 +505,9 @@ function Workshop({
           stops={stops.stops}
           onSaved={onSavedStop}
           onCancel={() => setSaving(false)}
+          // A row written before its links failed becomes the outline's own
+          // (adoptStop): ✕, Done and Save again, or a reload, update it.
+          onWritten={draw.adoptStop}
         />
       )}
 

@@ -74,3 +74,13 @@ export const MAP_PAINT = {
   'Paint/draw-uturn': '#f59e0b', // amber/500: a join that turns back
   'Paint/draw-borrow': '#2563eb', // blue/600: the stretch an Extend borrows
 } as const satisfies Record<`Paint/${string}`, string>
+
+/**
+ * No colour at all: a layer drawn and not seen. The end circles' twin wears
+ * it, drawn once while the map is idle so that their GL program is compiled
+ * before the first tap needs it (warmPrograms.ts, the cheap-phone plan,
+ * step 3, 2026-10-04). Not one of MAP_PAINT's: no design names it, and its
+ * alpha is the point (an opacity of 0 would have MapLibre skip the layer,
+ * and compile nothing).
+ */
+export const MAP_CLEAR = 'rgba(0, 0, 0, 0)'

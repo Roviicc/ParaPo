@@ -14,14 +14,34 @@
 // twice — and stops the publish. A *warning* is data for the owner to look
 // at in the studio — a line that ends far from its terminal, a hintuan the
 // line passes without being linked to it, a link to one it never reaches —
-// and the map is published as it is, with the warnings on the run's summary
-// page and in the issue the workflow keeps (.github/workflows/publish-map.yml).
+// or, for line files whose orange stretches the app will not take (below),
+// the publish to look at, listed apart; either way the map is published as
+// it is, with the warnings on the run's summary page and in the issue the
+// workflow keeps (.github/workflows/publish-map.yml).
 //
 // The rules are the app's own (src/shared/geo/pass.ts): a direction
 // passes a hotspot when its line comes within PASS_WITHIN_M of the box,
 // which is what the studio links on save and what the public map paints
 // orange. Judged here on the published line, which lies within half a metre
 // of the drawn one, so a pass is only doubted beyond that half metre.
+//
+// A line file that carries its orange stretches (`pass`, since 2026-10-05,
+// the cheap-phone plan, step 13: src/shared/geo/linePass.ts) has them worked
+// out again here, against this file's hotspots, as the app would. Where
+// their key is the one this file's hotspots give, the app paints them as
+// they are: stretches that are not the ones the line and the hotspots make,
+// beyond a unit of the sixth decimal (what the publish rounds everything
+// else to), are a problem. Stretches under another key, or unreadable, the
+// app does not take: it works them out itself, on the phone, as before
+// step 13. Against the index the app reads (MAP_FILE_SCHEMA's,
+// index.v4.json) that is a warning, so the owner's issue opens (the owner's
+// answer to question T of the cheap-phone report, 2026-10-06): the publish
+// writes every line file against that very index, so in its run only a
+// fault in the publish can make them differ; on the committed map (npm run
+// check:data), a line file changed by hand or kept from another publish
+// too. Against an older index, shape 3's or 2's, it stays a note: the line
+// files are written for the newest, and an older one may lack a hintuan
+// they were worked out against (none on the map of 2026-10-05).
 import { existsSync, readFileSync, appendFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -32,6 +52,8 @@ import { stationIndex } from '../../src/shared/model/railFares.ts'
 import { bboxOf, bboxesOverlap, haversine, lineLength } from '../../src/shared/geo/geo.ts'
 import { distanceToRingM } from '../../src/shared/geo/ring.ts'
 import { firstNearIndex } from '../../src/shared/geo/pass.ts'
+import { linePass, passBoxes, readablePass } from '../../src/shared/geo/linePass.ts'
+import { MAP_FILE_SCHEMA } from '../../src/commuter/mapFile.ts'
 
 /** How far a line's first or last point may sit from the hotspot it leaves from or arrives at. */
 export const END_WITHIN_M = 50
@@ -42,6 +64,21 @@ const PUBLISHED_WITHIN_M = 0.5
 function toStopM(p, s) {
   const ring = stopRing(s)
   return ring.length >= 3 ? distanceToRingM(p, ring) : haversine(p, s.point.coordinates)
+}
+
+/** How far a stored stretch's point may be from the one worked out again: a unit of the sixth decimal, about 0.1 m. */
+export const PASS_TOLERANCE = 1e-6
+
+/** True when two lists of stretches are the same, point for point, within PASS_TOLERANCE. */
+export function sameStretches(a, b) {
+  return (
+    a.length === b.length &&
+    a.every(
+      (s, i) =>
+        s.length === b[i].length &&
+        s.every((p, j) => Math.abs(p[0] - b[i][j][0]) <= PASS_TOLERANCE && Math.abs(p[1] - b[i][j][1]) <= PASS_TOLERANCE),
+    )
+  )
 }
 
 /** The nearest the line comes to the box, sampled every 2 m; only for a warning's wording. */
@@ -56,6 +93,14 @@ function nearestM(line, ring) {
   }
   return best
 }
+
+/**
+ * How the one warning that is the publish's to look at, not the studio's,
+ * ends: a line file's orange stretches the app will not take against the
+ * index it reads (the owner's answer to question T of the cheap-phone
+ * report, 2026-10-06). markdownReport lists it under a heading of its own.
+ */
+const FOR_THE_PUBLISH = 'the publish to look at (scripts/publish/lineFile.mjs), not the studio'
 
 /**
  * Every problem, warning and note about a published map (the parsed file).
@@ -115,6 +160,10 @@ export function checkMapData(file) {
     .filter((s) => s.kind === 'hintuan' && s.area && stopRing(s).length >= 3)
     .map((s) => ({ s, ring: stopRing(s), bounds: passBounds(stopRing(s), surelyFar) }))
 
+  // The orange stretches' boxes, as the app makes them from this file's hotspots (linePass.ts).
+  const boxes = passBoxes(stops)
+  /** The directions whose line file carries stretches the app will not take (by name, with the file). */
+  const passOther = []
   let unmapped = 0
   for (const v of variants) {
     const name = `${v.route?.name ?? v.route_id} · ${v.direction_name ?? v.id}`
@@ -188,13 +237,41 @@ export function checkMapData(file) {
       const far = ring.length >= 3 ? firstNearIndex(line, ring, END_WITHIN_M) < 0 : Math.min(...line.map((p) => haversine(p, s.point.coordinates))) > END_WITHIN_M
       if (far) warnings.push(`${name}: linked to the terminal "${stopLabel(s)}" but the line stays more than ${END_WITHIN_M} m from it`)
     }
+
+    // The orange stretches its line file carries, if any (readPublished), as the app would read them.
+    if (v.pass !== undefined || v.passKey !== undefined) {
+      const own = linePass(v, boxes)
+      if (typeof v.passKey !== 'string' || !readablePass(v.pass) || v.passKey !== own.passKey) passOther.push(`${name} (lines/${v.id}.json)`)
+      else if (!sameStretches(v.pass, own.pass)) {
+        problems.push(
+          `${name}: the orange stretches in lines/${v.id}.json are not the ones its line and this file's hintuans make, ` +
+            'and the app would paint them as they are',
+        )
+      }
+    }
   }
   if (unmapped) notes.push(`${unmapped} direction(s) not mapped yet`)
+  if (passOther.length && file.schema === MAP_FILE_SCHEMA) {
+    warnings.push(
+      `${passOther.length} line file(s) carry orange stretches worked out against other hintuans than this index's, or unreadable, ` +
+        `so every phone that lights them works them out itself: ${passOther.join('; ')}. ` +
+        `The publish writes them against this very index: ${FOR_THE_PUBLISH}`,
+    )
+  } else if (passOther.length) {
+    notes.push(
+      `${passOther.length} line file(s) carry orange stretches worked out against other hintuans than this file's, or unreadable: the app works those out itself`,
+    )
+  }
 
   return { problems, warnings, notes, counts: { directions: variants.length, hotspots: stops.length, links: links.length } }
 }
 
-/** The report as Markdown, for the run's summary page and the issue the workflow keeps. */
+/**
+ * The report as Markdown, for the run's summary page and the issue the
+ * workflow keeps. The warnings the studio can answer under one heading, and
+ * the one the publish must (FOR_THE_PUBLISH) under its own: under "worth a
+ * look in the studio" it said "not the studio" (review of T, 2026-10-06).
+ */
 export function markdownReport(file, result) {
   const { problems, warnings, notes, counts } = result
   const when = typeof file?.published_at === 'string' ? ` published ${file.published_at}` : ''
@@ -202,8 +279,13 @@ export function markdownReport(file, result) {
   if (problems.length) {
     lines.push(`**${problems.length} problem(s), so this map was not published:**`, '', ...problems.map((p) => `- ${p}`), '')
   }
-  if (warnings.length) {
-    lines.push(`**${warnings.length} thing(s) worth a look in the studio:**`, '', ...warnings.map((w) => `- ${w}`), '')
+  const forThePublish = warnings.filter((w) => w.endsWith(FOR_THE_PUBLISH))
+  const forTheStudio = warnings.filter((w) => !w.endsWith(FOR_THE_PUBLISH))
+  if (forTheStudio.length) {
+    lines.push(`**${forTheStudio.length} thing(s) worth a look in the studio:**`, '', ...forTheStudio.map((w) => `- ${w}`), '')
+  }
+  if (forThePublish.length) {
+    lines.push(`**${forThePublish.length} thing(s) worth a look in the publish:**`, '', ...forThePublish.map((w) => `- ${w}`), '')
   }
   if (!problems.length && !warnings.length) lines.push('Nothing to report: every link, line and end agrees.', '')
   if (notes.length) lines.push(...notes.map((n) => `_${n}_`), '')
@@ -235,7 +317,9 @@ export function readPublished(path) {
     if (typeof v.metres !== 'number' || Math.abs(v.metres - lineLength(line.shape.coordinates)) > 0.05) {
       problems.push(`${v.direction_name ?? v.id}: the index says ${v.metres} m, its line is ${lineLength(line.shape.coordinates).toFixed(2)} m`)
     }
-    return { ...v, shape: line.shape }
+    // Its orange stretches, when the file carries them: checked by checkMapData.
+    const pass = 'pass' in line || 'passKey' in line ? { pass: line.pass, passKey: line.passKey } : {}
+    return { ...v, shape: line.shape, ...pass }
   })
   return { file: { ...file, variants }, problems }
 }

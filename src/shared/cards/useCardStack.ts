@@ -77,7 +77,8 @@ export function useCardStack<V extends VariantSummary, S extends { id: string }>
   // not, a pick only bringing the camera to them (the owner's ask,
   // 2026-10-02). The colour is the one the card is drawn in (liveriesFor
   // keeps a place's colour for the visit, so the card reads the same).
-  const onlyPlace = choosing ? drawnDepartures(saved.candidates, saved.back) : []
+  // Only while the list is what is up: behind a place's card it decides nothing (showingOf).
+  const onlyPlace = choosing && !stops.selected ? drawnDepartures(saved.candidates, saved.back) : []
   const onlyFrom = onlyPlace.length === 1 ? onlyPlace[0].from : null
   const onlyLivery = useMemo(() => (onlyFrom ? liveriesFor([onlyFrom])[0] : null), [onlyFrom])
   // What is lit wears the colour of the card it answers: the open trip's,

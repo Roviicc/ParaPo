@@ -26,7 +26,10 @@
 //                           servedBy would draw a jeep stopping at a station.
 //                           Kept a month at least after shape 3 ships.
 //   data/lines/<id>.json    each direction's full line (below), fetched when
-//                           the direction is lit or opened.
+//                           the direction is lit or opened, with its orange
+//                           stretches worked out (`pass`, and `passKey`, what
+//                           they were worked out against: src/shared/geo/linePass.ts),
+//                           since 2026-10-05.
 //   data/map.json           schema 1, everything in full as before (without
 //                           any line, as the index), for one
 //                           release: an installed app that has not updated
@@ -57,7 +60,10 @@
 // lie within half a metre of the thinned line, or it fails. And it refuses to
 // publish a map that shrank suddenly — a table that answers with no rows is a
 // normal HTTP 200, so without this a policy slip would blank the public map
-// and deploy it. `--force` overrides that one check, for a deliberate removal.
+// and deploy it. The signboards are held the same way (boardGuard.mjs,
+// 2026-10-03): many of the boards directions name gone from the bucket at
+// once, or every one of them.
+// `--force` overrides these checks, for a deliberate removal.
 //
 // The rules are the app's own, imported from src/ as check-map-data does —
 // the thinning, the rounding, a hotspot's label, the route and direction
@@ -73,9 +79,12 @@ import { fileURLToPath } from 'node:url'
 import { OVERVIEW_M, lineLength, overviewOf, pointToSegmentM, round6, roundLngLat, simplifyLine } from '../../src/shared/geo/geo.ts'
 import { directionName, isLineMode, routeName } from '../../src/shared/model/routes.ts'
 import { stopLabel } from '../../src/shared/model/stops.ts'
+import { passBoxes } from '../../src/shared/geo/linePass.ts'
 import { MAP_FILE_SCHEMA } from '../../src/commuter/mapFile.ts'
 import { cleanSignboardSvg } from '../../src/shared/model/signboardSvg.ts'
 import { EVERY_LINE, FERRY, withoutLines } from './withoutLines.mjs'
+import { boardsRefusal } from './boardGuard.mjs'
+import { lineFileText } from './lineFile.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -270,11 +279,28 @@ for (const [n, t] of boardsRefused) {
   console.warn(`::warning::signboards/${n} was refused by the clean and left out: ${t.refused}`)
   boardText.set(n, null)
 }
+// A board the bucket answers 400 or 404 for is gone, and left out: said
+// one by one, as a refused one is. Many boards gone at once is far more
+// likely a bucket made private than a clear-out (a board taken off in the
+// studio is unlisted first, so it is not named), and the files would then
+// be deleted from the map below: refused unless told, as a shrunk map is
+// (review of 2026-10-03, finding 8; boardGuard.mjs).
+const boardsGone = [...boardText].filter(([n, t]) => t === null && !boardsRefused.some(([r]) => r === n)).map(([n]) => n)
+for (const n of boardsGone) console.warn(`::warning::signboards/${n} is named by a direction but gone from the bucket; left out`)
 for (const [id, names] of boardsOf) {
   const kept = names.filter((n) => boardText.get(n) !== null)
   boardsMissing += names.length - kept.length
   if (kept.length) boardsOf.set(id, kept)
   else boardsOf.delete(id)
+}
+if (!FORCE) {
+  const refusal = boardsRefusal({
+    named: boardText.size,
+    gone: boardsGone.length,
+    published: boardsGone.filter((n) => existsSync(join(SIGNBOARDS, n))).length,
+    maxShrink: MAX_SHRINK,
+  })
+  if (refusal) fail(`FAIL  ${refusal}`)
 }
 
 // ---------------------------------------------------------------- assemble
@@ -464,15 +490,21 @@ writeFileSync(INDEX_V4, indexV4File)
 
 // A line per drawn direction, written only when it changed, and the files of
 // directions gone removed, so an unchanged map touches nothing.
+//
+// With its orange stretches, worked out here once rather than by every
+// phone that lights the line (lineFile.mjs; the cheap-phone plan, step 13,
+// 2026-10-05): by the app's own rule (src/shared/geo/linePass.ts: passBoxes,
+// passBounds, passStretches, stopRing, bboxOf, servedBy), on what the app
+// reads — the line as written and the hotspots as rounded in the index,
+// shape 4's, every line in — with the key the app checks them by.
+const passBoxesOfIndex = passBoxes(stops)
 mkdirSync(LINES, { recursive: true })
 const lineFiles = new Set()
 let linesWritten = 0
 for (const v of variants) {
   if (!v.shape) continue
   const path = join(LINES, `${v.id}.json`)
-  // No date in it: a line file changes only when its line does.
-  // Shape 2's, which shapes 3 and 4 kept: every index reads the same files.
-  const text = JSON.stringify({ schema: INDEX_SCHEMA, id: v.id, shape: v.shape }) + '\n'
+  const text = lineFileText(v, passBoxesOfIndex)
   lineFiles.add(`${v.id}.json`)
   if (existsSync(path) && readFileSync(path, 'utf8') === text) continue
   writeFileSync(path, text)

@@ -135,7 +135,10 @@ function Toolbar({ draw, onDone, keys }: { draw: Drawing; onDone: () => void; ke
         e.preventDefault()
         if (points > 0) draw.undo()
       } else if (!mod && !e.altKey && e.key === 'Enter') {
-        if (!canDone) return
+        // Enter on a focused button or link presses it, as everywhere: it
+        // also opened the save panel under it (review of 2026-10-03).
+        const pressable = (e.target as Element | null)?.closest?.('button, a[href], [role="button"], [role^="menuitem"], summary')
+        if (!canDone || pressable) return
         e.preventDefault()
         onDone()
       } else if (!mod && !e.altKey && !area && e.key.toLowerCase() === 'f') {

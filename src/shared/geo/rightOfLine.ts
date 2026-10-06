@@ -1,4 +1,4 @@
-import { bboxOf, type LngLat } from './geo'
+import { bboxMeetsSegment, bboxOf, type LngLat } from './geo'
 import { pointInRing, type Ring } from './ring'
 
 /* The babaan side: a box's half on a line's right (split from geo.ts, 2026-09-29). */
@@ -26,7 +26,7 @@ function signedArea2(ring: Ring): number {
  * Works in plain degrees: which side of a line a point is on, and where two
  * segments cross, do not change when longitude is stretched.
  */
-export function rightOfLine(ring: Ring, line: LngLat[]): Ring | null {
+export function rightOfLine(ring: Ring, line: readonly LngLat[]): Ring | null {
   const n = ring.length
   if (n < 3 || line.length < 2) return null
   const [w, s, e, nn] = bboxOf(ring)
@@ -36,15 +36,35 @@ export function rightOfLine(ring: Ring, line: LngLat[]): Ring | null {
     const len = Math.hypot(dx, dy)
     return len === 0 ? to : [to[0] + (dx / len) * reach, to[1] + (dy / len) * reach]
   }
-  const path = [...line]
-  if (pointInRing(path[0], ring)) path.unshift(carry(path[1], path[0]))
-  if (pointInRing(path[path.length - 1], ring)) path.push(carry(path[path.length - 2], path[path.length - 1]))
+  // Carried on from the nearest point that is not the end itself: a line
+  // whose end is repeated (a last click made twice) gave carry a zero-length
+  // step, which carried nothing, and the tail in the box cut nothing
+  // (review of 2026-10-03). Found by walking the line from each end, and the
+  // line copied only when a carry is added: a copy and a reversed copy of
+  // it for every box it is asked about were most of a trip's babaan sides
+  // (the cheap-phone plan, step 8, 2026-10-04). A line whose every point is
+  // its last has no point before either end, and carries neither.
+  const same = (p: LngLat, q: LngLat) => p[0] === q[0] && p[1] === q[1]
+  const first = line[0]
+  const last = line[line.length - 1]
+  let afterFirst = 1
+  while (afterFirst < line.length && same(line[afterFirst], first)) afterFirst++
+  const head = afterFirst < line.length && pointInRing(first, ring) ? carry(line[afterFirst], first) : null
+  let beforeLast = line.length - 2
+  while (beforeLast >= 0 && same(line[beforeLast], last)) beforeLast--
+  const tail = beforeLast >= 0 && pointInRing(last, ring) ? carry(line[beforeLast], last) : null
+  const path = head || tail ? [...(head ? [head] : []), ...line, ...(tail ? [tail] : [])] : line
+  // A segment that does not reach the box crosses none of its edges. A metre
+  // wider than the box, so one that rounding could call a crossing is never
+  // passed over (step 8).
+  const near = bboxOf(ring, 1)
 
   // Every place the path crosses an edge, in travel order. `at` is where on
   // the ring: edge index plus how far along it.
   const hits: { k: number; t: number; at: number; p: LngLat }[] = []
   for (let k = 0; k + 1 < path.length; k++) {
     const [a, b] = [path[k], path[k + 1]]
+    if (!bboxMeetsSegment(near, a, b)) continue
     for (let i = 0; i < n; i++) {
       const [c, d] = [ring[i], ring[(i + 1) % n]]
       const den = (b[0] - a[0]) * (d[1] - c[1]) - (b[1] - a[1]) * (d[0] - c[0])

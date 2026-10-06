@@ -59,36 +59,47 @@ export const INSET_PX = 0
 /**
  * The line measured once: where each vertex is along it, in metres, each
  * segment's bearing, and which segments an earlier lit line already covers.
+ * All but `covered` is the line's own and shared between calls (measure):
+ * read-only.
  */
 export type Measured = {
-  line: LngLat[]
-  at: number[]
-  bearing: number[]
+  line: readonly LngLat[]
+  at: readonly number[]
+  bearing: readonly number[]
   length: number
   lat: number
   covered: boolean[]
 }
 
-export function measure(line: LngLat[]): Measured {
-  const at = [0]
-  const bearing: number[] = []
-  for (let i = 1; i < line.length; i++) {
-    const [ax, ay] = line[i - 1]
-    const [bx, by] = line[i]
-    at.push(at[i - 1] + haversine(line[i - 1], line[i]))
-    // Flat is fine at street scale: bearing clockwise from north.
-    const dx = (bx - ax) * Math.cos((ay * Math.PI) / 180)
-    const dy = by - ay
-    bearing.push((Math.atan2(dx, dy) * 180) / Math.PI)
+const measured = new WeakMap<readonly LngLat[], Omit<Measured, 'covered'>>()
+
+/**
+ * The line measured: worked out once per line array and kept, `covered` all
+ * false and fresh at every call, for markCovered to fill against whatever
+ * else is lit this time. It was measured again each time what is lit
+ * changed: every line of a list at each of its lines' arrival (the
+ * cheap-phone plan, step 16 (d), 2026-10-04). Keyed on the line array, as
+ * lineBounds's box is (geo.ts): a line is never changed in place, so a new
+ * line is a new key, and what is kept is read-only.
+ */
+export function measure(line: readonly LngLat[]): Measured {
+  let m = measured.get(line)
+  if (!m) {
+    const at = [0]
+    const bearing: number[] = []
+    for (let i = 1; i < line.length; i++) {
+      const [ax, ay] = line[i - 1]
+      const [bx, by] = line[i]
+      at.push(at[i - 1] + haversine(line[i - 1], line[i]))
+      // Flat is fine at street scale: bearing clockwise from north.
+      const dx = (bx - ax) * Math.cos((ay * Math.PI) / 180)
+      const dy = by - ay
+      bearing.push((Math.atan2(dx, dy) * 180) / Math.PI)
+    }
+    m = { line, at, bearing, length: at[at.length - 1], lat: line[Math.floor(line.length / 2)][1] }
+    measured.set(line, m)
   }
-  return {
-    line,
-    at,
-    bearing,
-    length: at[at.length - 1],
-    lat: line[Math.floor(line.length / 2)][1],
-    covered: bearing.map(() => false),
-  }
+  return { ...m, covered: m.bearing.map(() => false) }
 }
 
 /** How far apart two bearings are, 0–180°. */

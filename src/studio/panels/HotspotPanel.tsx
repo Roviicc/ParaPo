@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { bboxOf, bboxesOverlap, OVERVIEW_M } from '../../shared/geo/geo'
 import { variantLine, type VariantRow } from '../../shared/model/routes'
 import { PASS_WITHIN_M } from '../../shared/geo/pass'
+import { ringCrossesItself } from '../../shared/geo/ring'
 import { parseAliases, stopLabel, type StopRow } from '../../shared/model/stops'
 import { linesOf } from '../data/live'
 import { saveStop } from '../data/stopsWrite'
 import { linksThrough, variantsStartingIn } from '../data/stopsGeometry'
 import type { Drawing } from '../drawing/useDrawing'
+import { terminalAlreadyAt } from './places'
 import { coarse } from '../../shared/map/MapView'
 import { FIELD_TEXT, FOOTER, OVERLAY, PANEL } from './sheet'
 
@@ -22,6 +24,8 @@ type Props = {
   stops?: StopRow[]
   onSaved: (s: StopRow) => void
   onCancel: () => void
+  /** Hears the row a save wrote, the moment it is in, to keep it beyond this panel. */
+  onWritten?: (stopId: string) => void
 }
 
 const field =
@@ -56,6 +60,7 @@ export function HotspotPanel({
   stops = [],
   onSaved,
   onCancel,
+  onWritten,
 }: Props) {
   const area = draw.area
   const kind = area?.kind ?? 'hintuan'
@@ -80,6 +85,17 @@ export function HotspotPanel({
   }, [stops, existing?.id])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The row as a save wrote it, when its links failed after: the retry
+  // updates it rather than inserting the box again (SavePanel's `written`).
+  // The studio keeps it in the outline itself (onWritten, adoptStop), so ✕
+  // and a reload keep it too (review of 2026-10-03); here otherwise, as in
+  // the stories.
+  const [writtenId, setOwnWritten] = useState<string | null>(null)
+  const setWrittenId = (id: string) => {
+    setOwnWritten(id)
+    onWritten?.(id)
+  }
+  const stopId = writtenId ?? existing?.id ?? area?.stopId ?? null
 
   // The list holds overviews (0009); a link's sequence is an index into the
   // full line, so the directions the outline can reach are read in full
@@ -140,20 +156,36 @@ export function HotspotPanel({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    setBusy(true)
     setError(null)
+    if (ringCrossesItself(ring)) {
+      setError('Two sides of this outline cross each other. Move a corner so the outline goes round the box once, then save.')
+      return
+    }
+    if (kind === 'terminal') {
+      const other = terminalAlreadyAt(stops, { id: stopId, name, informal })
+      if (other) {
+        setError(
+          `${stopLabel(other)} already has a terminal ("${other.name}"). A place has one terminal; draw this one as a hintuan under the same name.`,
+        )
+        return
+      }
+    }
+    setBusy(true)
     try {
-      const saved = await saveStop({
-        stopId: existing?.id ?? area?.stopId ?? null,
-        kind,
-        name,
-        informal,
-        aliases: parseAliases(aliasText, [name, informal]),
-        note,
-        ring,
-        variantIds: kind === 'terminal' ? [...ticked] : undefined,
-        variants: lines,
-      })
+      const saved = await saveStop(
+        {
+          stopId,
+          kind,
+          name,
+          informal,
+          aliases: parseAliases(aliasText, [name, informal]),
+          note,
+          ring,
+          variantIds: kind === 'terminal' ? [...ticked] : undefined,
+          variants: lines,
+        },
+        setWrittenId,
+      )
       onSaved(saved)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))

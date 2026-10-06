@@ -25,7 +25,7 @@ export const PASS_WITHIN_M = 5
  * (both sides: route and hotspot), the save panel and the hotspot panel all
  * ask it, so what is shown is what is stored.
  */
-export function passIndex(line: LngLat[], ring: Ring): number {
+export function passIndex(line: readonly LngLat[], ring: Ring): number {
   return firstNearIndex(line, ring, PASS_WITHIN_M)
 }
 
@@ -35,7 +35,7 @@ export function passIndex(line: LngLat[], ring: Ring): number {
  * -1 if never. Two segments that do not cross are nearest at one of their
  * four ends, so that is all that is measured.
  */
-export function firstNearIndex(line: LngLat[], ring: Ring, withinM: number): number {
+export function firstNearIndex(line: readonly LngLat[], ring: Ring, withinM: number): number {
   const touch = firstTouchIndex(line, ring)
   const n = ring.length
   if (n < 3 || line.length === 0) return -1
@@ -81,7 +81,7 @@ export function passBounds(ring: Ring, withinM = PASS_WITHIN_M, stepM = 1): BBox
  * vertex every 20–30 m, so the box edges fall between vertices — and left
  * alone everywhere else. Two points at least, so a stretch is a line.
  */
-export function passStretches(line: LngLat[], ring: Ring, withinM = PASS_WITHIN_M, stepM = 1): LngLat[][] {
+export function passStretches(line: readonly LngLat[], ring: Ring, withinM = PASS_WITHIN_M, stepM = 1): LngLat[][] {
   if (ring.length < 3 || line.length < 2) return []
   // Only segments near the box's bounds are worth sampling, and only a
   // vertex inside them is worth measuring: the ring distance is the cost
@@ -97,18 +97,33 @@ export function passStretches(line: LngLat[], ring: Ring, withinM = PASS_WITHIN_
   const out: LngLat[][] = []
   // The stretch being walked, and the last near sample between vertices,
   // kept so the stretch ends where the box does and not at the vertex before.
-  const st: { cur: LngLat[] | null; pending: LngLat | null } = { cur: null, pending: null }
-  const close = () => {
+  // `last` is the sample before this one: a stretch that is one point — a
+  // line that only comes near at a vertex, its end most often — is drawn
+  // from the sample before it, or to the one after, a metre's stub. Dropped,
+  // passIndex listed the hintuan and the map painted nothing, and rideCut
+  // found no stretch to end the ride at (review of 2026-10-03, finding 14).
+  const st: { cur: LngLat[] | null; pending: LngLat | null; before: LngLat | null; last: LngLat | null } = {
+    cur: null,
+    pending: null,
+    before: null,
+    last: null,
+  }
+  const close = (after: LngLat | null) => {
     if (!st.cur) return
     if (st.pending) st.cur.push(st.pending)
     if (st.cur.length > 1) out.push(st.cur)
+    else out.push(st.before ? [st.before, st.cur[0]] : [st.cur[0], after ?? st.cur[0]])
     st.cur = null
     st.pending = null
   }
   const take = (p: LngLat, isVertex: boolean) => {
-    if (!near(p)) return close()
-    if (!st.cur) st.cur = [p]
-    else if (isVertex) st.cur.push(p)
+    const before = st.last
+    st.last = p
+    if (!near(p)) return close(p)
+    if (!st.cur) {
+      st.cur = [p]
+      st.before = before
+    } else if (isVertex) st.cur.push(p)
     st.pending = isVertex ? null : st.cur[0] === p ? null : p
   }
   take(line[0], true)
@@ -120,6 +135,6 @@ export function passStretches(line: LngLat[], ring: Ring, withinM = PASS_WITHIN_
     }
     take(b, true)
   }
-  close()
+  close(null)
   return out
 }

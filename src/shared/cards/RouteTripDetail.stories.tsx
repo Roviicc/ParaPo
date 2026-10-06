@@ -195,7 +195,7 @@ export const TheWayBack: Story = {
   args: { routeOrigin: 'Novaliches', hintuans: [...talaToNovaliches].reverse(), routeDirection: 'Tala', back: true },
 }
 
-/** Opened with no list behind it — a tap on its line, a shared link, a hotspot's card — and no other route sharing an end drawn its way round: nothing to go back to, so no ‹. */
+/** Opened with no list behind it — a tap on its line, a hotspot's card — and no other route sharing an end drawn its way round: nothing to go back to, so no ‹. */
 export const NothingToGoBackTo: Story = { render: (args) => <RouteTripDetail {...args} onBackToList={null} /> }
 
 /** The route's other way is not drawn yet: SWITCH rests disabled. */

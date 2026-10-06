@@ -11,22 +11,35 @@
 // taps them. A check today's data cannot support prints SKIP instead of failing.
 //
 // Covers: touch chrome — no zoom buttons, attribution moved to the top right,
-// no horizontal scroll; the forgiving ±20 px tap, with a negative control well
-// outside the box; the trip card a lone route opens (the owner's
-// RouteTripDetail, 2026-09-29) — its ends, its fold, SWITCH keeping its
+// no horizontal scroll; the opening (the owner's Q1 and Q4, 2026-10-04) — the
+// map made framed on the routes where their fit framed it and kept there,
+// with the file still on its way the old opening and the routes framed as
+// they come, unless a finger has moved the map first (or, at 1280×800, an
+// arrow key or a shift-drag box zoom), the map file asked for by the page
+// as it is read and that request taken by the app, and the page's own
+// gray "Loading map…" before the app runs, taken over unchanged, and gone
+// with the first frame that draws the routes, or at the map's 'load' when
+// that comes first (the owner's answer to question A, 2026-10-06); the
+// forgiving ±20 px tap, with a negative control well outside the box; the
+// trip card a lone route opens (the owner's RouteTripDetail, 2026-09-29) —
+// its ends, its fold (its rows drawn only once it is opened, 2026-10-04),
+// SWITCH keeping its
 // colour, ‹ only where another route sharing an end runs its way; the route list
 // where two routes share a road ("N Routes", a card per place), the trip a
 // row opens in its card's colour and ‹ back to the list, every card at rest; a tap
 // just outside a hotspot, and the bottom sheet on a hotspot's card — tap and
-// drag the handle, Middle → Max → Low → Middle → Low → gone; the ?r=<id> share link and the
-// view it frames; a trip opened on its own whose ‹ lists the routes sharing
-// an end with its own; the fine-pointer desktop control (±5 px, no zoom
-// buttons for a mouse either since 2026-09-29, attribution bottom right);
-// and housekeeping.
+// drag the handle, Middle → Max → Low → Middle → Low → gone; a trip opened
+// by a tap on its own line (no ?r= link since the owner took trip links out,
+// 2026-10-03), the view it frames, and its ‹ listing the routes sharing an
+// end with its own; the fine-pointer desktop control (±5 px, no zoom
+// buttons for a mouse either since 2026-09-29, attribution bottom right,
+// the pointer a hand over a line); a first tap at the opening view
+// compiling no GL program, and asking the map what it landed on once
+// (2026-10-04); and housekeeping.
 import { chromium } from 'playwright'
-import { BASE, harness, nodeFetch, waitForSource } from './lib/harness.mjs'
+import { BASE, harness, nodeFetch, takeHeldReload, waitForSource } from './lib/harness.mjs'
 import { centroidOf, pointInPolygon } from './lib/geo.mjs'
-import { lookReaders, paintNow, rideLook } from './lib/looks.mjs'
+import { lookReaders, paintNow, programsAtRest, programsSince, rideLook } from './lib/looks.mjs'
 
 const { check, skip, tally } = harness()
 
@@ -176,6 +189,104 @@ await page.addInitScript(() => {
 })
 await page.addInitScript(lookReaders)
 
+/**
+ * In the page, before the app starts: the map from its making (MapView
+ * hands it out as window.__mapEarly in dev, 2026-10-04) — the camera it was
+ * made at, the camera at its 'load', and each move of it since, a
+ * visitor's (`gesture`, one carrying the input that made it) or another.
+ */
+function openingRecorder() {
+  let early = null
+  const cam = (m) => {
+    const c = m.getCenter()
+    return { lng: c.lng, lat: c.lat, zoom: m.getZoom(), bearing: m.getBearing(), pitch: m.getPitch() }
+  }
+  window.__opening = { made: null, atLoad: null, moves: [] }
+  Object.defineProperty(window, '__mapEarly', {
+    configurable: true,
+    get: () => early,
+    set(m) {
+      early = m
+      window.__opening.made = cam(m)
+      m.on('movestart', (e) => window.__opening.moves.push(e?.originalEvent ? 'gesture' : 'other'))
+      m.once('load', () => {
+        window.__opening.atLoad = cam(m)
+      })
+    },
+  })
+}
+await page.addInitScript(openingRecorder)
+
+/**
+ * In the page, before the app starts: the moment MapView's own "Loading
+ * map…" goes, and the map then (the owner's answer to question A of the
+ * cheap-phone report, 2026-10-06) — whether its 'load' had come
+ * (window.__map, which MapView hands out at it) and how many of the routes
+ * it drew on the screen (its resting line layer's rendered features).
+ */
+function liftRecorder() {
+  window.__lift = null
+  let text = null
+  const look = () => {
+    if (window.__lift) return
+    // MapView's own: index.html's, which has no class, goes as the app first renders.
+    text ??= [...document.querySelectorAll('div.pointer-events-none > p')].find((e) => e.textContent === 'Loading map…') ?? null
+    if (!text || text.isConnected) return
+    const m = window.__mapEarly
+    let drawn = null
+    try {
+      drawn = m.getLayer('saved-routes-line') ? m.queryRenderedFeatures({ layers: ['saved-routes-line'] }).length : 0
+    } catch {}
+    window.__lift = { at: Math.round(performance.now()), loaded: !!window.__map, drawn }
+  }
+  new MutationObserver(look).observe(document, { subtree: true, childList: true })
+}
+
+/**
+ * In the page, before its own scripts: index.html's request for the map file
+ * (the cheap-phone plan, step 20, 2026-10-04), left for the app as
+ * window.__parapoMapFile — when the page's plain script left it, when the
+ * app first read it, and how often (mapFile.ts takes it once, and deletes it).
+ */
+function earlyFileRecorder() {
+  let left
+  window.__earlyFile = { leftAt: null, takenAt: null, reads: 0 }
+  Object.defineProperty(window, '__parapoMapFile', {
+    configurable: true,
+    get() {
+      window.__earlyFile.reads++
+      window.__earlyFile.takenAt ??= Math.round(performance.now())
+      return left
+    },
+    set(v) {
+      left = v
+      window.__earlyFile.leftAt ??= Math.round(performance.now())
+    },
+  })
+}
+await page.addInitScript(earlyFileRecorder)
+/**
+ * The map file as the page asked for it: every request of the page's but
+ * the checks' own (x-parapo-test), each with how it ended, and the page's
+ * loads, so a second request says whether the page was loaded again.
+ */
+const mapFileAsks = []
+let pageLoads = 0
+page.on('request', (req) => {
+  if (/\/data\/index\.v4\.json/.test(req.url()) && !req.headers()['x-parapo-test']) mapFileAsks.push({ req, end: 'no answer yet' })
+})
+page.on('requestfinished', async (req) => {
+  const ask = mapFileAsks.find((a) => a.req === req)
+  if (ask) ask.end = `${(await req.response().catch(() => null))?.status() ?? 'no response'}`
+})
+page.on('requestfailed', (req) => {
+  const ask = mapFileAsks.find((a) => a.req === req)
+  if (ask) ask.end = `failed: ${req.failure()?.errorText}`
+})
+page.on('framenavigated', (f) => {
+  if (f === page.mainFrame()) pageLoads++
+})
+
 // ------------------------------------------------------------- 1. the pointer
 // Everything below assumes the page believes it is being touched. Playwright's
 // mobile emulation usually reports `pointer: coarse` on its own; where it does
@@ -194,6 +305,15 @@ if (!isCoarse) {
 }
 check('the page reports a coarse pointer', isCoarse, isCoarse ? `via ${coarseVia}` : 'matchMedia("(pointer: coarse)") is false — every check below is meaningless')
 
+// What the dev server holds for the next page to connect, taken first. A
+// reload Tailwind's plugin sent for an edit made before this run began (to
+// a README, say) loaded the page a second time the moment its client
+// connected, and step 20's check below counts the page's requests for the
+// map file and its loads (the owner's answer to question W of the
+// cheap-phone report, 2026-10-06; harness.mjs).
+const held = await takeHeldReload()
+if (held.held) console.log(`(the dev server held a ${held.held.type} for the next page to connect, from before this run: taken first)`)
+else if (!held.socket) console.log(`(no dev server's socket at ${BASE}: nothing held for the page to take)`)
 await page.goto(`${BASE}/`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
 await waitForSource(page, 'saved-routes')
@@ -218,7 +338,16 @@ let lateClicks = 0
 /** A frame drawn after the input queue drained: the click a touch makes, if any, has been dispatched by now. */
 const settled = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0))))
 const mapTap = async (x, y) => {
-  const before = await page.evaluate(() => window.__clicks)
+  // Counted afresh on a page loaded since (openAlone): without it the count
+  // never moved, and every tap was sent a second time by hand, onto whatever
+  // the first had brought under that point (the review of 2026-10-03).
+  const before = await page.evaluate(() => {
+    if (window.__clicks === undefined) {
+      window.__clicks = 0
+      window.__map.on('click', () => window.__clicks++)
+    }
+    return window.__clicks
+  })
   await page.touchscreen.tap(x, y)
   // The page may be busy drawing for a while after the touch; only then does
   // the wait for its click start, or the click comes late, after the one
@@ -278,6 +407,312 @@ check(
 )
 const noHScroll = (p) => p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
 check('no horizontal scroll at load', await noHScroll(page), `scrollWidth ${await page.evaluate(() => document.documentElement.scrollWidth)} vs innerWidth ${await page.evaluate(() => window.innerWidth)}`)
+
+// ----------------------------------- 1a. the opening: framed, and its gray
+// The owner's Q1 and Q4 (2026-10-04). The map is made framed on the routes,
+// where their fit put it after the map's 'load' until then — the box round
+// every overview in the published file, 100 px clear of the edges, zoom 13
+// at most — so its first tiles are those of the view it keeps; the fit
+// itself no longer moves it. With the file still on its way it opens as it
+// always did and the fit frames the routes as they come, unless a finger has
+// moved the map by then. And before the app's script has run, the page
+// itself shows the map's gray "Loading map…", which the app's own replaces
+// unchanged; that goes at the first frame that draws the routes, before
+// the map's 'load' while the basemap's tiles are on their way, or at the
+// 'load' when no route is drawn by then (the owner's answer to question A
+// of the cheap-phone report, 2026-10-06).
+{
+  /** The camera the routes' fit frames on page `p`'s map (useSavedRoutes, ROUTES_FRAMING). */
+  const fitCamera = (p) =>
+    p.evaluate(async () => {
+      const f = await (await fetch('/data/index.v4.json', { headers: { 'x-parapo-test': '1' } })).json()
+      let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity]
+      for (const v of f.variants) {
+        for (const [x, y] of v.overview?.coordinates ?? []) {
+          if (x < w) w = x
+          if (x > e) e = x
+          if (y < s) s = y
+          if (y > n) n = y
+        }
+      }
+      const c = window.__map.cameraForBounds([[w, s], [e, n]], { padding: 100, maxZoom: 13 })
+      return { lng: c.center.lng, lat: c.center.lat, zoom: c.zoom, bearing: 0, pitch: 0 }
+    })
+  const camOf = (p) =>
+    p.evaluate(() => {
+      const m = window.__map
+      const c = m.getCenter()
+      return { lng: c.lng, lat: c.lat, zoom: m.getZoom(), bearing: m.getBearing(), pitch: m.getPitch() }
+    })
+  /** The same camera, to a billionth of a degree and of a zoom level. */
+  const sameCam = (a, b) =>
+    !!a && !!b && ['lng', 'lat', 'zoom', 'bearing', 'pitch'].every((k) => Math.abs(a[k] - b[k]) < 1e-9)
+  const showCam = (c) => (c ? `${c.lng.toFixed(5)},${c.lat.toFixed(5)} z${c.zoom.toFixed(4)}` : 'none')
+
+  const want = await fitCamera(page)
+  const opening = await page.evaluate(() => window.__opening)
+  const now = await camOf(page)
+  check(
+    "the map is made framed on the routes, where their fit framed it: padding 100, zoom 13 at most (the owner's Q1)",
+    sameCam(opening.made, want),
+    `made at ${showCam(opening.made)}; the fit's ${showCam(want)}`,
+  )
+  check(
+    '  and stays there: the same camera at its \'load\' and at rest, never moved since',
+    sameCam(opening.atLoad, want) && sameCam(now, want) && opening.moves.length === 0,
+    `at 'load' ${showCam(opening.atLoad)}, now ${showCam(now)}; ${opening.moves.length} move(s)${opening.moves.length ? ': ' + opening.moves.join(', ') : ''}`,
+  )
+
+  // Step 20, which Q1's opening rests on: the page asks for the map file as
+  // it is read, and the app takes that request rather than asking again.
+  // Without the page's script the app asks once itself, and the map opens
+  // as well, a little later: no other check would say so (review of Q1,
+  // 2026-10-05).
+  const early = await page.evaluate(() => ({ ...window.__earlyFile, still: '__parapoMapFile' in window }))
+  check(
+    '  the page asked for the map file as it was read, and the app took that request, once: the one request for it (step 20)',
+    early.leftAt != null && early.takenAt != null && early.leftAt <= early.takenAt && early.reads === 1 && !early.still && mapFileAsks.length === 1,
+    `left by the page at ${early.leftAt ?? 'never'} ms, taken by the app at ${early.takenAt ?? 'never'} ms, read ${early.reads} time(s), ${early.still ? 'still there' : 'gone'}; ${mapFileAsks.length} request(s) for it (${mapFileAsks.map((a) => a.end).join(', ')}) in ${pageLoads} load(s) of the page`,
+  )
+
+  /** A fresh page on the phone (or in `ctx`) with the map file held back till `release()`: a first visit whose file is still on its way. */
+  const heldBack = async (ctx = context) => {
+    const p = await ctx.newPage()
+    watch(p)
+    await nodeFetch(p)
+    await p.addInitScript(openingRecorder)
+    await p.addInitScript(liftRecorder)
+    let release
+    const held = new Promise((r) => (release = r))
+    await p.route(/\/data\/index\.v4\.json/, async (route) => {
+      await held
+      await route.fallback()
+    })
+    await p.goto(`${BASE}/`, { waitUntil: 'load' })
+    await p.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
+    return { p, release }
+  }
+  /** Lets the file through, and waits for the routes on the map, then for anything their coming moves. */
+  const routesCome = async (p, release) => {
+    release()
+    const until = Date.now() + 20000
+    while (Date.now() < until) {
+      const on = await p.evaluate(async () => ((await window.__map.getSource('saved-routes')?.getData())?.features.length ?? 0) > 0)
+      if (on) break
+      await p.waitForTimeout(100)
+    }
+    await p.waitForTimeout(1500)
+    await p.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 5000 }).catch(() => {})
+  }
+
+  // With no file to frame on, the old opening; the fit then frames the
+  // routes as they come, and the camera ends where it always ended.
+  {
+    const { p, release } = await heldBack()
+    const made = await p.evaluate(() => window.__opening.made)
+    // Its 'load' before any route to draw: "Loading map…" goes at it, as it
+    // always did (the owner's answer to question A, 2026-10-06).
+    const lift = await p
+      .waitForFunction(() => window.__lift, null, { timeout: 5000 })
+      .then((h) => h.jsonValue())
+      .catch(() => null)
+    check(
+      '  the file still on its way, the map\'s \'load\' first: "Loading map…" goes at the \'load\', with no route on the screen',
+      !!lift && lift.loaded && lift.drawn === 0,
+      lift ? `gone at ${lift.at} ms, ${lift.loaded ? "after the map's 'load'" : "before the map's 'load'"}, ${lift.drawn} route(s) drawn` : 'never gone',
+    )
+    await routesCome(p, release)
+    const end = await camOf(p)
+    const fit = await fitCamera(p)
+    check(
+      '  the file still on its way: the map opens as it did (zoom 11), and the routes are framed as they come, the fit\'s camera',
+      made?.zoom === 11 && sameCam(end, fit),
+      `made at ${showCam(made)}; ends at ${showCam(end)}; the fit's ${showCam(fit)}`,
+    )
+    await p.close()
+  }
+
+  // A finger on the map before they come keeps it where it took it.
+  {
+    const { p, release } = await heldBack()
+    const before = await camOf(p)
+    const x = 195
+    const y = 422
+    const pdc = await context.newCDPSession(p)
+    let how = 'touch'
+    try {
+      await pdc.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
+      for (let i = 1; i <= 8; i++) {
+        await pdc.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x - 15 * i, y: y - 20 * i }] })
+        await p.waitForTimeout(16)
+      }
+      // Held still before letting go: no fling to carry it on.
+      await p.waitForTimeout(250)
+      await pdc.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    } catch {}
+    await p.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 5000 }).catch(() => {})
+    if (sameCam(await camOf(p), before)) {
+      // The runner made no touch of it: the same drag with a mouse.
+      how = 'mouse'
+      await p.mouse.move(x, y)
+      await p.mouse.down()
+      for (let i = 1; i <= 8; i++) {
+        await p.mouse.move(x - 15 * i, y - 20 * i)
+        await p.waitForTimeout(16)
+      }
+      await p.waitForTimeout(250)
+      await p.mouse.up()
+      await p.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 5000 }).catch(() => {})
+    }
+    const dragged = await camOf(p)
+    await routesCome(p, release)
+    const end = await camOf(p)
+    const fit = await fitCamera(p)
+    const moves = await p.evaluate(() => window.__opening.moves)
+    check(
+      '  a finger moving the map before they come keeps it where it took it: the fit does not take it back',
+      !sameCam(dragged, before) && sameCam(end, dragged) && !sameCam(end, fit) && moves.every((m) => m === 'gesture'),
+      `dragged by ${how} from ${showCam(before)} to ${showCam(dragged)}; ends at ${showCam(end)}; the fit's ${showCam(fit)}; moves: ${moves.join(', ') || 'none'}`,
+    )
+    await p.close()
+  }
+
+  // On a desktop, the two inputs no drag, zoom, turn or tilt event carries
+  // (review of the owner's Q1, 2026-10-05): an arrow key's pan, which
+  // MapLibre eases with its zoom, bearing and pitch kept, so only its
+  // 'movestart' carries the key; and a shift-drag's box, which it zooms to
+  // with no input at all. Either, made before the routes come, keeps the map
+  // where the visitor took it, as a finger does.
+  {
+    const wide = await b.newContext({ viewport: { width: 1280, height: 800 } })
+    for (const input of ['an arrow key', 'a shift-drag box zoom']) {
+      const { p, release } = await heldBack(wide)
+      const before = await camOf(p)
+      const canvas = p.locator('canvas.maplibregl-canvas')
+      if (input === 'an arrow key') {
+        // The map's canvas takes the keys once it has the focus, as a click on it gives it.
+        await canvas.focus()
+        await p.keyboard.press('ArrowRight')
+      } else {
+        const r = await canvas.boundingBox()
+        await p.keyboard.down('Shift')
+        await p.mouse.move(r.x + 500, r.y + 300)
+        await p.mouse.down()
+        await p.mouse.move(r.x + 600, r.y + 380, { steps: 6 })
+        await p.mouse.up()
+        await p.keyboard.up('Shift')
+      }
+      await p.waitForTimeout(600)
+      await p.waitForFunction(() => !window.__map.isMoving(), null, { timeout: 5000 }).catch(() => {})
+      const moved = await camOf(p)
+      await routesCome(p, release)
+      const end = await camOf(p)
+      const fit = await fitCamera(p)
+      const moves = await p.evaluate(() => window.__opening.moves)
+      check(
+        `  on a desktop, ${input} moving the map before they come keeps it where it took it`,
+        !sameCam(moved, before) && sameCam(end, moved) && !sameCam(end, fit) && moves.length === 1,
+        `from ${showCam(before)} to ${showCam(moved)}; ends at ${showCam(end)}; the fit's ${showCam(fit)}; moves: ${moves.join(', ') || 'none'}`,
+      )
+      await p.close()
+    }
+    await wide.close()
+  }
+
+  // The page before the app: its own gray "Loading map…", read with no
+  // script at all, against the app's own while the map waits for its style;
+  // then the app's, gone as the routes are drawn, the basemap's tiles held.
+  /** "Loading map…" on page `p`: how many, and the first's text and the gray under it, as drawn. */
+  const loadingLook = (p) =>
+    p.evaluate(() => {
+      const ps = [...document.querySelectorAll('p')].filter((e) => e.textContent === 'Loading map…')
+      const el = ps[0]
+      if (!el) return { count: 0 }
+      const s = getComputedStyle(el)
+      const r = el.getBoundingClientRect()
+      // The gray: the page's own screen, or MapView's wrapper under its map.
+      const under = el.parentElement.style.backgroundColor ? el.parentElement : document.querySelector('.bg-surface-secondary')
+      const g = under ? under.getBoundingClientRect() : null
+      return {
+        count: ps.length,
+        text: [s.fontFamily, s.fontSize, s.lineHeight, s.fontWeight, s.color].join(' / '),
+        at: [r.x, r.y, r.width, r.height].map((v) => +v.toFixed(2)).join(','),
+        gray: under ? `${getComputedStyle(under).backgroundColor} ${[g.x, g.y, g.width, g.height].join(',')}` : 'none',
+        marks: document.querySelectorAll('[data-directions], [data-dock-host]').length,
+      }
+    })
+  const still = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, javaScriptEnabled: false })
+  const sp = await still.newPage()
+  await sp.goto(`${BASE}/`, { waitUntil: 'load' })
+  const own = await loadingLook(sp)
+  await still.close()
+  check(
+    "before the app runs, the page shows the map's gray \"Loading map…\", with no data-directions or data-dock-host (the owner's Q4)",
+    own.count === 1 && own.marks === 0 && own.gray.startsWith('oklch(0.97 0 none) 0,0,390,844'),
+    `${own.count} "Loading map…"; ${own.marks} marked; gray ${own.gray}`,
+  )
+  const ap = await context.newPage()
+  watch(ap)
+  await nodeFetch(ap)
+  await ap.addInitScript(liftRecorder)
+  // The basemap's style held till `styleIn()`; then a stand-in's gray and
+  // one source of its own, whose tiles are held till `tilesIn()`, so the
+  // map's 'load' waits for them as it waits for a real basemap's (the
+  // owner's answer to question A, 2026-10-06).
+  let styleIn
+  const styleHeld = new Promise((r) => (styleIn = r))
+  let tilesIn
+  const tilesHeld = new Promise((r) => (tilesIn = r))
+  let tilesAsked = 0
+  await ap.route(/tiles\.openfreemap\.org\/styles\//, async (route) => {
+    await styleHeld
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        version: 8,
+        sources: { held: { type: 'vector', tiles: ['https://tiles.openfreemap.org/held/{z}/{x}/{y}.pbf'], maxzoom: 14 } },
+        layers: [
+          { id: 'bg', type: 'background', paint: { 'background-color': '#eee' } },
+          { id: 'held', type: 'line', source: 'held', 'source-layer': 'transportation' },
+        ],
+      }),
+    })
+  })
+  await ap.route(/tiles\.openfreemap\.org\/held\//, async (route) => {
+    tilesAsked++
+    await tilesHeld
+    // An empty tile: nothing to draw, nothing to ask again.
+    await route.fulfill({ status: 200, contentType: 'application/x-protobuf', body: Buffer.alloc(0) })
+  })
+  await ap.goto(`${BASE}/`, { waitUntil: 'load' })
+  await ap.waitForSelector('[data-directions]', { timeout: 30000 }).catch(() => {})
+  const app = await loadingLook(ap)
+  check(
+    '  the app takes it over unchanged: its own, alone, the same gray, text and place',
+    app.count === 1 && app.text === own.text && app.at === own.at && app.gray === own.gray,
+    `page: ${own.text} at ${own.at} on ${own.gray} | app: ${app.count} of them, ${app.text} at ${app.at} on ${app.gray}`,
+  )
+  styleIn()
+  const lift = await ap
+    .waitForFunction(() => window.__lift, null, { timeout: 30000 })
+    .then((h) => h.jsonValue())
+    .catch(() => null)
+  const asked = tilesAsked
+  check(
+    "  and it goes at the first frame that draws the routes, the basemap's tiles still on their way: before the map's 'load' (the owner's answer to A)",
+    !!lift && !lift.loaded && lift.drawn > 0 && asked > 0,
+    lift
+      ? `gone at ${lift.at} ms, ${lift.loaded ? "after the map's 'load'" : "before the map's 'load'"}, ${lift.drawn} route(s) drawn; ${asked} basemap tile(s) held`
+      : `never gone; ${asked} basemap tile(s) held`,
+  )
+  tilesIn()
+  await ap.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 }).catch(() => {})
+  const gone = await loadingLook(ap)
+  const loaded = await ap.evaluate(() => !!window.__map)
+  check("  and stays gone through the map's 'load'", loaded && gone.count === 0, `'load' ${loaded ? 'came' : 'never came'}; ${gone.count} left`)
+  await ap.close()
+}
 
 // ------------------------------------------------------------------- the data
 const snapshot = await page.evaluate(async () => {
@@ -487,15 +922,26 @@ const tripChecks = async () => {
   } else {
     const folded = (await fold.first().innerText()).trim()
     const n = Number(/^(\d+) more hintuans$/.exec(folded)?.[1] ?? NaN)
+    // The rows' insides, drawn: none on a card just opened, folded, every
+    // one from the first opening on (the cheap-phone plan, step 11, 2026-10-04).
+    const drawnRows = () => card().locator('[data-testid="trip-hintuan-pick"]').count()
+    const drawnFolded = await drawnRows()
     await buttonTap(fold, async () => (await fold.first().getAttribute('aria-expanded')) === 'true')
     const opening = await rowMotion()
     const shown = await restingRows()
     check('  its hintuans fold into one row, "N more hintuans", that opens to N rows', n > 1 && shown === n && (await fold.first().innerText()).includes('View less'), `"${folded}" opened to ${shown} row(s)`)
+    const drawnOpen = await drawnRows()
     await buttonTap(fold, async () => (await fold.first().getAttribute('aria-expanded')) === 'false')
     const folding = await rowMotion()
     check('  "View less" folds them again', (await restingRows()) === 0 && (await fold.first().innerText()).trim() === folded, await fold.first().innerText())
     // The Motion tokens: open over gentle, fold over base (the owner's "try it").
     check('  the rows open over 300 ms and fold over 200 ms', opening.startsWith('0.3s') && folding.startsWith('0.2s'), `${opening} / ${folding}`)
+    const drawnAgain = await drawnRows()
+    check(
+      '  folded rows are drawn only once opened, and stay drawn to fold in view',
+      drawnFolded === 0 && drawnOpen === n && drawnAgain === n,
+      `${drawnFolded} drawn folded as the card opened, ${drawnOpen} opened, ${drawnAgain} folded again, of ${n}`,
+    )
   }
 
   // A hintuan's row picks it (the owner's Timeline State=Selected,
@@ -934,6 +1380,102 @@ const wears = (seen, want) => !LOOKS || (!!want && seen.line === want.line && se
 /** The directions lit now, by id. */
 const litIds = (p) => p.evaluate(() => window.__lit('saved-routes'))
 
+// ------------------------------------ 1b. a first tap compiles no GL program
+// MapLibre compiles a GL program the first time it draws with it, on the
+// main thread: 5-50 ms on a phone, a second and more in a runner's software
+// GPU. The first tap that lit a route compiled two as its card came up, the
+// end circles' and the orange stretches'. Since 2026-10-04 the stretches are
+// drawn with the lit line's program, and the circles' is compiled while the
+// map is idle (the cheap-phone plan, steps 2 and 3). So, on the view the map
+// opened on with nothing tapped yet: the circles' program is there, and a
+// finger on a route line, its card up and the map settled, adds none. Then
+// the page is loaded again, for the sections below to start as they did.
+{
+  const rest = await programsAtRest(page)
+  check("at rest, before any tap, the end circles' GL program is compiled (warmPrograms)", rest.circle, rest.circle ? `after ${(rest.ms / 1000).toFixed(1)} s more` : `none in ${rest.ms / 1000} s: ${rest.keys.length} programs`)
+  // A vertex clear of every hotspot by more than a finger reaches, at the
+  // opening view, and the farthest from any other route: a trip where the
+  // map allows, else a list; the first that is on the open map.
+  const view = await page.evaluate(() => ({ zoom: window.__map.getZoom(), lat: window.__map.getCenter().lat }))
+  const reach = (20 * Math.SQRT2 + 9) * ((40075016.686 * Math.cos((view.lat * Math.PI) / 180)) / (512 * 2 ** view.zoom))
+  const spots = []
+  for (const r of snapshot.routes) {
+    for (const vi of sampleIndices(r.coords.length, 1500 / Math.max(1, snapshot.routes.length))) {
+      const p = r.coords[vi]
+      const k = mPerDegLng(p[1])
+      if (distToHotspots(p, snapshot.polys, k) < reach) continue
+      let clear = Infinity
+      for (const o of snapshot.routes) {
+        if (o.routeId === r.routeId || distToBbox(p, o.bbox, k) > clear) continue
+        clear = Math.min(clear, distToLine(p, o.coords, k))
+      }
+      spots.push({ p, clear })
+    }
+  }
+  spots.sort((a, b) => b.clear - a.clear)
+  const at = await page.evaluate((ps) => {
+    const m = window.__map
+    const c = m.getCanvas().getBoundingClientRect()
+    for (const p of ps) {
+      const q = m.project(p)
+      if (q.x < 40 || q.x > innerWidth - 40 || q.y < 160 || q.y > innerHeight - 160) continue
+      if (!document.elementFromPoint(c.left + q.x, c.top + q.y)?.classList.contains('maplibregl-canvas')) continue
+      return [c.left + q.x, c.top + q.y]
+    }
+    return null
+  }, spots.slice(0, 400).map((s) => s.p))
+  if (!at) {
+    skip('a first tap on a route at the opening view compiles no GL program', 'no route vertex clear of the hotspots on the open map')
+    skip("  and asks the map what it landed on once: no hover's queries, one answer for both hooks", 'no tap')
+  } else {
+    // Every query of the rendered features, until the click's last listener
+    // (added after the app's two, so it hears the click after them). The
+    // page is loaded again below, which puts the map's own back.
+    await page.evaluate(() => {
+      const m = window.__map
+      const query = m.queryRenderedFeatures
+      window.__queries = 0
+      window.__queriesByClick = null
+      m.queryRenderedFeatures = function (...args) {
+        window.__queries++
+        return query.apply(this, args)
+      }
+      m.on('click', () => {
+        window.__queriesByClick ??= window.__queries
+      })
+    })
+    await mapTap(at[0], at[1])
+    const shown = page.locator('[data-testid="card"]:not([hidden]), [data-testid="chooser"]:not([hidden])')
+    await shown.first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
+    const opened = (await page.locator('[data-testid="chooser"]:not([hidden])').count()) ? 'the route list' : (await trip().count()) ? 'a trip' : (await card().count()) ? 'a card' : 'nothing'
+    const { added, standIn } = await programsSince(page, rest.keys)
+    check(
+      'a first tap on a route at the opening view compiles no GL program',
+      opened !== 'nothing' && added.length === 0,
+      `${opened} opened; ${added.length} added${added.length ? ': ' + added.join(', ') : ''}` +
+        (standIn.length ? `; and ${standIn.length} a real basemap compiles at load, which the stand-in does not: ${standIn.map((k) => k.split('/')[0]).join(', ')}` : ''),
+    )
+    // A finger cannot hover, so the routes' and the hotspots' hooks ask
+    // nothing as it moves (bindHover, tap.ts), and the tap's question —
+    // inside a box? a route in the finger's box? a box near it? — is asked
+    // once, by the first hook, and kept for the second (tap.ts): three
+    // queries at most.
+    // Until 2026-10-04 a tap on a route asked eight: four for the hover
+    // pairs on the mousemove a touch makes, and two by each hook (the
+    // cheap-phone plan, step 7).
+    const queries = await page.evaluate(() => window.__queriesByClick)
+    check(
+      "  and asks the map what it landed on once: no hover's queries, one answer for both hooks",
+      queries !== null && queries <= 3,
+      queries === null ? 'the map heard no click' : `${queries} queries of the rendered features by the end of the click`,
+    )
+  }
+  await page.goto(`${BASE}/`, { waitUntil: 'load' })
+  await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
+  await waitForSource(page, 'saved-routes')
+  await page.waitForTimeout(1200)
+}
+
 // How far a pixel reaches on the ground — measured off the map, not looked up.
 // MapLibre serves 512 px tiles, so its zoom 16 is the scale a 256 px table calls
 // 17: about 1.2 m per CSS pixel here, half what the table says. Every metre
@@ -951,6 +1493,58 @@ const BOX_M = 20 * M_PER_PX
 /** Where the negative control taps: 40 px off the line. */
 const FAR_M = 40 * M_PER_PX
 console.log(`(at zoom ${ZOOM} a pixel is ${M_PER_PX.toFixed(2)} m, so the ±20 px tap box reaches ${Math.round(BOX_M)} m)\n`)
+
+/**
+ * The direction an open trip card shows: with a trip open only it is lit.
+ * Its name, the card's label, is the fallback; two directions can share a
+ * name (a via is not in it), so it is not the first resort.
+ */
+const openedDirection = async () => {
+  if (!(await trip().count())) return null
+  const lit = (await litIds(page)) ?? []
+  if (lit.length === 1) return fileDirections.find((d) => d.id === lit[0]) ?? null
+  const label = await tripLabel()
+  return label ? (fileDirections.find((d) => d.direction_name === label) ?? null) : null
+}
+
+/**
+ * Opens direction `d`'s trip on its own from a fresh page, as a visitor would:
+ * a tap on its line where nothing else runs — the vertex with the most room
+ * from every other line and every box, more than a tap reaches (the box's
+ * corner, 20√2 px, and half the hit line's width, at the suite's zoom). Its
+ * own way back may share the road where `d` is the way out: a tap there opens
+ * the way out (routeTaps.ts, the outbound rule). The trip links that opened a
+ * given trip went on 2026-10-03; false when no vertex has the room, or the
+ * card opened is another.
+ */
+async function openAlone(d) {
+  const r = snapshot.routes.find((o) => o.id === d.id)
+  if (!r) return false
+  const reach = (20 * Math.SQRT2 + 9) * M_PER_PX
+  let best = null
+  for (const vi of sampleIndices(r.coords.length, 400)) {
+    const p = r.coords[vi]
+    const k = mPerDegLng(p[1])
+    if (distToHotspots(p, snapshot.polys, k) < reach) continue
+    let clear = Infinity
+    for (const o of snapshot.routes) {
+      if (o.id === r.id || (!d.reversed && o.routeId === r.routeId) || distToBbox(p, o.bbox, k) > clear) continue
+      clear = Math.min(clear, distToLine(p, o.coords, k))
+    }
+    if (!best || clear > best.clear) best = { p, clear }
+  }
+  if (!best || best.clear < reach) return false
+  await page.goto(`${BASE}/`, { waitUntil: 'load' })
+  await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
+  await waitForSource(page, 'saved-routes')
+  await jumpTo(page, best.p)
+  const at = await project(page, best.p)
+  const box = await canvasBox()
+  await mapTap(box.x + at[0], box.y + at[1])
+  await trip().first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
+  await page.waitForTimeout(2000)
+  return (await openedDirection())?.id === d.id
+}
 
 // ------------------------------------------------ 2. a forgiving tap, ±20 px
 // Route A: the vertex with the most clearance from every other route's line,
@@ -1907,109 +2501,107 @@ const overlapping = snapshot.polys.some((a) =>
 )
 if (!overlapping) skip('two overlapping hotspots open the list', 'no two hotspot polygons overlap today')
 
-// --------------------------------------------------------------- 5. sharing
+// ---------------------------------------- 5. a trip opened by a tap, framed
+// Trip links (?r=<id>) went on 2026-10-03, the owner's "remove that for
+// now": the address stays as it was, and the view a trip frames is checked
+// on a trip opened by a tap on its own line, as it was on one opened by a link.
 if (!routeA) {
-  skip('selecting a route puts ?r=<id> in the address', 'no lone route vertex to select')
+  skip('a trip opened by a tap leaves the address as it was', 'no lone route vertex to select')
 } else {
-  const r = routeA.route
   await jumpTo(page, routeA.point)
   const anchor = await project(page, routeA.point)
   const perp = await perpendicular(page, routeA.point, routeA.neighbour, routeA.route.coords, 40)
   const box = await canvasBox()
   await mapTap(box.x + anchor[0] + perp[0] * 14, box.y + anchor[1] + perp[1] * 14)
-  await page.waitForTimeout(600)
-  const sameRouteIds = snapshot.routes.filter((o) => o.routeId === r.routeId).map((o) => o.id)
-  check('selecting a route puts ?r=<id> in the address', sameRouteIds.includes(new URL(page.url()).searchParams.get('r') ?? ''), page.url().slice(BASE.length) || '/')
-  await closeCard()
-  check('  closing the card clears it again', !new URL(page.url()).searchParams.has('r'), page.url().slice(BASE.length) || '/')
-
-  // A cold load of the share link.
-  await page.goto(`${BASE}/?r=${encodeURIComponent(r.id)}`, { waitUntil: 'load' })
-  await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
   await page.waitForTimeout(2000)
-  const shareText = await cardText()
-  // The card reads the route the way that direction rides it: check both ends, not the order.
-  const ends = r.signboard.split(' – ').map((e) => e.replace(/ via .*$/, ''))
-  check('loading /?r=<id> opens that route', ends.length === 2 && ends.every((e) => shareText.includes(e)), shareText.split('\n')[0] ?? '(no card)')
-
-  const shareFramed = await framedAboveCard(r.bbox)
-  check('  it frames the whole route, above the card', shareFramed.inside, JSON.stringify(shareFramed))
-  // Framed, not merely shown: the route fills the room the card leaves along
-  // one side or the other (its 48 px margins aside), however long it is.
-  const { box: fb } = shareFramed
-  const fill = Math.max((fb.right - fb.left) / (shareFramed.width - 96), (fb.bottom - fb.top) / (shareFramed.floor - shareFramed.map[0] - 96))
-  check('  zoomed to fit it: the route fills the room along one side', fill > 0.8 && fill < 1.05, `${Math.round(fill * 100)}% at zoom ${shareFramed.zoom}`)
-
-  // The sheet at another height: the camera takes the route in again, in the
-  // map it leaves (the owner's ask, 2026-10-01) — at Max, the whole screen on
-  // a phone, as at Middle; in closer above Low; and back to the overview
-  // after the visitor has moved the map. Going up, no further out than
-  // 5 km on the scale bar (100 px; MapLibre's 512 px tiles), the owner's
-  // "for scrolling up only": a long route is cut, not shrunk.
-  const capZoom = Math.log2((78271.51696 * Math.cos((((r.bbox[1] + r.bbox[3]) / 2) * Math.PI) / 180) * 100) / 5000)
-  const raised = Math.max(shareFramed.zoom, capZoom)
-  const toMax = await buttonTap(handle(), async () => (await sheetState()) === 'max')
-  const atMax = await framedAboveCard(r.bbox)
-  const toLow = toMax && (await buttonTap(handle(), async () => (await sheetState()) === 'low'))
-  const atLow = await framedAboveCard(r.bbox)
-  if (!toLow) skip('  the sheet at Max, then Low: the route taken in again in the map it leaves', `the handle would not go round: data-snap=${await sheetState()}`)
+  check('a trip opened by a tap leaves the address as it was: no trip link', new URL(page.url()).search === '', page.url().slice(BASE.length) || '/')
+  // The direction the card opened (the tap may open the route's other way).
+  const opened = await openedDirection()
+  const r = opened && snapshot.routes.find((o) => o.id === opened.id)
+  if (!r) skip('  it frames the whole route, above the card', `no direction named "${await tripLabel()}" on the map`)
   else {
-    check(
-      '  the sheet up to Max: framed as at Middle, no further out than 5 km on the scale bar',
-      Math.abs(atMax.zoom - raised) < 0.05,
-      `zoom ${atMax.zoom}; at Middle ${shareFramed.zoom}, 5 km at ${capZoom.toFixed(2)}`,
-    )
-    check('  at Low: in closer, the whole route above the sheet', atLow.inside && atLow.zoom > shareFramed.zoom + 0.1, JSON.stringify(atLow))
-  }
-  // Up to Middle from Low: with the sheet never brought down, it is at
-  // Middle already, and no height change moves the camera (a runner that
-  // dropped the handle's taps, 2026-10-01).
-  if (!toLow) skip('  moved away, then up to Middle: the overview again', `the sheet never came down to Low: data-snap=${await sheetState()}`)
-  else {
-    await page.evaluate(() => {
-      const c = window.__map.getCenter()
-      window.__map.jumpTo({ center: [c.lng + 0.02, c.lat + 0.02], zoom: 16 })
-    })
-    await buttonTap(handle(), async () => (await sheetState()) === 'middle')
-    const back = await framedAboveCard(r.bbox)
-    check(
-      '  moved away, then up to Middle: the overview again, 5 km on the bar at the farthest',
-      Math.abs(back.zoom - raised) < 0.05 && (back.inside || capZoom > shareFramed.zoom),
-      JSON.stringify(back),
-    )
-  }
+    const shareFramed = await framedAboveCard(r.bbox)
+    check('  it frames the whole route, above the card', shareFramed.inside, JSON.stringify(shareFramed))
+    // Framed, not merely shown: the route fills the room the card leaves along
+    // one side or the other (its 48 px margins aside), however long it is.
+    const { box: fb } = shareFramed
+    const fill = Math.max((fb.right - fb.left) / (shareFramed.width - 96), (fb.bottom - fb.top) / (shareFramed.floor - shareFramed.map[0] - 96))
+    check('  zoomed to fit it: the route fills the room along one side', fill > 0.8 && fill < 1.05, `${Math.round(fill * 100)}% at zoom ${shareFramed.zoom}`)
 
-  // Opened by a link, no list is behind the trip: ‹ only where another route
-  // sharing an end is drawn its way round (the owner's ask, 2026-09-29). No
-  // Share button since the owner dropped it for now (2026-09-28) — the
-  // address bar is the link.
-  const fannedR = fanOf(r.id).length > 1
-  check(
-    fannedR
-      ? '  opened by a link, the trip has ‹: another route sharing an end runs its way'
-      : '  opened by a link, the trip has no ‹: no other route sharing an end runs its way',
-    (await trip().count()) > 0 && ((await card().getByRole('button', { name: 'Back' }).count()) > 0) === fannedR,
-    `trip ${await trip().count()}`,
-  )
+    // The sheet at another height: the camera takes the route in again, in the
+    // map it leaves (the owner's ask, 2026-10-01) — at Max, the whole screen on
+    // a phone, as at Middle; in closer above Low; and back to the overview
+    // after the visitor has moved the map. Going up, no further out than
+    // 5 km on the scale bar (100 px; MapLibre's 512 px tiles), the owner's
+    // "for scrolling up only": a long route is cut, not shrunk.
+    const capZoom = Math.log2((78271.51696 * Math.cos((((r.bbox[1] + r.bbox[3]) / 2) * Math.PI) / 180) * 100) / 5000)
+    const raised = Math.max(shareFramed.zoom, capZoom)
+    const toMax = await buttonTap(handle(), async () => (await sheetState()) === 'max')
+    const atMax = await framedAboveCard(r.bbox)
+    const toLow = toMax && (await buttonTap(handle(), async () => (await sheetState()) === 'low'))
+    const atLow = await framedAboveCard(r.bbox)
+    if (!toLow) skip('  the sheet at Max, then Low: the route taken in again in the map it leaves', `the handle would not go round: data-snap=${await sheetState()}`)
+    else {
+      check(
+        '  the sheet up to Max: framed as at Middle, no further out than 5 km on the scale bar',
+        Math.abs(atMax.zoom - raised) < 0.05,
+        `zoom ${atMax.zoom}; at Middle ${shareFramed.zoom}, 5 km at ${capZoom.toFixed(2)}`,
+      )
+      check('  at Low: in closer, the whole route above the sheet', atLow.inside && atLow.zoom > shareFramed.zoom + 0.1, JSON.stringify(atLow))
+    }
+    // Up to Middle from Low: with the sheet never brought down, it is at
+    // Middle already, and no height change moves the camera (a runner that
+    // dropped the handle's taps, 2026-10-01).
+    if (!toLow) skip('  moved away, then up to Middle: the overview again', `the sheet never came down to Low: data-snap=${await sheetState()}`)
+    else {
+      await page.evaluate(() => {
+        const c = window.__map.getCenter()
+        window.__map.jumpTo({ center: [c.lng + 0.02, c.lat + 0.02], zoom: 16 })
+      })
+      await buttonTap(handle(), async () => (await sheetState()) === 'middle')
+      const back = await framedAboveCard(r.bbox)
+      check(
+        '  moved away, then up to Middle: the overview again, 5 km on the bar at the farthest',
+        Math.abs(back.zoom - raised) < 0.05 && (back.inside || capZoom > shareFramed.zoom),
+        JSON.stringify(back),
+      )
+    }
+
+    // Opened on its own, no list is behind the trip: ‹ only where another
+    // route sharing an end is drawn its way round (the owner's ask, 2026-09-29).
+    const fannedR = fanOf(r.id).length > 1
+    check(
+      fannedR
+        ? '  opened on its own, the trip has ‹: another route sharing an end runs its way'
+        : '  opened on its own, the trip has no ‹: no other route sharing an end runs its way',
+      (await trip().count()) > 0 && ((await card().getByRole('button', { name: 'Back' }).count()) > 0) === fannedR,
+      `trip ${await trip().count()}`,
+    )
+  }
+  await closeCard()
 }
 
 // ------------------------------------------ 5b. ‹ on a trip opened on its own
-// A trip opened by a link has no list behind it. Where other routes sharing
+// A trip opened by a tap on its own line has no list behind it. Where other routes sharing
 // its head or its tail are drawn its way round, ‹ lists them the way the trip
 // goes, as a tap where they all run would: Tala → Novaliches ‹ to Tala's
 // card, "1 Route", Novaliches and SM Fairview (the owner's ask, 2026-09-29).
-// A drawn direction: a link to a slot opens nothing to test, and its fan would leave it out.
-const fannedOne = fileDirections.find((d) => (d.shape?.coordinates?.length ?? 0) > 1 && fanOf(d.id).length > 1)
+// A drawn direction (a slot has no line to tap, and its fan would leave it
+// out), one a tap can open alone: the first of up to ten that does.
+const fannedCandidates = fileDirections.filter((d) => (d.shape?.coordinates?.length ?? 0) > 1 && fanOf(d.id).length > 1)
+let fannedOne = null
+for (const d of fannedCandidates.slice(0, 10)) if (await openAlone(d)) { fannedOne = d; break }
 if (!fannedOne) {
   skip(
     'a trip opened on its own lists, behind its ‹, the routes sharing an end',
-    published ? 'no two routes sharing an end are drawn the same way round today' : 'the published file could not be read',
+    !published
+      ? 'the published file could not be read'
+      : fannedCandidates.length
+        ? 'none of those routes has a stretch of line a tap could open alone'
+        : 'no two routes sharing an end are drawn the same way round today',
   )
 } else {
   const fan = fanOf(fannedOne.id)
-  await page.goto(`${BASE}/?r=${encodeURIComponent(fannedOne.id)}`, { waitUntil: 'load' })
-  await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
-  await page.waitForTimeout(2000)
   const back = card().getByRole('button', { name: 'Back' })
   // The trip opens once its line is read: on a slow runner, after the map.
   await back.first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
@@ -2052,14 +2644,21 @@ if (!fannedOne) {
 const startOf = (d) => (d.reversed ? d.route?.tail_stop_id : d.route?.head_stop_id) ?? null
 const drawnDirection = (d) => (d.shape?.coordinates?.length ?? 0) > 1
 const othersOf = (d) => fileDirections.filter((o) => o.route_id !== d.route_id && drawnDirection(o) && !!startOf(d) && startOf(o) === startOf(d))
-const withOthers = fileDirections.find((d) => drawnDirection(d) && othersOf(d).length > 0)
+// Opened by a tap on its own line: the first of up to ten that a tap can open alone.
+const othersCandidates = fileDirections.filter((d) => drawnDirection(d) && othersOf(d).length > 0)
+let withOthers = null
+for (const d of othersCandidates.slice(0, 10)) if (await openAlone(d)) { withOthers = d; break }
 if (!withOthers) {
-  skip('a trip lists the other routes out of where it starts', published ? 'no two drawn routes leave one hotspot today' : 'the published file could not be read')
+  skip(
+    'a trip lists the other routes out of where it starts',
+    !published
+      ? 'the published file could not be read'
+      : othersCandidates.length
+        ? 'none of those routes has a stretch of line a tap could open alone'
+        : 'no two drawn routes leave one hotspot today',
+  )
 } else {
   const others = othersOf(withOthers)
-  await page.goto(`${BASE}/?r=${encodeURIComponent(withOthers.id)}`, { waitUntil: 'load' })
-  await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
-  await page.waitForTimeout(2000)
   const rows = card().locator('[data-testid="trip-other-route"]')
   const shown = await rows.evaluateAll((els) => els.map((e) => e.dataset.direction))
   check(
@@ -2153,6 +2752,18 @@ if (!routeA) {
     (await dCard.count()) === 0,
     `card count ${await dCard.count()} (the first one closed: ${closed}); saved-routes-hit is ${hitWidth} px wide, so a ±5 px box reaches ${5 + Number(hitWidth) / 2} px`,
   )
+
+  // A mouse can hover: over the line the pointer is a hand, and off it, where
+  // the click above found nothing, it is not. A phone's finger gets no hover
+  // listeners since 2026-10-04 (bindHover, tap.ts); a desktop keeps them.
+  const cursor = () => dpage.evaluate(() => window.__map.getCanvas().style.cursor)
+  await dpage.mouse.move(box.x + anchor2[0], box.y + anchor2[1], { steps: 4 })
+  await dpage.waitForTimeout(300)
+  const over = await cursor()
+  await dpage.mouse.move(box.x + anchor2[0] + perp2[0] * 20, box.y + anchor2[1] + perp2[1] * 20, { steps: 4 })
+  await dpage.waitForTimeout(300)
+  const off = await cursor()
+  check('a mouse over the line turns the pointer to a hand, and off it back', over === 'pointer' && off === '', `over "${over}", 20 px off "${off}"`)
 }
 
 // --------------------------------------------------------- 7. housekeeping

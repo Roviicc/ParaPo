@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Para Po</title>
     <meta name="description" content="Jeepney routes in Metro Manila, drawn from the ground." />
+    <!--
+      The basemaps' host, connected to while the app's script downloads: the map asks it for its
+      style only once that script has run, and the name lookup and the TCP and TLS handshakes are
+      several round trips on a slow phone network (the cheap-phone plan, step 6, 2026-10-04).
+      `crossorigin`: MapLibre asks without credentials, on connections of their own. Offline it
+      fails silently. The studio's page, which opens on its sign-in, has none.
+    -->
+    <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
     <!-- The brand maroon, measured from the logo; the manifest in vite.config.ts carries the same. Once the map is up, the map's own colour (statusBar.ts). -->
     <meta name="theme-color" content="#8a595a" />
     <link rel="icon" type="image/png" href="/icons/favicon.png" />
@@ -15,7 +23,20 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   </head>
   <body>
-    <div id="root"></div>
+    <!--
+      The map's own "Loading map…" (MapView.tsx), drawn by the page itself, so the first thing
+      painted is the map's gray and not a white page while the app's script downloads (the
+      owner's Q4, 2026-10-04): 355 kB on the wire then, about 3.3 s of a slow phone network, and
+      385 kB since the cheap-phone plan's step 14 (2026-10-05). React empties
+      #root as it first renders into it, and MapView's own takes its place in the same frame: the
+      same gray (bg-surface-secondary, Tailwind's neutral-100), the same text in the same face,
+      size, line and colour (text-sm, text-neutral-500), in the same place, written out here
+      because in development the app's stylesheet comes with its script. The hex first, for a
+      browser without oklch(). No data-directions and no data-dock-host on it: the suites and the
+      cheap-phone timer read those off the app. tests/unit/loading-screen-test.mjs holds it to
+      MapView and the tokens; phone-test holds it to the page.
+    -->
+    <div id="root"><div style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: grid; place-items: center; background-color: #f5f5f5; background-color: oklch(97% 0 none)"><p style="margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'; font-size: 0.875rem; line-height: calc(1.25 / 0.875); color: #737373; color: oklch(55.6% 0 none); -webkit-text-size-adjust: 100%">Loading map…</p></div></div>
     <script type="module" src="/src/commuter/main.tsx"></script>
   </body>
 </html>

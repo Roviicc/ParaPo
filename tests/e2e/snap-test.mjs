@@ -44,7 +44,7 @@
 // The router is the public OSRM demo (about one request a second, shared), so
 // after every gesture the script waits for "snapping…" to clear and then 1.5 s.
 import { chromium } from 'playwright'
-import { BASE, harness, nodeFetch } from './lib/harness.mjs'
+import { BASE, harness, nodeFetch, waitForSource } from './lib/harness.mjs'
 import { drawing } from './lib/studio.mjs'
 
 const { check, tally } = harness({ bracketed: true })
@@ -78,8 +78,9 @@ const bearing = ([lng1, lat1], [lng2, lat2]) => {
 /**
  * Turn angles around each join of a line drawn as segments (arrays of
  * [lng, lat], in order). The segments are joined the way joinSegments in
- * src/shared/geo/geo.ts does it: every segment after the first loses its first
- * coordinate, which repeats the previous segment's last. For the join before
+ * src/shared/geo/geo.ts does it for routed segments: every segment after the
+ * first loses its first coordinate, which repeats the previous segment's last
+ * (joinSegments keeps it when it does not, since 2026-10-03). For the join before
  * control point k it reports the worst turn within atM metres along the line.
  * A vertex's turn is the angle, 0–180°, between the bearing in from the last
  * vertex at least minStepM behind it and the bearing out to the first vertex
@@ -189,14 +190,24 @@ const uTurnChecks = async (scenario, s, labels) => {
 
 await page.goto(`${BASE}/studio/?e2e=1`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
+// The studio frames its saved routes once, as they come in, unless a drawing
+// has begun (useSavedRoutes). A view set before then is undone by it, as the
+// other drawing suites know: they wait for the routes too. Since the
+// cheap-phone work the map's 'load' comes sooner, and on GitHub's runner the
+// routes came about 1.3 s after it, after this suite's first view: the far
+// click's two points went down at the routes' zoom, a pixel or two apart, and
+// the second landed on the first ("gaps none", 3 runs in 4 on staging,
+// 2026-10-06). An empty table frames nothing, so after 20 s the run goes on.
+await waitForSource(page, 'saved-routes')
 await page.waitForTimeout(800)
 const box = await page.locator('canvas.maplibregl-canvas').boundingBox(); box0.x = box.x; box0.y = box.y
+const zoomNow = async () => (await page.evaluate(() => window.__map.getZoom())).toFixed(1)
 
 console.log('== Far click (Quirino Highway, La Mesa watershed)')
 await view([Q1, Q2, W])
 await drawRoute([Q2, Q1])
 let s = await segs()
-check('far click: an on-road second point is snapped (control)', allSnapped(s, 2), `gaps ${snapModes(s)}`)
+check('far click: an on-road second point is snapped (control)', allSnapped(s, 2), `gaps ${snapModes(s)}, at zoom ${await zoomNow()}`)
 await discard()
 // A 429, a 5xx or a timeout also leaves the gap freehand, so a freehand line
 // alone does not prove the router refused the point. Keep the router's answers

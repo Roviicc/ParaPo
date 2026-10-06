@@ -51,7 +51,8 @@ export type TripTimelineProps = {
  * frames to animate it in first): the rows open over gentle, arriving
  * (ease-enter), and fold over base, leaving (ease-exit), each drawn from the
  * top as its height grows; the chevron turns over quick (ease-move). Folded,
- * the rows stay, invisible, so they can close in view; nothing moves for a
+ * the rows stay, invisible, so they can close in view — their insides drawn
+ * only once the fold has been opened (2026-10-04) — and nothing moves for a
  * phone set to reduce motion. Height is layout, which the Motion note keeps
  * to opacity and transform: a fold is its one exception, since only the
  * height can push the destination down without measuring (the owner's
@@ -92,7 +93,16 @@ export function TripTimeline({
   routeDirection,
 }: TripTimelineProps) {
   const [open, setOpen] = useState(false)
+  // Whether the fold has ever been opened on this card: until then its rows
+  // are their bare <li>s, the hidden insides left out (the cheap-phone
+  // plan, step 11, 2026-10-04). A trip with 10 to 25 hintuans drew all of
+  // them, invisible, as it opened, for a fold most riders never open.
+  // Opened once, they stay drawn as long as the card is up, so they close
+  // in view and open again as they always did. Set with `open` itself, in
+  // the same render, so the first opening moves as every other.
+  const [everOpened, setEverOpened] = useState(false)
   const folds = hintuans.length > 1
+  const drawn = !folds || open || everOpened
   const rail = TIMELINE_SURFACE[livery]
   // Every row's Pressed: the rail's colour, while the finger is down.
   const pressed = ROW_PRESSED[livery]
@@ -127,6 +137,7 @@ export function TripTimeline({
             pressed={pressed}
             label={h.label}
             shown={!folds || open}
+            drawn={drawn}
             selected={h.id === picked}
             pesos={h.id === picked ? pickedPesos : undefined}
             pill={TIMELINE_PILL[livery]}
@@ -134,7 +145,17 @@ export function TripTimeline({
           />
         ))}
         {folds && (
-          <TimelineDisclosure rail={rail} pressed={pressed} open={open} count={hintuans.length} onToggle={() => setOpen((o) => !o)} />
+          <TimelineDisclosure
+            rail={rail}
+            pressed={pressed}
+            open={open}
+            count={hintuans.length}
+            onToggle={() => {
+              setOpen((o) => !o)
+              // The first tap opens it (it starts folded): from then on, drawn.
+              setEverOpened(true)
+            }}
+          />
         )}
         <TimelineBottomEndRoute
           rail={rail}
@@ -144,6 +165,17 @@ export function TripTimeline({
           onTap={() => onEnd('to')}
         />
       </ol>
+      {/* The rows' names are set in SN Pro Medium, a face nothing else on a
+          card may use (no "Other routes", no signboards: 8 of the 20 drawn
+          directions on 2026-10-04). Drawn hidden, the folded rows asked for
+          it as the card opened; undrawn, they would ask only as they open,
+          and show their names in a stand-in font until it came
+          (font-display: swap). One hidden name asks for it as they did. */}
+      {!drawn && (
+        <span aria-hidden className="pointer-events-none invisible absolute font-medium">
+          {hintuans[0]?.label}
+        </span>
+      )}
       <span aria-hidden className={'pointer-events-none absolute inset-0 rounded-[inherit] ' + CARD_SHADOW[livery]} />
     </div>
   )
@@ -222,7 +254,10 @@ function TimelineTop({
  * A hintuan row open, or folded away: its one grid row runs from nothing to
  * its height (1fr), and back. `visibility` flips at the end of the fold, so
  * the row stays in sight while it closes, then leaves the words and the
- * screen reader.
+ * screen reader. Folded and never opened, the row is its <li> alone: with
+ * nothing in it its 0fr row is as tall as with its clipped inside, nothing
+ * (2026-10-04), and it keeps these classes, so the first opening runs the
+ * same transition from the same 0fr.
  */
 const ROW_SHOWN = 'visible grid-rows-[1fr] duration-gentle ease-enter'
 const ROW_FOLDED = 'invisible grid-rows-[0fr] duration-base ease-exit'
@@ -238,6 +273,7 @@ function TimelineHintuan({
   pressed,
   label,
   shown,
+  drawn,
   selected,
   pesos,
   pill,
@@ -249,6 +285,8 @@ function TimelineHintuan({
   pressed: string
   label: string
   shown: boolean
+  /** Whether its inside is drawn: shown, or folded after it has been opened (TripTimeline's everOpened). */
+  drawn: boolean
   selected: boolean
   /** The ride's pesos to here, for the pill; picked and priced only. */
   pesos?: string
@@ -267,32 +305,34 @@ function TimelineHintuan({
       }
     >
       {/* Clipped, not squeezed: the row keeps its height inside, and shows from the top. */}
-      <div className="min-h-0 overflow-hidden">
-        <button
-          type="button"
-          data-testid="trip-hintuan-pick"
-          aria-pressed={selected}
-          onClick={() => onPick(id)}
-          className={'flex w-full items-start px-4 text-left ' + pressed}
-        >
-          <span aria-hidden className={STICK}>
-            <span className={'-mb-0.5 min-h-px w-2 flex-1 ' + rail} />
-            <TimelineDot rail={rail} selected={selected} />
-            <span className={'min-h-px w-2 flex-1 ' + rail} />
-          </span>
-          <span className="flex min-w-0 flex-1 items-center gap-2 py-2.5 pl-3">
-            <span className={'min-w-0 flex-1 text-base/6 ' + (selected ? 'font-black' : 'font-medium')}>{label}</span>
-            {pesos && (
-              <span
-                data-testid="trip-hintuan-fare"
-                className={'shrink-0 rounded-full px-1.5 py-0.5 text-sm/5 font-medium whitespace-nowrap ' + pill}
-              >
-                {pesos}
-              </span>
-            )}
-          </span>
-        </button>
-      </div>
+      {drawn && (
+        <div className="min-h-0 overflow-hidden">
+          <button
+            type="button"
+            data-testid="trip-hintuan-pick"
+            aria-pressed={selected}
+            onClick={() => onPick(id)}
+            className={'flex w-full items-start px-4 text-left ' + pressed}
+          >
+            <span aria-hidden className={STICK}>
+              <span className={'-mb-0.5 min-h-px w-2 flex-1 ' + rail} />
+              <TimelineDot rail={rail} selected={selected} />
+              <span className={'min-h-px w-2 flex-1 ' + rail} />
+            </span>
+            <span className="flex min-w-0 flex-1 items-center gap-2 py-2.5 pl-3">
+              <span className={'min-w-0 flex-1 text-base/6 ' + (selected ? 'font-black' : 'font-medium')}>{label}</span>
+              {pesos && (
+                <span
+                  data-testid="trip-hintuan-fare"
+                  className={'shrink-0 rounded-full px-1.5 py-0.5 text-sm/5 font-medium whitespace-nowrap ' + pill}
+                >
+                  {pesos}
+                </span>
+              )}
+            </span>
+          </button>
+        </div>
+      )}
     </li>
   )
 }
