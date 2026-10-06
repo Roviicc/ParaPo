@@ -4,6 +4,7 @@ import { DEFAULT_BASEMAP, initialStyle, readBasemap, type Basemap } from './base
 import { diagnose, type Diagnosis } from './diagnose'
 import { OPENING_WAIT_MS, ROUTES_FRAMING, loadClock, loadingLifts, openedOn, within, type Bounds } from './framing'
 import { routesDrawn } from './savedRoutesLayers'
+import { noteTile } from './tilesAsked'
 import {
   AttributionControl,
   MapLibreMap,
@@ -233,6 +234,10 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
           // put it at after 'load' (useSavedRoutes; visitor-test and
           // phone-test hold it to cameraForBounds of the map file's routes).
           ...(framing ? { bounds: framing, fitBoundsOptions: ROUTES_FRAMING } : {}),
+          // The public map notes the tiles it asks for, changing none, so the
+          // service worker can keep a first visit's (tilesAsked.ts). The
+          // studio has no worker and notes nothing.
+          ...(openOn ? { transformRequest: noteTile } : {}),
         })
       } catch (err) {
         setError(

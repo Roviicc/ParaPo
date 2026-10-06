@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import { registerSW } from 'virtual:pwa-register'
 import { MAP_FILE_URL } from './mapFile'
 import { STYLE_URL } from '../shared/map/MapView'
+import { takeTilesAsked } from '../shared/map/tilesAsked'
 
 /**
  * The service worker, registered from the public page only. The studio never
@@ -44,9 +45,12 @@ export function registerServiceWorker(): void {
  * caches — and an install followed by airplane mode would open to a map with
  * no routes. Once the worker controls the page, ask for those few small files
  * again: a conditional request each, answered 304, and this time the worker
- * stores them. Tiles and glyphs are many and are left to normal use. From the
- * second visit on the page's own requests go through the worker, so this is
- * not run again.
+ * stores them. So too the basemap tiles the map asked for until then, the
+ * first screen's, which the browser's own cache answers (tilesAsked.ts): since
+ * the map opens on its routes they all come before the worker takes over
+ * (2026-10-06). Glyphs, and tiles further afield, are left to normal use. From
+ * the second visit on the page's own requests go through the worker, so this
+ * is not run again.
  */
 async function warmCaches(): Promise<void> {
   if (!navigator.serviceWorker.controller) {
@@ -55,7 +59,7 @@ async function warmCaches(): Promise<void> {
     )
   }
   const quiet = (url: string) => fetch(url).catch(() => undefined)
-  const [, style] = await Promise.all([quiet(MAP_FILE_URL), quiet(STYLE_URL)])
+  const [, style] = await Promise.all([quiet(MAP_FILE_URL), quiet(STYLE_URL), ...takeTilesAsked().map(quiet)])
   const json = (await style?.json().catch(() => null)) as
     | { sprite?: string; sources?: Record<string, { url?: string }> }
     | null
