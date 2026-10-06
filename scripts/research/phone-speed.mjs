@@ -65,6 +65,10 @@
 //           map rendered with the routes' line layer in, their source loaded
 //           and a route in its tiles (routesOnMap; a stamp sooner than data
 //           in, or none, is said and left out of the table: stampTrouble);
+//           "Loading map…" gone, when MapView's own text left the page (at
+//           the first frame with the routes drawn, or at 'load' if that
+//           comes first: the owner's answer to question A of the
+//           cheap-phone report, 2026-10-06; at 'load' before it);
 //           the map's 'load'; settled, when that quiet began (all
 //           stamped in the page, from the navigation); TBT (each long task's
 //           time over 50 ms, from the navigation to settled) and the longest
@@ -98,7 +102,9 @@
 //
 // How to read the numbers (the plan's own caveats, 2026-10-03):
 //   - "data in" is not "routes drawn". It flips when the map file arrives;
-//     the routes are drawn only after MapLibre's 'load'.
+//     the routes are drawn only once the map can take them: after
+//     MapLibre's 'load' then, as its style comes in since the owner's Q1
+//     (2026-10-04).
 //   - The GPU here is SwiftShader, on the CPU, and it inflates shader
 //     compiles: a first-use GL program can block the main thread for a
 //     second and more where a phone takes 5–50 ms. Only the first sync GL
@@ -380,6 +386,7 @@ function stamps(routesOnMap) {
     longtasks: [],
     dataIn: null,
     routesDrawn: null,
+    textGone: null,
     mapLoad: null,
     swReady: null,
     armed: false,
@@ -435,10 +442,17 @@ function stamps(routesOnMap) {
         window.__cardPainted = s.painted
       }, 0),
     )
+  // MapView's own "Loading map…", once the app has put it in place of the
+  // page's (index.html's has no class), and the moment it leaves the page.
+  let text = null
   const look = () => {
     if (s.dataIn === null) {
       const root = document.querySelector('[data-directions]')
       if (root && Number(root.getAttribute('data-directions')) > 0) s.dataIn = performance.now()
+    }
+    if (s.textGone === null) {
+      text ??= [...document.querySelectorAll('div.pointer-events-none > p')].find((e) => e.textContent === 'Loading map…') ?? null
+      if (text && !text.isConnected) s.textGone = performance.now()
     }
     if (s.armed && s.shown === null) {
       const el = document.querySelector('[data-testid="chooser"]:not([hidden]), [data-testid="card"]:not([hidden])')
@@ -782,7 +796,7 @@ const settle = (page) =>
     { quietMs: SETTINGS.quietMs, capMs: SETTINGS.settleCapMs },
   )
 
-/** First paint, data in, routes drawn, 'load' and the long tasks from the navigation to `until`. */
+/** First paint, data in, routes drawn, "Loading map…" gone, 'load' and the long tasks from the navigation to `until`. */
 const loadReadings = (page, until) =>
   page.evaluate((until) => {
     const s = window.__speed
@@ -791,6 +805,7 @@ const loadReadings = (page, until) =>
       fcp: performance.getEntriesByName('first-contentful-paint')[0]?.startTime ?? null,
       dataIn: s.dataIn,
       routesDrawn: s.routesDrawn,
+      textGone: s.textGone,
       mapLoad: s.mapLoad,
       settled: until,
       tbt: tasks.reduce((n, [, d]) => n + Math.max(0, d - 50), 0),
@@ -1025,6 +1040,7 @@ const LOAD = {
   fcp: 's',
   dataIn: 's',
   routesDrawn: 's',
+  textGone: 's',
   mapLoad: 's',
   settled: 's',
   tbt: 'ms',
@@ -1053,6 +1069,7 @@ const LABELS = {
   fcp: 'first paint',
   dataIn: 'data in',
   routesDrawn: 'routes drawn',
+  textGone: '"Loading map…" gone',
   mapLoad: "map 'load'",
   settled: 'settled (quiet from)',
   tbt: 'TBT',
@@ -1123,7 +1140,7 @@ try {
     runs.push(run)
     const c = run.cold
     console.log(
-      `run ${i + 1}/${RUNS}: cold FCP ${show(c.fcp, 's')}, data in ${show(c.dataIn, 's')}, routes drawn ${show(c.routesDrawn, 's')}, 'load' ${show(c.mapLoad, 's')}, TBT ${show(c.tbt, 'ms')}; ` +
+      `run ${i + 1}/${RUNS}: cold FCP ${show(c.fcp, 's')}, data in ${show(c.dataIn, 's')}, routes drawn ${show(c.routesDrawn, 's')}, "Loading map…" gone ${show(c.textGone, 's')}, 'load' ${show(c.mapLoad, 's')}, TBT ${show(c.tbt, 'ms')}; ` +
         `repeat FCP ${show(run.repeat.fcp, 's')}; sw active ${show(run.sw.swReady, 's')}, ${show(run.sw.swBytes, 'kB')}; ` +
         `tap → ${run.listTap.opened ?? 'nothing'} ${show(run.listTap.tapToCard, 's')} (+${run.listTap.newPrograms ?? '?'} programs), ` +
         `tap → ${run.tripTap.opened ?? 'nothing'} ${show(run.tripTap.tapToCard, 's')} (+${run.tripTap.newPrograms ?? '?'} programs)`,
@@ -1208,7 +1225,7 @@ if (JSON_OUT) {
       ...SETTINGS,
       chromium: chromiumVersion,
       base: BASE,
-      units: { times: 'ms; fcp, dataIn, routesDrawn, mapLoad, settled, workerAt and swReady from the navigation', bytes: 'B' },
+      units: { times: 'ms; fcp, dataIn, routesDrawn, textGone, mapLoad, settled, workerAt and swReady from the navigation', bytes: 'B' },
     },
     spots: { listTap: chosen.list, tripTap: chosen.trip },
     basemapFetched: { warmUp: warmUp.basemapFetched, alongTaps: warmUp.alongTaps, timed: timedFetched },
