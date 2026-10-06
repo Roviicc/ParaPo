@@ -63,7 +63,7 @@ the headless checks — drawing works, saving still needs an account.
 
 **Every push runs on GitHub** (`.github/workflows/ci.yml`): the build, the
 unit checks, and the headless suites against the dev server — the public map
-on a laptop and on a phone, the installable app, the map with 1,000
+on a laptop and on a phone, the installable app, the map with 5,000
 directions, and the editor's drawing tools. A red check means the push
 broke something; the failing suite's screenshots are the run's artifact.
 

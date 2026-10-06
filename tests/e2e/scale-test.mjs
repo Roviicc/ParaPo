@@ -1,6 +1,7 @@
-// The public map at scale: how it opens with 1,000 directions and 500
-// hotspots, made from today's map — 250 copies of its directions and 17 of
-// its hotspots, shifted across a 25 × 10 grid — and served to the app in
+// The public map at scale: how it opens with 5,000 directions and 510
+// hotspots, made from today's map — 250 copies of its 20 directions and 5 of
+// its 102 hotspots, as many as make 500 (its counts on 2026-10-06; the suite
+// prints them), shifted across a 25 × 10 grid — and served to the app in
 // place of /data/index.v4.json and its lines. No tiles are fetched: a bare style
 // stands in, so this runs the same on a laptop, in this sandbox and on a
 // GitHub runner.

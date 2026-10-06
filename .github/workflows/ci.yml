@@ -174,7 +174,7 @@ jobs:
           if-no-files-found: ignore
 
   # The editor against stand-ins for the database, no router: studio-scale
-  # (1,000 directions, what the editor asks for and how soon it opens) and
+  # (5,000 directions, what the editor asks for and how soon it opens) and
   # save-test (the save flows, signed in). No retry needed.
   studio-suite:
     name: ${{ matrix.suite }}

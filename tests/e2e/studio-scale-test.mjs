@@ -1,6 +1,7 @@
-// The editor at scale: how /studio/?e2e=1 opens with 1,000 directions and 500
-// hotspots, made from today's map — 250 copies of its directions and 17 of
-// its hotspots, shifted across a 25 × 10 grid — served by a stand-in for the
+// The editor at scale: how /studio/?e2e=1 opens with 5,000 directions and 510
+// hotspots, made from today's map — 250 copies of its 20 directions and 5 of
+// its 102 hotspots, as many as make 500 (its counts on 2026-10-06; the suite
+// prints them), shifted across a 25 × 10 grid — served by a stand-in for the
 // database's REST API. The rows are as the database keeps them: a line with a
 // point every 20 m or so (what the router gives), the drawing beside it
 // (control_points, segments) and 15-decimal coordinates. No tiles, no router,

@@ -1,5 +1,6 @@
 // The published map read whole, and the grid the scale suites copy it across
-// to make a map of 1,000 directions. COPIES and shift: scale-test and
+// to make a map of 5,000 directions (250 copies of the 20 it had on
+// 2026-10-06). COPIES and shift: scale-test and
 // studio-scale-test. readPublished: studio-scale-test and save-test.
 import { readFileSync } from 'node:fs'
 
