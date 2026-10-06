@@ -34,6 +34,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@maplibre/maplibre-gl-style-spec": "^26.4.1",
     "@storybook/addon-docs": "^10.6.0",
     "@storybook/react-vite": "^10.6.0",
     "@tailwindcss/vite": "^4.3.3",
