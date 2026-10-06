@@ -43,17 +43,22 @@ const expectedDate = `${d.getDate()} ${MONTHS[d.getMonth()]}`
 const routeCount = published.variants.length
 
 /**
- * The basemap's tiles in on page `p`, as a production build shows it (it
- * keeps its map to itself): the map's 'load', which MapLibre fires once
- * every tile in view has come, and which brings MapView's design button
- * (BasemapControl, data-testid="basemap"; framing-test holds it to the
- * 'load'); no failure banner, which a tile that fails before it shows in
- * the button's place; and "Loading map…" gone. The text alone no longer
- * says so: since the owner's answer to question A of the cheap-phone
- * report (2026-10-06) it goes with the first frame that draws the routes,
- * which come from the map file, before the basemap's tiles.
+ * The map's 'load' on page `p`, as a production build shows it (it keeps
+ * its map to itself): MapView's design button (BasemapControl,
+ * data-testid="basemap"), which comes with the 'load' (framing-test holds
+ * it to the 'load'); no failure banner, which shows in the button's place;
+ * and "Loading map…" gone. Not that the basemap's tiles are in: MapLibre
+ * (6.7, tile_manager.ts, loaded()) counts a tile that failed as one that
+ * came, so 'load' comes once every tile in view has come or failed, and
+ * MapView's 'load' clears the banner a failed tile raised before it.
+ * Offline here, with no tile in the worker's cache, it comes all the same.
+ * What the tiles did is the check "tiles came from the worker's cache".
+ * Nor does the text alone say 'load' any more: since the owner's answer to
+ * question A of the cheap-phone report (2026-10-06) it goes with the first
+ * frame that draws the routes, which come from the map file, before the
+ * basemap's tiles. (Review of A, 2026-10-06: this was named for the tiles.)
  */
-const basemapIn = (p) =>
+const mapLoad = (p) =>
   p.waitForFunction(
     () => {
       const text = document.body.innerText
@@ -209,7 +214,8 @@ try {
   })
   check('service worker ready on / with scope /', !sw.error && sw.scope === `${base}/` && sw.active, JSON.stringify(sw))
 
-  // Wait for the routes and the basemap, so both reach the caches. The page
+  // Wait for the routes and the map's 'load', by which every basemap tile in
+  // view has come or failed, so what came reaches the caches. The page
   // says how many directions its map file brought (`data-directions`): the
   // count pill that showed it went on 2026-09-29, the owner's "annoying for
   // users".
@@ -217,7 +223,7 @@ try {
   const online = await arrived.waitFor({ state: 'attached', timeout: 20000 }).then(() => true, () => false)
   check(`online: the published map's ${routeCount} directions arrive`, online)
   await page.waitForSelector('canvas.maplibregl-canvas', { timeout: 20000 })
-  await basemapIn(page)
+  await mapLoad(page)
   await page.waitForTimeout(4000)
   check('online: no offline notice', (await page.locator('[data-testid="offline"]').count()) === 0)
 
@@ -278,8 +284,8 @@ try {
   const noticeOk = await notice.waitFor({ timeout: 10000 }).then(() => true, () => false)
   const noticeText = noticeOk ? (await notice.innerText()).trim() : '(none)'
   check(`offline: notice reads "Offline · map as of ${expectedDate}"`, noticeText === `Offline · map as of ${expectedDate}`, noticeText)
-  const drew = await basemapIn(page).then(() => true, () => false)
-  check('offline: the basemap draws: its tiles in, the map\'s \'load\' bringing the design button (no failure banner, no "Loading map…")', drew)
+  const loaded = await mapLoad(page).then(() => true, () => false)
+  check('offline: the map\'s \'load\' comes: the design button up, no failure banner, no "Loading map…"', loaded)
   await page.waitForTimeout(2000)
   page.off('response', countTiles)
   check(`offline: tiles came from the worker's cache (${tilesFromWorker})`, tilesFromWorker > 0)
