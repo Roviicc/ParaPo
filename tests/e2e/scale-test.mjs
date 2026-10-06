@@ -1,6 +1,7 @@
-// The public map at scale: how it opens with 1,000 directions and 500
-// hotspots, made from today's map — 250 copies of its directions and 17 of
-// its hotspots, shifted across a 25 × 10 grid — and served to the app in
+// The public map at scale: how it opens with 5,000 directions and 510
+// hotspots, made from today's map — 250 copies of its 20 directions and 5 of
+// its 102 hotspots, as many as make 500 (its counts on 2026-10-06; the suite
+// prints them), shifted across a 25 × 10 grid — and served to the app in
 // place of /data/index.v4.json and its lines. No tiles are fetched: a bare style
 // stands in, so this runs the same on a laptop, in this sandbox and on a
 // GitHub runner.
@@ -24,6 +25,21 @@ import { countLongTasks, startProfile, whereItWent } from './lib/profile.mjs'
 
 /** Seconds from the navigation to the first route line on the screen. */
 const LINES_WITHIN_S = 5
+/**
+ * Seconds from the navigation to the map's 'load', which brings the basemap
+ * control, and took "Loading map…" away until 2026-10-06 (since the owner's
+ * answer to question A of the cheap-phone report, the text goes with the
+ * first frame that draws the routes when that comes first). Until
+ * 2026-10-04 the first line was read only once 'load' had come, so its 5 s
+ * held 'load' too; the line is read on its own since the routes are drawn
+ * before 'load' (the owner's Q1), and 'load' now waits for them. The same
+ * 5 s, said on its own (review of Q1, 2026-10-05), until the owner's own
+ * budget: 7 s (question B of the cheap-phone report, 2026-10-06). On this
+ * map of 5,000 directions 'load' came at 5.3-6.3 s in the runs where the
+ * routes went on first and 1.5-1.8 s in the others, where it came with the
+ * bare style alone; the public map has 20.
+ */
+const LOAD_WITHIN_S = 7
 /** Seconds the main thread may spend in long tasks while opening. */
 const BUSY_WITHIN_S = 5
 /** Seconds from a tap on a line to its orange stretches, its full line read. */
@@ -86,9 +102,13 @@ await page.route(/\/data\/lines\/.+\.json/, (route) => {
     : route.fulfill({ status: 404, body: '' })
 })
 await page.addInitScript(countLongTasks)
+// The map from its making (window.__mapEarly, in dev), not only from its
+// 'load' (window.__map): the public map takes its routes as soon as its
+// style is in, and draws them before its 'load' (the owner's Q1,
+// 2026-10-04), which then waits for them too.
 await page.addInitScript(() => {
   window.__src = async (id) => {
-    const s = window.__map?.getSource(id)
+    const s = (window.__map ?? window.__mapEarly)?.getSource(id)
     return s ? await s.getData() : null
   }
 })
@@ -107,10 +127,23 @@ const mark = async (name, cond, timeoutMs) => {
   }
 }
 const budgetMs = LINES_WITHIN_S * 1000 + 30_000
-await mark('map load', () => !!window.__map && window.__map.loaded(), budgetMs)
-await mark('routes in the source', async () => ((await window.__src('saved-routes'))?.features?.length ?? 0) > 0, budgetMs)
-await mark('hotspots in the source', async () => ((await window.__src('saved-stops'))?.features?.length ?? 0) > 0, budgetMs)
-await mark('lines on the screen', () => !!window.__map?.getLayer('saved-routes-line') && window.__map.queryRenderedFeatures({ layers: ['saved-routes-line'] }).length > 0, budgetMs)
+// Each from the navigation, side by side: the first line comes before the
+// map's 'load' since 2026-10-04, and read after it, it was stamped at the
+// 'load' (4.3-5.2 s here, the line itself on the screen at 3.1-3.2 s, as
+// before). The 'load' has its own budget since (LOAD_WITHIN_S).
+await Promise.all([
+  mark('map load', () => !!window.__map && window.__map.loaded(), budgetMs),
+  mark('routes in the source', async () => ((await window.__src('saved-routes'))?.features?.length ?? 0) > 0, budgetMs),
+  mark('hotspots in the source', async () => ((await window.__src('saved-stops'))?.features?.length ?? 0) > 0, budgetMs),
+  mark(
+    'lines on the screen',
+    () => {
+      const m = window.__map ?? window.__mapEarly
+      return !!m?.getLayer('saved-routes-line') && m.queryRenderedFeatures({ layers: ['saved-routes-line'] }).length > 0
+    },
+    budgetMs,
+  ),
+])
 await mark('idle', () => !!window.__map && window.__map.loaded(), 30_000)
 await page.waitForTimeout(500)
 const { profile } = await cdp.send('Profiler.stop')
@@ -137,11 +170,12 @@ while (Date.now() - tapped < LIT_WITHIN_S * 1000 + 5000) {
 const litIn = Date.now() - tapped
 
 const s = (ms) => (ms == null ? 'never' : `${(ms / 1000).toFixed(1)} s`)
-console.log(`  map load ${s(marks['map load'])}; routes in the source ${s(marks['routes in the source'])}; hotspots ${s(marks['hotspots in the source'])}; idle ${s(marks.idle)}\n`)
+console.log(`  map load ${s(marks['map load'])}; routes in the source ${s(marks['routes in the source'])}; hotspots ${s(marks['hotspots in the source'])}; the first line ${s(marks['lines on the screen'])}; idle ${s(marks.idle)}\n`)
 check('every direction reached the map', routes === big.variants.length, `${routes} of ${big.variants.length}`)
 check('no orange stretch is worked out at load: none is lit', stretchesAtLoad === 0, `${stretchesAtLoad} stretch(es)`)
 check(`a tap on a line reads its full line and works out its orange stretches within ${LIT_WITHIN_S} s`, stretches > 0 && litIn <= LIT_WITHIN_S * 1000, `${stretches} stretch(es) in ${s(litIn)}`)
 check(`the first line is on the screen within ${LINES_WITHIN_S} s`, marks['lines on the screen'] != null && marks['lines on the screen'] <= LINES_WITHIN_S * 1000, s(marks['lines on the screen']))
+check(`the map's 'load' within ${LOAD_WITHIN_S} s`, marks['map load'] != null && marks['map load'] <= LOAD_WITHIN_S * 1000, s(marks['map load']))
 check(`the main thread is busy under ${BUSY_WITHIN_S} s while opening`, busy <= BUSY_WITHIN_S * 1000, `${(busy / 1000).toFixed(1)} s in long tasks`)
 check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
 

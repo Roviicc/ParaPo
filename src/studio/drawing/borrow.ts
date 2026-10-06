@@ -32,9 +32,12 @@ export function nearestSpot(segments: Segment[], p: LngLat): (LineSpot & { off: 
   })
   if (!best) return null
   const b = best as LineSpot & { off: number }
-  const before = joinSegments(segments.slice(0, b.seg))
+  // Measured on the line as joinSegments makes it: since 2026-10-03 a join
+  // that is not one point keeps the hop between them (a freehand stretch
+  // ending on the click, the road starting where the router put it), and
+  // two lengths added apart left that hop out.
   const within = [...segments[b.seg].coordinates.slice(0, b.edge + 1), b.point]
-  b.metres = lineLength(before) + lineLength(within)
+  b.metres = lineLength(joinSegments([...segments.slice(0, b.seg), { snap: segments[b.seg].snap, coordinates: within }]))
   return b
 }
 
@@ -123,7 +126,7 @@ function bearing(a: LngLat, b: LngLat): number {
 const turn = (a: number, b: number) => Math.abs(((((a - b) % 360) + 540) % 360) - 180)
 
 /** The point on a coordinate list nearest p, the edge it lies on, and how far p is from it. */
-function nearestOnCoords(line: LngLat[], p: LngLat): { edge: number; point: LngLat; off: number } | null {
+function nearestOnCoords(line: readonly LngLat[], p: LngLat): { edge: number; point: LngLat; off: number } | null {
   let best: { edge: number; point: LngLat; off: number } | null = null
   for (let edge = 0; edge < line.length - 1; edge++) {
     const { point } = nearestOnSegment(p, line[edge], line[edge + 1])
@@ -137,7 +140,7 @@ function nearestOnCoords(line: LngLat[], p: LngLat): { edge: number; point: LngL
  * A saved direction that a right-click while drawing may mean to follow: its
  * line in travel order, and whether it ends at the place the drawing is for.
  */
-export type FollowOption<V> = { v: V; travel: LngLat[]; endsAtDestination: boolean }
+export type FollowOption<V> = { v: V; travel: readonly LngLat[]; endsAtDestination: boolean }
 
 /**
  * Which saved line a right-click means, when the drawing should join one and

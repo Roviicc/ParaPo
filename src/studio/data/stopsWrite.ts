@@ -29,8 +29,13 @@ export type SaveStopInput = {
 /**
  * Create or update a hotspot and replace its route links. Writes require a
  * signed-in editor who owns the rows; RLS enforces it on both tables.
+ *
+ * Two steps, not one transaction, as a direction's save is (saveRoute.ts):
+ * `onWritten` hears of the row the moment it is in, so a retry after the
+ * links failed updates that row instead of inserting a second box on the
+ * same ground (review of 2026-10-03, finding 4).
  */
-export async function saveStop(input: SaveStopInput): Promise<StopRow> {
+export async function saveStop(input: SaveStopInput, onWritten?: (stopId: string) => void): Promise<StopRow> {
   const client = requireSupabase()
   if (input.ring.length < 3) throw new Error('A hotspot needs at least three corners')
 
@@ -58,14 +63,21 @@ export async function saveStop(input: SaveStopInput): Promise<StopRow> {
     : client.from('stop').insert(row)
   const { data, error } = await query.select('*').single()
   if (error) {
-    if (error.code === '23505' && error.message.includes('stop_terminal_informal_unique')) {
+    // 0014 keys the index on the place, the informal name or else the
+    // ground name; before it, a blank informal name slipped past (review of
+    // 2026-10-03). The old name stays matched until the owner applies 0014.
+    if (
+      error.code === '23505' &&
+      (error.message.includes('stop_terminal_place_unique') || error.message.includes('stop_terminal_informal_unique'))
+    ) {
       throw new Error(
-        `There is already a terminal called "${informal}". A place has one terminal; draw the others as hintuans under the same informal name.`,
+        `There is already a terminal at "${informal || name}". A place has one terminal; draw the others as hintuans under the same name.`,
       )
     }
     throw new Error(error.message)
   }
   const stop = data as StopRow
+  onWritten?.(stop.id)
 
   // Links: computed for a hintuan, chosen for a terminal. Either way the
   // sequence is where the direction first meets the outline (0 when a ticked
@@ -86,7 +98,14 @@ export async function saveStop(input: SaveStopInput): Promise<StopRow> {
             stop_sequence: Math.max(0, firstTouchIndex(variantLine(byId.get(id)!), ring)),
           }))
 
-  await replaceLinks(stop.id, links)
+  try {
+    await replaceLinks(stop.id, links)
+  } catch (err) {
+    throw new Error(
+      `The hotspot is saved, but its route links are not: ${err instanceof Error ? err.message : String(err)}. ` +
+        'Press Save again to retry.',
+    )
+  }
   return stop
 }
 
@@ -100,11 +119,20 @@ async function replaceLinks(stopId: string, links: StopLink[]) {
   if (ins.error) throw new Error(ins.error.message)
 }
 
-/** Delete one hotspot. Its links go with it (route_stop cascades). */
+/**
+ * Delete one hotspot. Its links go with it (route_stop cascades). A delete
+ * RLS will not let through is not an error to PostgREST, only no rows: the
+ * rows are read back, and none is said (review of 2026-10-03, finding 6).
+ */
 export async function deleteStop(stop: StopRow): Promise<void> {
-  const { error } = await requireSupabase().from('stop').delete().eq('id', stop.id)
+  const { data, error } = await requireSupabase().from('stop').delete().eq('id', stop.id).select('id')
   if (error) throw new Error(error.message)
+  if (!data?.length) throw new Error(NOTHING_CHANGED)
 }
+
+/** What a write that matched no row says: the session ended, or the row is not this account's. */
+export const NOTHING_CHANGED =
+  'Nothing was changed: the session may have ended, or this is not yours to change. Sign in again and retry.'
 
 /**
  * Keep every hintuan's list honest after a direction is saved: link it to each

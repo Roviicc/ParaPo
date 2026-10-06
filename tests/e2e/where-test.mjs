@@ -17,7 +17,9 @@
 // camera follows; a drag lets go (TrackOwnLocation) and a tap comes back; the
 // next tap tilts the camera, 200 m on the bar, turned the way the compass says
 // (TracksTheMapBasedOnCompassFacing), and turns with it; the next puts north
-// up again, and the next tilts again; an app camera move lets go; a browser
+// up again, and the next tilts again; an app camera move lets go; a route
+// tapped draws the dot's gaze, and the card it opened set to another height
+// while the camera follows keeps the camera on the visitor; a browser
 // that refuses says so; a GPS with no fix says so without a second watch;
 // with no compass read, TrackedLocation's tap only comes back;
 // and with a mouse there is no compass, the button sitting bottom right.
@@ -290,15 +292,18 @@ if (!onLine) {
         const style = getComputedStyle(eyes)
         window.__gazed = { deg: Number(dot.dataset.gaze), animation: style.animationName, translate: style.translate }
       }
-      // The eyes' own turn ending: an eye's width or height inside them
-      // ends sooner (0.2 s) and bubbles here, mid-turn.
-      const done = (e) => {
-        if (e.target !== eyes || e.propertyName !== 'translate') return
-        eyes.removeEventListener('transitionend', done)
-        read()
+      // Once the eyes' own turn has ended, read off the turn itself (the
+      // transition the gaze starts) rather than off a timer: on a busy
+      // runner the tap's work held the page past a 400 ms timer, which
+      // then read the eyes before they had begun to turn (PR #127's CI,
+      // 2026-10-03). A turn replaced by another is waited out again; no
+      // turn at all is read at once — eyes that never move fail as before.
+      const settle = () => {
+        const turns = eyes.getAnimations().filter((a) => a.transitionProperty === 'translate')
+        if (!turns.length) return read()
+        Promise.all(turns.map((a) => a.finished)).then(read, settle)
       }
-      eyes.addEventListener('transitionend', done)
-      setTimeout(read, 400)
+      settle()
     }
     new MutationObserver(seen).observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-gaze'] })
   })
@@ -315,6 +320,35 @@ if (!onLine) {
     `gaze ${deg}°; eyes ${JSON.stringify(eyes)}`,
   )
   check('  and after three seconds they wander again', await until(async () => (await dot.getAttribute('data-gaze')) === null, 4500), `${await dot.getAttribute('data-gaze')}`)
+
+  // The card that tap opened set to another height while the camera follows
+  // the visitor: the card's overview starts (useHeightOverview) and the
+  // camera following the visitor takes over in the same commit, as it did
+  // when the locator's hooks were CommuterApp's own, after the cards'. Since
+  // they moved into VisitorLocation, which React runs before the page's own
+  // effects, its camera waits for the page's turn (commitTurn.ts; the
+  // cheap-phone plan, step 15, 2026-10-05). It stays on the visitor, at the
+  // zoom it followed at.
+  // A list where routes share the road, or a trip's card: either has a handle.
+  const handle = page.locator('button[data-testid="dock-handle"]:visible').first()
+  if (!(await handle.count())) {
+    check('a card set to another height while the camera follows: it stays on the visitor', false, 'no card open after the route tap')
+  } else {
+    await button.click()
+    await until(async () => (await mode()) === 'TrackedLocation', 3000)
+    await page.waitForTimeout(1200)
+    const following = await camera(page)
+    const was = await onScreen(page, p)
+    await handle.click()
+    await page.waitForTimeout(1500)
+    const now = await camera(page)
+    const is = await onScreen(page, p)
+    check(
+      'a card set to another height while the camera follows: it stays on the visitor, at its zoom, the card\'s overview overtaken',
+      Math.abs(now.zoom - following.zoom) < 0.05 && Math.abs(is.x - is.w / 2) < 4 && is.y > 0 && is.y < is.h,
+      `zoom ${following.zoom.toFixed(2)} → ${now.zoom.toFixed(2)}, the visitor at ${is.x.toFixed(0)},${is.y.toFixed(0)} (was ${was.x.toFixed(0)},${was.y.toFixed(0)})`,
+    )
+  }
 }
 check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
 await page.close()
@@ -367,6 +401,43 @@ await where3.click()
 await page3.waitForTimeout(300)
 check('  a second tap starts no second watch', (await page3.evaluate(() => window.__watches)) === 1, `${await page3.evaluate(() => window.__watches)} watch(es)`)
 await ctx3.close()
+
+// ---------------------------------------------------------- permission taken back
+// A fix, then the permission revoked: the watch answers PERMISSION_DENIED.
+// The overlay goes with the fix; kept, it stood where the visitor was, and
+// the next tap eased the camera there (review of 2026-10-03, finding 9).
+const ctx5 = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+const page5 = await ctx5.newPage()
+await page5.addInitScript(([lng, lat]) => {
+  const watchers = new Map()
+  let n = 0
+  const geo = {
+    watchPosition: (ok, fail) => {
+      const id = ++n
+      watchers.set(id, fail)
+      setTimeout(() => ok({ coords: { longitude: lng, latitude: lat, accuracy: 20, speed: null, heading: null }, timestamp: Date.now() }), 100)
+      return id
+    },
+    clearWatch: (id) => watchers.delete(id),
+    getCurrentPosition: () => {},
+  }
+  window.__revoke = () => {
+    for (const fail of watchers.values()) fail({ code: 1, message: 'User denied Geolocation', PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 })
+  }
+  Object.defineProperty(navigator, 'geolocation', { get: () => geo })
+}, [P0.longitude, P0.latitude])
+await stubTiles(page5)
+await open(page5)
+const where5 = page5.locator('[data-testid="where"]')
+await where5.click()
+check('permission taken back after a fix: first the overlay', await until(async () => (await overlay(page5).count()) === 1, 8000))
+await page5.evaluate(() => window.__revoke())
+check(
+  '  then no overlay, and the button LocationOff',
+  (await until(async () => (await overlay(page5).count()) === 0, 4000)) && (await where5.getAttribute('data-state')) === 'denied',
+  `${await overlay(page5).count()} overlay(s), ${await where5.getAttribute('data-state')}`,
+)
+await ctx5.close()
 
 // ---------------------------------------------------------- a mouse: no compass
 const ctx4 = await b.newContext({ viewport: { width: 1280, height: 800 }, geolocation: { ...P0, accuracy: 20 }, permissions: ['geolocation'] })

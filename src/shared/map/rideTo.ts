@@ -129,8 +129,8 @@ export function useRideTo(
   // Glide to where the rider would get off, in to where the scale bar reads
   // 500 m (the owner's ask, 2026-10-02; the stretch fitted whole zoomed far
   // out, 2026-09-28). `offset`, never `padding`: MapLibre keeps a padding for
-  // every later move, and a shared link's fit or "Where am I" would land off
-  // centre ever after.
+  // every later move, and a trip's fit or "Where am I" would land off centre
+  // ever after.
   useEffect(() => {
     if (!map || !cut) return
     map.easeTo(

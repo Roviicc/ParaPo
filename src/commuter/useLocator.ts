@@ -3,6 +3,7 @@ import type { MapLibreMap } from 'maplibre-gl'
 import { haversine, zoomForScale, type LngLat } from '../shared/geo/geo'
 import type { Snap } from '../shared/cards/sheetGesture'
 import type { LocatorMode } from './LocatorButton'
+import type { Turn } from './commitTurn'
 
 /**
  * The visitor's own place on the map, and the camera with them: the owner's
@@ -244,9 +245,15 @@ type Options = {
   snap: Snap
   /** A phone, which may have a compass to turn the map by. */
   compass: boolean
+  /**
+   * Where in a commit the camera moves to the visitor (commitTurn.ts): the
+   * page's turn, after the cards' camera, as when this hook was the page's
+   * own (VisitorLocation, 2026-10-05). Without it, in this hook's effect.
+   */
+  cameraTurn?: Turn
 }
 
-export function useLocator(map: MapLibreMap | null, { offset, snap, compass }: Options): Locator {
+export function useLocator(map: MapLibreMap | null, { offset, snap, compass, cameraTurn }: Options): Locator {
   const [status, setStatus] = useState<LocatorStatus>('off')
   const [fix, setFix] = useState<Fix | null>(null)
   const [camera, setCamera] = useState<Camera>('free')
@@ -315,6 +322,11 @@ export function useLocator(map: MapLibreMap | null, { offset, snap, compass }: O
           navigator.geolocation.clearWatch(watchRef.current ?? -1)
           watchRef.current = null
           fixesRef.current = []
+          // The last fix goes too: kept, the walker stood on the map where
+          // the visitor was when they took the permission back, and the
+          // next tap eased the camera there (review of 2026-10-03).
+          headingRef.current = null
+          setFix(null)
           setCamera('free')
           setNoFix(false)
           setStatus('denied')
@@ -363,19 +375,29 @@ export function useLocator(map: MapLibreMap | null, { offset, snap, compass }: O
   const turn = camera === 'compass' ? heading : null
   const lastSnap = useRef(snap)
   useEffect(() => {
-    if (!map || !fix || camera === 'free') return
-    const tapped = lastTaps.current !== taps || lastSnap.current !== snap
-    lastTaps.current = taps
-    lastSnap.current = snap
-    trackedZoomRef.current ??= trackedZoom(map.getZoom(), fix.at[1])
-    map.easeTo({
-      center: fix.at,
-      zoom: camera === 'compass' ? zoomForScale(COMPASS_SCALE_M, fix.at[1]) : trackedZoomRef.current,
-      pitch: camera === 'compass' ? COMPASS_PITCH : 0,
-      bearing: camera === 'compass' ? (turn ?? map.getBearing()) : 0,
-      offset: offsetRef.current(),
-      duration: tapped ? 800 : 400,
-    })
+    const follow = () => {
+      if (!map || !fix || camera === 'free') return
+      const tapped = lastTaps.current !== taps || lastSnap.current !== snap
+      lastTaps.current = taps
+      lastSnap.current = snap
+      trackedZoomRef.current ??= trackedZoom(map.getZoom(), fix.at[1])
+      map.easeTo({
+        center: fix.at,
+        zoom: camera === 'compass' ? zoomForScale(COMPASS_SCALE_M, fix.at[1]) : trackedZoomRef.current,
+        pitch: camera === 'compass' ? COMPASS_PITCH : 0,
+        bearing: camera === 'compass' ? (turn ?? map.getBearing()) : 0,
+        offset: offsetRef.current(),
+        duration: tapped ? 800 : 400,
+      })
+    }
+    // The card's height changed: the cards' overview starts in this same
+    // commit (useHeightOverview), and the camera following the visitor
+    // takes over from it, as it did when this ran among the page's hooks.
+    // The turn of the render this effect is from: a new one comes with each
+    // render of the page, and is no reason to move the camera.
+    if (cameraTurn) cameraTurn(follow)
+    else follow()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, fix, camera, turn, taps, snap])
 
   useEffect(

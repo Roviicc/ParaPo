@@ -29,16 +29,31 @@ export function useOffline(): boolean {
  * routes load (`loaded`, their list): read once, a first load that failed
  * and a "Try again" that worked left the notice saying "Offline" with no date.
  */
-export function useMapAge(loaded: unknown): { publishedAt: string | null; stale: boolean } {
-  const [age, setAge] = useState<{ publishedAt: string | null; stale: boolean }>({ publishedAt: null, stale: false })
+export function useMapAge(loaded: unknown): MapAge {
+  const [age, setAge] = useState<MapAge>({ publishedAt: null, stale: false })
   useEffect(() => {
     let live = true
-    loadMapFile().then((f) => live && setAge({ publishedAt: f.published_at, stale: mapFileIsStale() }), () => {})
+    loadMapFile().then((f) => live && setAge((was) => sameAge(was, { publishedAt: f.published_at, stale: mapFileIsStale() })), () => {})
     return () => {
       live = false
     }
   }, [loaded])
   return age
+}
+
+/** When the map on screen was published, and whether it is a stored copy. */
+export type MapAge = { publishedAt: string | null; stale: boolean }
+
+/**
+ * `now`, or `was` when it says the same. The public map hands useMapAge its
+ * directions, which are a new list at every full line read, and each read
+ * set a new age, the same date: one more render of the whole app per line
+ * (the cheap-phone plan, step 16 (g), 2026-10-04). Kept, the state is
+ * unchanged and React renders nothing; still read again each time, so a
+ * load that changes the date or the copy is shown as before.
+ */
+export function sameAge(was: MapAge, now: MapAge): MapAge {
+  return was.publishedAt === now.publishedAt && was.stale === now.stale ? was : now
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']

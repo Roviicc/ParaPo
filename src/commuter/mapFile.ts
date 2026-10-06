@@ -1,5 +1,6 @@
 import type { LineStringGeoJSON, VariantSummary } from '../shared/model/routes'
 import type { StopLink, StopSummary } from '../shared/model/stops'
+import { keepLinePass } from '../shared/geo/linePass'
 
 /**
  * The published map, as the public map reads it (since 2026-09-29, stage 7 of
@@ -95,6 +96,64 @@ const MAP_FILE_CACHE = 'map-file'
 
 let inFlight: Promise<MapFile> | null = null
 let stale = false
+/** How the last load ended, once it has: its map, or null for a failure; null while it is on its way (openingVariants). */
+let settled: { file: MapFile | null } | null = null
+
+/**
+ * Where index.html's own script leaves its request for this file (the
+ * cheap-phone plan, step 20, 2026-10-04): vite.config.ts writes that script
+ * into the page's <head>, with MAP_FILE_URL, so the file is asked for as the
+ * page is read rather than once the app's script has come and run — 355 kB
+ * on the wire before it when this was written, about 3.3 s of a slow phone
+ * network; 385 kB since step 14 (2026-10-05). The script leaves a promise
+ * of the answer and, for an ok one, of its body read as JSON (undefined for
+ * a body that is not); it asks with `no-cache`, as loadMapFile does, and at
+ * low priority, so the app's own script keeps the link first.
+ */
+export const EARLY_MAP_FILE = '__parapoMapFile'
+
+/** What index.html's script leaves under EARLY_MAP_FILE. */
+export type EarlyMapFile = Promise<{ res: Response; body: Promise<unknown> | null }>
+
+/**
+ * index.html's request, taken once: the first load reads it, and a load
+ * after a failed one asks the network itself, as every load did before.
+ * Null on a page without one (the studio's, a test's).
+ */
+function takeEarly(): EarlyMapFile | null {
+  const page = globalThis as { [EARLY_MAP_FILE]?: EarlyMapFile }
+  const early = page[EARLY_MAP_FILE]
+  if (!early) return null
+  delete page[EARLY_MAP_FILE]
+  return typeof early.then === 'function' ? early : null
+}
+
+/**
+ * The network's answer for the map file, and how to read it as JSON:
+ * index.html's when it made one, else asked here. A request of index.html's
+ * that failed (no network as the page was read) is asked again here, as the
+ * page always did, so what follows is today's either way.
+ */
+function ask(): Promise<{ res: Response; json: () => Promise<unknown> }> {
+  const own = () => fetch(MAP_FILE_URL, { cache: 'no-cache' }).then((res) => ({ res, json: () => res.json() }))
+  const early = takeEarly()
+  if (!early) return own()
+  return early.then(
+    ({ res, body }) => ({
+      res,
+      // Read by the page's script from a copy of the answer, so the answer's
+      // own body is still there for an early answer that brought none.
+      json: () =>
+        body
+          ? body.then((raw) => {
+              if (raw === undefined) throw new SyntaxError(`${MAP_FILE_URL} is not JSON`)
+              return raw
+            })
+          : res.json(),
+    }),
+    own,
+  )
+}
 
 type RawFile = Partial<Omit<MapFile, 'variants'>> & { variants?: IndexVariant[] }
 
@@ -117,10 +176,22 @@ function asMap(file: RawFile, url: string, schema: number): MapFile {
   return { ...file, variants } as MapFile
 }
 
+/**
+ * The copy the worker kept of the index itself, else the newest older one.
+ * The worker falls back to its copy only when the network fails outright: a
+ * server's 500 is an answer, and came to the page as one (review of
+ * 2026-10-03, finding 16).
+ */
+async function storedCopy(): Promise<MapFile | null> {
+  return (await storedOldCopy([{ url: MAP_FILE_URL, schema: MAP_FILE_SCHEMA }])) ?? (await storedOldCopy())
+}
+
 /** The newest older copy the worker kept, if any (STORED_OLD). */
-async function storedOldCopy(): Promise<MapFile | null> {
+async function storedOldCopy(
+  candidates: readonly { url: string; schema: number }[] = STORED_OLD,
+): Promise<MapFile | null> {
   if (typeof caches === 'undefined') return null
-  for (const { url, schema } of STORED_OLD) {
+  for (const { url, schema } of candidates) {
     const res = await caches.match(url, { cacheName: MAP_FILE_CACHE }).catch(() => undefined)
     if (!res?.ok) continue
     try {
@@ -138,15 +209,34 @@ async function storedOldCopy(): Promise<MapFile | null> {
  * server whether the file changed rather than trusting a stale copy: the
  * answer is a cheap 304 when it has not. With no answer and no copy of this
  * file in store, the copy an older version of the app stored is shown,
- * marked stale.
+ * marked stale. The first load reads the request index.html made (ask).
  */
 export function loadMapFile(): Promise<MapFile> {
-  inFlight ??= fetch(MAP_FILE_URL, { cache: 'no-cache' })
+  if (inFlight) return inFlight
+  settled = null
+  inFlight = ask()
     .then(
-      async (res) => {
-        if (!res.ok) throw new Error(`${MAP_FILE_URL}: HTTP ${res.status}`)
+      async ({ res, json }) => {
+        // The server answered, but not with the map — an error, or the
+        // page itself, 200, which the host sends for a file it does not
+        // have (wrangler.jsonc): the stored copy, marked stale.
+        const kept = async (why: string) => {
+          const copy = await storedCopy()
+          if (!copy) throw new Error(`${MAP_FILE_URL}: ${why}`)
+          stale = true
+          return copy
+        }
+        if (!res.ok) return kept(`HTTP ${res.status}`)
+        let raw: RawFile
+        try {
+          raw = (await json()) as RawFile
+        } catch {
+          return kept('not JSON')
+        }
         stale = res.headers.get(SERVED_FROM_HEADER) === 'cache'
-        return asMap((await res.json()) as RawFile, MAP_FILE_URL, MAP_FILE_SCHEMA)
+        // A file that reads but is not this app's (too new, another shape)
+        // is said as it is: the banner's Reload is the answer to that.
+        return asMap(raw, MAP_FILE_URL, MAP_FILE_SCHEMA)
       },
       async (e: unknown) => {
         // No network and nothing stored under this path: an update made offline.
@@ -156,11 +246,47 @@ export function loadMapFile(): Promise<MapFile> {
         return old
       },
     )
-    .catch((e: unknown) => {
-      inFlight = null
-      throw e
-    })
+    .then(
+      (file) => {
+        settled = { file }
+        return file
+      },
+      (e: unknown) => {
+        inFlight = null
+        settled = { file: null }
+        throw e
+      },
+    )
   return inFlight
+}
+
+/**
+ * The directions the public map opens framed on (the owner's Q1,
+ * 2026-10-04; MapView's `openOn`), asked as the map is about to be made:
+ * the map file's, when its load has ended by then; the copy the worker
+ * kept on an earlier visit when it has not (storedCopy, read only then: it
+ * costs a parse of the whole file), unless the file comes while it is
+ * read; and with no copy kept, the file once it comes. MapView waits for
+ * it no more than a second (OPENING_WAIT_MS), and opens as it always did
+ * without it, the routes framed as they come; as it does after a load that
+ * failed. Without that wait a visit with no worker — a first one whose
+ * script beat the file, a second one before the worker was installed —
+ * opened at zoom 11 while the file was asked again (a 304, a round trip),
+ * and fetched that view's tiles only to throw them away. When the copy kept
+ * and the file then brought differ, the routes' own fit takes the camera on
+ * to the file's framing, unless the visitor has moved the map by then
+ * (framing.ts, framesRoutes).
+ */
+export async function openingVariants(): Promise<VariantSummary[] | null> {
+  // The load's end as it is now: undefined while it is on its way.
+  const ended = () => (settled ? (settled.file?.variants ?? null) : undefined)
+  const now = ended()
+  if (now !== undefined) return now
+  const copy = await storedCopy().catch(() => null)
+  const since = ended()
+  if (since !== undefined) return since
+  if (copy) return copy.variants
+  return inFlight ? inFlight.then((file) => file.variants, () => null) : null
 }
 
 const lines = new Map<string, Promise<LineStringGeoJSON | null>>()
@@ -169,6 +295,11 @@ const lines = new Map<string, Promise<LineStringGeoJSON | null>>()
  * A direction's full line, read once a page and shared. Null for a
  * direction with no line; a failure is not kept, so the next light tries
  * again — until then the map keeps the overview, which is the same road.
+ *
+ * The orange stretches the file brings with the line, since the cheap-phone
+ * plan's step 13 (2026-10-05), are kept under the line itself (linePass.ts),
+ * and painted only if they were worked out against the index's own hintuans;
+ * a file without them is read as before.
  */
 export function loadLine(id: string): Promise<LineStringGeoJSON | null> {
   let line = lines.get(id)
@@ -176,9 +307,11 @@ export function loadLine(id: string): Promise<LineStringGeoJSON | null> {
     line = fetch(`${LINES_URL}${encodeURIComponent(id)}.json`, { cache: 'no-cache' })
       .then(async (res) => {
         if (!res.ok) throw new Error(`${LINES_URL}${id}.json: HTTP ${res.status}`)
-        const file = (await res.json()) as { id?: string; shape?: LineStringGeoJSON | null }
+        const file = (await res.json()) as { id?: string; shape?: LineStringGeoJSON | null; pass?: unknown; passKey?: unknown }
         if (file.id !== id) throw new Error(`${LINES_URL}${id}.json is not that direction's line`)
-        return file.shape?.type === 'LineString' && Array.isArray(file.shape.coordinates) ? file.shape : null
+        if (file.shape?.type !== 'LineString' || !Array.isArray(file.shape.coordinates)) return null
+        keepLinePass(file.shape, file)
+        return file.shape
       })
       .catch((e: unknown) => {
         lines.delete(id)

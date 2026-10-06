@@ -35,14 +35,38 @@ if (!existsSync(join(root, 'dist', 'sw.js'))) {
   process.exit(1)
 }
 const published = JSON.parse(readFileSync(join(root, 'public', 'data', 'index.v4.json'), 'utf8'))
-/** A drawn direction, for the line a trip reads and the worker keeps. */
-const tripId = published.variants.find((v) => v.overview)?.id
 /** One past the shape this app reads (src/commuter/mapFile.ts, MAP_FILE_SCHEMA). */
 const MAP_FILE_SCHEMA_NEXT = published.schema + 1
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const d = new Date(published.published_at)
 const expectedDate = `${d.getDate()} ${MONTHS[d.getMonth()]}`
 const routeCount = published.variants.length
+
+/**
+ * The map's 'load' on page `p`, as a production build shows it (it keeps
+ * its map to itself): MapView's design button (BasemapControl,
+ * data-testid="basemap"), which comes with the 'load' (framing-test holds
+ * it to the 'load'); no failure banner, which shows in the button's place;
+ * and "Loading map…" gone. Not that the basemap's tiles are in: MapLibre
+ * (6.7, tile_manager.ts, loaded()) counts a tile that failed as one that
+ * came, so 'load' comes once every tile in view has come or failed, and
+ * MapView's 'load' clears the banner a failed tile raised before it.
+ * Offline here, with no tile in the worker's cache, it comes all the same.
+ * What the tiles did is the check "tiles came from the worker's cache".
+ * Nor does the text alone say 'load' any more: since the owner's answer to
+ * question A of the cheap-phone report (2026-10-06) it goes with the first
+ * frame that draws the routes, which come from the map file, before the
+ * basemap's tiles. (Review of A, 2026-10-06: this was named for the tiles.)
+ */
+const mapLoad = (p) =>
+  p.waitForFunction(
+    () => {
+      const text = document.body.innerText
+      return !!document.querySelector('[data-testid="basemap"]') && !text.includes('The map failed to load') && !text.includes('Loading map…')
+    },
+    null,
+    { timeout: 30000 },
+  )
 
 let server = null
 let base = process.env.PARAPO_BASE
@@ -52,6 +76,57 @@ if (!base) {
   base = server.resolvedUrls.local[0].replace(/\/$/, '')
 }
 console.log(`preview at ${base}`)
+
+/**
+ * Opens a trip as a visitor does, by a tap on its line. A production build
+ * keeps its map to itself (no window.__map) and trip links went on
+ * 2026-10-03, so the line is found on a screenshot: a pixel in the colour
+ * routes rest in (Map/RouteLine/surface-default, #8ec5ff), away from the
+ * screen's edges. A tap there opens a trip, or the route list where routes
+ * share the road, whose first row then opens one. The directions it may be,
+ * with its name: the row's own when the list was used, else every direction
+ * of that name (a via is not in a name, so two can share one). Null when no
+ * trip opened. Through the list the check is weaker than the link it
+ * replaced: the list lights, and so reads, every line it lists.
+ */
+async function openSomeTrip(page) {
+  let at = null
+  for (let i = 0; i < 10 && !at; i++) {
+    const shot = (await page.screenshot()).toString('base64')
+    at = await page.evaluate(async (b64) => {
+      const img = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob())
+      const c = new OffscreenCanvas(img.width, img.height)
+      const g = c.getContext('2d')
+      g.drawImage(img, 0, 0)
+      const { data, width, height } = g.getImageData(0, 0, img.width, img.height)
+      const scale = img.width / window.innerWidth
+      const hits = []
+      for (let y = Math.round(height * 0.15); y < height * 0.7; y += 2)
+        for (let x = Math.round(width * 0.1); x < width * 0.9; x += 2) {
+          const k = (y * width + x) * 4
+          if (Math.abs(data[k] - 0x8e) + Math.abs(data[k + 1] - 0xc5) + Math.abs(data[k + 2] - 0xff) < 12) hits.push([x / scale, y / scale])
+        }
+      return hits.length ? hits[Math.floor(hits.length / 2)] : null
+    }, shot)
+    if (!at) await page.waitForTimeout(500)
+  }
+  if (!at) return null
+  await page.touchscreen.tap(at[0], at[1])
+  const trip = page.locator('[data-testid="card"]:not([hidden]) [data-testid="trip"]')
+  // A route's row (a hotspot under the tap is a row of the list too, without a direction).
+  const row = page.locator('[data-testid="chooser"] button[data-testid="chooser-item"][data-direction]')
+  await Promise.race([trip.first().waitFor({ timeout: 10000 }), row.first().waitFor({ timeout: 10000 })]).catch(() => {})
+  let viaList = null
+  if (!(await trip.count()) && (await row.count())) {
+    viaList = await row.first().getAttribute('data-direction')
+    await row.first().tap()
+    await trip.first().waitFor({ timeout: 10000 }).catch(() => {})
+  }
+  if (!(await trip.count())) return null
+  const label = await page.locator('[data-testid="card"]:not([hidden])').filter({ has: page.locator('[data-testid="trip"]') }).first().getAttribute('aria-label')
+  const ids = viaList ? [viaList] : published.variants.filter((v) => v.direction_name === label).map((v) => v.id)
+  return ids.length ? { ids, name: label } : null
+}
 
 const browser = await chromium.launch()
 const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
@@ -139,7 +214,8 @@ try {
   })
   check('service worker ready on / with scope /', !sw.error && sw.scope === `${base}/` && sw.active, JSON.stringify(sw))
 
-  // Wait for the routes and the basemap, so both reach the caches. The page
+  // Wait for the routes and the map's 'load', by which every basemap tile in
+  // view has come or failed, so what came reaches the caches. The page
   // says how many directions its map file brought (`data-directions`): the
   // count pill that showed it went on 2026-09-29, the owner's "annoying for
   // users".
@@ -147,7 +223,7 @@ try {
   const online = await arrived.waitFor({ state: 'attached', timeout: 20000 }).then(() => true, () => false)
   check(`online: the published map's ${routeCount} directions arrive`, online)
   await page.waitForSelector('canvas.maplibregl-canvas', { timeout: 20000 })
-  await page.waitForFunction(() => !document.body.innerText.includes('Loading map…'), null, { timeout: 30000 })
+  await mapLoad(page)
   await page.waitForTimeout(4000)
   check('online: no offline notice', (await page.locator('[data-testid="offline"]').count()) === 0)
 
@@ -208,10 +284,8 @@ try {
   const noticeOk = await notice.waitFor({ timeout: 10000 }).then(() => true, () => false)
   const noticeText = noticeOk ? (await notice.innerText()).trim() : '(none)'
   check(`offline: notice reads "Offline · map as of ${expectedDate}"`, noticeText === `Offline · map as of ${expectedDate}`, noticeText)
-  const drew = await page
-    .waitForFunction(() => !document.body.innerText.includes('Loading map…') && !document.body.innerText.includes('The map failed to load'), null, { timeout: 30000 })
-    .then(() => true, () => false)
-  check('offline: the basemap draws (no "Loading map…", no failure banner)', drew)
+  const loaded = await mapLoad(page).then(() => true, () => false)
+  check('offline: the map\'s \'load\' comes: the design button up, no failure banner, no "Loading map…"', loaded)
   await page.waitForTimeout(2000)
   page.off('response', countTiles)
   check(`offline: tiles came from the worker's cache (${tilesFromWorker})`, tilesFromWorker > 0)
@@ -234,14 +308,6 @@ try {
     'offline: panning into unseen tiles raises no failure banner',
     !(await page.evaluate(() => document.body.innerText.includes('The map failed to load'))),
   )
-
-  // A shared link still opens offline.
-  const firstId = published.variants[0]?.id
-  if (firstId) {
-    await page.goto(`${base}/?r=${firstId}`, { waitUntil: 'load' }).catch(() => {})
-    const card = await page.locator('[data-testid="card"]').waitFor({ timeout: 20000 }).then(() => true, () => false)
-    check('offline: a shared link /?r=<id> opens its route card', card)
-  }
 
   await ctx.setOffline(false)
   // Back to the bare address, with no card open.
@@ -270,17 +336,20 @@ try {
   check('fast again: no notice', (await page.locator('[data-testid="offline"]').count()) === 0)
 
   // A trip opened reads its direction's full line, and the worker keeps it.
-  if (tripId) {
-    await page.goto(`${base}/?r=${tripId}`, { waitUntil: 'load' })
+  // Opened by a tap, as a visitor opens one: trip links (?r=<id>) went on
+  // 2026-10-03.
+  const opened = await openSomeTrip(page)
+  if (!opened) check('an opened trip reads its full line, and the worker keeps it', false, 'no trip opened: no route line found on the screen to tap')
+  else {
     await page.waitForTimeout(2500)
-    const kept = await page.evaluate(async (id) => {
+    const kept = await page.evaluate(async (ids) => {
       const name = (await window.caches.keys()).find((n) => n.includes('map-lines'))
-      return !!name && (await (await window.caches.open(name)).keys()).some((r) => r.url.endsWith(`/data/lines/${id}.json`))
-    }, tripId)
-    check('an opened trip reads its full line, and the worker keeps it', kept)
-    await page.goto(`${base}/`, { waitUntil: 'load' })
-    await page.waitForTimeout(1000)
+      return !!name && (await (await window.caches.open(name)).keys()).some((r) => ids.some((id) => r.url.endsWith(`/data/lines/${id}.json`)))
+    }, opened.ids)
+    check('an opened trip reads its full line, and the worker keeps it', kept, `"${opened.name}"`)
   }
+  await page.goto(`${base}/`, { waitUntil: 'load' })
+  await page.waitForTimeout(1000)
 
   // A map published for a newer app: the banner says so and offers Reload,
   // which goes through the worker (pwa.ts, reloadForNewerApp) and, with no

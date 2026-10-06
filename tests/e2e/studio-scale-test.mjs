@@ -1,6 +1,7 @@
-// The editor at scale: how /studio/?e2e=1 opens with 1,000 directions and 500
-// hotspots, made from today's map — 250 copies of its directions and 17 of
-// its hotspots, shifted across a 25 × 10 grid — served by a stand-in for the
+// The editor at scale: how /studio/?e2e=1 opens with 5,000 directions and 510
+// hotspots, made from today's map — 250 copies of its 20 directions and 5 of
+// its 102 hotspots, as many as make 500 (its counts on 2026-10-06; the suite
+// prints them), shifted across a 25 × 10 grid — served by a stand-in for the
 // database's REST API. The rows are as the database keeps them: a line with a
 // point every 20 m or so (what the router gives), the drawing beside it
 // (control_points, segments) and 15-decimal coordinates. No tiles, no router,
@@ -268,8 +269,8 @@ const wholeBytes = lists.reduce((a, r) => a + r.wholeBytes, 0)
 // of overviews is a small part of the rows as the database keeps them.
 check('the list is under a sixth of the rows as the database keeps them', listBytes < wholeBytes / 6, `${mb(listBytes)} for ${lists.length} request(s), the same rows whole ${mb(wholeBytes)}`)
 // The links table: after its first page answers, the rest are asked for at
-// once. Two loads in development, so the first of each load is the one an
-// earlier page precedes by more than a moment.
+// once. One load (loadOnce.ts, 2026-10-05; two in development before, the
+// first page of each preceded by more than a moment), and room for two.
 const linkPages = asked.filter((r) => r.table === 'route_stop')
 const pages = Math.ceil(links.length / 1000)
 const gaps = linkPages.slice(1).map((r, i) => r.at - linkPages[i].at)

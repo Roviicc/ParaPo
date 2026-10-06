@@ -21,7 +21,7 @@ const readPublished = () => {
   return { ...index, variants: index.variants.map(({ overview, ...v }) => ({ ...v, shape: overview ? at(`lines/${v.id}.json`).shape : null })) }
 }
 const file = readPublished()
-const routeId = file.variants[0]?.id
+const route = file.variants.find((v) => v.shape?.coordinates?.length > 1)
 const stop = file.stops.find((s) => s.kind === 'hintuan') ?? file.stops[0]
 
 const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }
@@ -55,6 +55,25 @@ const openFold = async (p) => {
   await wait(1500)
 }
 
+/**
+ * Open the route's trip as a visitor does, by a tap on its line (trip links,
+ * ?r=<id>, went on 2026-10-03): centred on a point a third of the way along
+ * it. Where routes share that road this opens the list; its first row then.
+ */
+const openRoute = async (p) => {
+  const line = route.shape.coordinates
+  const c = line[Math.floor(line.length / 3)]
+  await p.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 15 }), c)
+  await wait(3000)
+  const pt = await p.evaluate((c) => window.__map.project(c), c)
+  if (await p.evaluate(() => matchMedia('(pointer: coarse)').matches)) await p.touchscreen.tap(pt.x, pt.y)
+  else await p.mouse.click(pt.x, pt.y)
+  await wait(1500)
+  const row = p.locator('[data-testid="chooser-item"]')
+  if (!(await p.locator('[data-testid="trip"]').count()) && (await row.count())) await row.first().click()
+  await wait(2500)
+}
+
 /** Centre the map on the hintuan's box and tap its middle. Near a line this opens the chooser. */
 const tapStop = async (p) => {
   const ring = stop.area.coordinates[0]
@@ -67,9 +86,9 @@ const tapStop = async (p) => {
 }
 
 await shot(phone, '/', '01-phone-map')
-if (routeId) {
-  await shot(phone, `/?r=${routeId}`, '02-phone-trip')
-  await shot(phone, `/?r=${routeId}`, '03-phone-trip-open', { after: openFold })
+if (route) {
+  await shot(phone, '/', '02-phone-trip', { after: openRoute })
+  await shot(phone, '/', '03-phone-trip-open', { after: async (p) => { await openRoute(p); await openFold(p) } })
 }
 if (stop) {
   await shot(phone, '/', '04-phone-chooser', { after: tapStop })
@@ -84,7 +103,7 @@ if (stop) {
 }
 await shot(phone, '/', '05-phone-load-error', { before: (p) => p.route('**/data/index.v4.json*', (r) => r.abort()) })
 await shot(desk, '/', '06-desktop-map')
-if (routeId) await shot(desk, `/?r=${routeId}`, '07-desktop-route')
+if (route) await shot(desk, '/', '07-desktop-route', { after: openRoute })
 await shot(desk, '/studio/', '08-studio-signin')
 await shot(desk, '/studio/?e2e=1', '09-studio-editor')
 

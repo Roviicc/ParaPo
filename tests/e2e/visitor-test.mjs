@@ -16,11 +16,15 @@
 // to localStorage, never calls the OSRM route snapper or the database (it
 // reads the published /data/index.v4.json, once), and tapping a route vs. a
 // hotspot — including one hotspot with a route drawn through it — opens the
-// right card with the right content.
+// right card with the right content; and, since 2026-10-04, that the end
+// circles' GL program is compiled before any tap and a trip's tap compiles
+// none (since 2026-10-05 asked of it as the first tap of a page of its
+// own), and that the map is made framed on the routes, where their fit
+// framed it, and stays there (the owner's Q1).
 import { chromium } from 'playwright'
 import { BASE, harness, nodeFetch, waitForSource } from './lib/harness.mjs'
 import { centroidOf, pointInPolygon } from './lib/geo.mjs'
-import { lookReaders, paintNow, rideLook } from './lib/looks.mjs'
+import { lookReaders, paintNow, programsAtRest, programsSince, rideLook } from './lib/looks.mjs'
 
 const { check, skip, tally } = harness()
 
@@ -112,6 +116,25 @@ await page.addInitScript(() => {
   window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
 })
 await page.addInitScript(lookReaders)
+// The map from its making (window.__mapEarly, MapView, in dev): the camera
+// it was made at, the camera at its 'load', and how many times it has moved.
+await page.addInitScript(() => {
+  let early = null
+  const cam = (m) => ({ lng: m.getCenter().lng, lat: m.getCenter().lat, zoom: m.getZoom(), bearing: m.getBearing(), pitch: m.getPitch() })
+  window.__opening = { made: null, atLoad: null, moves: 0 }
+  Object.defineProperty(window, '__mapEarly', {
+    configurable: true,
+    get: () => early,
+    set(m) {
+      early = m
+      window.__opening.made = cam(m)
+      m.on('movestart', () => window.__opening.moves++)
+      m.once('load', () => {
+        window.__opening.atLoad = cam(m)
+      })
+    },
+  })
+})
 const errors = []
 page.on('pageerror', (e) => errors.push(String(e)))
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 160)) })
@@ -144,6 +167,45 @@ await page.goto(`${BASE}/`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
 await waitForSource(page, 'saved-stops')
 await page.waitForTimeout(1200)
+
+// 0. The map is made framed on the routes (the owner's Q1, 2026-10-04):
+// where their fit put it after the map's 'load' until then — the box round
+// every overview in the published file, 100 px clear of the edges, zoom 13
+// at most — and the fit no longer moves it. phone-test holds the same at a
+// phone's size, and a finger moving the map before the routes come.
+{
+  const { opening, want, now } = await page.evaluate(async () => {
+    const m = window.__map
+    const f = await (await fetch('/data/index.v4.json', { headers: { 'x-parapo-test': '1' } })).json()
+    let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity]
+    for (const v of f.variants) {
+      for (const [x, y] of v.overview?.coordinates ?? []) {
+        if (x < w) w = x
+        if (x > e) e = x
+        if (y < s) s = y
+        if (y > n) n = y
+      }
+    }
+    const c = m.cameraForBounds([[w, s], [e, n]], { padding: 100, maxZoom: 13 })
+    return {
+      opening: window.__opening,
+      want: { lng: c.center.lng, lat: c.center.lat, zoom: c.zoom, bearing: 0, pitch: 0 },
+      now: { lng: m.getCenter().lng, lat: m.getCenter().lat, zoom: m.getZoom(), bearing: m.getBearing(), pitch: m.getPitch() },
+    }
+  })
+  const same = (a, b) => !!a && !!b && ['lng', 'lat', 'zoom', 'bearing', 'pitch'].every((k) => Math.abs(a[k] - b[k]) < 1e-9)
+  const show = (c) => (c ? `${c.lng.toFixed(5)},${c.lat.toFixed(5)} z${c.zoom.toFixed(4)}` : 'none')
+  check(
+    "the map is made framed on the routes, where their fit framed it: padding 100, zoom 13 at most (the owner's Q1)",
+    same(opening.made, want),
+    `made at ${show(opening.made)}; the fit's ${show(want)}`,
+  )
+  check(
+    "  and stays there: the same camera at its 'load' and at rest, never moved since",
+    same(opening.atLoad, want) && same(now, want) && opening.moves === 0,
+    `at 'load' ${show(opening.atLoad)}, now ${show(now)}; ${opening.moves} move(s)`,
+  )
+}
 
 // 1. No editor chrome on the visitor page.
 check('no + New Route button', (await page.getByRole('button', { name: '+ New Route' }).count()) === 0)
@@ -264,6 +326,11 @@ const [namesFar, namesNear] = [await namesAt(16), await namesAt(17)]
 check('hotspot names only close in: none at zoom 16, some at 17', namesFar === 0 && namesNear > 0, `${namesFar} at 16, ${namesNear} at 17`)
 const drawLayers = snapshot.order.filter((id) => id.startsWith('draw-'))
 check('no editor (draw-*) layers on the public page', drawLayers.length === 0, drawLayers.join(', '))
+// The end circles' GL program is compiled while the map is idle, before any
+// tap, so the first tap that lights a route does not compile it as its card
+// comes up (warmPrograms.ts, the cheap-phone plan, step 3, 2026-10-04).
+const atRest = await programsAtRest(page)
+check("at rest, before any tap, the end circles' GL program is compiled (warmPrograms)", atRest.circle, `${atRest.keys.length} programs${atRest.circle ? '' : `, none a circle's in ${atRest.ms / 1000} s`}`)
 
 // 3. Tap each hotspot: fly to a point inside it, click, read the card.
 for (const [i, p] of snapshot.polys.entries()) {
@@ -617,6 +684,56 @@ if (PART !== 1) {
   }
 }
 
+// The GL programs a tap at `at`, at zoom 17, adds as the first tap of a page
+// of its own, once its trip is framed and the map settled, read as 4b's own
+// tap was until 2026-10-05: `{ opened, circle, added, standIn }`, `opened`
+// whether a trip came up, `circle` whether the end circles' program was
+// there before it (programsAtRest, programsSince). A page of its own, not
+// this one loaded again: section 5 counts this page's map file once. Its
+// errors and requests are watched as this page's are.
+const firstTapPrograms = async (at) => {
+  const p = await b.newPage({ viewport: { width: 1280, height: 800 } })
+  try {
+    await nodeFetch(p)
+    await p.addInitScript(() => {
+      window.__src = async (id) => { const s = window.__map?.getSource(id); return s ? await s.getData() : null }
+    })
+    p.on('pageerror', (e) => errors.push(String(e)))
+    p.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 160)) })
+    p.on('request', (req) => {
+      if (/router\.project-osrm\.org/.test(req.url())) osrmHit = true
+      if (/\.supabase\.co/.test(req.url())) supabaseHit = true
+    })
+    await p.goto(`${BASE}/`, { waitUntil: 'load' })
+    await p.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
+    await waitForSource(p, 'saved-routes')
+    await p.waitForTimeout(1200)
+    await p.evaluate((c) => window.__map.jumpTo({ center: c, zoom: 17 }), at)
+    await p.waitForTimeout(700)
+    const rest = await programsAtRest(p)
+    const box = await p.locator('canvas.maplibregl-canvas').boundingBox()
+    await p.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    const opened = await p
+      .locator('[data-testid="card"] [data-testid="trip"]')
+      .first()
+      .waitFor({ state: 'visible', timeout: 10000 })
+      .then(() => true, () => false)
+    // The trip framed on its whole route, as 4b waits for it, then the map settled.
+    await p.waitForTimeout(350)
+    await p.evaluate(
+      () =>
+        new Promise((done) => {
+          const m = window.__map
+          if (m.isMoving()) m.once('moveend', () => setTimeout(done, 50))
+          else setTimeout(done, 800)
+        }),
+    )
+    return { opened, circle: rest.circle, ...(await programsSince(p, rest.keys)) }
+  } finally {
+    await p.close()
+  }
+}
+
 // 4b. Rest and lit: every direction rests in one light blue, opaque; one
 // route alone under the tap opens its card directly, drawn in its trip card's colour over
 // the rest; closing the card lights nothing again. Nothing fades and nothing
@@ -708,6 +825,22 @@ if (PART === 1) {
       // a second apart finds them moved, in about fifteen redraws.
       const where = () =>
         page.evaluate(async () => ((await window.__src('direction-arrows'))?.features ?? []).map((f) => f.geometry.coordinates[0][0].map((v) => v.toFixed(7)).join()).join('|'))
+      // The tap compiled no GL program: the end circles' was compiled while
+      // the map was idle, and the orange stretches draw with the lit line's
+      // (the cheap-phone plan, steps 2 and 3, 2026-10-04). Asked of this tap
+      // made again as the first of a page of its own (firstTapPrograms): on
+      // this page the taps of 3, 4 and 4a lit routes at zoom 18 and opened a
+      // trip on its whole route, its ends in view, so both programs were
+      // compiled long before this tap, steps 2 and 3 or not (review of steps
+      // 2 and 3, 2026-10-05).
+      const compiled = await firstTapPrograms(clean)
+      check(
+        '  and it compiled no GL program',
+        compiled.opened && compiled.added.length === 0,
+        `the same tap, the first of a page of its own: ${compiled.opened ? 'its trip' : 'no trip'} opened, the circles' program ${compiled.circle ? 'there before it' : 'not there before it'}; ` +
+          `${compiled.added.length} added${compiled.added.length ? ': ' + compiled.added.join(', ') : ''}` +
+          (compiled.standIn.length ? `; and ${compiled.standIn.length} a real basemap compiles at load, which the stand-in does not: ${compiled.standIn.map((k) => k.split('/')[0]).join(', ')}` : ''),
+      )
       // The trip opens on its whole route (the owner's ask, 2026-10-01); the
       // flow is counted back where the tap was, close in, as before: a
       // runner drawing without a GPU manages a few frames a second on the

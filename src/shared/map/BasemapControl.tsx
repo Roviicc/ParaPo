@@ -46,6 +46,20 @@ export function BasemapControl({ map, initial, under }: Props) {
     return () => window.removeEventListener('pointerdown', onDown)
   }, [open])
 
+  // Escape closes the menu, as it closes a card (useEscape), and only the
+  // menu: heard first, on the way down, so the card under it stays open
+  // (review of 2026-10-03: the menu could not be closed from the keyboard).
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      setOpen(false)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [open])
+
   function choose(b: Basemap) {
     setOpen(false)
     if (b.id === current.id) return

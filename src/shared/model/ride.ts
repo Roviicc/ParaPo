@@ -25,7 +25,7 @@ export function routeTimeline(
 }
 
 /** Distance along the line of a point lying on it: the first segment that holds the point wins. */
-function distanceAlong(line: LngLat[], p: LngLat): number {
+function distanceAlong(line: readonly LngLat[], p: LngLat): number {
   let cum = 0
   for (let i = 1; i < line.length; i++) {
     const ab = haversine(line[i - 1], line[i])
@@ -38,7 +38,7 @@ function distanceAlong(line: LngLat[], p: LngLat): number {
 }
 
 /** The point `metres` along the line, and the last vertex before it. */
-function pointAt(line: LngLat[], metres: number): { point: LngLat; index: number } {
+function pointAt(line: readonly LngLat[], metres: number): { point: LngLat; index: number } {
   let cum = 0
   for (let i = 1; i < line.length; i++) {
     const [a, b] = [line[i - 1], line[i]]
@@ -104,13 +104,39 @@ export function rideCut(
  * The direction's line in travel order: from where it leaves to where it is
  * going, whichever way it was drawn (drawnFromTheEnd). What the arrows, the
  * glow and the ride-to cut follow.
+ *
+ * Read-only: a line drawn from the far end comes back as its reversed copy,
+ * made once per line and kept (reversedOf), so the same line turned round is
+ * the same array every render (the cheap-phone plan, step 16 (b),
+ * 2026-10-04). Which way round is still asked each time, of the stops as
+ * they are now.
  */
-export function travelLine(v: VariantSummary, stops: readonly StopSummary[]): LngLat[] {
+export function travelLine(v: VariantSummary, stops: readonly StopSummary[]): readonly LngLat[] {
   const line = variantLine(v)
   if (line.length < 2) return line
   const head = stops.find((s) => s.id === v.route?.head_stop_id)
   const tail = stops.find((s) => s.id === v.route?.tail_stop_id)
   const [from, to] = v.reversed ? [tail, head] : [head, tail]
   if (!from || !to) return line
-  return drawnFromTheEnd(line[0], from, to) ? [...line].reverse() : line
+  return drawnFromTheEnd(line[0], from, to) ? reversedOf(line) : line
+}
+
+const reversed = new WeakMap<readonly LngLat[], readonly LngLat[]>()
+
+/**
+ * The line turned round, made once per array. Keyed on the line array
+ * itself, which is safe as lineBounds's box is (geo.ts): a loaded line is
+ * one array for as long as it is loaded and no line is changed in place, so
+ * a new line — a full line read, a save, a reload — is a new key, never a
+ * stale copy; and the copy is handed out read-only, so no caller can change
+ * what the next one gets. It had been made afresh for every hook that asked,
+ * every render: the chevrons, the babaan sides, the ride-to cut.
+ */
+function reversedOf(line: readonly LngLat[]): readonly LngLat[] {
+  let r = reversed.get(line)
+  if (!r) {
+    r = [...line].reverse()
+    reversed.set(line, r)
+  }
+  return r
 }

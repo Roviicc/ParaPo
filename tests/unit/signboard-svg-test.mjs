@@ -103,3 +103,35 @@ test('cleaning a clean board changes nothing', () => {
   const once = clean('<svg viewBox="0 0 4 4"><g fill="#000"><path d="M0 0h4v4z"/></g><text>A &lt; B</text></svg>')
   assert.equal(clean(once), once)
 })
+
+test('a look spelled with character references is read as the browser reads it (review of 2026-10-03)', () => {
+  // `&#117;` is "u": tested raw, this was no url() at all, and kept.
+  assert.equal(keepsAttribute('rect', 'fill', '&#117;rl(https://evil.example/x.svg#p)'), false)
+  assert.equal(keepsAttribute('rect', 'fill', '&#x75;rl(https://evil.example/x.svg#p)'), false)
+  assert.equal(keepsAttribute('use', 'href', '&#106;avascript:alert(1)'), false)
+  assert.equal(keepsAttribute('use', 'href', '&#35;mark'), true)
+  const out = clean(`<svg viewBox="0 0 1 1">
+    <rect fill="&#117;rl(https://evil.example/x.svg#p)" style="fill:&#x75;rl(//evil.example/y)"/>
+    <use href="&#x6A;avascript:alert(1)"/>
+    <text font-family="&quot;Cubao&quot;">A</text>
+  </svg>`)
+  assert.doesNotMatch(out, /evil|javascript|&#/i)
+  assert.match(out, /<rect\/>/)
+  assert.match(out, /font-family="&quot;Cubao&quot;"/)
+})
+
+test('a bare & in a text or a value comes out escaped, so the file still reads as XML', () => {
+  const out = clean('<svg viewBox="0 0 1 1"><text font-family="A & B">TALA & FAIRVIEW &amp; &#38; &nbsp;</text></svg>')
+  assert.match(out, /font-family="A &amp; B"/)
+  assert.match(out, />TALA &amp; FAIRVIEW &amp; &amp; &amp;nbsp;</)
+  assert.doesNotMatch(out, /&(?!amp;|lt;|gt;|quot;)/)
+  assert.equal(clean(out), out)
+})
+
+test('a look spelled with CSS escapes, or fetching through image-set(), is dropped', () => {
+  assert.equal(keepsAttribute('rect', 'fill', '\\75 rl(https://evil.example/x)'), false)
+  assert.equal(keepsAttribute('rect', 'style', 'fill:\\75rl(//evil.example/y)'), false)
+  assert.equal(keepsAttribute('rect', 'style', "background-image:image-set('https://evil.example/x.png' 1x)"), false)
+  assert.equal(keepsAttribute('rect', 'style', "background-image:-webkit-image-set('x.png' 1x)"), false)
+  assert.equal(keepsAttribute('rect', 'style', 'fill:#7CFC00;font-family:Cubao'), true)
+})
