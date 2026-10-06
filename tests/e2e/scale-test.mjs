@@ -32,10 +32,13 @@ const LINES_WITHIN_S = 5
  * 2026-10-04 the first line was read only once 'load' had come, so its 5 s
  * held 'load' too; the line is read on its own since the routes are drawn
  * before 'load' (the owner's Q1), and 'load' now waits for them. The same
- * 5 s, said on its own (review of Q1, 2026-10-05); a budget of the owner's
- * would replace it.
+ * 5 s, said on its own (review of Q1, 2026-10-05), until the owner's own
+ * budget: 7 s (question B of the cheap-phone report, 2026-10-06). On this
+ * map of 5,000 directions 'load' came at 5.3-6.3 s in the runs where the
+ * routes went on first and 1.5-1.8 s in the others, where it came with the
+ * bare style alone; the public map has 20.
  */
-const LOAD_WITHIN_S = 5
+const LOAD_WITHIN_S = 7
 /** Seconds the main thread may spend in long tasks while opening. */
 const BUSY_WITHIN_S = 5
 /** Seconds from a tap on a line to its orange stretches, its full line read. */
