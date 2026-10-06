@@ -396,7 +396,7 @@ test('step 13: the rule\'s fingerprint is pinned to PASS_RULE', () => {
   )
 })
 
-test('step 13: the publish imports nothing from npm, all the way down (its workflow has no npm ci)', () => {
+test('step 13: the publish and the map data check import nothing from npm, all the way down (their workflow has no npm ci)', () => {
   const root = new URL('../../', import.meta.url)
   const seen = new Set()
   const outside = []
@@ -419,6 +419,10 @@ test('step 13: the publish imports nothing from npm, all the way down (its workf
   }
   walk(new URL('scripts/publish/publish-map.mjs', root))
   assert.ok([...seen].some((u) => u.endsWith('/src/shared/geo/linePass.ts')), 'the publish reaches linePass.ts')
+  // The check the same workflow runs after it, which reads the app's map file shape since 2026-10-06 (question T).
+  walk(new URL('scripts/checks/check-map-data.mjs', root))
+  assert.ok([...seen].some((u) => u.endsWith('/scripts/checks/check-map-data.mjs')), 'the check walked too')
+  assert.ok([...seen].some((u) => u.endsWith('/src/commuter/mapFile.ts')), 'they reach mapFile.ts')
   assert.deepEqual(outside, [])
 })
 

@@ -29,10 +29,17 @@
 // their key is the one this file's hotspots give, the app paints them as
 // they are: stretches that are not the ones the line and the hotspots make,
 // beyond a unit of the sixth decimal (what the publish rounds everything
-// else to), are a problem. Stretches under another key, or unreadable, are a
-// note: the app works those out itself (a line file published against other
-// hotspots, or an older index, shape 3's or 2's, read against lines
-// published for shape 4: none on the map of 2026-10-05).
+// else to), are a problem. Stretches under another key, or unreadable, the
+// app does not take: it works them out itself, on the phone, as before
+// step 13. Against the index the app reads (MAP_FILE_SCHEMA's,
+// index.v4.json) that is a warning, so the owner's issue opens (the owner's
+// answer to question T of the cheap-phone report, 2026-10-06): the publish
+// writes every line file against that very index, so in its run only a
+// fault in the publish can make them differ; on the committed map (npm run
+// check:data), a line file changed by hand or kept from another publish
+// too. Against an older index, shape 3's or 2's, it stays a note: the line
+// files are written for the newest, and an older one may lack a hintuan
+// they were worked out against (none on the map of 2026-10-05).
 import { existsSync, readFileSync, appendFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -44,6 +51,7 @@ import { bboxOf, bboxesOverlap, haversine, lineLength } from '../../src/shared/g
 import { distanceToRingM } from '../../src/shared/geo/ring.ts'
 import { firstNearIndex } from '../../src/shared/geo/pass.ts'
 import { linePass, passBoxes, readablePass } from '../../src/shared/geo/linePass.ts'
+import { MAP_FILE_SCHEMA } from '../../src/commuter/mapFile.ts'
 
 /** How far a line's first or last point may sit from the hotspot it leaves from or arrives at. */
 export const END_WITHIN_M = 50
@@ -144,7 +152,8 @@ export function checkMapData(file) {
 
   // The orange stretches' boxes, as the app makes them from this file's hotspots (linePass.ts).
   const boxes = passBoxes(stops)
-  let passOther = 0
+  /** The directions whose line file carries stretches the app will not take (by name, with the file). */
+  const passOther = []
   let unmapped = 0
   for (const v of variants) {
     const name = `${v.route?.name ?? v.route_id} · ${v.direction_name ?? v.id}`
@@ -222,7 +231,7 @@ export function checkMapData(file) {
     // The orange stretches its line file carries, if any (readPublished), as the app would read them.
     if (v.pass !== undefined || v.passKey !== undefined) {
       const own = linePass(v, boxes)
-      if (typeof v.passKey !== 'string' || !readablePass(v.pass) || v.passKey !== own.passKey) passOther++
+      if (typeof v.passKey !== 'string' || !readablePass(v.pass) || v.passKey !== own.passKey) passOther.push(`${name} (lines/${v.id}.json)`)
       else if (!sameStretches(v.pass, own.pass)) {
         problems.push(
           `${name}: the orange stretches in lines/${v.id}.json are not the ones its line and this file's hintuans make, ` +
@@ -232,9 +241,15 @@ export function checkMapData(file) {
     }
   }
   if (unmapped) notes.push(`${unmapped} direction(s) not mapped yet`)
-  if (passOther) {
+  if (passOther.length && file.schema === MAP_FILE_SCHEMA) {
+    warnings.push(
+      `${passOther.length} line file(s) carry orange stretches worked out against other hintuans than this index's, or unreadable, ` +
+        `so every phone that lights them works them out itself: ${passOther.join('; ')}. ` +
+        'The publish writes them against this very index: the publish to look at (scripts/publish/lineFile.mjs), not the studio',
+    )
+  } else if (passOther.length) {
     notes.push(
-      `${passOther} line file(s) carry orange stretches worked out against other hintuans than this file's, or unreadable: the app works those out itself`,
+      `${passOther.length} line file(s) carry orange stretches worked out against other hintuans than this file's, or unreadable: the app works those out itself`,
     )
   }
 
