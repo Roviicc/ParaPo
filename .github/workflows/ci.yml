@@ -126,7 +126,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.public == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # visitor-test's first part reached the old 20 on 2026-10-06 (PR #128):
+    # 19 min 49 s, then cut off two seconds after its 753 checks had passed.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
