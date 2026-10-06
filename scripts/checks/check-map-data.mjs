@@ -14,8 +14,10 @@
 // twice — and stops the publish. A *warning* is data for the owner to look
 // at in the studio — a line that ends far from its terminal, a hintuan the
 // line passes without being linked to it, a link to one it never reaches —
-// and the map is published as it is, with the warnings on the run's summary
-// page and in the issue the workflow keeps (.github/workflows/publish-map.yml).
+// or, for line files whose orange stretches the app will not take (below),
+// the publish to look at, listed apart; either way the map is published as
+// it is, with the warnings on the run's summary page and in the issue the
+// workflow keeps (.github/workflows/publish-map.yml).
 //
 // The rules are the app's own (src/shared/geo/pass.ts): a direction
 // passes a hotspot when its line comes within PASS_WITHIN_M of the box,
@@ -91,6 +93,14 @@ function nearestM(line, ring) {
   }
   return best
 }
+
+/**
+ * How the one warning that is the publish's to look at, not the studio's,
+ * ends: a line file's orange stretches the app will not take against the
+ * index it reads (the owner's answer to question T of the cheap-phone
+ * report, 2026-10-06). markdownReport lists it under a heading of its own.
+ */
+const FOR_THE_PUBLISH = 'the publish to look at (scripts/publish/lineFile.mjs), not the studio'
 
 /**
  * Every problem, warning and note about a published map (the parsed file).
@@ -245,7 +255,7 @@ export function checkMapData(file) {
     warnings.push(
       `${passOther.length} line file(s) carry orange stretches worked out against other hintuans than this index's, or unreadable, ` +
         `so every phone that lights them works them out itself: ${passOther.join('; ')}. ` +
-        'The publish writes them against this very index: the publish to look at (scripts/publish/lineFile.mjs), not the studio',
+        `The publish writes them against this very index: ${FOR_THE_PUBLISH}`,
     )
   } else if (passOther.length) {
     notes.push(
@@ -256,7 +266,12 @@ export function checkMapData(file) {
   return { problems, warnings, notes, counts: { directions: variants.length, hotspots: stops.length, links: links.length } }
 }
 
-/** The report as Markdown, for the run's summary page and the issue the workflow keeps. */
+/**
+ * The report as Markdown, for the run's summary page and the issue the
+ * workflow keeps. The warnings the studio can answer under one heading, and
+ * the one the publish must (FOR_THE_PUBLISH) under its own: under "worth a
+ * look in the studio" it said "not the studio" (review of T, 2026-10-06).
+ */
 export function markdownReport(file, result) {
   const { problems, warnings, notes, counts } = result
   const when = typeof file?.published_at === 'string' ? ` published ${file.published_at}` : ''
@@ -264,8 +279,13 @@ export function markdownReport(file, result) {
   if (problems.length) {
     lines.push(`**${problems.length} problem(s), so this map was not published:**`, '', ...problems.map((p) => `- ${p}`), '')
   }
-  if (warnings.length) {
-    lines.push(`**${warnings.length} thing(s) worth a look in the studio:**`, '', ...warnings.map((w) => `- ${w}`), '')
+  const forThePublish = warnings.filter((w) => w.endsWith(FOR_THE_PUBLISH))
+  const forTheStudio = warnings.filter((w) => !w.endsWith(FOR_THE_PUBLISH))
+  if (forTheStudio.length) {
+    lines.push(`**${forTheStudio.length} thing(s) worth a look in the studio:**`, '', ...forTheStudio.map((w) => `- ${w}`), '')
+  }
+  if (forThePublish.length) {
+    lines.push(`**${forThePublish.length} thing(s) worth a look in the publish:**`, '', ...forThePublish.map((w) => `- ${w}`), '')
   }
   if (!problems.length && !warnings.length) lines.push('Nothing to report: every link, line and end agrees.', '')
   if (notes.length) lines.push(...notes.map((n) => `_${n}_`), '')

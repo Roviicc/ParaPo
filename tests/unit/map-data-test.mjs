@@ -387,7 +387,9 @@ test('T: against the newest index, stretches under another key, a stale one, or 
     assert.deepEqual(passNote(r), [], `${what}: a warning, not a note`)
     const md = markdownReport(newest(m), r)
     assert.doesNotMatch(md, /Nothing to report/, what)
-    assert.match(md, /\*\*1 thing\(s\) worth a look/, what)
+    assert.match(md, /\*\*1 thing\(s\) worth a look in the publish:\*\*\n\n- 1 line file\(s\) carry orange stretches/, what)
+    // It says "not the studio": never under the studio's heading (review of T, 2026-10-06).
+    assert.doesNotMatch(md, /worth a look in the studio/, what)
     // The same file as an older index (shape 3's, 2's): a note, as before.
     for (const schema of [MAP_FILE_SCHEMA - 1, MAP_FILE_SCHEMA - 2]) {
       const older = checkMapData({ ...m, schema })
@@ -395,6 +397,34 @@ test('T: against the newest index, stretches under another key, a stale one, or 
       assert.equal(passNote(older).length, 1, `${what}, shape ${schema}`)
     }
   }
+})
+
+test('T: the report lists the publish\'s warning under a heading of its own, the studio\'s under theirs, and counts each', () => {
+  // Review of T (2026-10-06): the warning ends "the publish to look at
+  // (scripts/publish/lineFile.mjs), not the studio", and the report listed
+  // it under "worth a look in the studio". A hintuan with no box is the
+  // studio's; a line file under another key is the publish's.
+  const m = newest(withPass(({ pass }) => ({ pass, passKey: 'other' })))
+  m.stops.push(stop('Lone', 'hintuan', 2000, 500, { area: null }))
+  const r = checkMapData(m)
+  assert.deepEqual(r.problems, [])
+  assert.equal(r.warnings.length, 2, 'both still warnings: the run\'s count and the issue as before')
+  const md = markdownReport(m, r)
+  const studio = /\*\*1 thing\(s\) worth a look in the studio:\*\*\n\n- hintuan "Lone" has no box[^\n]*\n\n/
+  const publish = /\*\*1 thing\(s\) worth a look in the publish:\*\*\n\n- 1 line file\(s\) carry orange stretches[^\n]*not the studio\n/
+  assert.match(md, studio)
+  assert.match(md, publish)
+  assert.ok(md.search(studio) < md.search(publish), 'the studio\'s first, as before')
+  assert.equal(md.match(/worth a look/g).length, 2)
+  // Each alone: its own heading only.
+  const studioOnly = good()
+  studioOnly.stops.push(stop('Lone', 'hintuan', 2000, 500, { area: null }))
+  const so = markdownReport(studioOnly, checkMapData(studioOnly))
+  assert.match(so, /\*\*1 thing\(s\) worth a look in the studio:\*\*/)
+  assert.doesNotMatch(so, /in the publish/)
+  const po = markdownReport(newest(withPass(({ pass }) => ({ pass, passKey: 'other' }))), checkMapData(newest(withPass(({ pass }) => ({ pass, passKey: 'other' })))))
+  assert.match(po, /\*\*1 thing\(s\) worth a look in the publish:\*\*/)
+  assert.doesNotMatch(po, /in the studio/)
 })
 
 test('T: the committed map gives no warning of its line files\' stretches', () => {
