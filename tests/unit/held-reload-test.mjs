@@ -16,6 +16,10 @@ import { join } from 'node:path'
 import { createServer } from 'vite'
 import { hmrSocketUrl, takeHeldReload } from '../e2e/lib/harness.mjs'
 
+const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+// A check that cannot finish fails rather than holding up the run.
+const limit = { timeout: 20000 }
+
 // The lines of Vite's /@vite/client the socket is read from, as Vite 8 serves them.
 const client = (port = 'null', token = 'Tk3n_1') => `const hmrPort = ${port};
 const socketHost = \`\${null || importMetaUrl.hostname}:\${hmrPort || importMetaUrl.port}\${"/"}\`;
@@ -66,18 +70,18 @@ async function pageClient(base) {
   const ws = new WebSocket(hmrSocketUrl(base, code), 'vite-hmr')
   const got = []
   ws.onmessage = (e) => got.push(JSON.parse(String(e.data)))
-  await new Promise((r) => (ws.onopen = r))
-  while (!got.some((m) => m.type === 'connected')) await new Promise((r) => setTimeout(r, 10))
+  const until = Date.now() + 5000
+  while (!got.some((m) => m.type === 'connected') && Date.now() < until) await wait(10)
   return { got, close: () => ws.close() }
 }
 
-const wait = (ms) => new Promise((r) => setTimeout(r, ms))
-/** Until `dev`'s server counts no page connected: a socket is let go of once it has closed. */
+/** Until `dev`'s server counts no page connected, 5 s at most: a socket is let go of once it has closed. */
 const noPage = async (dev) => {
-  while (dev.server.ws.clients.size > 0) await wait(10)
+  const until = Date.now() + 5000
+  while (dev.server.ws.clients.size > 0 && Date.now() < until) await wait(10)
 }
 
-test('a full reload sent while no page is connected is held for the next to connect, and taken: none left for the page', async () => {
+test('a full reload sent while no page is connected is held for the next to connect, and taken: none left for the page', limit, async () => {
   const dev = await devServer()
   try {
     assert.deepEqual(await takeHeldReload(dev.base), { socket: true, held: null }, 'nothing held at the start')
@@ -94,7 +98,7 @@ test('a full reload sent while no page is connected is held for the next to conn
   }
 })
 
-test('a full reload sent while a page is connected reaches that page, and is not held for the next', async () => {
+test('a full reload sent while a page is connected reaches that page, and is not held for the next', limit, async () => {
   const dev = await devServer()
   try {
     const page = await pageClient(dev.base)
@@ -109,7 +113,7 @@ test('a full reload sent while a page is connected reaches that page, and is not
   }
 })
 
-test('nothing to take where no dev server answers, or another server does', async () => {
+test('nothing to take where no dev server answers, or another server does', limit, async () => {
   // A preview build: /@vite/client is the app's page.
   const preview = createHttpServer((_, res) => res.writeHead(200, { 'content-type': 'text/html' }).end('<!doctype html><title>Para Po</title>'))
   await new Promise((r) => preview.listen(0, '127.0.0.1', r))
