@@ -37,7 +37,7 @@
 // compiling no GL program, and asking the map what it landed on once
 // (2026-10-04); and housekeeping.
 import { chromium } from 'playwright'
-import { BASE, harness, nodeFetch, waitForSource } from './lib/harness.mjs'
+import { BASE, harness, nodeFetch, takeHeldReload, waitForSource } from './lib/harness.mjs'
 import { centroidOf, pointInPolygon } from './lib/geo.mjs'
 import { lookReaders, paintNow, programsAtRest, programsSince, rideLook } from './lib/looks.mjs'
 
@@ -305,6 +305,15 @@ if (!isCoarse) {
 }
 check('the page reports a coarse pointer', isCoarse, isCoarse ? `via ${coarseVia}` : 'matchMedia("(pointer: coarse)") is false — every check below is meaningless')
 
+// What the dev server holds for the next page to connect, taken first. A
+// reload Tailwind's plugin sent for an edit made before this run began (to
+// a README, say) loaded the page a second time the moment its client
+// connected, and step 20's check below counts the page's requests for the
+// map file and its loads (the owner's answer to question W of the
+// cheap-phone report, 2026-10-06; harness.mjs).
+const held = await takeHeldReload()
+if (held.held) console.log(`(the dev server held a ${held.held.type} for the next page to connect, from before this run: taken first)`)
+else if (!held.socket) console.log(`(no dev server's socket at ${BASE}: nothing held for the page to take)`)
 await page.goto(`${BASE}/`, { waitUntil: 'load' })
 await page.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 })
 await waitForSource(page, 'saved-routes')
