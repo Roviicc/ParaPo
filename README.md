@@ -99,17 +99,35 @@ roads are. It reads the published file, never the database:
     node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs \
       scripts/walk/walk-links.mjs --area Caloocan --within 450
 
+## Hintuan drafts (Caloocan)
+
+Boxes to save, not saved: `scripts/drafts/hintuan-drafts.mjs` finds every
+stop OpenStreetMap has in an area (a bus stop, or a jeepney shelter or
+station) that is on a published jeepney line and clear of every saved
+hotspot, and draws a box the size of the owner's own (31 × 7 m) on the
+stop's side of the road, near enough the line to be passed. 32 for Caloocan,
+2026-10-06, in `src/studio/drafts/hintuanDrafts.trial.json`. In the studio
+they show dashed, and + New hotspot → "From a draft" lists them with the
+saved hotspot nearest each: a row opens its box as an outline, its name and
+a note of where it came from filled in. Check it on the ground, move a
+corner, and save, or ✕ and leave it; a draft goes from the list once a
+saved hotspot takes its place. It reads the published file, never the
+database:
+
+    node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs \
+      scripts/drafts/hintuan-drafts.mjs --area Caloocan
+
 ## Where things are
 
 | | |
 | --- | --- |
 | `src/commuter/` | the public map: its shell, the published-file reader (`mapFile.ts`), "Where am I" and the service worker |
-| `src/studio/` | the editor: `StudioApp.tsx`, then `auth/` (sign-in, passwords, the session), `data/` (the Supabase client, reads and writes), `drawing/` (drawing, snapping, borrowing), `panels/` (save, hotspot, the card's actions), `walk/` (the walking-link trial) |
+| `src/studio/` | the editor: `StudioApp.tsx`, then `auth/` (sign-in, passwords, the session), `data/` (the Supabase client, reads and writes), `drawing/` (drawing, snapping, borrowing), `panels/` (save, hotspot, the card's actions), `walk/` (the walking-link trial), `drafts/` (the hintuan drafts) |
 | `src/shared/` | what both draw: `model/` (routes, stops, fares, liveries — no React, no MapLibre), `geo/` (geometry), `map/` (the map and what is painted on it, the routes and hotspots hooks), `cards/` (the cards, sheets and timelines, with their stories; `useCardStack`, which card is up, and `useCardCamera`, the camera with them: the map and the cards together, for both apps), `styles/` (the one stylesheet) |
 | `src/design-system/` | the tokens, fonts and primitives (foundation ← primitives) |
 | `public/data/` | the published map, every version kept in history: `index.v4.json` (what the app reads), a line per direction in `lines/` (with its orange stretches, worked out as it is published), and for apps not yet updated `index.v3.json` (without the ferry), `index.json` and the older single file `map.json` (without any line) |
 | `supabase/migrations/` | the schema and its policies, in order |
-| `scripts/` | tools: the build guards and the data check (`checks/`), the publish (`publish/`), Node's TypeScript hook (`node/`), the research screenshots and the cheap-phone timer, `phone-speed.mjs` with its parts (`research/`), the icons' lossless PNG recompressor, `recompress-png.mjs` (`assets/`), the walking-link trial, `walk-links.mjs` with its parts (`walk/`) |
+| `scripts/` | tools: the build guards and the data check (`checks/`), the publish (`publish/`), Node's TypeScript hook (`node/`), the research screenshots and the cheap-phone timer, `phone-speed.mjs` with its parts (`research/`), the icons' lossless PNG recompressor, `recompress-png.mjs` (`assets/`), the walking-link trial, `walk-links.mjs` with its parts (`walk/`), the hintuan drafts, `hintuan-drafts.mjs` with its parts (`drafts/`) |
 | `tests/unit/` | the unit checks, Node's own test runner (`npm run test:unit`) |
 | `tests/e2e/` | the headless suites, and their README |
 

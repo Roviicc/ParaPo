@@ -66,11 +66,13 @@ export function HotspotPanel({
   const kind = area?.kind ?? 'hintuan'
   const ring = draw.controlPoints
 
-  const [name, setName] = useState(existing?.name ?? '')
+  // A new box opened from a draft comes with a name and a note to keep or change.
+  const suggested = existing ? undefined : area?.suggested
+  const [name, setName] = useState(existing?.name ?? suggested?.name ?? '')
   const [informal, setInformal] = useState(existing?.informal ?? '')
   // Also called and Note are off the form for now; a box that has them keeps them.
   const [aliasText] = useState(existing?.aliases?.join(', ') ?? '')
-  const [note] = useState(existing?.note ?? '')
+  const [note] = useState(existing?.note ?? suggested?.note ?? '')
 
   // The informal names already in use, offered as suggestions so a second box
   // for the same place joins the group instead of starting "SM  Fairview".

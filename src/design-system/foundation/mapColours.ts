@@ -74,6 +74,7 @@ export const MAP_PAINT = {
   'Paint/draw-uturn': '#f59e0b', // amber/500: a join that turns back
   'Paint/draw-borrow': '#2563eb', // blue/600: the stretch an Extend borrows
   'Paint/walk-link': '#404040', // neutral/700: the studio's walking-link trial, dotted, and its words
+  'Paint/hotspot-draft': '#7c3aed', // violet/600: a hintuan draft's dashed box and its name (studio only)
 } as const satisfies Record<`Paint/${string}`, string>
 
 /**

@@ -31,8 +31,14 @@ export type HotspotKind = 'terminal' | 'hintuan'
  * insert / delete / undo machinery runs; the differences are that every edge
  * is a straight line (no router), the ring closes itself, and a fill is drawn.
  * `stopId` is the saved hotspot being edited, or null for a new one.
+ * `suggested`: what a new one opened from a draft (src/studio/drafts/) is
+ * offered to be called and to carry as its note, until the owner says
+ * otherwise in the save panel.
  */
-export type AreaTarget = { kind: HotspotKind; stopId: string | null }
+export type AreaTarget = { kind: HotspotKind; stopId: string | null; suggested?: AreaSuggestion }
+
+/** A drafted hotspot's name and note, filled into the save panel for the owner to keep or change. */
+export type AreaSuggestion = { name: string; note: string }
 
 /**
  * Set once a drawing has taken over part of a saved direction (Extend): which
@@ -477,11 +483,14 @@ export function useDrawing(
     areaRef.current = next
   }, [])
 
-  /** Open a saved hotspot's outline for editing. */
+  /**
+   * Open a saved hotspot's outline for editing, or, with no `stopId`, a new
+   * one already outlined (a draft's box), its name and note suggested.
+   */
   const loadArea = useCallback(
-    (kind: HotspotKind, stopId: string, ring: LngLat[]) => {
+    (kind: HotspotKind, stopId: string | null, ring: LngLat[], suggested?: AreaSuggestion) => {
       reset()
-      const a = { kind, stopId }
+      const a: AreaTarget = suggested ? { kind, stopId, suggested } : { kind, stopId }
       setArea(a)
       areaRef.current = a
       writePoints(ring)
