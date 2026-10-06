@@ -17,7 +17,9 @@
 // they come, unless a finger has moved the map first (or, at 1280×800, an
 // arrow key or a shift-drag box zoom), the map file asked for by the page
 // as it is read and that request taken by the app, and the page's own
-// gray "Loading map…" before the app runs, taken over unchanged; the
+// gray "Loading map…" before the app runs, taken over unchanged, and gone
+// with the first frame that draws the routes, or at the map's 'load' when
+// that comes first (the owner's answer to question A, 2026-10-06); the
 // forgiving ±20 px tap, with a negative control well outside the box; the
 // trip card a lone route opens (the owner's RouteTripDetail, 2026-09-29) —
 // its ends, its fold (its rows drawn only once it is opened, 2026-10-04),
@@ -216,6 +218,31 @@ function openingRecorder() {
 await page.addInitScript(openingRecorder)
 
 /**
+ * In the page, before the app starts: the moment MapView's own "Loading
+ * map…" goes, and the map then (the owner's answer to question A of the
+ * cheap-phone report, 2026-10-06) — whether its 'load' had come
+ * (window.__map, which MapView hands out at it) and how many of the routes
+ * it drew on the screen (its resting line layer's rendered features).
+ */
+function liftRecorder() {
+  window.__lift = null
+  let text = null
+  const look = () => {
+    if (window.__lift) return
+    // MapView's own: index.html's, which has no class, goes as the app first renders.
+    text ??= [...document.querySelectorAll('div.pointer-events-none > p')].find((e) => e.textContent === 'Loading map…') ?? null
+    if (!text || text.isConnected) return
+    const m = window.__mapEarly
+    let drawn = null
+    try {
+      drawn = m.getLayer('saved-routes-line') ? m.queryRenderedFeatures({ layers: ['saved-routes-line'] }).length : 0
+    } catch {}
+    window.__lift = { at: Math.round(performance.now()), loaded: !!window.__map, drawn }
+  }
+  new MutationObserver(look).observe(document, { subtree: true, childList: true })
+}
+
+/**
  * In the page, before its own scripts: index.html's request for the map file
  * (the cheap-phone plan, step 20, 2026-10-04), left for the app as
  * window.__parapoMapFile — when the page's plain script left it, when the
@@ -381,7 +408,10 @@ check('no horizontal scroll at load', await noHScroll(page), `scrollWidth ${awai
 // always did and the fit frames the routes as they come, unless a finger has
 // moved the map by then. And before the app's script has run, the page
 // itself shows the map's gray "Loading map…", which the app's own replaces
-// unchanged.
+// unchanged; that goes at the first frame that draws the routes, before
+// the map's 'load' while the basemap's tiles are on their way, or at the
+// 'load' when no route is drawn by then (the owner's answer to question A
+// of the cheap-phone report, 2026-10-06).
 {
   /** The camera the routes' fit frames on page `p`'s map (useSavedRoutes, ROUTES_FRAMING). */
   const fitCamera = (p) =>
@@ -442,6 +472,7 @@ check('no horizontal scroll at load', await noHScroll(page), `scrollWidth ${awai
     watch(p)
     await nodeFetch(p)
     await p.addInitScript(openingRecorder)
+    await p.addInitScript(liftRecorder)
     let release
     const held = new Promise((r) => (release = r))
     await p.route(/\/data\/index\.v4\.json/, async (route) => {
@@ -470,6 +501,17 @@ check('no horizontal scroll at load', await noHScroll(page), `scrollWidth ${awai
   {
     const { p, release } = await heldBack()
     const made = await p.evaluate(() => window.__opening.made)
+    // Its 'load' before any route to draw: "Loading map…" goes at it, as it
+    // always did (the owner's answer to question A, 2026-10-06).
+    const lift = await p
+      .waitForFunction(() => window.__lift, null, { timeout: 5000 })
+      .then((h) => h.jsonValue())
+      .catch(() => null)
+    check(
+      '  the file still on its way, the map\'s \'load\' first: "Loading map…" goes at the \'load\', with no route on the screen',
+      !!lift && lift.loaded && lift.drawn === 0,
+      lift ? `gone at ${lift.at} ms, ${lift.loaded ? "after the map's 'load'" : "before the map's 'load'"}, ${lift.drawn} route(s) drawn` : 'never gone',
+    )
     await routesCome(p, release)
     const end = await camOf(p)
     const fit = await fitCamera(p)
@@ -569,7 +611,8 @@ check('no horizontal scroll at load', await noHScroll(page), `scrollWidth ${awai
   }
 
   // The page before the app: its own gray "Loading map…", read with no
-  // script at all, against the app's own while the map waits for its style.
+  // script at all, against the app's own while the map waits for its style;
+  // then the app's, gone as the routes are drawn, the basemap's tiles held.
   /** "Loading map…" on page `p`: how many, and the first's text and the gray under it, as drawn. */
   const loadingLook = (p) =>
     p.evaluate(() => {
@@ -602,11 +645,36 @@ check('no horizontal scroll at load', await noHScroll(page), `scrollWidth ${awai
   const ap = await context.newPage()
   watch(ap)
   await nodeFetch(ap)
+  await ap.addInitScript(liftRecorder)
+  // The basemap's style held till `styleIn()`; then a stand-in's gray and
+  // one source of its own, whose tiles are held till `tilesIn()`, so the
+  // map's 'load' waits for them as it waits for a real basemap's (the
+  // owner's answer to question A, 2026-10-06).
   let styleIn
   const styleHeld = new Promise((r) => (styleIn = r))
+  let tilesIn
+  const tilesHeld = new Promise((r) => (tilesIn = r))
+  let tilesAsked = 0
   await ap.route(/tiles\.openfreemap\.org\/styles\//, async (route) => {
     await styleHeld
-    await route.fallback()
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        version: 8,
+        sources: { held: { type: 'vector', tiles: ['https://tiles.openfreemap.org/held/{z}/{x}/{y}.pbf'], maxzoom: 14 } },
+        layers: [
+          { id: 'bg', type: 'background', paint: { 'background-color': '#eee' } },
+          { id: 'held', type: 'line', source: 'held', 'source-layer': 'transportation' },
+        ],
+      }),
+    })
+  })
+  await ap.route(/tiles\.openfreemap\.org\/held\//, async (route) => {
+    tilesAsked++
+    await tilesHeld
+    // An empty tile: nothing to draw, nothing to ask again.
+    await route.fulfill({ status: 200, contentType: 'application/x-protobuf', body: Buffer.alloc(0) })
   })
   await ap.goto(`${BASE}/`, { waitUntil: 'load' })
   await ap.waitForSelector('[data-directions]', { timeout: 30000 }).catch(() => {})
@@ -617,9 +685,23 @@ check('no horizontal scroll at load', await noHScroll(page), `scrollWidth ${awai
     `page: ${own.text} at ${own.at} on ${own.gray} | app: ${app.count} of them, ${app.text} at ${app.at} on ${app.gray}`,
   )
   styleIn()
+  const lift = await ap
+    .waitForFunction(() => window.__lift, null, { timeout: 30000 })
+    .then((h) => h.jsonValue())
+    .catch(() => null)
+  const asked = tilesAsked
+  check(
+    "  and it goes at the first frame that draws the routes, the basemap's tiles still on their way: before the map's 'load' (the owner's answer to A)",
+    !!lift && !lift.loaded && lift.drawn > 0 && asked > 0,
+    lift
+      ? `gone at ${lift.at} ms, ${lift.loaded ? "after the map's 'load'" : "before the map's 'load'"}, ${lift.drawn} route(s) drawn; ${asked} basemap tile(s) held`
+      : `never gone; ${asked} basemap tile(s) held`,
+  )
+  tilesIn()
   await ap.waitForFunction(() => window.__map && window.__map.loaded(), null, { timeout: 30000 }).catch(() => {})
   const gone = await loadingLook(ap)
-  check('  and it goes with the map\'s \'load\'', gone.count === 0, `${gone.count} left`)
+  const loaded = await ap.evaluate(() => !!window.__map)
+  check("  and stays gone through the map's 'load'", loaded && gone.count === 0, `'load' ${loaded ? 'came' : 'never came'}; ${gone.count} left`)
   await ap.close()
 }
 

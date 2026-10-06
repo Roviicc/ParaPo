@@ -157,3 +157,51 @@ export function loadClock(map: Styled, fromStyle: boolean, ms: number, timedOut:
     })
   return () => clearTimeout(timer)
 }
+
+type Rendered = { on(type: string, listener: () => void): unknown; off(type: string, listener: () => void): unknown }
+
+/**
+ * When MapView's "Loading map…" goes: `lift` runs once, and the function
+ * returned stops it from running at all (the map gone).
+ *
+ * The studio's map (no `drawn`): at its 'load', as always.
+ *
+ * The public map's (`drawn`, savedRoutesLayers.ts's routesDrawn; the
+ * owner's answer to question A of the cheap-phone report, 2026-10-06): at
+ * the first frame it renders with the routes drawn, or at its 'load' if
+ * that comes first, never later. Since Q1 its routes go on as its style
+ * comes in, well before its 'load', which waits for every basemap tile in
+ * view as well: in the cheap-phone timer's first visit the routes were
+ * drawn at 5.36 s and 'load' came at 9.83 s, the text over routes a
+ * visitor could already tap. A map file that is empty, has failed or is
+ * still on its way draws no route, and the text goes at 'load' as before.
+ * Only the text: the clock (loadClock), the failure banner (shown for an
+ * 'error' before 'load', cleared at it) and the design button still go by
+ * 'load' (MapView.tsx). Once gone it never comes back: a style made afresh
+ * later (a basemap switch, a lost GL context given back) is not the map's
+ * opening. `drawn` is asked inside MapLibre's frame, before it fires
+ * 'load' and asks for the next: should it throw, the frame counts as one
+ * without the routes, and the text waits for 'load' as before.
+ */
+export function loadingLifts<M extends Rendered>(map: M, drawn: ((map: M) => boolean) | null, lift: () => void): () => void {
+  const stop = () => {
+    map.off('render', look)
+    map.off('load', go)
+  }
+  const go = () => {
+    stop()
+    lift()
+  }
+  const look = () => {
+    let yes = false
+    try {
+      yes = !!drawn?.(map)
+    } catch {
+      // A frame without the routes, then: 'load' still lifts it.
+    }
+    if (yes) go()
+  }
+  map.on('load', go)
+  if (drawn) map.on('render', look)
+  return stop
+}

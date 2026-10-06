@@ -42,6 +42,27 @@ const d = new Date(published.published_at)
 const expectedDate = `${d.getDate()} ${MONTHS[d.getMonth()]}`
 const routeCount = published.variants.length
 
+/**
+ * The basemap's tiles in on page `p`, as a production build shows it (it
+ * keeps its map to itself): the map's 'load', which MapLibre fires once
+ * every tile in view has come, and which brings MapView's design button
+ * (BasemapControl, data-testid="basemap"; framing-test holds it to the
+ * 'load'); no failure banner, which a tile that fails before it shows in
+ * the button's place; and "Loading map…" gone. The text alone no longer
+ * says so: since the owner's answer to question A of the cheap-phone
+ * report (2026-10-06) it goes with the first frame that draws the routes,
+ * which come from the map file, before the basemap's tiles.
+ */
+const basemapIn = (p) =>
+  p.waitForFunction(
+    () => {
+      const text = document.body.innerText
+      return !!document.querySelector('[data-testid="basemap"]') && !text.includes('The map failed to load') && !text.includes('Loading map…')
+    },
+    null,
+    { timeout: 30000 },
+  )
+
 let server = null
 let base = process.env.PARAPO_BASE
 if (!base) {
@@ -196,7 +217,7 @@ try {
   const online = await arrived.waitFor({ state: 'attached', timeout: 20000 }).then(() => true, () => false)
   check(`online: the published map's ${routeCount} directions arrive`, online)
   await page.waitForSelector('canvas.maplibregl-canvas', { timeout: 20000 })
-  await page.waitForFunction(() => !document.body.innerText.includes('Loading map…'), null, { timeout: 30000 })
+  await basemapIn(page)
   await page.waitForTimeout(4000)
   check('online: no offline notice', (await page.locator('[data-testid="offline"]').count()) === 0)
 
@@ -257,10 +278,8 @@ try {
   const noticeOk = await notice.waitFor({ timeout: 10000 }).then(() => true, () => false)
   const noticeText = noticeOk ? (await notice.innerText()).trim() : '(none)'
   check(`offline: notice reads "Offline · map as of ${expectedDate}"`, noticeText === `Offline · map as of ${expectedDate}`, noticeText)
-  const drew = await page
-    .waitForFunction(() => !document.body.innerText.includes('Loading map…') && !document.body.innerText.includes('The map failed to load'), null, { timeout: 30000 })
-    .then(() => true, () => false)
-  check('offline: the basemap draws (no "Loading map…", no failure banner)', drew)
+  const drew = await basemapIn(page).then(() => true, () => false)
+  check('offline: the basemap draws: its tiles in, the map\'s \'load\' bringing the design button (no failure banner, no "Loading map…")', drew)
   await page.waitForTimeout(2000)
   page.off('response', countTiles)
   check(`offline: tiles came from the worker's cache (${tilesFromWorker})`, tilesFromWorker > 0)

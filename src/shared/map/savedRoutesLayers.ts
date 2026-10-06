@@ -236,6 +236,30 @@ export function addSavedRoutes(
 }
 
 /**
+ * Whether the frame `map` has just rendered drew the routes: their resting
+ * line layer is in, their source is loaded, and the tiles the map drew of it
+ * hold a route. Asked at each 'render', it is true from the first frame that
+ * draws them: MapLibre lays a source's tiles out between frames and fires
+ * 'render' after drawing what it has (map.ts, _render). The same test as the
+ * cheap-phone timer's "routes drawn" (phoneSpeedParts.mjs, routesOnMap), for
+ * the same reason as its last part: the public map's source is added empty
+ * when the style is in before the map file, and an empty GeoJSON source
+ * loads like any other. In this order, each part only once the one before
+ * holds: isSourceLoaded fires an 'error' on the map for a source it does not
+ * have, and MapView says "The map failed to load" for an 'error' before the
+ * map's 'load'; and the tiles are read only once they are all in, under 1 ms
+ * on an empty source's and 1.6-6.6 ms at 4x CPU, once, for the opening
+ * view's 80 routes (measured for the timer, 2026-10-04). For MapView's
+ * "Loading map…" (framing.ts, loadingLifts; the owner's answer to question
+ * A of the cheap-phone report, 2026-10-06).
+ */
+export function routesDrawn(
+  map: Pick<MapLibreMap, 'getSource' | 'getLayer' | 'isSourceLoaded' | 'querySourceFeatures'>,
+): boolean {
+  return !!(map.getSource(SRC) && map.getLayer(LINE) && map.isSourceLoaded(SRC) && map.querySourceFeatures(SRC).length > 0)
+}
+
+/**
  * The saved directions' source and layers on `map`: laid out from `rows` as
  * loaded, the full `lines` read since patched in, the one being edited
  * hidden, and exactly `lit` lit.

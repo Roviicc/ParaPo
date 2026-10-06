@@ -25,12 +25,15 @@ import { countLongTasks, startProfile, whereItWent } from './lib/profile.mjs'
 /** Seconds from the navigation to the first route line on the screen. */
 const LINES_WITHIN_S = 5
 /**
- * Seconds from the navigation to the map's 'load', which takes "Loading
- * map…" away and brings the basemap control. Until 2026-10-04 the first
- * line was read only once 'load' had come, so its 5 s held 'load' too; the
- * line is read on its own since the routes are drawn before 'load' (the
- * owner's Q1), and 'load' now waits for them. The same 5 s, said on its own
- * (review of Q1, 2026-10-05); a budget of the owner's would replace it.
+ * Seconds from the navigation to the map's 'load', which brings the basemap
+ * control, and took "Loading map…" away until 2026-10-06 (since the owner's
+ * answer to question A of the cheap-phone report, the text goes with the
+ * first frame that draws the routes when that comes first). Until
+ * 2026-10-04 the first line was read only once 'load' had come, so its 5 s
+ * held 'load' too; the line is read on its own since the routes are drawn
+ * before 'load' (the owner's Q1), and 'load' now waits for them. The same
+ * 5 s, said on its own (review of Q1, 2026-10-05); a budget of the owner's
+ * would replace it.
  */
 const LOAD_WITHIN_S = 5
 /** Seconds the main thread may spend in long tasks while opening. */

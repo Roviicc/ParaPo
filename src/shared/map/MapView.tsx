@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { BasemapControl } from './BasemapControl'
 import { DEFAULT_BASEMAP, initialStyle, readBasemap, type Basemap } from './basemap'
 import { diagnose, type Diagnosis } from './diagnose'
-import { OPENING_WAIT_MS, ROUTES_FRAMING, loadClock, openedOn, within, type Bounds } from './framing'
+import { OPENING_WAIT_MS, ROUTES_FRAMING, loadClock, loadingLifts, openedOn, within, type Bounds } from './framing'
+import { routesDrawn } from './savedRoutesLayers'
 import {
   AttributionControl,
   MapLibreMap,
@@ -139,9 +140,12 @@ type Props = {
    * most — so its first tiles are those of the view it keeps, not of a fixed
    * centre at zoom 11 a fit then threw away. And `onReady` fires as soon as
    * the style is in, so the routes are drawn while the basemap's tiles
-   * still come; "Loading map…" stays until the map's 'load' all the same.
-   * Without it (the studio), the map opens at the centre and `onReady`
-   * waits for 'load', as always. Read once, as the map is made.
+   * still come, and "Loading map…" goes with the first frame that draws
+   * them, or at the map's 'load' if that comes first (loadingLifts, the
+   * owner's answer to question A of the cheap-phone report, 2026-10-06).
+   * Without it (the studio), the map opens at the centre, `onReady` waits
+   * for 'load', and so does "Loading map…", as always. Read once, as the
+   * map is made.
    */
   openOn?: () => Promise<Bounds | null>
 }
@@ -164,7 +168,12 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
   // A blank map with no explanation is the worst possible failure mode, so
   // surface whatever went wrong rather than rendering nothing.
   const [error, setError] = useState<string | null>(null)
-  const [loaded, setLoaded] = useState(false)
+  // The map's 'load', which "Loading map…" waited for until 2026-10-06: the
+  // 12 s clock below reads it, through its setter.
+  const [, setLoaded] = useState(false)
+  // "Loading map…" gone (loadingLifts): at 'load', or on the public map at
+  // its first frame with the routes drawn if that comes first.
+  const [lifted, setLifted] = useState(false)
   const [diag, setDiag] = useState<Diagnosis | null>(null)
   const [trace, setTrace] = useState<string[]>([])
   const [dom, setDom] = useState<string | null>(null)
@@ -187,6 +196,7 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
     let cancelled = false
     let map: MapLibreMap | null = null
     let stopClock = () => {}
+    let stopLift = () => {}
 
     const startId = window.setTimeout(async () => {
       // A URL for the plain designs; for "Gray, detailed" the style is fetched
@@ -252,6 +262,14 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
         const made = map
         made.once('style.load', () => onReadyRef.current?.(made))
       }
+
+      // "Loading map…" goes at the map's 'load'; on the public map at the
+      // first frame that draws its routes, if that comes first (the owner's
+      // answer to question A of the cheap-phone report, 2026-10-06): since
+      // Q1 they are drawn seconds before 'load', which waits for every
+      // basemap tile in view too. Only the text: the design button, the
+      // clock and the failure banner still go by 'load' (below).
+      stopLift = loadingLifts(map, openOn ? routesDrawn : null, () => setLifted(true))
 
       // Record how far MapLibre gets, so a silent failure at least says
       // which stage it died in.
@@ -346,6 +364,7 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
       cancelled = true
       window.clearTimeout(startId)
       stopClock()
+      stopLift()
       setReady(null)
       map?.remove()
     }
@@ -377,7 +396,7 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
         />
       )}
 
-      {!loaded && !error && (
+      {!lifted && !error && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
           <p className="text-sm text-neutral-500">Loading map…</p>
         </div>
