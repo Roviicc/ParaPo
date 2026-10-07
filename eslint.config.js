@@ -78,7 +78,7 @@ export default defineConfig([
       // `tsc` already proves every import resolves, so the resolver rule is off
       // (it would need a resolver package to understand the `@/` alias).
       'import-x/no-unresolved': 'off',
-      'import-x/no-default-export': 'warn',
+      'import-x/no-default-export': 'error',
       'import-x/order': [
         'warn',
         {
