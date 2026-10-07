@@ -61,6 +61,10 @@ import { distanceToRingM } from '../../src/features/routes/geo/ring.ts';
 import { firstNearIndex } from '../../src/features/routes/geo/pass.ts';
 import { linePass, passBoxes, readablePass } from '../../src/features/routes/geo/line-pass.ts';
 import { MAP_FILE_SCHEMA } from '../../src/features/published-map/map-file.ts';
+import {
+  indexOutlineSchema,
+  indexSchema,
+} from '../../src/features/published-map/schemas/index-schema.ts';
 
 /** How far a line's first or last point may sit from the hotspot it leaves from or arrives at. */
 export const END_WITHIN_M = 50;
@@ -128,13 +132,15 @@ export function checkMapData(file) {
   const problems = [];
   const warnings = [];
   const notes = [];
-  const variants = Array.isArray(file?.variants) ? file.variants : null;
-  const stops = Array.isArray(file?.stops) ? file.stops : null;
-  const links = Array.isArray(file?.links) ? file.links : null;
-  if (!variants || !stops || !links) {
+  // What makes a file a map at all: the reader's own pre-check (index-schema.ts).
+  // The rows are then read as they are, so a map of shape 1, whose lines are
+  // whole, and a row short of a field are checked too, each by the rule that
+  // reads it; readPublished reads a published index with the whole schema.
+  if (!indexOutlineSchema.safeParse(file).success) {
     problems.push('not a published map: no variants, stops and links');
     return { problems, warnings, notes, counts: { directions: 0, hotspots: 0, links: 0 } };
   }
+  const { variants, stops, links } = file;
 
   const hotspotById = new Map();
   for (const s of stops) {
@@ -389,6 +395,14 @@ export function readPublished(path) {
   const file = JSON.parse(readFileSync(path, 'utf8'));
   if (![2, 3, 4].includes(file.schema)) return { file, problems: [] };
   const problems = [];
+  // Read as the app reads it (src/features/published-map/schemas/index-schema.ts):
+  // a row the reader would refuse is a problem, so the map is not published.
+  const read = indexSchema.safeParse(file);
+  if (!read.success) {
+    for (const issue of read.error.issues.slice(0, 5)) {
+      problems.push(`not an index the app reads: ${issue.path.join('.')} ${issue.message}`);
+    }
+  }
   const variants = (file.variants ?? []).map(({ overview, ...v }) => {
     if (!overview) return { ...v, shape: null };
     const linePath = join(dirname(path), 'lines', `${v.id}.json`);

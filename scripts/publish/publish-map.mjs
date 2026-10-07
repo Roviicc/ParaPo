@@ -70,8 +70,9 @@
 // names, the index's schema — so the file and the app cannot drift (the
 // review's 6.5: they were written here a second time). TypeScript, which
 // Node strips; ts-resolve.mjs finds the .ts behind an extensionless import.
-// Nothing from npm: Node's own fetch, zlib and fs, so the workflow still
-// needs no `npm ci`.
+// Node's own fetch, zlib and fs, and zod through the app's schemas (ticket 08
+// of the restructure follow-ups, 2026-10-07): the workflow runs `npm ci
+// --omit=dev` first.
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
@@ -89,6 +90,7 @@ import { directionName, isLineMode, routeName } from '../../src/features/routes/
 import { hotspotLabel } from '../../src/features/routes/model/hotspots.ts';
 import { passBoxes } from '../../src/features/routes/geo/line-pass.ts';
 import { MAP_FILE_SCHEMA } from '../../src/features/published-map/map-file.ts';
+import { indexSchema } from '../../src/features/published-map/schemas/index-schema.ts';
 import { cleanSignboardSvg } from '../../src/features/routes/model/signboard-svg.ts';
 import { EVERY_LINE, FERRY, withoutLines } from './withoutLines.mjs';
 import { boardsRefusal } from './boardGuard.mjs';
@@ -513,9 +515,23 @@ const published_at = same
 // shape number first: an installed app reads whatever its path serves, and
 // checks the number against the one it knows (src/features/published-map/map-file.ts has the
 // rules for changing it — a new shape goes to a new path).
-const stamp = (schema, rows) =>
-  JSON.stringify({ schema, published_at, license: LICENSE, attribution: ATTRIBUTION, ...rows }) +
-  '\n';
+const stamp = (schema, rows) => {
+  const file = { schema, published_at, license: LICENSE, attribution: ATTRIBUTION, ...rows };
+  // Read back as the app reads it (src/features/published-map/schemas/index-schema.ts)
+  // before it is written: a file the reader would refuse is never published.
+  // map.json (shape 1) carries whole lines as `shape`, the one shape the index
+  // schema does not describe; its rows are the index's own, checked there.
+  if (schema !== SCHEMA) {
+    const read = indexSchema.safeParse(file);
+    if (!read.success) {
+      const [issue] = read.error.issues;
+      fail(
+        `FAIL  shape ${schema}: not an index the app reads: ${issue.path.join('.')} ${issue.message}`,
+      );
+    }
+  }
+  return JSON.stringify(file) + '\n';
+};
 const file = stamp(SCHEMA, body);
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, file);
