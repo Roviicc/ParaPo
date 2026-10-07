@@ -16,6 +16,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { crc32, deflateSync } from 'node:zlib'
 import { decodePng, differingPixels, keepSmaller, recompressPng } from '../../scripts/assets/recompress-png.mjs'
 
@@ -193,7 +194,7 @@ test('the command writes only with --write, refuses what it cannot read, and imp
     writeFileSync(junk, 'not a png')
     const run = (...args) => {
       try {
-        return { code: 0, out: execFileSync(process.execPath, [TOOL.pathname, ...args], { encoding: 'utf8' }) }
+        return { code: 0, out: execFileSync(process.execPath, [fileURLToPath(TOOL), ...args], { encoding: 'utf8' }) }
       } catch (e) {
         return { code: e.status, out: e.stdout }
       }
