@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -414,6 +415,13 @@ export default defineConfig({
     studioWithoutManifest(),
     stylesheetsFirst(),
   ],
+  resolve: {
+    // `@/x` is src/x, for any import that leaves its own folder. tsconfig.json
+    // (`paths`), scripts/node/ts-resolve-hook.mjs and
+    // scripts/checks/check-boundaries.mjs know the same alias; Storybook takes
+    // it from here.
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+  },
   server: {
     // Supabase's redirect allow-list names http://localhost:5173 exactly. If
     // Vite drifted to 5174 because the port was busy, every auth link would

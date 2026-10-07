@@ -1,14 +1,21 @@
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
+// `@/x` is the app's alias for src/x (vite.config.ts, tsconfig.json), and a
+// feature's folder stands for its index.ts; Node knows neither, so both are
+// resolved here the way Vite and tsc resolve them.
+const SRC = new URL('../../src/', import.meta.url)
+
 export async function resolve(specifier, context, next) {
-  if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier) && context.parentURL) {
-    const base = new URL(specifier, context.parentURL).href
-    for (const ext of ['.ts', '.tsx']) {
+  const aliased = specifier.startsWith('@/') ? new URL(specifier.slice(2), SRC).href : null
+  const relative = specifier.startsWith('.') && context.parentURL ? new URL(specifier, context.parentURL).href : null
+  const base = aliased ?? relative
+  if (base && !/\.[a-z]+$/i.test(specifier)) {
+    for (const ext of ['.ts', '.tsx', '/index.ts']) {
       if (existsSync(fileURLToPath(base + ext))) return next(base + ext, context)
     }
   }
-  return next(specifier, context)
+  return next(aliased ?? specifier, context)
 }
 
 // Vite fills `import.meta.env` in the app; under Node it is undefined, and

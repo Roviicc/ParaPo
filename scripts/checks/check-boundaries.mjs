@@ -9,7 +9,9 @@
 //   src/studio/    imports shared/, the design system and itself
 //
 // Reads every import in src/ and fails, naming the file and line, on any that
-// crosses. A source file outside the three folders fails too.
+// crosses. A source file outside the three folders fails too. An import may be
+// relative, root-absolute (`/src/…`) or aliased (`@/…` is `src/…`, as in
+// vite.config.ts and tsconfig.json); packages are not ours to police.
 //
 //   node scripts/checks/check-boundaries.mjs
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -69,10 +71,14 @@ for (const file of walk(src)) {
   for (const m of text.matchAll(IMPORT)) {
     const spec = m[1] ?? m[2] ?? m[3]
     // Packages ('react', 'maplibre-gl/dist/…') are not ours to police.
-    if (!spec.startsWith('.') && !spec.startsWith('/')) continue
+    if (!spec.startsWith('.') && !spec.startsWith('/') && !spec.startsWith('@/')) continue
     imports++
 
-    const target = spec.startsWith('/') ? join(root, spec) : resolve(dirname(file), spec)
+    const target = spec.startsWith('@/')
+      ? join(src, spec.slice(2))
+      : spec.startsWith('/')
+        ? join(root, spec)
+        : resolve(dirname(file), spec)
     const line = text.slice(0, m.index).split('\n').length
     const inSrc = !relative(src, target).startsWith('..')
     const targetArea = inSrc ? areaOf(target) : '(outside src)'
