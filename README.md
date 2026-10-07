@@ -35,9 +35,9 @@ traces hotspot boxes, and saves. The database's row-level security refuses
 every write from anyone else, so the publishable key in `.env.production`
 is public by design.
 
-Nothing from `src/app/studio/` or `src/features/studio/` reaches the public page: `npm run build` checks
-the import boundaries and the built page, and fails if the editor or the
-database's address ever gets in.
+Nothing from `src/app/studio/` or `src/features/studio/` reaches the public page: `npm run lint`
+checks the import boundaries (`eslint.config.js`) and `npm run build` the built page, and each
+fails if the editor or the database's address ever gets in.
 
 ## Running it
 

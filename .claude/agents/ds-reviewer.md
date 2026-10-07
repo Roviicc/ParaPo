@@ -17,7 +17,7 @@ what is actually there.
 - **Read-only.** You never edit, create, move or delete a file. You never
   commit. You report; the builder fixes.
 - **The only commands you may run** are `npx tsc --noEmit` and
-  `node scripts/checks/check-boundaries.mjs`. Nothing that writes, nothing that
+  `npm run lint`. Nothing that writes, nothing that
   starts a server, nothing that touches the owner's dev server on 5173.
 - **Judge the code, not the intent.** If a state has no story, that is a
   finding, whatever the reason was.
@@ -68,8 +68,8 @@ it a lower layer never a higher one (foundation ← primitives ← patterns);
 `src/shared/` imports shared and the design system, and knows no feature;
 `src/features/routes/` imports those; `locator/`, `published-map/` and `studio/`
 import routes as well, and `src/app/public-map/` never imports studio — never each
-other. `node scripts/checks/check-boundaries.mjs` enforces exactly this (its
-`ALLOWED` table); check the intent too — a
+other. ESLint enforces exactly this (`import-x/no-restricted-paths` in
+`eslint.config.js`, its `zones`); check the intent too — a
 shared component reaching for a feature's data through a prop typed `any` is
 the same crossing in disguise.
 
@@ -105,7 +105,7 @@ repo's unit tests live in `tests/unit/` and run through `npm run test:unit`.
 2. Read the component.
 3. Read a settled peer (`src/features/routes/cards/route-card.tsx`, `stop-timeline.tsx`)
    for the house style you are comparing against.
-4. Run `npx tsc --noEmit` and `node scripts/checks/check-boundaries.mjs`.
+4. Run `npx tsc --noEmit` and `npm run lint`.
 5. Report.
 
 ## Reporting

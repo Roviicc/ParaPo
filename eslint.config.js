@@ -74,15 +74,18 @@ export default defineConfig([
     plugins: { 'check-file': checkFile },
     settings: {
       'import-x/internal-regex': '^@/',
-      // Relative imports are resolved with TypeScript's extensions, so the
-      // recommended checks (named, namespace, default, no-duplicates) can read
-      // the module they point at. `@/` imports are left to tsc, which proves
-      // every import anyway; that is why no-unresolved is off below.
+      // Imports are resolved with TypeScript's extensions and tsconfig's paths
+      // (`@/` is src/), so the recommended checks (named, namespace, default,
+      // no-duplicates) and no-restricted-paths below read the module each
+      // import points at, aliased or relative. no-unresolved stays off: tsc
+      // proves every import resolves, and a package's export map is its
+      // business.
       'import-x/extensions': ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'],
       'import-x/parsers': { '@typescript-eslint/parser': ['.ts', '.tsx', '.mts', '.cts'] },
       'import-x/resolver-next': [
         createNodeResolver({
           extensions: ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'],
+          tsconfig: { configFile: './tsconfig.json' },
         }),
       ],
     },
@@ -110,9 +113,9 @@ export default defineConfig([
         },
       ],
 
-      // Import direction (app → pages → features → shared → design-system) and
-      // no deep imports into another feature. Until the move lands these match
-      // nothing; scripts/checks/check-boundaries.mjs is the gate meanwhile.
+      // Deep imports into a leaf feature, and imports from app/ or pages/, by
+      // the specifier: the message names the rule. The direction itself is
+      // no-restricted-paths below, which reads the resolved path.
       'no-restricted-imports': [
         'error',
         {
@@ -139,6 +142,97 @@ export default defineConfig([
         },
       ],
 
+      // Who may import whom, by the resolved path (so a relative import that
+      // leaves its area is caught too): app → pages → features → shared →
+      // design-system, never upward; inside the design system foundation ←
+      // primitives ← patterns; among the features routes first, then locator,
+      // published-map and studio, which never import each other; the public
+      // shell never imports the studio. Each zone is an importer (target) and
+      // what it may not import (from). CSS is not linted: the only CSS
+      // @imports are src/styles/global.css's, of the design system's tokens
+      // and fonts, and a stylesheet imported from TypeScript is checked
+      // through that import.
+      'import-x/no-restricted-paths': [
+        'error',
+        {
+          basePath: '.',
+          zones: [
+            {
+              target: './src/design-system',
+              from: ['./src/app', './src/pages', './src/features', './src/shared', './src/styles'],
+              message: 'design-system/ is domain-free: it imports only itself.',
+            },
+            {
+              target: './src/design-system/foundation',
+              from: ['./src/design-system/primitives', './src/design-system/patterns'],
+              message:
+                'foundation ← primitives ← patterns: a lower layer never imports a higher one.',
+            },
+            {
+              target: './src/design-system/primitives',
+              from: ['./src/design-system/patterns'],
+              message:
+                'foundation ← primitives ← patterns: a lower layer never imports a higher one.',
+            },
+            {
+              target: './src/shared',
+              from: ['./src/app', './src/pages', './src/features', './src/styles'],
+              message: 'shared/ knows nothing about any feature, page or app.',
+            },
+            {
+              target: './src/styles',
+              from: ['./src/app', './src/pages', './src/features'],
+              message: 'styles/ imports only shared/ and the design system.',
+            },
+            {
+              target: './src/features',
+              from: ['./src/app', './src/pages'],
+              message: 'Imports flow app → pages → features; a feature never imports upward.',
+            },
+            {
+              target: './src/features/routes',
+              from: [
+                './src/features/locator',
+                './src/features/published-map',
+                './src/features/studio',
+              ],
+              message: 'routes comes first: it imports no other feature.',
+            },
+            {
+              target: './src/features/locator',
+              from: ['./src/features/published-map', './src/features/studio'],
+              message: 'locator, published-map and studio never import each other.',
+            },
+            {
+              target: './src/features/published-map',
+              from: ['./src/features/locator', './src/features/studio'],
+              message: 'locator, published-map and studio never import each other.',
+            },
+            {
+              target: './src/features/studio',
+              from: ['./src/features/locator', './src/features/published-map'],
+              message: 'locator, published-map and studio never import each other.',
+            },
+            {
+              target: './src/app/public-map',
+              from: ['./src/app/studio', './src/features/studio'],
+              message:
+                'The public shell never imports the studio (ADR 0001): check-build.mjs proves it in the build too.',
+            },
+            {
+              target: './src/app/studio',
+              from: [
+                './src/app/public-map',
+                './src/features/locator',
+                './src/features/published-map',
+              ],
+              message:
+                'The studio shell imports studio, routes, shared, styles and the design system only.',
+            },
+          ],
+        },
+      ],
+
       // File and folder names are kebab-case. Middle extensions (.stories, .d)
       // are ignored, so route-card.stories.tsx and vite-env.d.ts pass.
       'check-file/filename-naming-convention': [
@@ -150,6 +244,20 @@ export default defineConfig([
 
       // Logging: console.log never ships; warn and error are for real problems.
       'no-console': ['error', { allow: ['warn', 'error'] }],
+    },
+  },
+
+  {
+    // Every source file is in an area: app/<shell>/, pages/, features/<feature>/,
+    // shared/, styles/ or design-system/. Vite's client types, vite-env.d.ts at
+    // the top of src/, are the one exception.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/vite-env.d.ts'],
+    rules: {
+      'check-file/folder-match-with-fex': [
+        'error',
+        { '*.{ts,tsx}': 'src/{app,pages,features,shared,styles,design-system}/**/' },
+      ],
     },
   },
 

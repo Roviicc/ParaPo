@@ -14,7 +14,7 @@ import { getSupabase } from './supabase';
  * Readers of the live tables, for the editor. They live in studio/, apart
  * from the types in shared/model/routes.ts and shared/model/stops.ts, on
  * purpose: the public map imports those types but reads the published file
- * instead (commuter/mapFile.ts), and check-boundaries.mjs forbids commuter/
+ * instead (published-map/map-file.ts), and ESLint forbids the public shell
  * importing studio/. So Supabase's address can never land in a chunk both pages share;
  * check-build.mjs proves it stays out of the public page's build too.
  *

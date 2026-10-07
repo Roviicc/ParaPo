@@ -76,7 +76,7 @@ A large feature groups by concern (`routes`: model, geo, map, cards; `studio`: a
 
 - Imports flow one way: **`app` → `pages` → `features` → `shared` → `design-system`**. Never import upward.
 - `shared/` never imports from `features/`, `pages/` or `app/`. `design-system/` imports only itself, foundation ← primitives ← patterns. `styles/` imports only the design system.
-- Features depend one way: `routes` first; `locator`, `published-map` and `studio` may import `routes` and never each other. `app/public-map` never imports `features/studio`. `scripts/checks/check-boundaries.mjs` enforces all of this.
+- Features depend one way: `routes` first; `locator`, `published-map` and `studio` may import `routes` and never each other. `app/public-map` never imports `features/studio`. ESLint enforces all of this (`import-x/no-restricted-paths` in `eslint.config.js`, by the resolved path), and `scripts/checks/check-build.mjs` proves from the built output that no studio module reaches the public page.
 - Code outside a feature imports `locator`, `published-map` and `studio` **only through their `index.ts`**. `routes` has no `index.ts` on purpose: Node runs the publish, the data check and the unit checks against source files, and a barrel over routes would load its map view (JSX, MapLibre) into them. Import routes through its concern folders.
 - If two features need the same code, move it to `shared/`. Don't let features import each other in a cycle.
 - Use the `@/` alias (maps to `src/`) for any import that leaves the current feature or folder. Use relative imports (`./`, `../`) only inside the same feature.

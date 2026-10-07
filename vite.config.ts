@@ -478,8 +478,8 @@ export default defineConfig({
   ],
   resolve: {
     // `@/x` is src/x, for any import that leaves its own folder. tsconfig.json
-    // (`paths`), scripts/node/ts-resolve-hook.mjs and
-    // scripts/checks/check-boundaries.mjs know the same alias; Storybook takes
+    // (`paths`), scripts/node/ts-resolve-hook.mjs and ESLint's resolver
+    // (eslint.config.js, from tsconfig) know the same alias; Storybook takes
     // it from here.
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
