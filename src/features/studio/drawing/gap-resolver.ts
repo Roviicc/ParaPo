@@ -6,7 +6,10 @@ import { snapSegments, straightSegment } from './snap';
 import type { AreaTarget } from './use-drawing';
 
 /** A router request still wanted: the stand-ins its answer will replace. */
-type Request = { standIns: Segment[]; controller: AbortController };
+interface Request {
+  standIns: Segment[];
+  controller: AbortController;
+}
 
 /**
  * The drawing's segments and the router's answers for them. Straight

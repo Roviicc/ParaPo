@@ -54,7 +54,11 @@ function pointAt(line: readonly LngLat[], metres: number): { point: LngLat; inde
 }
 
 /** One get-off circle of the ride-to preview: a mini stop, the middle of its orange stretch, and how far in that is. */
-export type RideDot = { stopId: string; at: LngLat; metres: number };
+export interface RideDot {
+  stopId: string;
+  at: LngLat;
+  metres: number;
+}
 
 /**
  * The ride cut short at one hintuan — what tapping a timeline row previews,

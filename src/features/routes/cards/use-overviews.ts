@@ -213,7 +213,12 @@ export function useHeightOverview(
   }, [map, snap]);
 }
 
-type Camera = { center: LngLat; zoom: number; bearing: number; pitch: number };
+interface Camera {
+  center: LngLat;
+  zoom: number;
+  bearing: number;
+  pitch: number;
+}
 
 /**
  * A hotspot's RouteCard picked and let go: the camera goes back to where the

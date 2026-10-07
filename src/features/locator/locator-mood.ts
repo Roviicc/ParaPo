@@ -114,7 +114,7 @@ export const MOOD_OF: Record<Face, Mood> = {
 const HAPPY_EVERY_MS = 2500;
 const HAPPY: readonly Face[] = ['smile', 'hop', 'squee', 'wink-smile'];
 
-export type Signals = {
+export interface Signals {
   now: number;
   fix: Pick<Fix, 'accuracy' | 'speed' | 'time'> | null;
   /** When the location first came, or the camera last arrived on the visitor. */
@@ -123,7 +123,7 @@ export type Signals = {
   taps: readonly number[];
   /** The last tap's reaction, and when (reactionTo). */
   reaction?: { at: number; mood: 'happy' | 'angry' } | null;
-};
+}
 
 /** Whether a tap's reaction is showing at `now`. */
 export const reacting = ({ now, reaction }: Pick<Signals, 'now' | 'reaction'>): boolean =>

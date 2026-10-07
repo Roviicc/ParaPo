@@ -5,7 +5,10 @@
  */
 
 /** The frame clock: the browser's, or a test's. */
-export type Frames = { request: (run: () => void) => number; cancel: (handle: number) => void };
+export interface Frames {
+  request: (run: () => void) => number;
+  cancel: (handle: number) => void;
+}
 
 const browserFrames: Frames = {
   request: (run) => requestAnimationFrame(run),
@@ -13,7 +16,10 @@ const browserFrames: Frames = {
 };
 
 /** What perFrame gives back: `add` an arrival, `clear` what is not handed on yet. */
-export type PerFrame<K, V> = { add: (key: K, value: V) => void; clear: () => void };
+export interface PerFrame<K, V> {
+  add: (key: K, value: V) => void;
+  clear: () => void;
+}
 
 /**
  * Keyed arrivals, collected and handed to `apply` together at the next

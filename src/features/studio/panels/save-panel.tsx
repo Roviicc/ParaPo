@@ -19,7 +19,7 @@ import { ENDS_TAKEN } from '../data/routes-write';
 import { saveRouteAndLinks } from '../data/save-route';
 import type { Drawing } from '../drawing/use-drawing';
 
-type Props = {
+interface Props {
   draw: Drawing;
   /** The direction being edited, when this is an edit rather than a new save. */
   existing: VariantRow | null;
@@ -42,7 +42,7 @@ type Props = {
   variants?: VariantRow[];
   onSaved: (v: VariantRow) => void;
   onCancel: () => void;
-};
+}
 
 const field =
   `mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 ${FIELD_TEXT} outline-none ` +

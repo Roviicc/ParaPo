@@ -20,7 +20,7 @@ import type { BorrowPart } from '../drawing/borrow';
  * 2026-09-29 — "Phase 1 – Novaliches" had to become "Bagong Silang Kanan 5 –
  * Novaliches" without a delete); drawing a route's return trip leaves them.
  */
-export type SaveInput = {
+export interface SaveInput {
   routeId: string | null;
   variantId: string | null;
   /** With routeId: write the route's facts too (Edit route). */
@@ -45,7 +45,7 @@ export type SaveInput = {
   borrowed_from: string | null;
   borrowed_part: BorrowPart | null;
   borrowed_m: number | null;
-};
+}
 
 const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim());
 

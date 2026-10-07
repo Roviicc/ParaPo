@@ -8,7 +8,7 @@ import type { TransportMode } from './routes';
  * docs/research/ltfrb-jeepney-fares.md. Amounts in centavos, so the rounding
  * never meets a float.
  */
-export type FareRule = {
+export interface FareRule {
   /** The first day it applies, Manila time, `YYYY-MM-DD`. */
   from: string;
   minimum: number;
@@ -16,7 +16,7 @@ export type FareRule = {
   perKm: number;
   /** Where the numbers come from, as the card says it. */
   source: string;
-};
+}
 
 /**
  * Traditional jeepney (PUJ, Mega Manila), newest last. Only the traditional

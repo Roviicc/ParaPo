@@ -10,7 +10,7 @@ import { LocatorOnMap } from './locator-indicator-overlay';
 import { useLocatorMood } from './locator-mood';
 import { useLocator } from './use-locator';
 
-type Props = {
+interface Props {
   map: MapLibreMap | null;
   /** The open card's height: the camera keeps the visitor clear of it as it moves. */
   snap: Snap;
@@ -23,7 +23,7 @@ type Props = {
   /** What was just picked, for the dot to gaze at; and when ‹ or ✕ last went back (useGazeHush). */
   picks: Picks;
   hushedAt: { readonly current: number };
-};
+}
 
 /**
  * The visitor's own position, when they ask for it, and the camera with

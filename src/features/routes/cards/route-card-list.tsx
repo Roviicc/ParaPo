@@ -8,7 +8,7 @@ import { hotspotCount } from '../model/places';
 import type { VariantSummary } from '../model/routes';
 import { stopLabel, type StopSummary } from '../model/stops';
 
-type Props = {
+interface Props {
   /** Every direction of every route under the tap, slots included, as the hooks hand them over. */
   routes: readonly VariantSummary[];
   /** The hotspots under the tap, listed first. */
@@ -30,7 +30,7 @@ type Props = {
   hidden?: boolean;
   /** Its height, shared with the trip opened from it (BottomSheet). */
   height?: SheetHeight;
-};
+}
 
 /**
  * Everything under a tap that hit more than one thing — the owner's

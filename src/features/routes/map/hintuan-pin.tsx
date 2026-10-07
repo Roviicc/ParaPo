@@ -10,7 +10,7 @@ import { TimelineDot } from '../cards/trip-timeline';
 import type { Livery } from '../model/liveries';
 import './hintuan-pin.css';
 
-type Props = {
+interface Props {
   map: MapLibreMap;
   /** Where the picked hintuan is (useRideTo's `pinAt`). */
   at: LngLat;
@@ -20,7 +20,7 @@ type Props = {
   livery: Livery;
   /** Given, the name is a button: the public map's lets the pick go. */
   onPick?: () => void;
-};
+}
 
 /**
  * The picked hintuan on the map: a circle that pops up where it is, the

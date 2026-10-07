@@ -21,7 +21,7 @@ import { requireSupabase } from './supabase';
 
 const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim());
 
-export type SaveStopInput = {
+export interface SaveStopInput {
   stopId: string | null;
   kind: StopKind;
   /** What is written on the ground. Required. */
@@ -36,7 +36,7 @@ export type SaveStopInput = {
   variantIds?: string[];
   /** Every saved direction — needed to compute hintuan links and sequences. */
   variants: VariantRow[];
-};
+}
 
 /**
  * Create or update a hotspot and replace its route links. Writes require a

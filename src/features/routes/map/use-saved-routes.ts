@@ -22,12 +22,12 @@ import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../mod
  */
 const FULL_LINES_FROM = 15;
 
-export type Highlight = {
+export interface Highlight {
   where: 'list' | 'hotspot';
   from: string;
   ids: readonly string[];
   livery: Livery;
-};
+}
 
 /**
  * Every saved route direction, drawn for everyone. This is the public half of

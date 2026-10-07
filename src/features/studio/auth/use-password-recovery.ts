@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { getSupabase } from '../data/supabase';
 
-type RecoveryUrl = { recovering: boolean; error: string | null };
+interface RecoveryUrl {
+  recovering: boolean;
+  error: string | null;
+}
 
 /**
  * Tracks arrival from a password-reset link.

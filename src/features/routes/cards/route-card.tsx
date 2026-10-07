@@ -32,14 +32,14 @@ import type { Livery } from '../model/liveries';
  * ROW_PRESSED, shared with the trip's timeline).
  */
 
-export type EndPoint = {
+export interface EndPoint {
   /** Which direction the row opens. */
   id: string;
   /** Figma's routeDirection: the place this direction goes to. */
   routeDirection: string;
-};
+}
 
-type Props = {
+interface Props {
   livery: Livery;
   /** Figma's State. */
   state: 'rest' | 'selected';
@@ -57,7 +57,7 @@ type Props = {
    * list, `card` in a hotspot's card, the names the old rows there had.
    */
   testId: 'chooser' | 'card';
-};
+}
 
 export function RouteCard({
   livery,

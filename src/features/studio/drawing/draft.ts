@@ -16,7 +16,7 @@ const DRAFT_KEY = 'parapo.draft.v1';
 /** A gap still waiting for the router when the draft was written is marked `pending`. */
 export type DraftSegment = Segment & { pending?: boolean };
 
-export type Draft = {
+export interface Draft {
   controlPoints: LngLat[];
   segments: DraftSegment[];
   target: Target;
@@ -24,7 +24,7 @@ export type Draft = {
   borrow?: Borrow | null;
   /** Index of the join point, when new points go in before a borrowed end. */
   join?: number | null;
-};
+}
 
 /** The draft on this device, or null: none, unreadable, or with no points. */
 export function readDraft(): Draft | null {

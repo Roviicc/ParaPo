@@ -45,17 +45,24 @@ import { stopRing, type StopSummary } from '../model/stops';
 export const PASS_RULE = 1;
 
 /** A hintuan's box as the stretches are worked out against it: its ring, and the ground a line must reach (passBounds). */
-export type PassBox = { stop: StopSummary; ring: Ring; bounds: BBox };
+export interface PassBox {
+  stop: StopSummary;
+  ring: Ring;
+  bounds: BBox;
+}
 
 /** One orange stretch, as the map's source takes it: its direction's id on it, for the lighting. */
-export type PassFeature = {
+export interface PassFeature {
   type: 'Feature';
   properties: { id: string; route_id: string };
   geometry: { type: 'LineString'; coordinates: LngLat[] };
-};
+}
 
 /** What a line file carries of its orange stretches: each stretch's points, and what they were worked out against. */
-export type LinePass = { pass: LngLat[][]; passKey: string };
+export interface LinePass {
+  pass: LngLat[][];
+  passKey: string;
+}
 
 /** Every hintuan with a box: what the stretches are worked out against. */
 export function passBoxes(stops: readonly StopSummary[]): readonly PassBox[] {

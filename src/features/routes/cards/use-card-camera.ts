@@ -20,7 +20,7 @@ import type { Livery } from '../model/liveries';
 import type { VariantSummary } from '../model/routes';
 import type { StopSummary } from '../model/stops';
 
-type Routes<V extends VariantSummary> = {
+interface Routes<V extends VariantSummary> {
   variants: readonly V[];
   selected: V | null;
   /** What the route list lists, if it is up. */
@@ -30,14 +30,14 @@ type Routes<V extends VariantSummary> = {
   select: (id: string | null, opts?: { keepList?: boolean }) => void;
   flip: () => void;
   highlightCard: (h: Highlight | null) => void;
-};
+}
 
-type Stops<S extends StopSummary> = {
+interface Stops<S extends StopSummary> {
   stops: readonly S[];
   selected: S | null;
-};
+}
 
-type Cards = {
+interface Cards {
   snap: Snap;
   backFromTrip: (() => void) | null;
   height: SheetHeight;
@@ -45,7 +45,7 @@ type Cards = {
   clearOf: (dock: RefObject<HTMLElement | null>) => () => [number, number];
   openPlace: (stopId: string, dock: RefObject<HTMLElement | null>) => void;
   openTrip: (v: { id: string }, livery?: Livery) => void;
-};
+}
 
 /**
  * The camera with the cards, for both apps: a hintuan picked on a trip, the

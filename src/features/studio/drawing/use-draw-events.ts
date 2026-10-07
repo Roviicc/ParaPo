@@ -30,7 +30,9 @@ const LONG_PRESS_MS = 500;
  */
 const ECHO_MS = 700;
 
-type IndexedFeature = { properties?: { index?: number } };
+interface IndexedFeature {
+  properties?: { index?: number };
+}
 
 /**
  * The drawing's pointer, while drawing: a click on the map adds a point, on

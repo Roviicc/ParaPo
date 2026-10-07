@@ -13,7 +13,7 @@ import type { StopLink, StopSummary } from '@/features/routes/model/stops';
  * the map draws from it at once. Visitors never ask the database; the studio
  * keeps reading the live tables.
  */
-export type MapFile = {
+export interface MapFile {
   /** The shape of this file, `MAP_FILE_SCHEMA` when written. See `MAP_FILE_SCHEMA`. */
   schema?: number;
   /** When this content was published. The offline notice reads it. */
@@ -26,7 +26,7 @@ export type MapFile = {
   variants: VariantSummary[];
   stops: StopSummary[];
   links: StopLink[];
-};
+}
 
 /** A direction as the index carries it: its overview under its own name. */
 type IndexVariant = Omit<VariantSummary, 'shape'> & { overview?: LineStringGeoJSON | null };

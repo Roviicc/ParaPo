@@ -73,10 +73,13 @@ export function nearestOnLines(p: LngLat, lines: readonly (readonly LngLat[])[])
  * Something the dot may gaze at: its `key` is new each time it is picked, and
  * null while nothing is; `at` says where it is, asked as it is picked.
  */
-export type Subject = { key: string | null; at: () => LngLat | null };
+export interface Subject {
+  key: string | null;
+  at: () => LngLat | null;
+}
 
 /** What the public map has picked, for the dot to gaze at (gazeSubjects). */
-export type Picks = {
+export interface Picks {
   /** The hintuan picked on the trip card, and where its circle is (useRideTo). */
   pickedId: string | null;
   pinAt: LngLat | null;
@@ -89,7 +92,7 @@ export type Picks = {
   /** What the route list lists, and what is lit. */
   candidates: readonly { route_id: string }[];
   litVariants: readonly VariantSummary[];
-};
+}
 
 /**
  * The public map's subjects, first wins (useDotGaze): a hintuan on the trip

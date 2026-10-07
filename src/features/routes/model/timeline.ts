@@ -91,17 +91,21 @@ export function orderLinked<S extends StopSummary>(
 }
 
 /** One row of a direction's timeline. */
-export type TimelineStop = { id: string; label: string; kind: StopKind };
+export interface TimelineStop {
+  id: string;
+  label: string;
+  kind: StopKind;
+}
 
 /**
  * A direction as a string of places: where it leaves from, the hintuans on
  * the way in order, where it is going. What a signboard is, generated.
  */
-export type Timeline = {
+export interface Timeline {
   from: TimelineStop | null;
   to: TimelineStop | null;
   between: TimelineStop[];
-};
+}
 
 /**
  * The timeline of a direction with these ends. `along` is the hintuans in

@@ -170,12 +170,12 @@ export function warmPrograms(map: WarmMap, twins: readonly Twin[]): boolean {
 /** How long a warm-up waits for the browser to have a moment, at most, once the map is idle. */
 const IDLE_WAIT_MS = 2000;
 
-type Idle = {
+interface Idle {
   requestIdleCallback?: (run: () => void, options?: { timeout: number }) => number;
   cancelIdleCallback?: (handle: number) => void;
   setTimeout: (run: () => void, ms: number) => unknown;
   clearTimeout: (timer: never) => void;
-};
+}
 
 /**
  * Runs `then` after the map's next 'idle', once the browser has a moment

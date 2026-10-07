@@ -4,13 +4,13 @@ import { useEffect, useRef, useState } from 'react';
 import { BASEMAPS, applyBasemap, rememberBasemap, type Basemap } from './basemap';
 import { MapControlButton } from './map-control-button';
 
-type Props = {
+interface Props {
   map: MapLibreMap;
   /** The design the map was built with. */
   initial: Basemap;
   /** What MapLibre has in the top-right corner above it; the button rests under that. */
   under: Above;
-};
+}
 
 /**
  * What can sit above the button: the attribution on a phone (it moves to the

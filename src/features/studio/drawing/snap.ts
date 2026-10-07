@@ -75,8 +75,14 @@ async function fetchRoute(url: string, signal?: AbortSignal): Promise<Response> 
   return res.status === 429 ? attempt() : res;
 }
 
-type OsrmStep = { name: string; distance: number; geometry: { coordinates: LngLat[] } };
-type OsrmLeg = { steps: OsrmStep[] };
+interface OsrmStep {
+  name: string;
+  distance: number;
+  geometry: { coordinates: LngLat[] };
+}
+interface OsrmLeg {
+  steps: OsrmStep[];
+}
 
 /**
  * One request through every point; one Segment per gap. Throws RouterRefusal

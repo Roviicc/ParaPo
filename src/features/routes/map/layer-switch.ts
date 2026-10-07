@@ -83,7 +83,9 @@ export class LayerSwitch {
 }
 
 /** As much of a map as twinsOf reads: its layers, as MapLibre serializes them. */
-type TwinMap = { getLayer: (id: string) => { serialize?: () => LayerSpecification } | undefined };
+interface TwinMap {
+  getLayer: (id: string) => { serialize?: () => LayerSpecification } | undefined;
+}
 
 /**
  * A twin of each of `layers` on `map`: its type and paint as they are now,

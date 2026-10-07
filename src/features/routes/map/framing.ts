@@ -93,13 +93,16 @@ const GESTURES = [
 ] as const;
 
 type Listener = (e: { originalEvent?: unknown }) => void;
-type Watched = {
+interface Watched {
   on(type: string, listener: Listener): unknown;
   off(type: string, listener: Listener): unknown;
-};
+}
 
 /** What a map made with MapView's `openOn` opened framed on, and whether the visitor has moved it since. */
-type Opening = { on: Bounds | null; moved: boolean };
+interface Opening {
+  on: Bounds | null;
+  moved: boolean;
+}
 const openings = new WeakMap<object, Opening>();
 
 /**
@@ -137,7 +140,9 @@ export function framesRoutes(map: object, bounds: Bounds): boolean {
   return !opening.moved && !sameBounds(opening.on, bounds);
 }
 
-type Styled = { once(type: string, listener: () => void): unknown };
+interface Styled {
+  once(type: string, listener: () => void): unknown;
+}
 
 /**
  * MapView's "did not finish loading" clock (LOAD_TIMEOUT_MS): `timedOut`
@@ -181,10 +186,10 @@ export function loadClock(
   return () => clearTimeout(timer);
 }
 
-type Rendered = {
+interface Rendered {
   on(type: string, listener: () => void): unknown;
   off(type: string, listener: () => void): unknown;
-};
+}
 
 /**
  * When MapView's "Loading map…" goes: `lift` runs once, and the function

@@ -48,7 +48,10 @@ export function useMapAge(loaded: unknown): MapAge {
 }
 
 /** When the map on screen was published, and whether it is a stored copy. */
-export type MapAge = { publishedAt: string | null; stale: boolean };
+export interface MapAge {
+  publishedAt: string | null;
+  stale: boolean;
+}
 
 /**
  * `now`, or `was` when it says the same. The public map hands useMapAge its

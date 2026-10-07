@@ -3,7 +3,10 @@ import { CARD_COLOURS, MAP_COLOURS } from '@/design-system/foundation/map-colour
 import type { Livery } from '../model/liveries';
 
 /** How a lit route line is painted: the line, and the chevrons flowing inside it. The end circles ring in the line's colour. */
-export type LineLook = { line: string; arrow: string };
+export interface LineLook {
+  line: string;
+  arrow: string;
+}
 
 /**
  * A picked RouteCard's routes, and an open trip's line, in the card's own

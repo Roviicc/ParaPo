@@ -5,11 +5,11 @@ import { slide } from '@/shared/ui/sheet-gesture';
 import { LocatorButton } from './locator-button';
 import type { Locator as State } from './use-locator';
 
-type Props = {
+interface Props {
   locator: State;
   /** A card is open: the button sits on its sheet rather than at the map's foot. */
   docked: boolean;
-};
+}
 
 /** What each look says it will do, for a screen reader. */
 const LABEL = {

@@ -19,7 +19,10 @@ import { isRailLine, type RailLine } from './routes';
  */
 
 /** One ride's two fares, in centavos. */
-export type RailFare = { card: number; ticket: number };
+export interface RailFare {
+  card: number;
+  ticket: number;
+}
 
 /** A station as the map names it (its stop name), then the operator's own names for it. */
 type Station = readonly [label: string, ...aliases: string[]];

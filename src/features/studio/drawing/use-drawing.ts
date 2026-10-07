@@ -29,7 +29,10 @@ import { findUTurns } from './uturns';
  */
 
 /** What a save will write to: an existing direction, a new direction on an existing route, or (both null) a new route. */
-export type Target = { routeId: string | null; variantId: string | null };
+export interface Target {
+  routeId: string | null;
+  variantId: string | null;
+}
 
 /** Which kind of hotspot an area trace will become. */
 export type HotspotKind = 'terminal' | 'hintuan';
@@ -40,33 +43,46 @@ export type HotspotKind = 'terminal' | 'hintuan';
  * is a straight line (no router), the ring closes itself, and a fill is drawn.
  * `stopId` is the saved hotspot being edited, or null for a new one.
  */
-export type AreaTarget = { kind: HotspotKind; stopId: string | null };
+export interface AreaTarget {
+  kind: HotspotKind;
+  stopId: string | null;
+}
 
 /**
  * Set once a drawing has taken over part of a saved direction (Extend): which
  * one, and which part. What the save records, so a later change to the parent
  * can offer to follow into this line.
  */
-export type Borrow = { variantId: string; part: BorrowPart };
+export interface Borrow {
+  variantId: string;
+  part: BorrowPart;
+}
 
 /**
  * Set while choosing where a new route leaves a saved direction, before any
  * of it is taken: the direction, and the spot tapped on it so far.
  */
-export type Picking = { variant: VariantDrawing; spot: LineSpot | null };
+export interface Picking {
+  variant: VariantDrawing;
+  spot: LineSpot | null;
+}
 
 export type Drawing = ReturnType<typeof useDrawing>;
 
 /** See `followOffer` in useDrawing. */
-export type FollowOffer = { ids: string[]; at: LngLat; point: LngLat };
+export interface FollowOffer {
+  ids: string[];
+  at: LngLat;
+  point: LngLat;
+}
 
 /** What the point bar's Delete keeps, to put back. */
-type Undone = {
+interface Undone {
   points: LngLat[];
   segments: Segment[];
   join: LngLat | null;
   connected: { spot: LngLat; end: LngLat } | null;
-};
+}
 
 /** How long Put back is offered after the point bar's Delete. */
 const PUT_BACK_MS = 6000;

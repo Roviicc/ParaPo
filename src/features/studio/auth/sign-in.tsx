@@ -7,7 +7,7 @@ import { FIELD_TEXT } from '../panels/sheet';
 
 type Mode = 'signin' | 'forgot';
 
-type Props = {
+interface Props {
   /** Heading while signing in. */
   title?: string;
   /** A message to open with, such as why a reset link was refused. */
@@ -18,7 +18,7 @@ type Props = {
    * map.
    */
   onDismiss?: () => void;
-};
+}
 
 /**
  * Email + password sign-in: the studio's front door, and the dialog that opens

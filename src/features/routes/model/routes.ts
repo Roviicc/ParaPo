@@ -64,7 +64,10 @@ export const LINE_NOTES: Readonly<Record<string, string>> = {
 };
 
 /** What `servedBy` reads of a route. `route_code` is absent from files published before 0011. */
-export type ServedRoute = { mode: TransportMode; route_code?: string | null };
+export interface ServedRoute {
+  mode: TransportMode;
+  route_code?: string | null;
+}
 
 /**
  * Whether a direction of this route stops at this hintuan, beyond passing
@@ -82,7 +85,7 @@ export function servedBy(stop: { line?: string | null }, route: ServedRoute): bo
 
 export type Confidence = 'drawn' | 'verified';
 
-export type RouteRow = {
+export interface RouteRow {
   id: string;
   owner_id: string;
   /**
@@ -103,7 +106,7 @@ export type RouteRow = {
   tail_stop_id: string;
   /** Set only when another route shares both ends by a different road. */
   via: string | null;
-};
+}
 
 /**
  * The parent route as the public map shows it. `name` is not a column: it is
@@ -145,13 +148,16 @@ export function directionName(head: string, tail: string, reversed: boolean): st
   return reversed ? `${tail} → ${head}` : `${head} → ${tail}`;
 }
 
-export type LineStringGeoJSON = { type: 'LineString'; coordinates: LngLat[] };
+export interface LineStringGeoJSON {
+  type: 'LineString';
+  coordinates: LngLat[];
+}
 
 /**
  * One direction as the public map needs it: its line and what its card shows.
  * No control points or segments — those exist for editing.
  */
-export type VariantSummary = {
+export interface VariantSummary {
   id: string;
   route_id: string;
   direction_name: string | null;
@@ -179,7 +185,7 @@ export type VariantSummary = {
    * the map (/data/signboards/) for the public. Absent when it has none.
    */
   signboards?: readonly string[];
-};
+}
 
 /**
  * One direction as the editor lists it: what the map, the cards, the links
@@ -215,11 +221,11 @@ export type UnnamedVariantRow = Omit<VariantRow, 'route'> & { route: RouteRow };
 
 type StopName = Pick<StopSummary, 'id' | 'name' | 'informal'>;
 
-type Unnamed = {
+interface Unnamed {
   reversed: boolean;
   direction_name: string | null;
   route: Pick<RouteRow, 'signboard' | 'head_stop_id' | 'tail_stop_id' | 'via'>;
-};
+}
 
 /**
  * Fill in the generated names from the hotspots at each route's ends. Nothing

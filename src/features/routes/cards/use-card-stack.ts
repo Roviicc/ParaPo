@@ -14,7 +14,7 @@ import { drawnDepartures, sharingAnEnd } from '../model/departures';
 import { liveriesFor, type Livery } from '../model/liveries';
 import type { VariantSummary } from '../model/routes';
 
-type Routes<V extends VariantSummary> = {
+interface Routes<V extends VariantSummary> {
   variants: readonly V[];
   selected: V | null;
   candidates: readonly V[];
@@ -24,14 +24,14 @@ type Routes<V extends VariantSummary> = {
   select: (id: string | null, opts?: { keepList?: boolean }) => void;
   openList: (directions: readonly V[], way: boolean) => void;
   highlightCard: (h: Highlight | null) => void;
-};
+}
 
-type Stops<S extends { id: string }> = {
+interface Stops<S extends { id: string }> {
   selected: S | null;
   candidates: readonly S[];
   select: (id: string | null, opts?: { keepList?: boolean }) => void;
   show: (id: string, offset?: () => [number, number], opts?: { keepList?: boolean }) => void;
-};
+}
 
 /**
  * The cards that stand in for one another over the map — the route list, a

@@ -9,7 +9,13 @@ import { M_PER_DEG, haversine, pointToSegmentM, type LngLat } from '@/shared/uti
  */
 
 /** What of the map is on screen, and at what zoom: all a frame of chevrons needs of it. */
-export type View = { west: number; east: number; south: number; north: number; zoom: number };
+export interface View {
+  west: number;
+  east: number;
+  south: number;
+  north: number;
+  zoom: number;
+}
 
 /**
  * Two lit lines closer than this, running within `SAME_WAY_DEG` of the same
@@ -62,14 +68,14 @@ export const INSET_PX = 0;
  * All but `covered` is the line's own and shared between calls (measure):
  * read-only.
  */
-export type Measured = {
+export interface Measured {
   line: readonly LngLat[];
   at: readonly number[];
   bearing: readonly number[];
   length: number;
   lat: number;
   covered: boolean[];
-};
+}
 
 const measured = new WeakMap<readonly LngLat[], Omit<Measured, 'covered'>>();
 
@@ -135,11 +141,11 @@ export function markCovered(m: Measured, earlier: Measured[]): void {
   }
 }
 
-export type Chevron = {
+export interface Chevron {
   type: 'Feature';
   properties: { across: number };
   geometry: { type: 'Polygon'; coordinates: LngLat[][] };
-};
+}
 
 /**
  * One chevron centred on `at` and pointing along `bearing`, `across` pixels

@@ -14,7 +14,7 @@ import { linksThrough, variantsStartingIn } from '../data/stops-geometry';
 import { saveStop } from '../data/stops-write';
 import type { Drawing } from '../drawing/use-drawing';
 
-type Props = {
+interface Props {
   draw: Drawing;
   /** The hotspot being edited, or null for a new one. */
   existing: StopRow | null;
@@ -28,7 +28,7 @@ type Props = {
   onCancel: () => void;
   /** Hears the row a save wrote, the moment it is in, to keep it beyond this panel. */
   onWritten?: (stopId: string) => void;
-};
+}
 
 const field =
   `mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 ${FIELD_TEXT} outline-none ` +

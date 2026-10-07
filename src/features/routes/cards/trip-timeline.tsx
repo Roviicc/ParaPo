@@ -14,7 +14,7 @@ import {
 } from './livery-card';
 import type { Livery } from '../model/liveries';
 
-export type TripTimelineProps = {
+export interface TripTimelineProps {
   livery: Livery;
   /** Figma's Route on TimelineTop: the place the trip leaves from. */
   routeOrigin: string;
@@ -43,7 +43,7 @@ export type TripTimelineProps = {
   endPicked: 'from' | 'to' | null;
   /** Figma's Route on TimelineBottomEndRoute: the place the trip goes to. */
   routeDirection: string;
-};
+}
 
 /**
  * A trip's card, RouteTripDetail's (split from it, 2026-09-29): in the

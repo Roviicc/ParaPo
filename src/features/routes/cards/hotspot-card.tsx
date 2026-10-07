@@ -11,7 +11,7 @@ import { placeSummary, siblingsOf } from '../model/places';
 import type { VariantSummary } from '../model/routes';
 import { stopLabel, type StopSummary } from '../model/stops';
 
-type Props = {
+interface Props {
   stop: StopSummary;
   /** Directions linked to this hotspot, in stop_sequence order. */
   linkedVariantIds: string[];
@@ -43,7 +43,7 @@ type Props = {
   hidden?: boolean;
   /** Its height, shared with the trip opened from it (BottomSheet). */
   height?: SheetHeight;
-};
+}
 
 /**
  * What anyone sees when they tap a hotspot. The card does not know who is

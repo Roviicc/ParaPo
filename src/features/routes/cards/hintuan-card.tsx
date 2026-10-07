@@ -21,7 +21,7 @@ import { placeBoxes } from '../model/places';
 import type { VariantSummary } from '../model/routes';
 import { stopLabel, type StopKind, type StopSummary } from '../model/stops';
 
-type Props = {
+interface Props {
   /** The box picked: the one tapped on the map, or a row since. Its row is Selected. */
   stop: StopSummary;
   /** Every hotspot, for the other boxes of its place. */
@@ -69,7 +69,7 @@ type Props = {
   height?: SheetHeight;
   /** The dock the card sits in, for the map to glide a picked box clear of it. */
   dockRef?: Ref<HTMLDivElement>;
-};
+}
 
 // Figma's HotspotSelectionBar, a terminal's and a hintuan's: the fill, its
 // hairlines and its letter.

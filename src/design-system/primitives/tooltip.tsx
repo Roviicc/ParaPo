@@ -12,11 +12,11 @@
 
 type Position = 'bottom' | 'top' | 'left' | 'right';
 
-type Props = {
+interface Props {
   position?: Position;
   /** Figma's text layer, "Tooltip": one line, never wraps. */
   label: string;
-};
+}
 
 // The arrow is Figma's own path, 14.7×13, pointing up as drawn. It sticks
 // out 7px and tucks the other 6px under the pill (Figma: -8px on a 14px

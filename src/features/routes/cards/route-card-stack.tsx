@@ -6,9 +6,13 @@ import { liveriesFor, type Livery } from '../model/liveries';
 import type { VariantSummary } from '../model/routes';
 
 /** A card picked: the place it stands for, the directions its rows list, and its colour, for the map to light them in. */
-export type PickedPlace = { from: string; ids: readonly string[]; livery: Livery };
+export interface PickedPlace {
+  from: string;
+  ids: readonly string[];
+  livery: Livery;
+}
 
-type Props = {
+interface Props {
   /** Every direction of every route to show, slots included, as the hooks hand them over. */
   routes: readonly VariantSummary[];
   /** Whether they are shown the way back rather than outbound. */
@@ -21,7 +25,7 @@ type Props = {
   onRoute: (v: VariantSummary, livery: Livery) => void;
   /** What the suites call each card and row (RouteCard). */
   testId: 'chooser' | 'card';
-};
+}
 
 /**
  * Routes one way round as the owner's RouteCards (2026-09-28): a card per

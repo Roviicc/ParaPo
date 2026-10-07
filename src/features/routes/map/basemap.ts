@@ -19,7 +19,12 @@ import { MAP_PAINT } from '@/design-system/foundation/map-colours';
  * colourful OSM look; Dark is for night.
  */
 export type BasemapId = 'positron' | 'positron-detailed' | 'liberty' | 'dark';
-export type Basemap = { id: BasemapId; label: string; url: string; detailed?: true };
+export interface Basemap {
+  id: BasemapId;
+  label: string;
+  url: string;
+  detailed?: true;
+}
 
 const POSITRON = 'https://tiles.openfreemap.org/styles/positron';
 

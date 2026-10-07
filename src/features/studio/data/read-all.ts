@@ -26,11 +26,11 @@
  */
 export const PAGE = 1000;
 
-export type Page<T> = {
+export interface Page<T> {
   data: T[] | null;
   count: number | null;
   error: { message: string } | null;
-};
+}
 
 export async function readAll<T>(
   page: (from: number, to: number) => PromiseLike<Page<T>>,

@@ -13,11 +13,11 @@ import {
  */
 
 /** One route with its directions, for a sheet that lists routes, not directions. */
-export type RouteGroup<V extends VariantSummary> = {
+export interface RouteGroup<V extends VariantSummary> {
   routeId: string;
   route: RouteSummary;
   directions: V[];
-};
+}
 
 /** Directions gathered by route, in the order their routes were first met. */
 function groupByRoute<V extends VariantSummary>(variants: readonly V[]): RouteGroup<V>[] {
@@ -31,10 +31,10 @@ function groupByRoute<V extends VariantSummary>(variants: readonly V[]): RouteGr
 }
 
 /** One place in the chooser, and the directions shown leaving it. */
-export type Departures<V extends VariantSummary> = {
+export interface Departures<V extends VariantSummary> {
   from: string;
   directions: { v: V; to: string; drawn: boolean }[];
-};
+}
 
 /**
  * The routes under a tap one way round — outbound, or with `back` the way

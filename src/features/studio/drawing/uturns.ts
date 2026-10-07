@@ -60,14 +60,14 @@ function distinct(coords: unknown): LngLat[] {
 }
 
 /** A control point where the route turns back on itself. */
-export type UTurn = {
+export interface UTurn {
   /** Which control point. */
   point: number;
   /** The stretch that doubles back, so it can be drawn over the line. */
   stub: LngLat[];
   /** That stretch's length, in metres. */
   metres: number;
-};
+}
 
 type Turn = Omit<UTurn, 'point'>;
 

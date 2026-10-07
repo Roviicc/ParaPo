@@ -9,7 +9,10 @@ import { RouteEndPointBar } from './route-end-point-bar';
 import { TripTimeline, type TripTimelineProps } from './trip-timeline';
 
 /** A ride's pesos both ways: `₱26` regular, and its discounted price — students, seniors, PWDs. */
-export type Fares = { regular: string; discounted: string };
+export interface Fares {
+  regular: string;
+  discounted: string;
+}
 /** A ride nobody pays for, the ferry's (the owner's pick, 2026-10-03): the tile says Free, with no Regular or Discounted to turn. */
 export const FREE = 'free';
 export type Fare = Fares | typeof FREE;

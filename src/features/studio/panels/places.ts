@@ -30,7 +30,12 @@ export function nearestStop(stops: StopRow[], to: LngLat | undefined): string {
  * Case-folded, because "SM fairview" typed once must not become a second
  * place in the list. The row a route actually references is `boxFor`.
  */
-export type Place = { key: string; label: string; boxes: StopRow[]; terminal: StopRow | null };
+export interface Place {
+  key: string;
+  label: string;
+  boxes: StopRow[];
+  terminal: StopRow | null;
+}
 
 /** Every place, the ones with a terminal first, then by name. */
 export function groupPlaces(stops: StopRow[]): Place[] {

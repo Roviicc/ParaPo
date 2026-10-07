@@ -21,7 +21,11 @@ const locator = (over: Partial<State> = {}): State => ({
   ...over,
 });
 
-type Args = { snap: Snap | null; state: State; wide?: boolean };
+interface Args {
+  snap: Snap | null;
+  state: State;
+  wide?: boolean;
+}
 
 /**
  * The owner's 393 × 852 frame, a page as the app's root is: the sheet says

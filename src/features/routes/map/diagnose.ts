@@ -1,9 +1,9 @@
 /** Why the map might be failing, answered from inside the browser. */
-export type Diagnosis = {
+export interface Diagnosis {
   webgl: 'webgl2' | 'webgl' | 'none';
   renderer: string | null;
   styleFetch: string;
-};
+}
 
 function probeWebGL(): Pick<Diagnosis, 'webgl' | 'renderer'> {
   const canvas = document.createElement('canvas');

@@ -95,7 +95,7 @@ const SAME_END_M = 150;
  * — the stretch to a picked hintuan, where the ride now ends (the owner's
  * SelectedHintuanRouteTitle, 2026-10-02) — the line and its ends staying whole.
  */
-export type Ride = {
+export interface Ride {
   id?: string;
   line: readonly LngLat[];
   flow?: readonly LngLat[];
@@ -103,7 +103,7 @@ export type Ride = {
   to: string;
   fromStop?: string | null;
   toStop?: string | null;
-};
+}
 
 /**
  * An end of a lit ride: where it is, its place, whether it is the one of its
@@ -111,14 +111,14 @@ export type Ride = {
  * the directions of every lit ride that ends there, this way round
  * (`rides`, on the named one only: the rest are empty).
  */
-export type RideEnd = {
+export interface RideEnd {
   end: 'from' | 'to';
   name: string;
   named: boolean;
   at: LngLat;
   stopId: string | null;
   rides: string[];
-};
+}
 
 /**
  * Where each lit ride starts and finishes, each place named once: two ends

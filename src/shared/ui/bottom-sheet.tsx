@@ -30,7 +30,7 @@ import {
   type SnapName,
 } from './sheet-gesture';
 
-type Props = {
+interface Props {
   /** What a screen reader calls it: the list by its count, a trip by its direction, a card by its place. */
   label: string;
   /** The suites find the list as `chooser`, and every other card as `card`. */
@@ -64,10 +64,13 @@ type Props = {
    */
   height?: SheetHeight;
   children: ReactNode;
-};
+}
 
 /** A sheet's height kept by its caller (BottomSheet's `height`). */
-export type SheetHeight = { snap: Snap; onSnap: (snap: Snap) => void };
+export interface SheetHeight {
+  snap: Snap;
+  onSnap: (snap: Snap) => void;
+}
 
 /**
  * Where each kind floats, and how wide; in each kind's own variant, so its

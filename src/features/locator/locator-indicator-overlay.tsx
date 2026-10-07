@@ -26,7 +26,7 @@ const HALO_MAX_PX = 1600;
 export const haloFor = (px: number, scale = 1) =>
   px < DOT_PX * scale ? 0 : Math.round(Math.min(HALO_MAX_PX, px));
 
-type Props = {
+interface Props {
   /** The accuracy circle's width: the fix's 68 % radius, twice, in pixels. */
   haloPx: number;
   /** Which way the beam points, degrees clockwise from the overlay's up — north, on the map. Null: no beam. */
@@ -42,7 +42,7 @@ type Props = {
   pokeable?: boolean;
   /** Which way its eyes gaze, degrees clockwise from the overlay's up, at what was just picked (dotGaze.ts). Null: they wander. */
   gazeDeg?: number | null;
-};
+}
 
 /**
  * The owner's LocatorIndicatorOverlay (3870:5247, 2026-10-01, its second

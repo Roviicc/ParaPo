@@ -36,7 +36,7 @@ export type LocatorStatus = 'off' | 'asking' | 'on' | 'denied' | 'unavailable';
 /** Where the camera is with the visitor: elsewhere, on them, on them turned with the phone. */
 export type Camera = 'free' | 'tracked' | 'compass';
 
-export type Fix = {
+export interface Fix {
   at: LngLat;
   /** Metres, the browser's 68 % radius. */
   accuracy: number;
@@ -45,7 +45,7 @@ export type Fix = {
   /** Degrees clockwise from north, from the fixes; null until they have shown one. */
   heading: number | null;
   time: number;
-};
+}
 
 /** Below this the GPS's own heading is noise: a slow shuffle, or drift while still. */
 export const STILL_BELOW_MPS = 0.5;
@@ -163,11 +163,11 @@ export function motionFrom(
 }
 
 /** What a phone's orientation event says, as far as a heading goes. */
-export type Orientation = {
+export interface Orientation {
   alpha: number | null;
   absolute: boolean;
   webkitCompassHeading?: number;
-};
+}
 
 /**
  * The way the phone's top faces, degrees clockwise from north, turned for
@@ -227,7 +227,7 @@ function askForCompass() {
   if (ask) void ask().catch(() => {});
 }
 
-export type Locator = {
+export interface Locator {
   status: LocatorStatus;
   fix: Fix | null;
   /** The way the visitor faces: the phone's compass, else the way the fixes go. Null: unknown. */
@@ -252,9 +252,9 @@ export type Locator = {
   tap: () => void;
   /** How many times the button has been tapped: the dot's mood reads it (locatorMood). */
   taps: number;
-};
+}
 
-type Options = {
+interface Options {
   /** Where the visitor should sit from the map's centre, clear of an open card (clearOfSheet). */
   offset: () => [number, number];
   /** The open card's height: the camera keeps the visitor clear of it as it moves. */
@@ -267,7 +267,7 @@ type Options = {
    * own (VisitorLocation, 2026-10-05). Without it, in this hook's effect.
    */
   cameraTurn?: Turn;
-};
+}
 
 export function useLocator(
   map: MapLibreMap | null,

@@ -113,7 +113,7 @@ const ZOOM = 11;
  */
 const LOAD_TIMEOUT_MS = 12_000;
 
-type Props = {
+interface Props {
   /**
    * Fires once the map can take sources and layers: at its 'load', or with
    * `openOn` as soon as its style is in.
@@ -158,7 +158,7 @@ type Props = {
    * map is made.
    */
   openOn?: () => Promise<Bounds | null>;
-};
+}
 
 /**
  * Metro Manila with its jeepney hinterland — Bulacan's south, Rizal's

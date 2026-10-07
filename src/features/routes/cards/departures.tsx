@@ -1,7 +1,7 @@
 import { departures } from '../model/departures';
 import type { VariantSummary } from '../model/routes';
 
-type Props = {
+interface Props {
   /** Every direction of every route to list, slots included. */
   routes: readonly VariantSummary[];
   /** Whether the routes are shown the way back rather than outbound. */
@@ -10,7 +10,7 @@ type Props = {
   onRoute: (v: VariantSummary) => void;
   /** The `data-testid` of each place and of each row: `<prefix>-origin`, `<prefix>-item`. */
   testId: string;
-};
+}
 
 /**
  * Routes one way round, grouped by the place they leave from — Tala, then

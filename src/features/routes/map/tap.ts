@@ -87,7 +87,9 @@ export function bindHover(
   };
 }
 
-type IdFeature = { properties?: { id?: unknown; route_id?: unknown } };
+interface IdFeature {
+  properties?: { id?: unknown; route_id?: unknown };
+}
 
 /**
  * The ids a query hit, topmost first and each one once. A line crosses its
@@ -104,7 +106,11 @@ function idsInOrder(features: IdFeature[], key: 'id' | 'route_id' = 'id'): strin
 }
 
 /** What one tap landed on: every direction, every route those belong to, and every hotspot in its box. */
-export type TapTargets = { routeIds: string[]; routeKeys: string[]; stopIds: string[] };
+export interface TapTargets {
+  routeIds: string[];
+  routeKeys: string[];
+  stopIds: string[];
+}
 
 /**
  * Each tap's answer, kept for the other hook (the cheap-phone plan, step 7,

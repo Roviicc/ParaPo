@@ -24,7 +24,12 @@ import {
 export type BorrowPart = 'start' | 'end';
 
 /** A spot on a drawn line: segment `seg`, between its coordinates `edge` and `edge + 1`. */
-export type LineSpot = { seg: number; edge: number; point: LngLat; metres: number };
+export interface LineSpot {
+  seg: number;
+  edge: number;
+  point: LngLat;
+  metres: number;
+}
 
 /** The spot on the line nearest p, and how far p is from it. Null for a line with no edges. */
 export function nearestSpot(segments: Segment[], p: LngLat): (LineSpot & { off: number }) | null {
@@ -159,7 +164,11 @@ function nearestOnCoords(
  * A saved direction that a right-click while drawing may mean to follow: its
  * line in travel order, and whether it ends at the place the drawing is for.
  */
-export type FollowOption<V> = { v: V; travel: readonly LngLat[]; endsAtDestination: boolean };
+export interface FollowOption<V> {
+  v: V;
+  travel: readonly LngLat[];
+  endsAtDestination: boolean;
+}
 
 /**
  * Which saved line a right-click means, when the drawing should join one and

@@ -3,13 +3,16 @@ export type LngLat = [number, number];
 export type SnapMode = 'snapped' | 'freehand';
 
 /** One stretch of a single road along a routed segment. `name` is '' for an unnamed way. */
-export type StreetRun = { name: string; metres: number };
+export interface StreetRun {
+  name: string;
+  metres: number;
+}
 
 /**
  * The geometry between two consecutive control points. One per gap, so a route
  * with N control points has N-1 segments.
  */
-export type Segment = {
+export interface Segment {
   snap: SnapMode;
   coordinates: LngLat[];
   /**
@@ -18,7 +21,7 @@ export type Segment = {
    * recorded.
    */
   streets?: StreetRun[];
-};
+}
 
 /** Two points this close are one join, not two vertices: 1 cm, far below a click or a 6-decimal save. */
 const JOIN_M = 0.01;
