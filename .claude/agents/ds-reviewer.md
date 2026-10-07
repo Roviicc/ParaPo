@@ -65,17 +65,18 @@ instead of rendering unstyled.
 
 **4. Layer imports.** `src/design-system/` imports itself only, and inside
 it a lower layer never a higher one (foundation ← primitives ← patterns);
-`src/shared/` imports shared and the design system; `src/commuter/` and
-`src/studio/` import themselves, shared and the design system — never each
+`src/shared/` imports shared and the design system, and knows no feature;
+`src/features/routes/` imports those; `locator/`, `published-map/` and `studio/`
+import routes as well, and `src/app/public-map/` never imports studio — never each
 other. `node scripts/checks/check-boundaries.mjs` enforces exactly this (its
 `ALLOWED` table); check the intent too — a
-shared component reaching for commuter data through a prop typed `any` is
+shared component reaching for a feature's data through a prop typed `any` is
 the same crossing in disguise.
 
 **5. Stories.** One story per variant, plus the states the component
 actually has (disabled, error, empty, picked…), plus at least one specimen
 at phone size — the `@container` decorator pattern in
-`src/shared/cards/RouteSheet.stories.tsx` is the house way. An unstoried state is
+`src/features/routes/cards/route-card.stories.tsx` is the house way. An unstoried state is
 never looked at by anyone.
 
 **6. Markup honesty.** Interactive things are real interactive elements or
@@ -102,7 +103,7 @@ repo's unit tests live in `tests/unit/` and run through `npm run test:unit`.
 
 1. Read the component's stories first — they are the contract.
 2. Read the component.
-3. Read a settled peer (`src/shared/cards/RouteSheet.tsx`, `StopTimeline.tsx`)
+3. Read a settled peer (`src/features/routes/cards/route-card.tsx`, `stop-timeline.tsx`)
    for the house style you are comparing against.
 4. Run `npx tsc --noEmit` and `node scripts/checks/check-boundaries.mjs`.
 5. Report.

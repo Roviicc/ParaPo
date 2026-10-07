@@ -197,7 +197,7 @@ async function rest(path) {
 
 /**
  * A signboard from the bucket, cleaned again before it lands on the map's own
- * domain (shared/model/signboardSvg.ts): null when it is gone from the bucket,
+ * domain (features/routes/model/signboard-svg.ts): null when it is gone from the bucket,
  * `{ refused }` when the clean says no. The bucket keeps whatever an editor's
  * session sent (the studio's own clean runs in the browser), so a refused
  * board is left out and said, never published, and never stops the map.

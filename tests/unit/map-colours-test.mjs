@@ -94,16 +94,16 @@ test('each hex is the primitive its token aliases', () => {
   for (const [figma, hex] of Object.entries(MAP_COLOURS)) {
     const primitive = aliases.get(cssName(figma))
     const want = primitiveHex(primitive)
-    assert.ok(near(hex, want), `${figma}: ${hex} in mapColours.ts, but ${primitive} is ${want}`)
+    assert.ok(near(hex, want), `${figma}: ${hex} in map-colours.ts, but ${primitive} is ${want}`)
   }
 })
 
-// Every colour the map paints comes from mapColours.ts (stage 9 of the
+// Every colour the map paints comes from map-colours.ts (stage 9 of the
 // clean-up): the Map/… tokens, the cards', and MAP_PAINT for those Figma does
 // not name yet. A colour written in the map's code itself — a quoted hex or
 // rgb() in the painters of both pages and the editor's drawing — is one the
 // next restyle cannot find.
-test('no colour is written in the map code outside mapColours.ts', () => {
+test('no colour is written in the map code outside map-colours.ts', () => {
   const dirs = [
     '../../src/features/routes/map/',
     '../../src/features/routes/geo/',

@@ -213,7 +213,7 @@ test("the hotspots' three box fills are one bucket as they are added, as the pub
 
 // ------------------------------------------------------------ (c)
 
-/** The committed map as the public map reads it (mapFile.ts): each overview as the direction's line. */
+/** The committed map as the public map reads it (map-file.ts): each overview as the direction's line. */
 const index = JSON.parse(readFileSync(new URL('../../public/data/index.v4.json', import.meta.url), 'utf8'))
 const rows = index.variants.map(({ overview, ...v }) => ({ ...v, shape: overview ?? null }))
 const stops = index.stops

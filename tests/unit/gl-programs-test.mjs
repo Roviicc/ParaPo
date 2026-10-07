@@ -63,12 +63,12 @@ test('programOf reads a paint as MapLibre keys it: a constant or the zoom alone 
 // ------------------------------------------------------------ step 2
 
 test("the orange stretches are drawn by the lit line's program, from zoom 15", () => {
-  // The lit line and its casing as savedRoutesLayers.ts paints them: a
+  // The lit line and its casing as saved-routes-layers.ts paints them: a
   // colour for the layer, litWidth() and litOpacity(). Read off the file, so
   // a change there is a change here.
   const routes = read('../../src/features/routes/map/saved-routes-layers.ts')
   const selected = routes.match(/id: SELECTED,[\s\S]*?paint: \{([\s\S]*?)\n\s*\},\n\s*\},\n\s*before,/)
-  assert.ok(selected, 'savedRoutesLayers.ts adds SELECTED with a paint')
+  assert.ok(selected, 'saved-routes-layers.ts adds SELECTED with a paint')
   assert.match(selected[1], /'line-width': litWidth\(\),/)
   assert.match(selected[1], /'line-opacity': litOpacity\(\),/)
   const litLine = { type: 'line', paint: { 'line-color': '#000000', 'line-width': litWidth(), 'line-opacity': litOpacity() } }
@@ -385,7 +385,7 @@ test('warmSoon cancelled: the last one cancels the warm-up, before the idle or a
 })
 
 test("the switched layers' twins: each layer's type and paint but its switch, drawn by its program, unseen", () => {
-  // The five as the hooks add them: off from the start (layerSwitch.ts).
+  // The five as the hooks add them: off from the start (layer-switch.ts).
   const sources = new Map()
   const layers = [{ id: 'background', type: 'background' }, { id: 'road-label', type: 'symbol' }]
   const map = {

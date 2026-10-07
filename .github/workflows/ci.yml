@@ -5,9 +5,11 @@
 # shipping fast"). Three ideas:
 #
 #   1. Only what a change can reach. `changes` reads the files a pull request
-#      touches: docs and Markdown alone run nothing; src/studio/ and the
-#      studio's suites alone skip the public suites; src/commuter/, public/
-#      and the public suites alone skip the studio's. Anything else — shared
+#      touches: docs and Markdown alone run nothing; src/app/studio/,
+#      src/features/studio/ and the studio's suites alone skip the public
+#      suites; src/app/public-map/, src/features/locator/,
+#      src/features/published-map/, public/ and the public suites alone skip
+#      the studio's. Anything else — shared
 #      code, the build, the lockfile, this file — runs both. A push to main
 #      or staging, the nightly run and "Run workflow" run everything.
 #   2. Every suite at once. Each suite is its own job, so the run takes as

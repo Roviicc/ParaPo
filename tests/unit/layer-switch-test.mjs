@@ -35,7 +35,7 @@ const twoLayers = () =>
   ])
 const opacity = (m) => m.layers.map((l) => l.paint?.[`${l.type}-layer-opacity`] ?? 1)
 
-test('off from the start: nothing lit leaves them off and sets nothing; their programs are their twins’ (warmPrograms.ts)', () => {
+test('off from the start: nothing lit leaves them off and sets nothing; their programs are their twins’ (warm-programs.ts)', () => {
   const m = twoLayers()
   const sw = new LayerSwitch(['lit-line', 'stripes'])
   assert.equal(sw.value(), 0)

@@ -269,7 +269,7 @@ const wholeBytes = lists.reduce((a, r) => a + r.wholeBytes, 0)
 // of overviews is a small part of the rows as the database keeps them.
 check('the list is under a sixth of the rows as the database keeps them', listBytes < wholeBytes / 6, `${mb(listBytes)} for ${lists.length} request(s), the same rows whole ${mb(wholeBytes)}`)
 // The links table: after its first page answers, the rest are asked for at
-// once. One load (loadOnce.ts, 2026-10-05; two in development before, the
+// once. One load (load-once.ts, 2026-10-05; two in development before, the
 // first page of each preceded by more than a moment), and room for two.
 const linkPages = asked.filter((r) => r.table === 'route_stop')
 const pages = Math.ceil(links.length / 1000)

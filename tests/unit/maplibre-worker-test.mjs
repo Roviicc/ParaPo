@@ -13,7 +13,7 @@ import config, { MAPLIBRE_WORKER_URL, maplibreWorkerWithThePage } from '../../vi
 
 const plugin = maplibreWorkerWithThePage()
 
-test("MapView.tsx asks for the worker's URL by the import the plugin answers in a build and Vite's worker plugin in dev", () => {
+test("map-view.tsx asks for the worker's URL by the import the plugin answers in a build and Vite's worker plugin in dev", () => {
   const src = readFileSync(new URL('../../src/features/routes/map/map-view.tsx', import.meta.url), 'utf8')
   assert.ok(src.includes(`import maplibreWorkerUrl from '${MAPLIBRE_WORKER_URL}'`), MAPLIBRE_WORKER_URL)
   assert.ok(
@@ -72,7 +72,7 @@ test("the worker's two imports have groups to themselves, ahead of the page's Ma
   assert.equal(groupOf('\0vite/preload-helper.js'), 'vite-preload')
   assert.equal(groupOf(dist('maplibre-gl.mjs')), 'maplibre')
   // An entry of its own: in `maplibre` it would bring the page's MapLibre
-  // into the worker. And the stylesheet stays with index.css's (shared-*.css).
+  // into the worker. And the stylesheet stays with global.css's (shared-*.css).
   assert.equal(groupOf(dist('maplibre-gl-worker.mjs')), null)
   assert.equal(groupOf(dist('maplibre-gl.css')), null)
   assert.equal(groupOf(dist('maplibre-gl-worker.mjs') + '?worker&url'), null)

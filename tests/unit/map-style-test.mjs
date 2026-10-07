@@ -20,7 +20,7 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
 test('the map is made with no whole-style check', () => {
   const made = read('../../src/features/routes/map/map-view.tsx').match(/new MapLibreMap\(\{[\s\S]*?\n\s*\}\)/)
-  assert.ok(made, 'MapView.tsx makes its map with new MapLibreMap({ … })')
+  assert.ok(made, 'map-view.tsx makes its map with new MapLibreMap({ … })')
   assert.match(made[0], /\n\s*validateStyle: false,/)
 })
 

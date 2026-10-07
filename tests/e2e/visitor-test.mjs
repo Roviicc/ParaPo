@@ -226,7 +226,7 @@ check(
 // The owner's two looks for the lines (2026-09-29): every one opaque in
 // Map/RouteLine/surface-default, the lit ones drawn over them in
 // …/surface-selected, and no layer shading a line. The hexes are
-// mapColours.ts's, read from the dev server; a server that cannot serve it
+// map-colours.ts's, read from the dev server; a server that cannot serve it
 // is held to two different colours.
 const MAP = await page.evaluate(async () => {
   try {
@@ -247,7 +247,7 @@ const twoLooks = (p, lit = MAP?.['Map/RouteLine/surface-selected']) =>
 // What is lit wears the colour of the card it answers — a picked RouteCard's,
 // an open trip's — its chevrons in the card's words' colour and its end
 // circles ringed in the line's; with no card picked, the selected blue (the
-// owner's ask, 2026-09-29). The looks are liveryLine.ts's, read from the dev
+// owner's ask, 2026-09-29). The looks are livery-line.ts's, read from the dev
 // server; a server that cannot serve it skips the colour.
 const LOOKS = await page.evaluate(async () => {
   try {
@@ -328,7 +328,7 @@ const drawLayers = snapshot.order.filter((id) => id.startsWith('draw-'))
 check('no editor (draw-*) layers on the public page', drawLayers.length === 0, drawLayers.join(', '))
 // The end circles' GL program is compiled while the map is idle, before any
 // tap, so the first tap that lights a route does not compile it as its card
-// comes up (warmPrograms.ts, the cheap-phone plan, step 3, 2026-10-04).
+// comes up (warm-programs.ts, the cheap-phone plan, step 3, 2026-10-04).
 const atRest = await programsAtRest(page)
 check("at rest, before any tap, the end circles' GL program is compiled (warmPrograms)", atRest.circle, `${atRest.keys.length} programs${atRest.circle ? '' : `, none a circle's in ${atRest.ms / 1000} s`}`)
 
@@ -798,7 +798,7 @@ if (PART === 1) {
       // The chevrons: flowing along the lit direction, each cut to exactly
       // the lit line's width. Measured on screen, across the chevron's own
       // axis (outer tip to inner tip); the line's width comes from
-      // lineStyle.ts itself where the dev server can serve it.
+      // line-style.ts itself where the dev server can serve it.
       await page.waitForTimeout(200)
       const chevrons = await page.evaluate(async () => {
         const m = window.__map

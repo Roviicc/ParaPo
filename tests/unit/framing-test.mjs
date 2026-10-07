@@ -32,7 +32,7 @@ function oldBox(variants) {
   return [[w, s], [e, n]]
 }
 
-/** The committed map's directions as the public map reads them: each overview as its line (mapFile.ts, asMap). */
+/** The committed map's directions as the public map reads them: each overview as its line (map-file.ts, asMap). */
 const committed = JSON.parse(readFileSync(new URL('../../public/data/index.v4.json', import.meta.url), 'utf8')).variants.map(
   ({ overview, ...v }) => ({ ...v, shape: overview ?? null }),
 )

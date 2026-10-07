@@ -4,7 +4,7 @@
 //   node tests/e2e/save-test.mjs         # against http://localhost:5173
 //
 // The other suites run signed out, so until 2026-09-29 nothing in
-// routesWrite.ts or stopsWrite.ts ran under a check (docs/review-2026-09-29.md,
+// routes-write.ts or stops-write.ts ran under a check (docs/review-2026-09-29.md,
 // section 4). This one grew from the stand-in the review drove them with
 // (studio-standin.mjs): the tables are today's published map plus 500 hintuans far
 // off the map, held in memory and answered the way PostgREST answers — the

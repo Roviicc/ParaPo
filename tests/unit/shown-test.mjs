@@ -96,7 +96,7 @@ test("with a hotspot card open over a kept list, the card's routes are shown", (
 })
 
 // The cheap-phone plan, step 16 (c), 2026-10-04: what is lit kept one array
-// while it holds the same directions (routesShown.ts, steady), as
+// while it holds the same directions (routes-shown.ts, steady), as
 // useSavedRoutes keeps litVariants and lit.
 import { steady } from '../../src/features/routes/map/routes-shown.ts'
 

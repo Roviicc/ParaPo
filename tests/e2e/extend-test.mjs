@@ -76,7 +76,7 @@ const dotAt = ([x, y], there = true) =>
   page.waitForFunction(([x, y, there]) =>
     (window.__map.queryRenderedFeatures([x, y], { layers: ['draw-point-dots'] }).length > 0) === there,
   [x, y, there], { timeout: 5000 }).then(() => true, () => false)
-// A drawing's line as the studio joins it and saves it (shared/geo.ts
+// A drawing's line as the studio joins it and saves it (shared/utils/geo.ts
 // joinSegments): each segment after the first starts on the point the one
 // before it ends on, and that point is kept once. Every join here is routed
 // on both sides, so it always repeats (joinSegments keeps a first point that

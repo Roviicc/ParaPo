@@ -50,7 +50,7 @@
 //    (vite.config.ts says more), and no check here can tell.
 //
 // 6. Stylesheet order (step 12 too): on each page, the last rule that places
-//    one of MapLibre's four corners is index.css's, inside the safe area, so
+//    one of MapLibre's four corners is global.css's, inside the safe area, so
 //    the attribution the licence asks for is never under a home indicator.
 //    And each page asks for its stylesheets before its scripts, so over
 //    HTTP/1.1 the first paint does not wait behind them (2026-10-05).
@@ -65,7 +65,7 @@
 // 8. The map file asked for as the root page is read (the cheap-phone plan,
 //    step 20, 2026-10-04; vite.config.ts, mapFileEarly): index.html carries
 //    the plain script that asks for MAP_FILE_URL and leaves the request
-//    under EARLY_MAP_FILE (both read from mapFile.ts), ahead of its module
+//    under EARLY_MAP_FILE (both read from map-file.ts), ahead of its module
 //    script, preloads and stylesheets; the studio's page has none. Without
 //    it the app asks for the file itself, once, and the map opens all the
 //    same, only later: no suite would say so (review of the owner's Q1,
@@ -376,7 +376,7 @@ const GROUPS = [
     holds: 'maplibre-gl-shared.mjs alone, and imports none of our code',
   },
   { name: 'react', maxGzKb: 70, vendor: true, packages: ['react', 'react-dom', 'scheduler'], holds: 'react, react-dom and scheduler, none of our code, and imports none of it' },
-  // From maplibre-gl, its stylesheet and the worker's address (MapView.tsx);
+  // From maplibre-gl, its stylesheet and the worker's address (map-view.tsx);
   // its JavaScript here would be over the ceiling.
   { name: 'shared', maxGzKb: 80, vendor: false, packages: ['maplibre-gl'], holds: 'our shared code and no package but maplibre-gl' },
 ]

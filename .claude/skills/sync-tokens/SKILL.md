@@ -6,7 +6,7 @@ description: Diff the Figma file's variables against src/design-system/foundatio
 # Sync the Figma variables into tokens.css
 
 The Figma file is PalimosPoDesignSystem's source of truth for tokens; `src/design-system/foundation/tokens.css`
-is its mirror; `src/design-system/foundation/Tokens.stories.tsx` is the visible check. This
+is its mirror; `src/design-system/foundation/tokens.stories.tsx` is the visible check. This
 skill reads Figma, diffs, applies, and proves it.
 
 ## 1. Read Figma
@@ -50,14 +50,14 @@ already is the Figma value.
 
 - Edit `tokens.css`: keep the file's comment voice, group order and the
   Light-block structure.
-- Update `Tokens.stories.tsx` so every token shows: new semantics get a
+- Update `tokens.stories.tsx` so every token shows: new semantics get a
   swatch or text line, new custom families a `Ramp` — with **literal**
   class names written out (Tailwind cannot see built names; the empty
   ramps of 2026-09-28 are the warning).
 - Renames in Figma rename the token here too, and every usage of the old
   class in `src/` (grep for it).
 - A **Map/…** semantic is also written into
-  `src/design-system/foundation/mapColours.ts`, keyed by its Figma name, as
+  `src/design-system/foundation/map-colours.ts`, keyed by its Figma name, as
   the hex of the primitive it aliases: the map's paint (MapLibre) reads
   neither var() nor Tailwind's oklch. `npm run test:unit` fails until the
   two agree (`tests/unit/map-colours-test.mjs`).

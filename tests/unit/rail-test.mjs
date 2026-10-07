@@ -88,7 +88,7 @@ test("the ride-to cut of a place shared by a jeep hintuan and a station keeps to
   assert.deepEqual(rideCut(v(LRT1), STOPS, 'lrt-buendia').dots.map((d) => d.stopId), ['lrt-buendia'])
 })
 
-// The studio's links when a hintuan is saved (stopsGeometry.ts, linksThrough):
+// The studio's links when a hintuan is saved (stops-geometry.ts, linksThrough):
 // the one place that writes a box's route list, by the same rule.
 test('a saved box is linked only to the directions that stop at it', () => {
   const dir = (id, route) => ({ id, route, shape: { type: 'LineString', coordinates: LINE } })

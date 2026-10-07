@@ -137,7 +137,7 @@ export function checkMapData(file) {
     if (s.line != null && s.kind !== 'hintuan') problems.push(`hotspot "${label}" (${s.id}) is a ${s.kind} with a line; a station is a hintuan`)
     if (s.line != null) {
       if (!LINES.includes(s.line)) problems.push(`hotspot "${label}" (${s.id}) is a station of "${s.line}", which is not a line`)
-      // A train's station is priced by the name the card shows (railFares.ts): one the table does not know has no fare.
+      // A train's station is priced by the name the card shows (rail-fares.ts): one the table does not know has no fare.
       // The ferry's ride is free, so its stations need no table.
       else if (RAIL_LINES.includes(s.line) && stationIndex(s.line, label) < 0) {
         warnings.push(`station "${label}" is not in the ${s.line} fare table, so a ride to or from it shows no fare`)
@@ -160,7 +160,7 @@ export function checkMapData(file) {
     .filter((s) => s.kind === 'hintuan' && s.area && stopRing(s).length >= 3)
     .map((s) => ({ s, ring: stopRing(s), bounds: passBounds(stopRing(s), surelyFar) }))
 
-  // The orange stretches' boxes, as the app makes them from this file's hotspots (linePass.ts).
+  // The orange stretches' boxes, as the app makes them from this file's hotspots (line-pass.ts).
   const boxes = passBoxes(stops)
   /** The directions whose line file carries stretches the app will not take (by name, with the file). */
   const passOther = []
@@ -176,7 +176,7 @@ export function checkMapData(file) {
     } else if (isRail(v.route?.mode) && !RAIL_LINES.includes(v.route?.route_code)) {
       problems.push(`${name}: a train route whose line ("${v.route?.route_code ?? ''}") is not a train line, so it stops at no station`)
     } else if (isRail(v.route?.mode)) {
-      // The whole ride is priced from end to end by the ends' names (railFares.ts).
+      // The whole ride is priced from end to end by the ends' names (rail-fares.ts).
       for (const end of [head, tail]) {
         if (end && stationIndex(v.route.route_code, stopLabel(end)) < 0) {
           warnings.push(`${name}: ends at "${stopLabel(end)}", which is not in the ${v.route.route_code} fare table, so its card shows no fare`)

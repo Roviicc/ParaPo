@@ -246,7 +246,7 @@ function liftRecorder() {
  * In the page, before its own scripts: index.html's request for the map file
  * (the cheap-phone plan, step 20, 2026-10-04), left for the app as
  * window.__parapoMapFile — when the page's plain script left it, when the
- * app first read it, and how often (mapFile.ts takes it once, and deletes it).
+ * app first read it, and how often (map-file.ts takes it once, and deletes it).
  */
 function earlyFileRecorder() {
   let left
@@ -719,7 +719,7 @@ const snapshot = await page.evaluate(async () => {
   const routesFC = await window.__src('saved-routes')
   const stopsFC = await window.__src('saved-stops')
   // Each direction's full line, as the page reads it for a lit direction
-  // (mapFile.ts): the source holds overviews until then, and where two routes
+  // (map-file.ts): the source holds overviews until then, and where two routes
   // share a road is found on the lines themselves, as before the index.
   const { loadLine } = await import('/src/features/published-map/map-file.ts')
   const routes = []
@@ -884,7 +884,7 @@ const tripChecks = async () => {
         import('/src/shared/utils/geo.ts'),
         import('/src/features/routes/model/routes.ts'),
       ])
-      // The direction with its full line, as the page reads them (mapFile.ts).
+      // The direction with its full line, as the page reads them (map-file.ts).
       const { loadMapFile, loadLine } = await import('/src/features/published-map/map-file.ts')
       const found = (await loadMapFile()).variants.find((x) => x.id === id)
       const v = found && { ...found, shape: (await loadLine(id)) ?? found.shape }
@@ -1349,7 +1349,7 @@ const framedAboveCard = async (bbox, sheet = 'card') =>
 // The owner's two looks for the lines (2026-09-29): every one opaque in
 // Map/RouteLine/surface-default, the lit ones drawn over them in
 // …/surface-selected, and no layer shading a line. The hexes are
-// mapColours.ts's, read from the dev server; a server that cannot serve it
+// map-colours.ts's, read from the dev server; a server that cannot serve it
 // is held to two different colours.
 const MAP = await page.evaluate(async () => {
   try {
@@ -1365,7 +1365,7 @@ const twoLooks = (p, lit = MAP?.['Map/RouteLine/surface-selected']) =>
 // What is lit wears the colour of the card it answers — a picked RouteCard's,
 // an open trip's — its chevrons in the card's words' colour and its end
 // circles ringed in the line's; with no card picked, the selected blue (the
-// owner's ask, 2026-09-29). The looks are liveryLine.ts's, read from the dev
+// owner's ask, 2026-09-29). The looks are livery-line.ts's, read from the dev
 // server; a server that cannot serve it skips the colour.
 const LOOKS = await page.evaluate(async () => {
   try {
@@ -1513,7 +1513,7 @@ const openedDirection = async () => {
  * from every other line and every box, more than a tap reaches (the box's
  * corner, 20√2 px, and half the hit line's width, at the suite's zoom). Its
  * own way back may share the road where `d` is the way out: a tap there opens
- * the way out (routeTaps.ts, the outbound rule). The trip links that opened a
+ * the way out (route-taps.ts, the outbound rule). The trip links that opened a
  * given trip went on 2026-10-03; false when no vertex has the room, or the
  * card opened is another.
  */

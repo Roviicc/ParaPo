@@ -1,6 +1,6 @@
 // A child's effect run where its parent's hook stood in the commit
 // (src/shared/hooks/commit-turn.ts), and the visitor's camera that needs it
-// (useLocator.ts's `cameraTurn`, VisitorLocation.tsx; the cheap-phone plan,
+// (use-locator.ts's `cameraTurn`, visitor-location.tsx; the cheap-phone plan,
 // step 15, 2026-10-05). React runs a component's effects after all of its
 // children's, so the locator's hooks, moved from CommuterApp into a child of
 // it, would move the camera before the cards' camera of the same commit and

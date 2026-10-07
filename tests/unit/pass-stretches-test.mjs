@@ -147,7 +147,7 @@ test('a line that only comes near at its end vertex gets a stub of a stretch, as
 })
 
 // The cheap-phone plan, step 16 (a), 2026-10-04: each direction's stretches
-// worked out once per list of boxes and kept (passStretches.ts, stretchesOf),
+// worked out once per list of boxes and kept (pass-stretches.ts, stretchesOf),
 // against the hook's memo as it was, kept word for word here.
 import { passBoxes, stretchesOf, stretchesPast } from '../../src/features/routes/geo/pass-stretches.ts'
 import { servedBy, variantLine } from '../../src/features/routes/model/routes.ts'
@@ -420,11 +420,11 @@ test('step 13: the publish and the map data check import nothing from npm, all t
     }
   }
   walk(new URL('scripts/publish/publish-map.mjs', root))
-  assert.ok([...seen].some((u) => u.endsWith('/src/features/routes/geo/line-pass.ts')), 'the publish reaches linePass.ts')
+  assert.ok([...seen].some((u) => u.endsWith('/src/features/routes/geo/line-pass.ts')), 'the publish reaches line-pass.ts')
   // The check the same workflow runs after it, which reads the app's map file shape since 2026-10-06 (question T).
   walk(new URL('scripts/checks/check-map-data.mjs', root))
   assert.ok([...seen].some((u) => u.endsWith('/scripts/checks/check-map-data.mjs')), 'the check walked too')
-  assert.ok([...seen].some((u) => u.endsWith('/src/features/published-map/map-file.ts')), 'they reach mapFile.ts')
+  assert.ok([...seen].some((u) => u.endsWith('/src/features/published-map/map-file.ts')), 'they reach map-file.ts')
   assert.deepEqual(outside, [])
 })
 
@@ -469,7 +469,7 @@ test('step 13: on a copy of public/data, every line file written with its stretc
     assert.deepEqual(r.problems, [])
     assert.equal(r.notes.some((n) => /orange stretches/.test(n)), false, r.notes.join(' | '))
 
-    // The app reads them (mapFile.ts, over a fetch that serves the copy) and paints the file's, equal to what it works out.
+    // The app reads them (map-file.ts, over a fetch that serves the copy) and paints the file's, equal to what it works out.
     globalThis.fetch = async (url) => {
       try {
         return new Response(readFileSync(join(dir, String(url).replace(/^\/data\//, ''))), { headers: { 'content-type': 'application/json' } })

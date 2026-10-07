@@ -224,7 +224,7 @@ export function headerBytes(status, headers) {
  * "Routes drawn": whether the frame the map has just rendered holds the
  * routes, asked in each 'render' until it does. The routes' line layer is in,
  * their source is loaded, and its tiles hold at least one route. The source
- * is added empty at the map's 'load' (savedRoutesLayers.ts) and filled only
+ * is added empty at the map's 'load' (saved-routes-layers.ts) and filled only
  * once the map file is in, and a GeoJSON source with nothing in it loads like
  * any other: without the last test, a 'load' before the map file stamped a
  * frame with no route on it (the review of the cheap-phone plan's Step 0,

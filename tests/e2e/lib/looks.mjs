@@ -60,9 +60,9 @@ export const rideLook = (page) =>
 
 /**
  * The GL programs the map has compiled, by MapLibre's keys (window.__programs,
- * MapView.tsx), once the end circles' is among them, or `ms` has passed:
+ * map-view.tsx), once the end circles' is among them, or `ms` has passed:
  * `{ keys, circle, ms }`, `circle` false when it never came. It is compiled
- * while the map is idle, from a twin of theirs drawn once (warmPrograms.ts),
+ * while the map is idle, from a twin of theirs drawn once (warm-programs.ts),
  * so a tap does not compile it as its card comes up (the cheap-phone plan,
  * step 3, 2026-10-04).
  */

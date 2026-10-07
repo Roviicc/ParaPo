@@ -1,6 +1,6 @@
-// MapLibre's worker, started as MapView.tsx is read rather than when the map
+// MapLibre's worker, started as map-view.tsx is read rather than when the map
 // is made, and the basemap's host connected to from the map's page before
-// its script has run (the cheap-phone plan, step 6, 2026-10-04). MapView.tsx
+// its script has run (the cheap-phone plan, step 6, 2026-10-04). map-view.tsx
 // itself cannot be loaded here (Vite's `?worker&url`), so the first check
 // reads it; the second runs MapLibre's own prewarm() and Style against a
 // stand-in Worker, so an upgrade that changes what prewarm() does says so;
@@ -14,7 +14,7 @@ import { BASEMAPS } from '../../src/features/routes/map/basemap.ts'
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
-test('MapView.tsx starts the worker as it is read, after giving MapLibre its address', () => {
+test('map-view.tsx starts the worker as it is read, after giving MapLibre its address', () => {
   const src = read('../../src/features/routes/map/map-view.tsx')
   // At the top of the module, unindented: not in the component or an effect.
   const set = src.search(/^setWorkerUrl\(maplibreWorkerUrl\)$/m)
@@ -80,7 +80,7 @@ test("MapLibre 6.7: prewarm() starts the one worker at the address set, there an
   await getGlobalDispatcher().waitForInitComplete()
   assert.equal(getGlobalDispatcher().actors[0].target, started[0])
 
-  // A second prewarm() — MapView.tsx read again by a hot reload in dev — starts none.
+  // A second prewarm() — map-view.tsx read again by a hot reload in dev — starts none.
   prewarm()
   assert.equal(started.length, 1)
 

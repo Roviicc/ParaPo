@@ -1,5 +1,5 @@
 // The LocatorButton on the public map (src/features/locator/use-locator.ts,
-// Locator.tsx, LocatorButton.tsx, LocatorIndicatorOverlay.tsx — the owner's
+// locator.tsx, locator-button.tsx, locator-indicator-overlay.tsx — the owner's
 // 3870:5408 rules, 2026-10-01), driven by a pretend GPS. Playwright's
 // geolocation emulation feeds the browser's own watchPosition, so the app's
 // code path is the real one — except for the GPS that never has a fix, which
@@ -118,7 +118,7 @@ check('  at the map foot, bottom right, 12 in', Math.abs(foot.below - 12) <= 1 &
 
 await button.click()
 check('a tap shows the overlay', await until(async () => (await overlay(page).count()) === 1, 8000))
-// Its moods (locatorMood.ts, the owner's ask of 2026-10-01): glad as the location comes.
+// Its moods (locator-mood.ts, the owner's ask of 2026-10-01): glad as the location comes.
 const dotMood = () => overlay(page).locator('.locator-dot').first().getAttribute('data-mood')
 check('  the dot glad as the location comes', (await dotMood()) === 'happy', `mood ${await dotMood()}`)
 await page.waitForTimeout(1200)
@@ -247,7 +247,7 @@ await page.waitForTimeout(1200)
 check('  and the next tilts again', (await mode()) === 'TracksTheMapBasedOnCompassFacing' && Math.abs((await camera(page)).pitch - 45) < 0.5, `${await mode()}`)
 
 // The app moves the camera for the visitor (a hintuan picked, an end tapped:
-// shared/map/MapView.tsx APP_MOVE). That lets go too, or the next fix undoes it.
+// features/routes/map/map-view.tsx APP_MOVE). That lets go too, or the next fix undoes it.
 const away = north(p, 400)
 await page.evaluate((c) => window.__map.easeTo({ center: [c.longitude, c.latitude], duration: 0 }, { appMove: true }), away)
 await page.waitForTimeout(300)
@@ -260,7 +260,7 @@ const kept = await camera(page)
 check('  and the next fix leaves the camera where the app put it', Math.abs(kept.latitude - moved.latitude) < 1e-7, `${((kept.latitude - moved.latitude) / M_LAT).toFixed(1)} m moved`)
 
 // A route tapped: the dot gazes at it — its eyes turn the way to it for three
-// seconds, then wander again (dotGaze.ts; the owner's ask, 2026-10-01).
+// seconds, then wander again (dot-gaze.ts; the owner's ask, 2026-10-01).
 const onLine = await page.evaluate(async () => {
   const m = window.__map
   const data = await m.getSource('saved-routes')?.getData()
@@ -326,7 +326,7 @@ if (!onLine) {
   // camera following the visitor takes over in the same commit, as it did
   // when the locator's hooks were CommuterApp's own, after the cards'. Since
   // they moved into VisitorLocation, which React runs before the page's own
-  // effects, its camera waits for the page's turn (commitTurn.ts; the
+  // effects, its camera waits for the page's turn (commit-turn.ts; the
   // cheap-phone plan, step 15, 2026-10-05). It stays on the visitor, at the
   // zoom it followed at.
   // A list where routes share the road, or a trip's card: either has a handle.

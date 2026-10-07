@@ -15,7 +15,7 @@
 //
 // It builds its own copy of the site once, before anything is timed, with
 // VITE_EXPOSE_MAP=1, which hands the map out as a development build does
-// (MapView.tsx: window.__mapEarly from its making, window.__map and
+// (map-view.tsx: window.__mapEarly from its making, window.__map and
 // window.__programs from its 'load'), into node_modules/.cache/phone-speed —
 // never dist/, which pwa-test serves — and serves it on :4175 as Cloudflare
 // would: text gzipped, so the bytes counted are the wire's; public/_headers'
@@ -95,7 +95,7 @@
 //   rows) or a trip; the TBT and longest task of the 3 s after; and the GL
 //   programs the tap compiled: window.__programs() before it and once the
 //   card is up and the map idle. Before it, the end circles' program, which
-//   the map compiles while idle since 2026-10-04 (warmPrograms.ts), is waited
+//   the map compiles while idle since 2026-10-04 (warm-programs.ts), is waited
 //   for, 10 s at most, and whether it was there is said (circleBefore). The
 //   spots are chosen in the warm-up and the same every run.
 // Service workers are blocked but in the sw scenario.
@@ -177,7 +177,7 @@ const SETTINGS = {
   // After a tap, how long the card and the map have to be up and idle.
   idleCapMs: 30000,
   // Before a tap, how long the end circles' GL program has to be compiled
-  // (warmPrograms.ts, the cheap-phone plan, step 3).
+  // (warm-programs.ts, the cheap-phone plan, step 3).
   warmCapMs: 10000,
   // From the navigation, how long the service worker has to be installed.
   swCapMs: 120000,
@@ -203,7 +203,7 @@ const builtJs = readdirSync(join(SITE, 'assets'))
   .map((f) => readFileSync(join(SITE, 'assets', f), 'utf8'))
 for (const name of ['__map', '__mapEarly', '__programs']) {
   if (!builtJs.some((js) => new RegExp(`${name}\\b`).test(js))) {
-    console.error(`the build does not hand out window.${name}: is VITE_EXPOSE_MAP still read in MapView.tsx?`)
+    console.error(`the build does not hand out window.${name}: is VITE_EXPOSE_MAP still read in map-view.tsx?`)
     process.exit(1)
   }
 }

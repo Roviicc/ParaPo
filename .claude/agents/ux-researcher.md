@@ -59,7 +59,7 @@ dated in its title rather than overwriting the old one. Images go in with
 ## Judging a screen
 
 For each screen, look at the image and read the component that draws it
-(`src/commuter`, `src/shared`, `src/studio`). The comments there explain
+(`src/app`, `src/features`, `src/shared`). The comments there explain
 choices already made on purpose, so do not flag those as mistakes without
 saying why the reason no longer holds. Then ask:
 

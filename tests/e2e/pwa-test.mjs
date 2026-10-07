@@ -185,7 +185,7 @@ try {
   await page.goto(`${base}/`, { waitUntil: 'load' })
   check('index.html links the manifest', await page.evaluate(() => !!document.querySelector('link[rel="manifest"][href="/manifest.webmanifest"]')))
   // The page as served starts in the brand colour the manifest carries; once
-  // the map is up, the status bar takes the map's background (statusBar.ts).
+  // the map is up, the status bar takes the map's background (status-bar.ts).
   const served = await page.evaluate(async () => (await (await fetch('/')).text()).match(/<meta name="theme-color" content="([^"]+)"/)?.[1] ?? null)
   check('theme-color meta matches the manifest, as served', served === manifest?.theme_color, `${served} vs ${manifest?.theme_color}`)
   // A production build keeps the map to itself: the bar leaving the brand

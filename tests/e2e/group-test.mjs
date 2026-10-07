@@ -59,7 +59,7 @@ const offLine = (p, coords) => {
 // The owner's two looks for the lines (2026-09-29), in the studio too: every
 // one opaque in Map/RouteLine/surface-default, the lit ones drawn over them
 // in …/surface-selected, and no layer shading a line. The hexes are
-// mapColours.ts's, read from the dev server; a server that cannot serve it
+// map-colours.ts's, read from the dev server; a server that cannot serve it
 // is held to two different colours.
 const MAP = await page.evaluate(async () => {
   try {
@@ -186,7 +186,7 @@ if (!spot) {
    * A degree is the map's own — geo.ts's haversine, on a 6,371 km earth.
    */
   const apart = (a, b) => Math.hypot((b[0] - a[0]) * Math.cos((a[1] * Math.PI) / 180), b[1] - a[1]) * 111_195
-  // directionArrows.ts's SAME_END_M, and a metre either side of it for the
+  // direction-arrows.ts's SAME_END_M, and a metre either side of it for the
   // flat sum above.
   const SAME_END_M = 150
   /**
@@ -235,7 +235,7 @@ if (!spot) {
   check('  a circle at each end of each lit direction', out.ends === 2 * litOut.length, `${out.ends} circle(s)`)
   // Every end named with the list's own words, each place once where its
   // ends meet: two ends of one name are one place within 150 m (SAME_END_M
-  // in directionArrows.ts), and each has its name further apart — as the
+  // in direction-arrows.ts), and each has its name further apart — as the
   // routes into SM Fairview from Tala and from Bagong Silang Phase 5 do, 649
   // m apart ("two labels are right", the owner, 2026-09-29).
   const placesOut = new Set([out.card.from, ...out.card.rows.map((r) => r.to)])

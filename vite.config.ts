@@ -21,7 +21,8 @@ if (!MAP_FILE_URL || !EARLY_MAP_FILE) {
  * Writes .vite/modules.json: every output chunk and the source modules inside
  * it. Vite's manifest lists which chunks a page loads but not what went into
  * them; with this, scripts/checks/check-build.mjs can prove that no file from
- * src/studio/ reaches the public page, whatever that file happens to contain.
+ * src/app/studio/ or src/features/studio/ reaches the public page, whatever
+ * that file happens to contain.
  */
 function chunkModules(): Plugin {
   return {
@@ -126,9 +127,9 @@ function readOutDir(): Plugin {
  * script after a stylesheet waits for it), so the 22 kB file comes over
  * while the app's 385 kB (355 before step 14, 2026-10-05) still downloads,
  * and the routes can go onto the map as soon as its style is in (the
- * owner's Q1, MapView's `openOn`). mapFile.ts takes the answer once, under
+ * owner's Q1, MapView's `openOn`). map-file.ts takes the answer once, under
  * EARLY_MAP_FILE, and treats it as the one it would have fetched itself.
- * `no-cache`, as mapFile.ts asks: the file keeps no hash in its name. Low
+ * `no-cache`, as map-file.ts asks: the file keeps no hash in its name. Low
  * priority: the app's script, which needs the whole link, keeps it first.
  * The studio's page reads the live tables and gets none. Not a word of the
  * registration here: check-build.mjs fails a page that carries one.
@@ -164,7 +165,7 @@ function mapFileEarly(): Plugin {
  * maplibre-gl-shared chunk (the priority-3 group below), which the browser
  * already holds, and what is left of it is a few kB.
  *
- * Build only: under `npm run dev` MapView.tsx's `?worker&url` reaches Vite's
+ * Build only: under `npm run dev` map-view.tsx's `?worker&url` reaches Vite's
  * own worker plugin as it always did. In a build this answers that import
  * first, with the URL of the chunk it emits. check-build.mjs proves the
  * worker imports nothing but MapLibre's shared code and Vite's preload
@@ -238,7 +239,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // The commuter shell and nothing else. The glob keeps out studio/,
+        // The public map's shell and nothing else. The glob keeps out studio/,
         // .vite/, data/ and _headers by construction; the transform below
         // then drops every chunk the public page does not load, so a studio-only
         // chunk (the editor, the Supabase client) is never stored on a phone.
@@ -295,7 +296,7 @@ export default defineConfig({
             // from here. (Shapes 1 to 3, /data/map.json, /data/index.json and
             // /data/index.v3.json, are older apps', each read through its own
             // worker; an older copy left in this store is the offline map
-            // until the new one is fetched, mapFile.ts's STORED_OLD.)
+            // until the new one is fetched, map-file.ts's STORED_OLD.)
             urlPattern: ({ url, request }) =>
               request.method === 'GET' && url.origin === self.location.origin && url.pathname === '/data/index.v4.json',
             handler: 'NetworkFirst',
@@ -450,7 +451,7 @@ export default defineConfig({
       // What both pages load, in chunks named for what they are (the
       // cheap-phone plan, step 12, 2026-10-05): MapLibre, React, and the
       // shared code. As one chunk (348 kB gzipped) any change to
-      // src/shared or src/design-system gave it a new name, and every
+      // src/features, src/shared or src/design-system gave it a new name, and every
       // returning phone fetched MapLibre and React again with it: 306 kB
       // of a deploy's 363 kB, over a link the visitor's index and tiles
       // want too. Now such a deploy is the 56 kB of our own code. React's
@@ -473,7 +474,7 @@ export default defineConfig({
       //    and React into the worker.
       //  - maplibre: maplibre-gl.mjs, its page's JavaScript. Not its
       //    stylesheet, which stays with the shared code's CSS
-      //    (shared-*.css), ahead of index.css's safe-area overrides of its
+      //    (shared-*.css), ahead of global.css's safe-area overrides of its
       //    corners, which must come after it to win; and not the worker's
       //    file, which would bring it all into the worker.
       //  - react: react, react-dom and scheduler.
