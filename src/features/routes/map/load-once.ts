@@ -1,7 +1,7 @@
 /**
  * Runs `load` for `key` unless it already ran for that very key: `loaded`
  * keeps the last. The routes' and hotspots' hooks load what they draw as
- * they mount (useSavedRoutes, useSavedStops), keyed on their loader, which
+ * they mount (useSavedRoutes, useSavedHotspots), keyed on their loader, which
  * is one module-level function.
  *
  * Why (review of the sources group, 2026-10-05): React's StrictMode runs

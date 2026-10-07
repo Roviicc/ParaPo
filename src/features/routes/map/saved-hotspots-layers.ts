@@ -5,25 +5,25 @@ import { MAP_OPACITY, MAP_PAINT } from '@/design-system/foundation/map-colours';
 import type { LngLat } from '@/shared/utils/geo';
 
 import { HOTSPOT_COLOUR, HOTSPOT_CONTENT, HOTSPOT_OPACITY } from './colours';
+import type { BoxMark } from './hotspots-shown';
 import { useLayerSwitch } from './layer-switch';
 import { LAYERS, applyHidden, firstLayerOfType, layOutOnce } from './layers';
-import type { BoxMark } from './stops-shown';
-import { STOPS_FILL_LAYER } from './tap';
+import { HOTSPOTS_FILL_LAYER } from './tap';
 import { ringToPolygon, type Ring } from '../geo/ring';
+import { hotspotRing, type HotspotKind, type Hotspot } from '../model/hotspots';
 import { labelGroups } from '../model/places';
-import { stopRing, type StopKind, type StopSummary } from '../model/stops';
 
 /*
  * The saved hotspots on the map: their source, the place wash's, their
- * layers, and what a tap marks on them. Split from useSavedStops.ts,
+ * layers, and what a tap marks on them. Split from useSavedHotspots.ts,
  * 2026-09-29.
  */
 
 const SRC = 'saved-stops';
-const FILL = STOPS_FILL_LAYER;
+const FILL = HOTSPOTS_FILL_LAYER;
 const OUTLINE = 'saved-stops-outline';
 const LABEL = 'saved-stops-label';
-const HINTUAN_LABEL = LAYERS.stopsHintuanLabel;
+const HINTUAN_LABEL = LAYERS.hotspotsHintuanLabel;
 /**
  * Hotspot names show only close in. Further out a name sat over the line's
  * stretch through the hotspot. The owner's asks of
@@ -42,7 +42,7 @@ const state = (name: 'lit' | 'sibling' | 'chosen') =>
  * label's `ids` are its boxes' ids joined by commas: a GeoJSON array property
  * reaches the style as a string anyway, and an id is a UUID, so `in` is exact.
  */
-const labelsOf = (kind: StopKind, hidden = '') =>
+const labelsOf = (kind: HotspotKind, hidden = '') =>
   [
     'all',
     ['==', ['geometry-type'], 'Point'],
@@ -59,7 +59,7 @@ const labelsOf = (kind: StopKind, hidden = '') =>
  * zoom 16.24, a visitor's pinch or a hotspot's glide): 5-50 ms of a cheap
  * phone's main thread then (the cheap-phone plan, step 4, 2026-10-04).
  */
-export function namePaint(kind: StopKind) {
+export function namePaint(kind: HotspotKind) {
   return {
     'text-color': HOTSPOT_CONTENT[kind],
     'text-halo-color': MAP_PAINT['Paint/casing'],
@@ -86,7 +86,7 @@ export function boxState(mark: BoxMark | undefined): {
     chosen: mark === 'chosen',
   };
 }
-const hatchOf = (kind: StopKind) => `hotspot-hatch-${kind}`;
+const hatchOf = (kind: HotspotKind) => `hotspot-hatch-${kind}`;
 
 /**
  * The Selected box's stripes (3837:11308): 0.6 px lines of the box's content
@@ -155,7 +155,7 @@ const DRAW_ABOVE = LAYERS.drawCasing;
  * marks with it, before it opens the outline, and takes no tap on a box
  * while one is open.
  */
-export function hiddenStopFilters(hidden: string): [string, unknown][] {
+export function hiddenHotspotFilters(hidden: string): [string, unknown][] {
   const boxes = ['all', ['==', ['geometry-type'], 'Polygon'], ['!=', ['get', 'id'], hidden]];
   return [
     [FILL, boxes],
@@ -171,13 +171,13 @@ export function hiddenStopFilters(hidden: string): [string, unknown][] {
  * The saved hotspots as their source takes them: each box with an area,
  * and one name for each place on the ground.
  */
-export function stopsData(stops: readonly StopSummary[]) {
+export function hotspotsData(hotspots: readonly Hotspot[]) {
   // The label on the map is the name written on the ground, not the informal
   // one the cards, pickers and route names read: the map draws boxes, and the
   // three boxes of one place would otherwise carry three identical labels.
   // Tapping still opens a card that leads with the informal name and shows
   // the ground name beneath it, so neither is lost. Decided 2026-09-22.
-  const withArea = stops.filter((s) => stopRing(s).length >= 3);
+  const withArea = hotspots.filter((s) => hotspotRing(s).length >= 3);
   return {
     type: 'FeatureCollection' as const,
     features: [
@@ -192,7 +192,7 @@ export function stopsData(stops: readonly StopSummary[]) {
       ...labelGroups(
         withArea.map((s) => ({
           ...s,
-          point: { type: 'Point' as const, coordinates: boxMiddle(stopRing(s)) },
+          point: { type: 'Point' as const, coordinates: boxMiddle(hotspotRing(s)) },
         })),
       ).map((g) => ({
         type: 'Feature' as const,
@@ -204,17 +204,17 @@ export function stopsData(stops: readonly StopSummary[]) {
 }
 
 /**
- * The saved hotspots' source, laid out from `stops`, and the place wash's,
+ * The saved hotspots' source, laid out from `hotspots`, and the place wash's,
  * and their layers, added to `map` under the routes: what
- * useSavedStopsLayers adds once a map is there, apart so a unit check can
+ * useSavedHotspotsLayers adds once a map is there, apart so a unit check can
  * read it (map-sources-test).
  */
-export function addSavedStops(
+export function addSavedHotspots(
   map: Pick<
     MapLibreMap,
     'addSource' | 'addLayer' | 'getLayersOrder' | 'getLayer' | 'hasImage' | 'addImage'
   >,
-  stops: readonly StopSummary[] = [],
+  hotspots: readonly Hotspot[] = [],
 ): void {
   // Under the routes, under the draft, and under the basemap's labels in
   // any case: a box never hides a street name.
@@ -229,7 +229,7 @@ export function addSavedStops(
   map.addSource(SRC, {
     type: 'geojson',
     promoteId: 'id',
-    data: stopsData(stops),
+    data: hotspotsData(hotspots),
   });
   map.addSource(WASH_SRC, {
     type: 'geojson',
@@ -371,14 +371,14 @@ export function addSavedStops(
 }
 
 /**
- * The saved hotspots' sources and layers on `map`: laid out from `stops`, the
- * one being edited hidden, each box marked as `marks` says (stopsShown.ts),
+ * The saved hotspots' sources and layers on `map`: laid out from `hotspots`, the
+ * one being edited hidden, each box marked as `marks` says (hotspots-shown.ts),
  * and the place wash over `hull`.
  */
-export function useSavedStopsLayers(
+export function useSavedHotspotsLayers(
   map: MapLibreMap | null,
-  stops: readonly StopSummary[],
-  hiddenStopId: string | null | undefined,
+  hotspots: readonly Hotspot[],
+  hiddenHotspotId: string | null | undefined,
   marks: ReadonlyMap<string, BoxMark>,
   hull: Ring,
 ) {
@@ -387,19 +387,19 @@ export function useSavedStopsLayers(
   // laid out in the one worker round trip that adds the source rather
   // than an empty one and then the hotspots; later ones are the next
   // effect's, and the same ones are not laid out twice.
-  const laidOut = useRef<readonly StopSummary[] | null>(null);
+  const laidOut = useRef<readonly Hotspot[] | null>(null);
   useEffect(() => {
     if (!map || map.getSource(SRC)) return;
-    addSavedStops(map, stops);
-    laidOut.current = stops;
+    addSavedHotspots(map, hotspots);
+    laidOut.current = hotspots;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- lays out the hotspots the source is made with; later ones are the next effect's
   }, [map]);
 
   useEffect(() => {
     if (!map) return;
     const src = map.getSource(SRC) as GeoJSONSource | undefined;
-    if (src) layOutOnce(laidOut, stops, (next) => src.setData(stopsData(next)));
-  }, [map, stops]);
+    if (src) layOutOnce(laidOut, hotspots, (next) => src.setData(hotspotsData(next)));
+  }, [map, hotspots]);
 
   // What a tap did to each box, as feature state: lit (chosen, or under the
   // tap while the sheet asks), the chosen one, and its siblings — nothing
@@ -450,8 +450,8 @@ export function useSavedStopsLayers(
   const hiddenNow = useRef<string | null>(null);
   useEffect(() => {
     if (!map || !map.getLayer(FILL)) return;
-    applyHidden(hiddenNow, hiddenStopId, (hidden) => {
-      for (const [id, filter] of hiddenStopFilters(hidden)) map.setFilter(id, filter as never);
+    applyHidden(hiddenNow, hiddenHotspotId, (hidden) => {
+      for (const [id, filter] of hiddenHotspotFilters(hidden)) map.setFilter(id, filter as never);
     });
-  }, [map, hiddenStopId]);
+  }, [map, hiddenHotspotId]);
 }

@@ -4,26 +4,26 @@ import {
   ringToPolygon,
   type Ring,
 } from '@/features/routes/geo/ring';
-import { variantLine, type VariantRow } from '@/features/routes/model/routes';
 import {
   normaliseName,
   type PointGeoJSON,
-  type StopKind,
-  type StopLink,
-  type StopRow,
-} from '@/features/routes/model/stops';
+  type HotspotKind,
+  type HotspotLink,
+  type HotspotRow,
+} from '@/features/routes/model/hotspots';
+import { variantLine, type VariantRow } from '@/features/routes/model/routes';
 import { hintuansAlong } from '@/features/routes/model/timeline';
 import { roundLngLat } from '@/shared/utils/geo';
 
+import { linksThrough } from './hotspots-geometry';
 import { readAll } from './read-all';
-import { linksThrough } from './stops-geometry';
 import { requireSupabase } from './supabase';
 
 const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim());
 
 export interface SaveStopInput {
   stopId: string | null;
-  kind: StopKind;
+  kind: HotspotKind;
   /** What is written on the ground. Required. */
   name: string;
   /** What people say. Blank means "the same as the name". */
@@ -50,7 +50,7 @@ export interface SaveStopInput {
 export async function saveStop(
   input: SaveStopInput,
   onWritten?: (stopId: string) => void,
-): Promise<StopRow> {
+): Promise<HotspotRow> {
   const client = requireSupabase();
   if (input.ring.length < 3) throw new Error('A hotspot needs at least three corners');
 
@@ -92,41 +92,41 @@ export async function saveStop(
     }
     throw new Error(error.message);
   }
-  const stop = data as StopRow;
-  onWritten?.(stop.id);
+  const hotspot = data as HotspotRow;
+  onWritten?.(hotspot.id);
 
   // Links: computed for a hintuan, chosen for a terminal. Either way the
   // sequence is where the direction first meets the outline (0 when a ticked
   // terminal route never actually enters it — still a valid, ordered link).
   const byId = new Map(input.variants.map((v) => [v.id, v]));
-  const links: StopLink[] =
+  const links: HotspotLink[] =
     input.kind === 'hintuan'
-      ? linksThrough(ring, input.variants, stop.line ?? null).map((l) => ({
+      ? linksThrough(ring, input.variants, hotspot.line ?? null).map((l) => ({
           route_variant_id: l.variantId,
-          stop_id: stop.id,
+          stop_id: hotspot.id,
           stop_sequence: l.sequence,
         }))
       : (input.variantIds ?? [])
           .filter((id) => byId.has(id))
           .map((id) => ({
             route_variant_id: id,
-            stop_id: stop.id,
+            stop_id: hotspot.id,
             stop_sequence: Math.max(0, firstTouchIndex(variantLine(byId.get(id)!), ring)),
           }));
 
   try {
-    await replaceLinks(stop.id, links);
+    await replaceLinks(hotspot.id, links);
   } catch (err) {
     throw new Error(
       `The hotspot is saved, but its route links are not: ${err instanceof Error ? err.message : String(err)}. ` +
         'Press Save again to retry.',
     );
   }
-  return stop;
+  return hotspot;
 }
 
 /** Replace every link for one hotspot with the given set. */
-async function replaceLinks(stopId: string, links: StopLink[]) {
+async function replaceLinks(stopId: string, links: HotspotLink[]) {
   const client = requireSupabase();
   const del = await client.from('route_stop').delete().eq('stop_id', stopId);
   if (del.error) throw new Error(del.error.message);
@@ -140,11 +140,11 @@ async function replaceLinks(stopId: string, links: StopLink[]) {
  * RLS will not let through is not an error to PostgREST, only no rows: the
  * rows are read back, and none is said (review of 2026-10-03, finding 6).
  */
-export async function deleteStop(stop: StopRow): Promise<void> {
+export async function deleteStop(hotspot: HotspotRow): Promise<void> {
   const { data, error } = await requireSupabase()
     .from('stop')
     .delete()
-    .eq('id', stop.id)
+    .eq('id', hotspot.id)
     .select('id');
   if (error) throw new Error(error.message);
   if (!data?.length) throw new Error(NOTHING_CHANGED);
@@ -164,7 +164,7 @@ export async function syncHintuanLinks(variant: VariantRow): Promise<void> {
   // Paged, as every table read is (readAll.ts): past 1,000 hintuans one
   // request would silently see a subset (review finding 4).
   const [hintuans, linked] = await Promise.all([
-    readAll<StopRow>((from, to) =>
+    readAll<HotspotRow>((from, to) =>
       client
         .from('stop')
         .select('*', { count: 'exact' })
@@ -188,9 +188,9 @@ export async function syncHintuanLinks(variant: VariantRow): Promise<void> {
   // The same rule the save panel showed before Save was pressed. A link to a
   // hintuan this route does not stop at (servedBy) is one it no longer earns.
   const along = hintuansAlong(variantLine(variant), hintuans, variant.route);
-  const keep: StopLink[] = along.map(({ stop, index }) => ({
+  const keep: HotspotLink[] = along.map(({ hotspot, index }) => ({
     route_variant_id: variant.id,
-    stop_id: stop.id,
+    stop_id: hotspot.id,
     stop_sequence: index,
   }));
   const kept = new Set(keep.map((k) => k.stop_id));

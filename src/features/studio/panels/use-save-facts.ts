@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { hotspotLabel, type HotspotRow } from '@/features/routes/model/hotspots';
 import { placeKey } from '@/features/routes/model/places';
 import {
   directionName,
@@ -10,7 +11,6 @@ import {
   type TransportMode,
   type VariantRow,
 } from '@/features/routes/model/routes';
-import { stopLabel, type StopRow } from '@/features/routes/model/stops';
 import { hintuansAlong, timelineFor } from '@/features/routes/model/timeline';
 import { haversine, joinSegments, type LngLat } from '@/shared/utils/geo';
 
@@ -30,7 +30,7 @@ export function useSaveFacts({
   existing,
   parent,
   slotReversed,
-  stops,
+  hotspots,
   variants,
   head,
   tail,
@@ -43,10 +43,10 @@ export function useSaveFacts({
   existing: VariantRow | null;
   parent: RouteRow | null;
   slotReversed: boolean | null;
-  stops: StopRow[];
+  hotspots: HotspotRow[];
   variants: VariantRow[];
-  head: StopRow | undefined;
-  tail: StopRow | undefined;
+  head: HotspotRow | undefined;
+  tail: HotspotRow | undefined;
   headId: string;
   tailId: string;
   via: string;
@@ -100,8 +100,8 @@ export function useSaveFacts({
   }, [existing, headId, tailId, via, variants]);
   // By place, as the pickers choose: another box of the same place is the
   // same end.
-  const headNow = existing ? stops.find((s) => s.id === existing.route.head_stop_id) : undefined;
-  const tailNow = existing ? stops.find((s) => s.id === existing.route.tail_stop_id) : undefined;
+  const headNow = existing ? hotspots.find((s) => s.id === existing.route.head_stop_id) : undefined;
+  const tailNow = existing ? hotspots.find((s) => s.id === existing.route.tail_stop_id) : undefined;
   const turnedRound =
     !!existing &&
     !!head &&
@@ -164,17 +164,20 @@ export function useSaveFacts({
     return full ? borrowedOn(full.coordinates) : 0;
   };
 
-  const name = head && tail ? routeName(stopLabel(head), stopLabel(tail), via) : '';
-  const direction = head && tail ? directionName(stopLabel(head), stopLabel(tail), reversed) : '';
+  const name = head && tail ? routeName(hotspotLabel(head), hotspotLabel(tail), via) : '';
+  const direction =
+    head && tail ? directionName(hotspotLabel(head), hotspotLabel(tail), reversed) : '';
   // The line a train runs is its route's (route_code); a new route has none yet.
   const routeCode = (existing?.route ?? parent)?.route_code ?? null;
   // The snapped geometry, not the control points: a box between two clicks
   // still counts, and this is the line the save will check.
   const preview = useMemo(() => {
     const line = joinSegments(draw.segments);
-    const along = hintuansAlong(line, stops, { mode, route_code: routeCode }).map((a) => a.stop);
+    const along = hintuansAlong(line, hotspots, { mode, route_code: routeCode }).map(
+      (a) => a.hotspot,
+    );
     return timelineFor(head, tail, reversed, along, line[0]);
-  }, [head, tail, reversed, draw.segments, stops, mode, routeCode]);
+  }, [head, tail, reversed, draw.segments, hotspots, mode, routeCode]);
 
   return {
     reversed,

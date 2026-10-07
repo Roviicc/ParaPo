@@ -1,4 +1,5 @@
 import { coarsePointer } from '@/features/routes/map/tap';
+import type { HotspotRow } from '@/features/routes/model/hotspots';
 import { travelLine } from '@/features/routes/model/ride';
 import {
   isDrawn,
@@ -6,7 +7,6 @@ import {
   type VariantDrawing,
   type VariantRow,
 } from '@/features/routes/model/routes';
-import type { StopRow } from '@/features/routes/model/stops';
 import type { LngLat } from '@/shared/utils/geo';
 
 import { lineToFollow } from './borrow';
@@ -23,13 +23,13 @@ import type { SaveTarget } from '../panels/use-save-target';
 export function useFollow({
   draw,
   variants,
-  stops,
+  hotspots,
   target,
   setNotice,
 }: {
   draw: Drawing;
   variants: VariantRow[];
-  stops: StopRow[];
+  hotspots: HotspotRow[];
   target: SaveTarget;
   setNotice: (text: string) => void;
 }) {
@@ -46,16 +46,16 @@ export function useFollow({
       if (gate.problem) setNotice(gate.problem);
       return;
     }
-    const home = target.placeOfStop(target.destinationStopId);
+    const home = target.placeOfHotspot(target.destinationHotspotId);
     const options = ids
       .map((id) => variants.find((v) => v.id === id))
       .filter((v): v is VariantRow => !!v && isDrawn(v))
       .map((v) => ({
         v,
-        travel: travelLine(v, stops),
+        travel: travelLine(v, hotspots),
         endsAtDestination:
           home !== null &&
-          target.placeOfStop(v.reversed ? v.route.head_stop_id : v.route.tail_stop_id) === home,
+          target.placeOfHotspot(v.reversed ? v.route.head_stop_id : v.route.tail_stop_id) === home,
       }));
     // The line now, without the point an offer would drop: the render's
     // `draw.line` is a step behind the edits that led here.

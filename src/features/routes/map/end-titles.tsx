@@ -64,7 +64,7 @@ export function EndTitles({
   look: LineLook;
   /** What is lit wears a card's colour: Start and End over the names. */
   badged?: boolean;
-  onPick?: (stopId: string) => void;
+  onPick?: (hotspotId: string) => void;
   /** A direction's trip to open, from the one ride a tail names. */
   onTrip?: (variantId: string) => void;
 }) {
@@ -74,7 +74,7 @@ export function EndTitles({
     <>
       {rideEnds(rides)
         .filter((e) => e.named)
-        .map(({ end, name, at, stopId, rides: here }) => {
+        .map(({ end, name, at, hotspotId, rides: here }) => {
           const trip = onTrip && end === 'to' && here.length === 1 ? here[0] : null;
           return (
             <EndTitle
@@ -87,7 +87,11 @@ export function EndTitles({
               look={look}
               opens={trip ? 'trip' : 'place'}
               onPick={
-                trip ? () => onTrip?.(trip) : onPick && stopId ? () => onPick(stopId) : undefined
+                trip
+                  ? () => onTrip?.(trip)
+                  : onPick && hotspotId
+                    ? () => onPick(hotspotId)
+                    : undefined
               }
             />
           );

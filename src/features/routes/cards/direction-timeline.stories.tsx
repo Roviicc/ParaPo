@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 
-import { StopTimeline } from './stop-timeline';
+import { DirectionTimeline } from './direction-timeline';
 import type { Timeline } from '../model/timeline';
 
 /** Sample rows only, shaped like a direction's timeline. Not read from anywhere. */
@@ -19,8 +19,8 @@ const timeline: Timeline = {
 };
 
 const meta = {
-  title: 'Features/Routes/StopTimeline',
-  component: StopTimeline,
+  title: 'Features/Routes/DirectionTimeline',
+  component: DirectionTimeline,
   decorators: [
     (Story) => (
       <div className="w-80 rounded-lg bg-neutral-50 px-3 py-2">
@@ -29,7 +29,7 @@ const meta = {
     ),
   ],
   args: { timeline },
-} satisfies Meta<typeof StopTimeline>;
+} satisfies Meta<typeof DirectionTimeline>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;

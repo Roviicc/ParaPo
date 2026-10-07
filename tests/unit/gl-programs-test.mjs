@@ -26,8 +26,11 @@ import {
 } from '../../src/features/routes/map/warm-programs.ts';
 import { twinsOf } from '../../src/features/routes/map/layer-switch.ts';
 import { addSavedRoutes } from '../../src/features/routes/map/saved-routes-layers.ts';
-import { addSavedStops } from '../../src/features/routes/map/saved-stops-layers.ts';
-import { hiddenStopFilters, namePaint } from '../../src/features/routes/map/saved-stops-layers.ts';
+import { addSavedHotspots } from '../../src/features/routes/map/saved-hotspots-layers.ts';
+import {
+  hiddenHotspotFilters,
+  namePaint,
+} from '../../src/features/routes/map/saved-hotspots-layers.ts';
 import { HOTSPOT_CONTENT } from '../../src/features/routes/map/colours.ts';
 import { litOpacity } from '../../src/features/routes/map/saved-routes-layers.ts';
 import { litWidth } from '../../src/features/routes/map/line-style.ts';
@@ -502,7 +505,7 @@ test("the switched layers' twins: each layer's type and paint but its switch, dr
     addImage: () => {},
   };
   addSavedRoutes(map);
-  addSavedStops(map);
+  addSavedHotspots(map);
   layers.push(PASS_LAYER);
   const switched = [
     'saved-routes-selected-casing',
@@ -580,7 +583,7 @@ test("hotspot names are one colour a layer: the basemap's names' program, the sa
     'the match was a program of its own',
   );
   // Each layer holds one kind's names (its filter, as the layer is added: none hidden).
-  const filters = Object.fromEntries(hiddenStopFilters(''));
+  const filters = Object.fromEntries(hiddenHotspotFilters(''));
   const layers = { 'saved-stops-label': 'terminal', 'saved-stops-label-hintuan': 'hintuan' };
   for (const [id, kind] of Object.entries(layers)) {
     const paint = namePaint(kind);

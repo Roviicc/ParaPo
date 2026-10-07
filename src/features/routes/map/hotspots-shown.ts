@@ -1,11 +1,11 @@
 import { convexHull, type Ring } from '../geo/ring';
+import { hotspotRing, type Hotspot } from '../model/hotspots';
 import { siblingsOf } from '../model/places';
-import { stopRing, type StopSummary } from '../model/stops';
 
 /*
  * What a tap marks on the saved hotspots, worked out from what is chosen and
- * what the sheet asks about. Pure; useSavedStops memoises each. Split from
- * useSavedStops.ts, 2026-09-29.
+ * what the sheet asks about. Pure; useSavedHotspots memoises each. Split from
+ * useSavedHotspots.ts, 2026-09-29.
  */
 
 /** A box's mark: lit (chosen, or under the tap while the sheet asks), a sibling of the chosen one, both, or the chosen one. */
@@ -17,15 +17,15 @@ export type BoxMark = 'lit' | 'sibling' | 'lit+sibling' | 'chosen';
  * Nothing while muted.
  */
 export function boxMarks(
-  stops: readonly StopSummary[],
+  hotspots: readonly Hotspot[],
   selectedId: string | null,
-  candidates: readonly StopSummary[],
+  candidates: readonly Hotspot[],
   muted: boolean,
   /** The chosen box let go on its card: one of its place's boxes like the rest, none pressed. */
   letGo = false,
 ): Map<string, BoxMark> {
-  const chosen = muted ? undefined : stops.find((s) => s.id === selectedId);
-  const siblings = chosen ? siblingsOf(chosen, stops).map((s) => s.id) : [];
+  const chosen = muted ? undefined : hotspots.find((s) => s.id === selectedId);
+  const siblings = chosen ? siblingsOf(chosen, hotspots).map((s) => s.id) : [];
   const lit = muted ? [] : selectedId ? [selectedId] : candidates.map((s) => s.id);
   const now = new Map<string, BoxMark>();
   for (const id of lit) now.set(id, 'lit');
@@ -39,13 +39,15 @@ export function boxMarks(
  * with none, or while muted.
  */
 export function placeHull(
-  stops: readonly StopSummary[],
+  hotspots: readonly Hotspot[],
   selectedId: string | null,
   muted: boolean,
 ): Ring {
-  const chosen = muted ? undefined : stops.find((s) => s.id === selectedId);
-  const siblings = chosen ? siblingsOf(chosen, stops).filter((s) => stopRing(s).length >= 3) : [];
+  const chosen = muted ? undefined : hotspots.find((s) => s.id === selectedId);
+  const siblings = chosen
+    ? siblingsOf(chosen, hotspots).filter((s) => hotspotRing(s).length >= 3)
+    : [];
   return chosen && siblings.length > 0
-    ? convexHull([chosen, ...siblings].flatMap((s) => stopRing(s)))
+    ? convexHull([chosen, ...siblings].flatMap((s) => hotspotRing(s)))
     : [];
 }

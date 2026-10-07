@@ -26,8 +26,8 @@ import { HintuanPin } from '@/features/routes/map/hintuan-pin';
 import { METRO_MANILA, MapView } from '@/features/routes/map/map-view';
 import { StationLabels } from '@/features/routes/map/station-labels';
 import { useLitRides } from '@/features/routes/map/use-lit-rides';
+import { useSavedHotspots } from '@/features/routes/map/use-saved-hotspots';
 import { useSavedRoutes } from '@/features/routes/map/use-saved-routes';
-import { useSavedStops } from '@/features/routes/map/use-saved-stops';
 import { placeKey } from '@/features/routes/model/places';
 import { routeTimeline } from '@/features/routes/model/ride';
 import { variantLine } from '@/features/routes/model/routes';
@@ -59,12 +59,12 @@ export function PublicMapApp() {
   // read as it is lit (mapFile.ts).
   const saved = useSavedRoutes(map, loadVariantsFromFile, { loadLine });
   // While a trip is open, the map lights only the trip (the owner, 2026-09-29).
-  const stops = useSavedStops(map, loadStopsFromFile, { muted: !!saved.selected });
-  const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW;
+  const hotspots = useSavedHotspots(map, loadStopsFromFile, { muted: !!saved.selected });
+  const tooNew = saved.error === MAP_FILE_TOO_NEW || hotspots.error === MAP_FILE_TOO_NEW;
 
   // The route list, a hotspot's card and the trip opened from either: which
   // is up, what stands behind what, their height and colours (useCardStack).
-  const cards = useCardStack(map, saved, stops);
+  const cards = useCardStack(map, saved, hotspots);
   // The camera with the cards: a hintuan picked on the trip, gliding there;
   // a trip, a picked RouteCard and SWITCH taken in whole, again as the sheet
   // settles; the camera from before a hotspot's card was picked, back as it
@@ -83,10 +83,10 @@ export function PublicMapApp() {
     openRide,
     openTrip,
     backFromTrip,
-  } = useCardCamera(map, saved, stops, cards);
+  } = useCardCamera(map, saved, hotspots, cards);
   // What the lit routes wear on the map, their ends named (useLitRides): a
   // picked hintuan's ride flowing only as far as there.
-  const rides = useLitRides(map, saved, stops.stops, null, ride.ridden);
+  const rides = useLitRides(map, saved, hotspots.hotspots, null, ride.ridden);
 
   // The visitor's own position, the dot and the camera with them live in
   // VisitorLocation, so a fix, the phone's compass and the dot's moods
@@ -111,8 +111,10 @@ export function PublicMapApp() {
   const trip = saved.selected;
   const timeline = useMemo(
     () =>
-      trip ? routeTimeline(trip, stops.stops, stops.stopsAlong(trip.id, variantLine(trip))) : null,
-    [trip, stops.stops, stops.stopsAlong],
+      trip
+        ? routeTimeline(trip, hotspots.hotspots, hotspots.hotspotsAlong(trip.id, variantLine(trip)))
+        : null,
+    [trip, hotspots.hotspots, hotspots.hotspotsAlong],
   );
 
   return (
@@ -155,7 +157,7 @@ export function PublicMapApp() {
         picks={{
           pickedId: ride.pickedId,
           pinAt: ride.pinAt,
-          place: stops.selected,
+          place: hotspots.selected,
           trip: saved.selected,
           highlight: saved.highlight,
           candidates: saved.candidates,
@@ -183,7 +185,7 @@ export function PublicMapApp() {
         <StationLabels
           map={map}
           selected={saved.selected}
-          stops={stops.stops}
+          hotspots={hotspots.hotspots}
           livery={tripLivery}
           pickedId={ride.pickedId}
           onPick={ride.pick}
@@ -212,11 +214,11 @@ export function PublicMapApp() {
         share the bottom with.
       */}
       <Notices
-        loadFailed={!!(saved.error || stops.error)}
+        loadFailed={!!(saved.error || hotspots.error)}
         tooNew={tooNew}
         onTryAgain={() => {
           void saved.reload();
-          void stops.reload();
+          void hotspots.reload();
         }}
         onReloadNewer={() => void reloadForNewerApp()}
         offline={offline}
@@ -264,41 +266,41 @@ export function PublicMapApp() {
         after the trip here on purpose: their first `card` is then the trip
         while this one hides behind it.
       */}
-      {stops.selected && (
+      {hotspots.selected && (
         // Keyed by the place: another of its boxes — a row, or SWITCH moving
         // to it — keeps the card as it is, its way round with it.
         <HintuanCard
-          key={placeKey(stops.selected)}
+          key={placeKey(hotspots.selected)}
           routeCards={{
             selected: saved.highlight?.where === 'hotspot' ? saved.highlight.from : null,
             onSelect: pickOnPlaceCard,
             onShown: saved.showCard,
             // The other way round, the camera kept where it is (HintuanCard's onSwitch).
-            onSwitch: (box) => box && stops.select(box),
+            onSwitch: (box) => box && hotspots.select(box),
           }}
           hidden={!!saved.selected}
           height={height}
           dockRef={hotspotDock}
-          stop={stops.selected}
-          stops={stops.stops}
-          linkedVariantIds={stops.linkedVariantIds}
+          hotspot={hotspots.selected}
+          hotspots={hotspots.hotspots}
+          linkedVariantIds={hotspots.linkedVariantIds}
           variants={saved.variants}
           onSelectVariant={openTrip}
           // Its Selected row tapped again: no box is the one until a row is
           // picked (the owner, 2026-10-01).
-          deselected={stops.letGone}
+          deselected={hotspots.letGone}
           onDeselect={() => {
             saved.highlightCard(null);
-            stops.letGo();
+            hotspots.letGo();
           }}
           // Another box: the map goes there, the box clear of the card,
           // which stays at its height (the owner, 2026-10-01).
           onPickBox={(id) => {
             saved.highlightCard(null);
-            stops.show(id, cards.clearOf(hotspotDock));
+            hotspots.show(id, cards.clearOf(hotspotDock));
           }}
           onBack={hush(cards.backToTrip)}
-          onClose={hush(cards.closeStop)}
+          onClose={hush(cards.closeHotspot)}
         />
       )}
 
@@ -314,13 +316,13 @@ export function PublicMapApp() {
           hidden={!!saved.selected || cards.tripBehind}
           height={height}
           routes={saved.candidates}
-          stops={stops.candidates}
+          hotspots={hotspots.candidates}
           back={saved.back}
           onFlip={flipList}
           selected={saved.highlight?.where === 'list' ? saved.highlight.from : null}
           onSelect={(p) => saved.highlightCard(p && { where: 'list', ...p })}
           onRoute={openTrip}
-          onStop={(s) => cards.openStop(s.id)}
+          onHotspot={(s) => cards.openHotspot(s.id)}
           onClose={cards.closeAll}
         />
       )}

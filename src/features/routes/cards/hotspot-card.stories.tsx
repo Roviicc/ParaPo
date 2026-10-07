@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { expect, fn, userEvent, within } from 'storybook/test';
 
 import { HotspotCard } from './hotspot-card';
+import type { HotspotRow } from '../model/hotspots';
 import type { VariantSummary } from '../model/routes';
-import type { StopRow } from '../model/stops';
 
 /** Sample data only, shaped like saved rows. Not read from Supabase. */
 const route = {
@@ -14,7 +14,7 @@ const route = {
   long_name: null,
   mode: 'jeepney',
   fare_note: null,
-  head_stop_id: 'sample-stop',
+  head_stop_id: 'sample-hotspot',
   tail_stop_id: 'sample-fairview',
   via: null,
   name: 'Tala – SM Fairview',
@@ -39,8 +39,8 @@ const inbound: VariantSummary = {
   reversed: true,
 };
 
-const terminal: StopRow = {
-  id: 'sample-stop',
+const terminal: HotspotRow = {
+  id: 'sample-hotspot',
   owner_id: 'sample-owner',
   name: 'Tala Jeepney Terminal',
   informal: 'Tala',
@@ -98,7 +98,7 @@ const meta = {
   ],
   parameters: { layout: 'fullscreen' },
   args: {
-    stop: terminal,
+    hotspot: terminal,
     linkedVariantIds: [outbound.id, inbound.id],
     variants: [outbound, inbound],
     onSelectVariant: fn(),
@@ -109,13 +109,13 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** A terminal with the route through it, in the studio's rows: by the place it leaves from, ⇄ for the way back. The stop name leads; the ground name is the small line under it. */
+/** A terminal with the route through it, in the studio's rows: by the place it leaves from, ⇄ for the way back. The hotspot name leads; the ground name is the small line under it. */
 export const Terminal: Story = {};
 
 /** A hintuan with a note and nothing linked yet. */
 export const EmptyHintuan: Story = {
   args: {
-    stop: {
+    hotspot: {
       ...terminal,
       name: 'Malaria',
       informal: null,
@@ -131,7 +131,7 @@ export const EmptyHintuan: Story = {
  * One box of a place with company: the card says what SM Fairview is made
  * of and lists the other boxes, terminal first, each a tap away.
  */
-const fairview = (id: string, name: string, kind: StopRow['kind']): StopRow => ({
+const fairview = (id: string, name: string, kind: HotspotRow['kind']): HotspotRow => ({
   ...terminal,
   id,
   name,
@@ -147,8 +147,8 @@ const fairviewBoxes = [
 ];
 export const PartOfAPlace: Story = {
   args: {
-    stop: fairviewBoxes[1]!,
-    stops: fairviewBoxes,
+    hotspot: fairviewBoxes[1]!,
+    hotspots: fairviewBoxes,
     onPickSibling: fn(),
     linkedVariantIds: [inbound.id],
   },
@@ -158,7 +158,7 @@ export const PartOfAPlace: Story = {
 export const Phone: Story = {
   parameters: { phone: true },
   args: {
-    stop: { ...terminal, note: 'Jeeps queue along the kanto by the covered court.' },
+    hotspot: { ...terminal, note: 'Jeeps queue along the kanto by the covered court.' },
   },
 };
 
@@ -185,7 +185,7 @@ const drawn = (
     ],
   },
   reversed,
-  route: { ...route, id: key, name, head_stop_id: 'sample-stop', tail_stop_id: key + '-tail' },
+  route: { ...route, id: key, name, head_stop_id: 'sample-hotspot', tail_stop_id: key + '-tail' },
 });
 const talaRoutes = [
   drawn('nova', 'Tala – Novaliches', 'Tala → Novaliches', 12.4),
@@ -206,8 +206,8 @@ const talaRoutes = [
 export const RouteCards: Story = {
   args: {
     routeCards,
-    stop: fairviewBoxes[2]!,
-    stops: fairviewBoxes,
+    hotspot: fairviewBoxes[2]!,
+    hotspots: fairviewBoxes,
     onPickSibling: fn(),
     linkedVariantIds: talaRoutes.map((v) => v.id),
     variants: talaRoutes,

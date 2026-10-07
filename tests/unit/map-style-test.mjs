@@ -13,7 +13,7 @@ import { Map as MapLibreMap } from 'maplibre-gl';
 import { featureFilter, groupByLayout } from '@maplibre/maplibre-gl-style-spec';
 import { BASEMAPS, applyBasemap } from '../../src/features/routes/map/basemap.ts';
 import { applyHidden, firstLayerOfType } from '../../src/features/routes/map/layers.ts';
-import { hiddenStopFilters } from '../../src/features/routes/map/saved-stops-layers.ts';
+import { hiddenHotspotFilters } from '../../src/features/routes/map/saved-hotspots-layers.ts';
 import { backgroundColour } from '../../src/app/public-map/status-bar.ts';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
@@ -78,7 +78,7 @@ test("the studio's outline hides its saved copy, shows it again once closed, and
   ]);
 });
 
-const STOP_LAYERS = {
+const HOTSPOT_LAYERS = {
   'saved-stops-fill': 'fill',
   'saved-stops-outline': 'line',
   'saved-stops-siblings': 'fill',
@@ -95,15 +95,20 @@ const BOX_LAYERS = [
 
 test("the hotspots' three box fills, the siblings' among them, keep one filter: the worker lays them out as one bucket", () => {
   for (const hidden of ['', 'b1']) {
-    const filters = hiddenStopFilters(hidden);
+    const filters = hiddenHotspotFilters(hidden);
     assert.deepEqual(
       filters.map(([id]) => id).sort(),
-      Object.keys(STOP_LAYERS).sort(),
+      Object.keys(HOTSPOT_LAYERS).sort(),
       'every layer of the source',
     );
     // MapLibre's own grouping (style-spec groupByLayout): type, source, filter, layout.
     const groups = groupByLayout(
-      filters.map(([id, filter]) => ({ id, type: STOP_LAYERS[id], source: 'saved-stops', filter })),
+      filters.map(([id, filter]) => ({
+        id,
+        type: HOTSPOT_LAYERS[id],
+        source: 'saved-stops',
+        filter,
+      })),
     );
     const fills = groups.filter((g) => g[0].type === 'fill').map((g) => g.map((l) => l.id).sort());
     assert.deepEqual(
@@ -127,7 +132,7 @@ test('the box being edited, and the name it shares, are left out of every hotspo
   ];
   const shown = (hidden) =>
     Object.fromEntries(
-      hiddenStopFilters(hidden).map(([id, filter]) => {
+      hiddenHotspotFilters(hidden).map(([id, filter]) => {
         const f = featureFilter(filter, `layers.${id}.filter`);
         return [
           id,

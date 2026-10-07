@@ -390,7 +390,7 @@ export function useLocator(
 
   // The camera on the visitor: each fix, each turn of the phone, each tap.
   // The whole view every time, not only the centre: a fix arriving mid-glide
-  // would otherwise stop the zoom halfway. A finger zooming lets go first,
+  // would otherwise hotspot the zoom halfway. A finger zooming lets go first,
   // so the zoom is the one the tap chose.
   const lastTaps = useRef(taps);
   // The heading turns only the compass view: north stays up otherwise. And

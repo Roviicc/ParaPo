@@ -1,7 +1,7 @@
-import type { Timeline, TimelineStop } from '../model/timeline';
+import type { Timeline, TimelineRow } from '../model/timeline';
 
 /**
- * A direction as a line of stops, the way a train app shows a line: where it
+ * A direction as a line of hotspots, the way a train app shows a line: where it
  * leaves from at the top, every hintuan it passes in order, where it is going
  * at the bottom. The ends are filled dots; the hintuans are hollow. Flipping
  * the direction turns the whole thing upside down, which is exactly what
@@ -17,7 +17,7 @@ export function passesThrough(n: number): string {
   return `Passes through ${n} ${n === 1 ? 'hintuan' : 'hintuans'}`;
 }
 
-export function StopTimeline({
+export function DirectionTimeline({
   timeline,
   onPick,
   pickedId = null,
@@ -27,7 +27,7 @@ export function StopTimeline({
   onPick?: (id: string | null) => void;
   pickedId?: string | null;
 }) {
-  const rows: (TimelineStop & { end: boolean })[] = [
+  const rows: (TimelineRow & { end: boolean })[] = [
     ...(timeline.from ? [{ ...timeline.from, end: true }] : []),
     ...timeline.between.map((s) => ({ ...s, end: false })),
     ...(timeline.to ? [{ ...timeline.to, end: true }] : []),

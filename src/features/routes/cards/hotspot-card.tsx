@@ -6,13 +6,13 @@ import { Departures } from './departures';
 import { RouteCardStack, type PickedPlace } from './route-card-stack';
 import { SwitchIcon } from './switch-icon';
 import { departures, drawnDepartures } from '../model/departures';
+import { hotspotLabel, type Hotspot } from '../model/hotspots';
 import type { Livery } from '../model/liveries';
 import { placeSummary, siblingsOf } from '../model/places';
 import type { VariantSummary } from '../model/routes';
-import { stopLabel, type StopSummary } from '../model/stops';
 
 interface Props {
-  stop: StopSummary;
+  hotspot: Hotspot;
   /** Directions linked to this hotspot, in stop_sequence order. */
   linkedVariantIds: string[];
   variants: VariantSummary[];
@@ -33,7 +33,7 @@ interface Props {
     onShown: (ids: readonly string[] | null) => void;
   };
   /** Every hotspot, so the card can name the place this box belongs to and list its siblings. */
-  stops?: readonly StopSummary[];
+  hotspots?: readonly Hotspot[];
   /** Show a sibling box on the map: select it and go there. */
   onPickSibling?: (id: string) => void;
   /** Buttons along the bottom. The editor passes Edit and Delete; the public map passes nothing. */
@@ -53,21 +53,21 @@ interface Props {
  * the name and what kind of place it is; under it, the routes through it.
  */
 export function HotspotCard({
-  stop,
+  hotspot,
   linkedVariantIds,
   variants,
   onSelectVariant,
   routeCards,
-  stops = [],
+  hotspots = [],
   onPickSibling,
   actions,
   onClose,
   hidden,
   height,
 }: Props) {
-  const isTerminal = stop.kind === 'terminal';
-  const label = stopLabel(stop);
-  const siblings = siblingsOf(stop, stops);
+  const isTerminal = hotspot.kind === 'terminal';
+  const label = hotspotLabel(hotspot);
+  const siblings = siblingsOf(hotspot, hotspots);
   const byId = new Map(variants.map((v) => [v.id, v]));
   const linked = linkedVariantIds.map((id) => byId.get(id)).filter((v): v is VariantSummary => !!v);
   // The routes through here, one way round, by the place each leaves from,
@@ -120,8 +120,8 @@ export function HotspotCard({
         <SheetHeader onClose={onClose}>
           <>
             <p className="truncate text-base font-semibold text-content-primary">{label}</p>
-            {label !== stop.name && (
-              <p className="truncate text-xs text-neutral-500">{stop.name}</p>
+            {label !== hotspot.name && (
+              <p className="truncate text-xs text-neutral-500">{hotspot.name}</p>
             )}
             <span
               className={
@@ -136,7 +136,7 @@ export function HotspotCard({
       }
     >
       <div className="px-4 pb-4">
-        {stop.note && <p className="mt-3 text-sm text-content-tertiary">{stop.note}</p>}
+        {hotspot.note && <p className="mt-3 text-sm text-content-tertiary">{hotspot.note}</p>}
 
         {/* The place this box belongs to, when it has company: the map shows
             *that* they belong together, this says *what* the place has, and each
@@ -145,7 +145,7 @@ export function HotspotCard({
         {siblings.length > 0 && (
           <div data-testid="card-place" className="mt-3 rounded-lg bg-neutral-50 px-3 py-2">
             <p className="text-xs font-medium text-content-quaternary">
-              Part of {label} · {placeSummary([stop, ...siblings])}
+              Part of {label} · {placeSummary([hotspot, ...siblings])}
             </p>
             <ul className="mt-1.5 flex flex-wrap gap-1">
               {siblings.map((s) => (

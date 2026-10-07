@@ -3,7 +3,7 @@ import type { LngLat } from '@/shared/utils/geo';
 import { polygonToRing, type Ring } from '../geo/ring';
 
 /** Mirrors the `stop_kind` enum in supabase/migrations/0004_stop_hotspot.sql. */
-export type StopKind = 'terminal' | 'hintuan';
+export type HotspotKind = 'terminal' | 'hintuan';
 
 export interface PolygonGeoJSON {
   type: 'Polygon';
@@ -14,22 +14,22 @@ export interface PointGeoJSON {
   coordinates: LngLat;
 }
 
-/** A hotspot as the public map shows it. `area` is null only for legacy point-only stops (none exist). */
-export interface StopSummary {
+/** A hotspot as the public map shows it. `area` is null only for legacy point-only hotspots (none exist). */
+export interface Hotspot {
   id: string;
   /** The ground name: what is written on the ground, "SM Fairview Terminal B". */
   name: string;
   /**
-   * The stop name: what people say, "SM Fairview". Optional; `stopLabel`
+   * The hotspot name: what people say, "SM Fairview". Optional; `hotspotLabel`
    * falls back to the ground name. The route name reads this (R1), and
-   * boxes that share it are one stop to a commuter, whatever is written on
-   * each — a terminal and two hintuans under one stop name. 0007; the
+   * boxes that share it are one hotspot to a commuter, whatever is written on
+   * each — a terminal and two hintuans under one hotspot name. 0007; the
    * owner's two words for the two names, 2026-09-26.
    */
   informal: string | null;
   /** Other ways people say the same place, for a search or a suggestion list. */
   aliases: string[];
-  kind: StopKind;
+  kind: HotspotKind;
   point: PointGeoJSON;
   area: PolygonGeoJSON | null;
   note: string | null;
@@ -44,17 +44,17 @@ export interface StopSummary {
 }
 
 /** A hotspot with what the editor needs: who owns it. */
-export type StopRow = StopSummary & { owner_id: string };
+export type HotspotRow = Hotspot & { owner_id: string };
 
 /** One row of route_stop: this direction passes through (or stages at) this hotspot. */
-export interface StopLink {
+export interface HotspotLink {
   route_variant_id: string;
   stop_id: string;
   stop_sequence: number;
 }
 
 /** The polygon corners of a saved hotspot. */
-export function stopRing(s: StopSummary): Ring {
+export function hotspotRing(s: Hotspot): Ring {
   return polygonToRing(s.area);
 }
 
@@ -62,9 +62,9 @@ export function stopRing(s: StopSummary): Ring {
  * The name a hotspot is shown by: the informal one when there is one, else
  * what is written on the ground. The one rule, so no row ever shows blank and
  * every route name, card and picker agrees. The label on the map is the one
- * exception: it names the box under it, so it reads `name` (useSavedStops).
+ * exception: it names the box under it, so it reads `name` (useSavedHotspots).
  */
-export function stopLabel(s: Pick<StopSummary, 'name' | 'informal'>): string {
+export function hotspotLabel(s: Pick<Hotspot, 'name' | 'informal'>): string {
   return s.informal?.trim() || s.name;
 }
 

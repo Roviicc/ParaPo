@@ -13,7 +13,7 @@ const TAP_HALF_PX = { coarse: 20, fine: 5 } as const;
 
 /** The hit layers the two hooks draw (layers.ts), under the names the hooks have used. */
 export const ROUTES_HIT_LAYER = LAYERS.routesHit;
-export const STOPS_FILL_LAYER = LAYERS.stopsFill;
+export const HOTSPOTS_FILL_LAYER = LAYERS.hotspotsFill;
 
 /**
  * Whether the tap that raised `event` came from a finger. The event itself
@@ -43,7 +43,7 @@ export function tapBox(
 
 /**
  * Binds a layer's mouseenter and mouseleave, the hand the cursor turns into
- * over a line or a box (routeTaps.ts, stopTaps.ts), only where a pointer can
+ * over a line or a box (routeTaps.ts, hotspotTaps.ts), only where a pointer can
  * hover. MapLibre answers such a pair with a query of the rendered features
  * on every mousemove, and a finger's tap raises one before its click, so a
  * phone paid four queries a tap for a cursor it never shows (the cheap-phone
@@ -109,12 +109,12 @@ function idsInOrder(features: IdFeature[], key: 'id' | 'route_id' = 'id'): strin
 export interface TapTargets {
   routeIds: string[];
   routeKeys: string[];
-  stopIds: string[];
+  hotspotIds: string[];
 }
 
 /**
  * Each tap's answer, kept for the other hook (the cheap-phone plan, step 7,
- * 2026-10-04). Both hooks hear the map's one `click` (routeTaps, stopTaps)
+ * 2026-10-04). Both hooks hear the map's one `click` (routeTaps, hotspotTaps)
  * and each asks what it landed on: the same question, in the same task, of
  * a map nothing has changed in between (their setters render later), so the
  * second takes the first's answer instead of querying the rendered features
@@ -162,12 +162,16 @@ function queryTargets(
   const box = tapBox(point, event);
   const features = (layer: string, where: typeof box | [number, number] = box) =>
     map.getLayer(layer) ? map.queryRenderedFeatures(where, { layers: [layer] }) : [];
-  const inside = idsInOrder(features(STOPS_FILL_LAYER, [point.x, point.y]));
-  if (inside.length > 0) return { routeIds: [], routeKeys: [], stopIds: inside };
+  const inside = idsInOrder(features(HOTSPOTS_FILL_LAYER, [point.x, point.y]));
+  if (inside.length > 0) return { routeIds: [], routeKeys: [], hotspotIds: inside };
   const routes = features(ROUTES_HIT_LAYER);
   if (routes.length > 0)
-    return { routeIds: idsInOrder(routes), routeKeys: idsInOrder(routes, 'route_id'), stopIds: [] };
-  return { routeIds: [], routeKeys: [], stopIds: idsInOrder(features(STOPS_FILL_LAYER)) };
+    return {
+      routeIds: idsInOrder(routes),
+      routeKeys: idsInOrder(routes, 'route_id'),
+      hotspotIds: [],
+    };
+  return { routeIds: [], routeKeys: [], hotspotIds: idsInOrder(features(HOTSPOTS_FILL_LAYER)) };
 }
 
 /**
@@ -179,14 +183,19 @@ function queryTargets(
 export type TapOutcome =
   | { kind: 'none' }
   | { kind: 'route'; routeIds: string[] }
-  | { kind: 'stop'; stopId: string }
-  | { kind: 'several'; routeIds: string[]; routeKeys: string[]; stopIds: string[] };
+  | { kind: 'hotspot'; hotspotId: string }
+  | { kind: 'several'; routeIds: string[]; routeKeys: string[]; hotspotIds: string[] };
 
 export function resolveTap(t: TapTargets): TapOutcome {
   const routes = t.routeKeys.length;
-  const stops = t.stopIds.length;
-  if (routes + stops === 0) return { kind: 'none' };
-  if (routes === 1 && stops === 0) return { kind: 'route', routeIds: t.routeIds };
-  if (stops === 1 && routes === 0) return { kind: 'stop', stopId: t.stopIds[0]! };
-  return { kind: 'several', routeIds: t.routeIds, routeKeys: t.routeKeys, stopIds: t.stopIds };
+  const hotspots = t.hotspotIds.length;
+  if (routes + hotspots === 0) return { kind: 'none' };
+  if (routes === 1 && hotspots === 0) return { kind: 'route', routeIds: t.routeIds };
+  if (hotspots === 1 && routes === 0) return { kind: 'hotspot', hotspotId: t.hotspotIds[0]! };
+  return {
+    kind: 'several',
+    routeIds: t.routeIds,
+    routeKeys: t.routeKeys,
+    hotspotIds: t.hotspotIds,
+  };
 }

@@ -627,7 +627,7 @@ test('T: a copy of public/data written as the next publish writes it gives no wa
     assert.deepEqual(passWarning(check('index.v4.json')), []);
 
     // Stale: every line file kept from a publish before a hintuan that line reaches moved 3 m east.
-    const hintuan = boxesReached(one, one.shape.coordinates, boxes)[0].stop;
+    const hintuan = boxesReached(one, one.shape.coordinates, boxes)[0].hotspot;
     const east = (c) => [c[0] + 3 / (111_320 * Math.cos((c[1] * Math.PI) / 180)), c[1]];
     const before = index.stops.map((s) =>
       s.id === hintuan.id

@@ -1,5 +1,5 @@
+import { normaliseName, hotspotLabel, type HotspotRow } from '@/features/routes/model/hotspots';
 import { placeKey } from '@/features/routes/model/places';
-import { normaliseName, stopLabel, type StopRow } from '@/features/routes/model/stops';
 import { haversine, type LngLat } from '@/shared/utils/geo';
 
 /**
@@ -9,11 +9,11 @@ import { haversine, type LngLat } from '@/shared/utils/geo';
  */
 
 /** The hotspot nearest a point, by centroid. Only a starting guess for the picker. */
-export function nearestStop(stops: StopRow[], to: LngLat | undefined): string {
-  if (!to || stops.length === 0) return '';
-  let best = stops[0];
+export function nearestStop(hotspots: HotspotRow[], to: LngLat | undefined): string {
+  if (!to || hotspots.length === 0) return '';
+  let best = hotspots[0];
   let bestD = haversine(best.point.coordinates, to);
-  for (const s of stops.slice(1)) {
+  for (const s of hotspots.slice(1)) {
     const d = haversine(s.point.coordinates, to);
     if (d < bestD) {
       best = s;
@@ -33,22 +33,22 @@ export function nearestStop(stops: StopRow[], to: LngLat | undefined): string {
 export interface Place {
   key: string;
   label: string;
-  boxes: StopRow[];
-  terminal: StopRow | null;
+  boxes: HotspotRow[];
+  terminal: HotspotRow | null;
 }
 
 /** Every place, the ones with a terminal first, then by name. */
-export function groupPlaces(stops: StopRow[]): Place[] {
+export function groupPlaces(hotspots: HotspotRow[]): Place[] {
   const byKey = new Map<string, Place>();
-  for (const s of stops) {
+  for (const s of hotspots) {
     const key = placeKey(s);
-    const place = byKey.get(key) ?? { key, label: stopLabel(s), boxes: [], terminal: null };
+    const place = byKey.get(key) ?? { key, label: hotspotLabel(s), boxes: [], terminal: null };
     place.boxes.push(s);
     // The terminal's spelling names the place; it is the one box per place
     // the database holds to a single row (H4).
     if (s.kind === 'terminal' && !place.terminal) {
       place.terminal = s;
-      place.label = stopLabel(s);
+      place.label = hotspotLabel(s);
     }
     byKey.set(key, place);
   }
@@ -70,19 +70,21 @@ export function boxFor(place: Place, to: LngLat | undefined): string {
  * The terminal already standing at the place this box would join, if any:
  * a place has one terminal (H4). The database refuses the second one
  * (0014_terminal_place_unique.sql); this says so before the save, in the
- * form, without a round trip. The place is read as stopLabel reads it, so a
+ * form, without a round trip. The place is read as hotspotLabel reads it, so a
  * box whose informal name is left blank joins the place its ground name
  * says — before 2026-10-03 two terminals both named "Tala" with nothing
  * informal slipped past the index, which only looked at the informal name.
  */
 export function terminalAlreadyAt(
-  stops: StopRow[],
+  hotspots: HotspotRow[],
   box: { id: string | null; name: string; informal: string },
-): StopRow | null {
+): HotspotRow | null {
   const key = placeKey({
     name: normaliseName(box.name),
     informal: normaliseName(box.informal) || null,
   });
   if (!key) return null;
-  return stops.find((s) => s.kind === 'terminal' && s.id !== box.id && placeKey(s) === key) ?? null;
+  return (
+    hotspots.find((s) => s.kind === 'terminal' && s.id !== box.id && placeKey(s) === key) ?? null
+  );
 }

@@ -1,6 +1,6 @@
 import { keepLinePass } from '@/features/routes/geo/line-pass';
+import type { HotspotLink, Hotspot } from '@/features/routes/model/hotspots';
 import type { LineStringGeoJSON, VariantSummary } from '@/features/routes/model/routes';
-import type { StopLink, StopSummary } from '@/features/routes/model/stops';
 
 /**
  * The published map, as the public map reads it (since 2026-09-29, stage 7 of
@@ -24,8 +24,8 @@ export interface MapFile {
   attribution?: string;
   /** Each with its overview as `shape`: the full line is `loadLine`'s. */
   variants: VariantSummary[];
-  stops: StopSummary[];
-  links: StopLink[];
+  stops: Hotspot[];
+  links: HotspotLink[];
 }
 
 /** A direction as the index carries it: its overview under its own name. */
@@ -344,5 +344,6 @@ export const mapFileIsStale = () => stale;
 
 /** Loaders in the shape the two hooks take. Module-level, so they never change between renders. */
 export const loadVariantsFromFile = () => loadMapFile().then((f) => f.variants);
+// The index says `stops`; the app says hotspots (CONTEXT.md): translated here, at the reader.
 export const loadStopsFromFile = () =>
-  loadMapFile().then((f) => ({ stops: f.stops, links: f.links }));
+  loadMapFile().then((f) => ({ hotspots: f.stops, links: f.links }));

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
-import { StopTimeline, passesThrough } from '@/features/routes/cards/stop-timeline';
+import { DirectionTimeline, passesThrough } from '@/features/routes/cards/direction-timeline';
+import { hotspotLabel, type HotspotRow } from '@/features/routes/model/hotspots';
 import {
   isLineMode,
   MODES,
@@ -8,7 +9,6 @@ import {
   type TransportMode,
   type VariantRow,
 } from '@/features/routes/model/routes';
-import { stopLabel, type StopRow } from '@/features/routes/model/stops';
 import { haversine, type LngLat } from '@/shared/utils/geo';
 
 import { boxFor, groupPlaces, nearestStop } from './places';
@@ -33,7 +33,7 @@ interface Props {
    */
   slotReversed?: boolean | null;
   /** Every hotspot, for the two end pickers and for generating the name. */
-  stops: StopRow[];
+  hotspots: HotspotRow[];
   /**
    * Every saved direction: for what an Extend borrowed from, for noticing
    * that the chosen ends already make a route whose empty slot this fills,
@@ -61,21 +61,21 @@ export function SavePanel({
   existing,
   route,
   slotReversed = null,
-  stops,
+  hotspots,
   variants = [],
   onSaved,
   onCancel,
 }: Props) {
   const parent = existing?.route ?? route;
   const line = draw.controlPoints;
-  const places = useMemo(() => groupPlaces(stops), [stops]);
+  const places = useMemo(() => groupPlaces(hotspots), [hotspots]);
   const placeOf = (id: string) => places.find((p) => p.boxes.some((s) => s.id === id));
   const lineStart = line[0];
   const lineEnd = line[line.length - 1];
   // Where a picked end's box is looked for: at the end of the line nearer
   // the route's head, and the tail at the other — whichever way it was
   // drawn; a new route's line starts at its head.
-  const headNow = existing ? stops.find((s) => s.id === existing.route.head_stop_id) : undefined;
+  const headNow = existing ? hotspots.find((s) => s.id === existing.route.head_stop_id) : undefined;
   const startsAtHead =
     !headNow ||
     !lineStart ||
@@ -93,7 +93,7 @@ export function SavePanel({
   // actually starts and finishes — the nearest box, then that box's place,
   // then the place's own box — and corrected by hand when the guess is wrong.
   const guess = (to: LngLat | undefined) => {
-    const place = placeOf(nearestStop(stops, to));
+    const place = placeOf(nearestStop(hotspots, to));
     return place ? boxFor(place, to) : '';
   };
   // The guess reads the line's own order: it starts at the head. A return trip
@@ -119,8 +119,8 @@ export function SavePanel({
   // route's are fixed once a save has written it: the retry finishes that
   // row and would ignore a changed end.
   const routeLocked = !existing && (!!parent || !!written);
-  const head = stops.find((s) => s.id === headId);
-  const tail = stops.find((s) => s.id === tailId);
+  const head = hotspots.find((s) => s.id === headId);
+  const tail = hotspots.find((s) => s.id === tailId);
   const headPlace = head ? placeOf(head.id) : undefined;
   const tailPlace = tail ? placeOf(tail.id) : undefined;
 
@@ -135,7 +135,7 @@ export function SavePanel({
     existing,
     parent,
     slotReversed,
-    stops,
+    hotspots,
     variants,
     head,
     tail,
@@ -202,7 +202,7 @@ export function SavePanel({
           borrowed_part: borrowPart,
           borrowed_m: borrowed > 0 ? Math.round(borrowed) : null,
         },
-        stops,
+        hotspots,
         setWritten,
       );
       onSaved(named);
@@ -227,13 +227,13 @@ export function SavePanel({
         <SaveNotices
           segments={draw.segments}
           uTurns={draw.uTurns}
-          stopsCount={stops.length}
+          hotspotsCount={hotspots.length}
           wrongWay={
             wrongWayRound && head && tail
               ? {
                   direction,
-                  startsAt: stopLabel(reversed ? head : tail),
-                  from: stopLabel(reversed ? tail : head),
+                  startsAt: hotspotLabel(reversed ? head : tail),
+                  from: hotspotLabel(reversed ? tail : head),
                 }
               : null
           }
@@ -291,7 +291,7 @@ export function SavePanel({
                 ? 'Passes through no hintuan yet — draw one across the road and it appears here'
                 : `${passesThrough(preview.between.length)}, in this order`}
             </p>
-            <StopTimeline timeline={preview} />
+            <DirectionTimeline timeline={preview} />
           </div>
         )}
 
@@ -347,7 +347,7 @@ export function SavePanel({
             {/* A line, a train's or the ferry's, comes in by its import, with
                 its line named; one drawn here would have none and stop
                 nowhere. And a line stays one: its mode decides which hintuans
-                both directions stop at, and a save re-links only the
+                both directions hotspot at, and a save re-links only the
                 direction saved (servedBy). */}
             <select
               disabled={routeLocked || isLineMode(mode)}

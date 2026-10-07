@@ -3,28 +3,28 @@ import { useEffect, useMemo, useState } from 'react';
 import { PASS_WITHIN_M } from '@/features/routes/geo/pass';
 import { ringCrossesItself } from '@/features/routes/geo/ring';
 import { coarse } from '@/features/routes/map/map-view';
+import { parseAliases, hotspotLabel, type HotspotRow } from '@/features/routes/model/hotspots';
 import { variantLine, type VariantRow } from '@/features/routes/model/routes';
-import { parseAliases, stopLabel, type StopRow } from '@/features/routes/model/stops';
 import { bboxOf, bboxesOverlap, OVERVIEW_M } from '@/shared/utils/geo';
 
 import { terminalAlreadyAt } from './places';
 import { FIELD_TEXT, FOOTER, OVERLAY, PANEL } from './sheet';
+import { linksThrough, variantsStartingIn } from '../data/hotspots-geometry';
+import { saveStop } from '../data/hotspots-write';
 import { linesOf } from '../data/live';
-import { linksThrough, variantsStartingIn } from '../data/stops-geometry';
-import { saveStop } from '../data/stops-write';
 import type { Drawing } from '../drawing/use-drawing';
 
 interface Props {
   draw: Drawing;
   /** The hotspot being edited, or null for a new one. */
-  existing: StopRow | null;
+  existing: HotspotRow | null;
   /** For an existing terminal: the directions currently linked to it. */
   existingLinks: string[];
   /** Every saved direction — the terminal checklist and the hintuan preview. */
   variants: VariantRow[];
   /** Every saved hotspot, so the informal-name box can offer the names already in use. */
-  stops?: StopRow[];
-  onSaved: (s: StopRow) => void;
+  hotspots?: HotspotRow[];
+  onSaved: (s: HotspotRow) => void;
   onCancel: () => void;
   /** Hears the row a save wrote, the moment it is in, to keep it beyond this panel. */
   onWritten?: (stopId: string) => void;
@@ -59,7 +59,7 @@ export function HotspotPanel({
   existing,
   existingLinks,
   variants,
-  stops = [],
+  hotspots = [],
   onSaved,
   onCancel,
   onWritten,
@@ -78,18 +78,18 @@ export function HotspotPanel({
   // for the same place joins the group instead of starting "SM  Fairview".
   const knownInformal = useMemo(() => {
     const seen = new Map<string, string>();
-    for (const s of stops) {
+    for (const s of hotspots) {
       if (s.id === existing?.id) continue;
-      const label = stopLabel(s);
+      const label = hotspotLabel(s);
       seen.set(label.toLowerCase(), label);
     }
     return [...seen.values()].sort((a, b) => a.localeCompare(b));
-  }, [stops, existing?.id]);
+  }, [hotspots, existing?.id]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The row as a save wrote it, when its links failed after: the retry
   // updates it rather than inserting the box again (SavePanel's `written`).
-  // The studio keeps it in the outline itself (onWritten, adoptStop), so ✕
+  // The studio keeps it in the outline itself (onWritten, adoptHotspot), so ✕
   // and a reload keep it too (review of 2026-10-03); here otherwise, as in
   // the stories.
   const [writtenId, setOwnWritten] = useState<string | null>(null);
@@ -172,10 +172,10 @@ export function HotspotPanel({
       return;
     }
     if (kind === 'terminal') {
-      const other = terminalAlreadyAt(stops, { id: stopId, name, informal });
+      const other = terminalAlreadyAt(hotspots, { id: stopId, name, informal });
       if (other) {
         setError(
-          `${stopLabel(other)} already has a terminal ("${other.name}"). A place has one terminal; draw this one as a hintuan under the same name.`,
+          `${hotspotLabel(other)} already has a terminal ("${other.name}"). A place has one terminal; draw this one as a hintuan under the same name.`,
         );
         return;
       }
@@ -242,9 +242,9 @@ export function HotspotPanel({
             ))}
           </datalist>
           <span className="mt-1 block text-[11px] font-normal text-neutral-400">
-            Boxes that share a stop name are one stop, whatever is written on each. Route names read
-            it
-            {kind === 'terminal' ? '; a stop has one terminal.' : '.'}
+            Boxes that share a hotspot name are one hotspot, whatever is written on each. Route
+            names read it
+            {kind === 'terminal' ? '; a hotspot has one terminal.' : '.'}
           </span>
         </label>
 

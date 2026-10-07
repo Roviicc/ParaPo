@@ -24,7 +24,7 @@ export interface RailFare {
   ticket: number;
 }
 
-/** A station as the map names it (its stop name), then the operator's own names for it. */
+/** A station as the map names it (its hotspot name), then the operator's own names for it. */
 type Station = readonly [label: string, ...aliases: string[]];
 
 /** LRT-1, Dr. Santos to Fernando Poe Jr., in the order of LRMC's matrix. */

@@ -27,7 +27,7 @@ export const DRAG_PX = 24;
  * 2026-09-29).
  */
 export function swallowTheTapsClick(x: number, y: number) {
-  const stop = (e: MouseEvent) => {
+  const hotspot = (e: MouseEvent) => {
     // No pointer's: Enter or Space, or a script. Left for the watch's own click.
     if (e.detail === 0) return;
     cleanup();
@@ -37,10 +37,10 @@ export function swallowTheTapsClick(x: number, y: number) {
     e.preventDefault();
   };
   const cleanup = () => {
-    document.removeEventListener('click', stop, true);
+    document.removeEventListener('click', hotspot, true);
     document.removeEventListener('pointerdown', cleanup, true);
   };
-  document.addEventListener('click', stop, true);
+  document.addEventListener('click', hotspot, true);
   document.addEventListener('pointerdown', cleanup, true);
 }
 
@@ -104,7 +104,7 @@ export const LOW_PX = 129;
 export const MAX_STRIP_PX = 24;
 const MAX_GAP_CSS = `calc(env(safe-area-inset-top) + ${MAX_STRIP_PX}px)`;
 
-/** The status bar's height as the page reads it (BottomSheet measures it): 0 where the page stops under it. */
+/** The status bar's height as the page reads it (BottomSheet measures it): 0 where the page hotspots under it. */
 let safeTop = 0;
 export function setSafeTop(px: number) {
   safeTop = Math.max(0, Math.round(px));

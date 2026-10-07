@@ -1,4 +1,4 @@
-// The studio's hotspot save (src/features/studio/data/stops-write.ts, saveStop)
+// The studio's hotspot save (src/features/studio/data/hotspots-write.ts, saveStop)
 // against a fake client.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/stop-save-test.mjs
@@ -11,7 +11,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeSupabase } from './fixtures/fake-supabase.mjs';
 import { setSupabase } from '../../src/features/studio/data/supabase.ts';
-import { deleteStop, saveStop } from '../../src/features/studio/data/stops-write.ts';
+import { deleteStop, saveStop } from '../../src/features/studio/data/hotspots-write.ts';
 
 const ring = [
   [121.04, 14.7],
@@ -50,8 +50,8 @@ test('a hotspot whose links failed is updated by the retry, not inserted again',
   linksDown = false;
   const saved = await saveStop({ ...input, stopId: written }, (id) => (written = id));
   assert.equal(saved.id, 's1');
-  const stopWrites = log.filter((q) => q.table === 'stop').map((q) => q.op);
-  assert.deepEqual(stopWrites, ['insert', 'update']);
+  const hotspotWrites = log.filter((q) => q.table === 'stop').map((q) => q.op);
+  assert.deepEqual(hotspotWrites, ['insert', 'update']);
   assert.deepEqual(log.filter((q) => q.table === 'stop')[1].filters, [['eq', 'id', 's1']]);
 });
 

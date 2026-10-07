@@ -14,7 +14,7 @@ import { distanceToRingM, firstTouchIndex, type Ring } from './ring';
 
 /*
  * The one rule for "this direction passes this hotspot", and its geometry, in
- * one place (split from geo.ts and stops.ts, 2026-09-29): the save (both
+ * one place (split from geo.ts and hotspots.ts, 2026-09-29): the save (both
  * sides: route and hotspot), the save panel, the hotspot panel, the timeline,
  * the orange stretches and the published map's check all ask it.
  */

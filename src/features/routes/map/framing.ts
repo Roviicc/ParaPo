@@ -219,12 +219,12 @@ export function loadingLifts<M extends Rendered>(
   drawn: ((map: M) => boolean) | null,
   lift: () => void,
 ): () => void {
-  const stop = () => {
+  const hotspot = () => {
     map.off('render', look);
     map.off('load', go);
   };
   const go = () => {
-    stop();
+    hotspot();
     lift();
   };
   const look = () => {
@@ -238,5 +238,5 @@ export function loadingLifts<M extends Rendered>(
   };
   map.on('load', go);
   if (drawn) map.on('render', look);
-  return stop;
+  return hotspot;
 }

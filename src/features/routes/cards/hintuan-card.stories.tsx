@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { expect, fn, userEvent, within } from 'storybook/test';
 
 import { HintuanCard } from './hintuan-card';
+import type { Hotspot } from '../model/hotspots';
 import type { RouteSummary, VariantSummary } from '../model/routes';
-import type { StopSummary } from '../model/stops';
 
 /*
  * Sample data only, shaped like saved rows: SM Fairview as the owner drew it
@@ -58,10 +58,10 @@ const nvIn = direction('nv-in', novaliches, 'Novaliches → Tala', true);
 const box = (
   id: string,
   name: string,
-  kind: StopSummary['kind'],
+  kind: Hotspot['kind'],
   at: [number, number],
   created_at: string,
-): StopSummary => ({
+): Hotspot => ({
   id,
   name,
   informal: 'SM Fairview',
@@ -103,7 +103,7 @@ const teraccess2 = box(
   [121.0602, 14.7342],
   '2026-09-16T00:00:00Z',
 );
-const stops = [terminal, teraccess1, main, babaan, teraccess2];
+const hotspots = [terminal, teraccess1, main, babaan, teraccess2];
 
 /** What stops at each box: the terminal both ways; each side of the road one way. */
 const links: Record<string, string[]> = {
@@ -119,13 +119,13 @@ const links: Record<string, string[]> = {
  * RouteCard let go. The Selected row tapped lets it go, as the map does too.
  */
 function Picking(props: ComponentProps<typeof HintuanCard>) {
-  const [stop, setStop] = useState(props.stop);
+  const [hotspot, setHotspot] = useState(props.hotspot);
   const [selected, setSelected] = useState<string | null>(null);
   const [deselected, setDeselected] = useState(props.deselected ?? false);
   return (
     <HintuanCard
       {...props}
-      stop={stop}
+      hotspot={hotspot}
       deselected={deselected}
       onDeselect={() => {
         props.onDeselect?.();
@@ -144,7 +144,7 @@ function Picking(props: ComponentProps<typeof HintuanCard>) {
         props.onPickBox(id);
         setSelected(null);
         setDeselected(false);
-        setStop(stops.find((s) => s.id === id) ?? stop);
+        setHotspot(hotspots.find((s) => s.id === id) ?? hotspot);
       }}
     />
   );
@@ -171,8 +171,8 @@ const meta = {
   ],
   parameters: { layout: 'fullscreen' },
   args: {
-    stop: terminal,
-    stops,
+    hotspot: terminal,
+    hotspots,
     linkedVariantIds: (id: string) => links[id] ?? [],
     variants: [fvOut, fvIn, nvOut, nvIn],
     onSelectVariant: fn(),
@@ -212,7 +212,7 @@ export const Default: Story = {
 
 /** Figma's Variant2: Fairview Teraccess 2 tapped — the routes stopping there, the way back to Tala. */
 export const Variant2: Story = {
-  args: { stop: teraccess2 },
+  args: { hotspot: teraccess2 },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByTestId('card-count').textContent).toBe(
       '2 routes pass here',
@@ -222,7 +222,7 @@ export const Variant2: Story = {
 
 /** A tap on a row picks that box, and the routes stopping there with it. */
 export const PickARow: Story = {
-  args: { stop: teraccess1 },
+  args: { hotspot: teraccess1 },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByText('SM Fairview Main'));
@@ -239,7 +239,7 @@ export const PickARow: Story = {
  * on the row picks it back (the owner's ask, 2026-10-01).
  */
 export const LetGoAndPickBack: Story = {
-  args: { stop: main, onDeselect: fn() },
+  args: { hotspot: main, onDeselect: fn() },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const row = () => canvas.getAllByTestId('card-box').find((b) => b.dataset.box === 'h2')!;
@@ -258,11 +258,11 @@ export const LetGoAndPickBack: Story = {
 };
 
 /** Let go, at rest: no row pressed, the routes through the whole place. */
-export const LetGo: Story = { args: { stop: main, deselected: true } };
+export const LetGo: Story = { args: { hotspot: main, deselected: true } };
 
 /** Let go, on a phone. */
 export const LetGoPhone: Story = {
-  args: { stop: main, deselected: true },
+  args: { hotspot: main, deselected: true },
   parameters: { phone: true },
 };
 
@@ -271,7 +271,7 @@ export const LetGoPhone: Story = {
  * box of the place passed that way — across the road, Fairview Teraccess 2.
  */
 export const SwitchMovesAcross: Story = {
-  args: { stop: teraccess1 },
+  args: { hotspot: teraccess1 },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByTestId('card-flip'));
@@ -293,7 +293,7 @@ export const SwitchStays: Story = {
 
 /** No box of the place is passed the other way round: SWITCH rests disabled. */
 export const SwitchDisabled: Story = {
-  args: { stop: teraccess1, stops: [teraccess1, main] },
+  args: { hotspot: teraccess1, hotspots: [teraccess1, main] },
   play: async ({ canvasElement, args }) => {
     const flip = within(canvasElement).getByTestId('card-flip');
     await expect(flip).toBeDisabled();
@@ -304,7 +304,7 @@ export const SwitchDisabled: Story = {
 
 /** A box no route stops at yet: its rows, and no counter. */
 export const NoRoutes: Story = {
-  args: { stop: babaan },
+  args: { hotspot: babaan },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).queryByTestId('card-count')).toBeNull();
   },
@@ -313,13 +313,13 @@ export const NoRoutes: Story = {
 /** A place of one box: its row alone. */
 export const OneBox: Story = {
   args: {
-    stop: { ...main, informal: 'Bestlink', name: 'Bestlink' },
-    stops: [{ ...main, informal: 'Bestlink', name: 'Bestlink' }],
+    hotspot: { ...main, informal: 'Bestlink', name: 'Bestlink' },
+    hotspots: [{ ...main, informal: 'Bestlink', name: 'Bestlink' }],
   },
 };
 
 /** On a phone: a bottom sheet at Middle. */
-export const Phone: Story = { args: { stop: teraccess2 }, parameters: { phone: true } };
+export const Phone: Story = { args: { hotspot: teraccess2 }, parameters: { phone: true } };
 
 /** Opened from a trip's name for the place on the map: ‹ goes back to the trip. */
 export const OverATrip: Story = {

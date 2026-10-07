@@ -523,7 +523,7 @@ export function useDrawing(
    * and opened again, or the page reloaded from its draft, updates that row
    * rather than inserting the box a second time (review of 2026-10-03).
    */
-  const adoptStop = useCallback((stopId: string) => {
+  const adoptHotspot = useCallback((stopId: string) => {
     const a = areaRef.current;
     if (!a || a.stopId === stopId) return;
     const next = { ...a, stopId };
@@ -679,7 +679,7 @@ export function useDrawing(
     start,
     startArea,
     loadArea,
-    adoptStop,
+    adoptHotspot,
     cancel,
     undo,
     addPoint,

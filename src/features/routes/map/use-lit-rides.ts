@@ -6,9 +6,9 @@ import type { LngLat } from '@/shared/utils/geo';
 import { useDirectionArrows, type Ride } from './direction-arrows';
 import { useBabaanSides } from '../geo/babaan-sides';
 import { usePassStretches } from '../geo/pass-stretches';
+import type { Hotspot } from '../model/hotspots';
 import { travelLine } from '../model/ride';
-import { directionEndStops, directionEnds, type VariantSummary } from '../model/routes';
-import type { StopSummary } from '../model/stops';
+import { directionEndHotspots, directionEnds, type VariantSummary } from '../model/routes';
 
 /**
  * What a lit route wears on the map, in both apps: its orange stretches
@@ -27,7 +27,7 @@ export function useLitRides(
     litVariants: readonly VariantSummary[];
     selected: VariantSummary | null;
   },
-  stops: readonly StopSummary[],
+  hotspots: readonly Hotspot[],
   /** The direction being redrawn in the studio: no stretches over the draft. */
   hiddenVariantId: string | null = null,
   /** A hintuan picked on the trip (useRideTo's `ridden`): that ride's chevrons stop there. */
@@ -41,7 +41,7 @@ export function useLitRides(
     () => saved.variants.filter((v) => saved.fullIds.has(v.id)),
     [saved.variants, saved.fullIds],
   );
-  usePassStretches(map, withLines, stops, saved.lit, hiddenVariantId);
+  usePassStretches(map, withLines, hotspots, saved.lit, hiddenVariantId);
 
   // Which way the jeep goes, on what is lit only — the chosen direction, the
   // Selected card's directions, or else a list's or a hotspot card's: chevrons
@@ -51,15 +51,15 @@ export function useLitRides(
     () =>
       saved.litVariants.map((v) => ({
         id: v.id,
-        line: travelLine(v, stops),
+        line: travelLine(v, hotspots),
         ...(ridden?.variantId === v.id ? { flow: ridden.line } : {}),
         ...directionEnds(v),
-        ...directionEndStops(v),
+        ...directionEndHotspots(v),
       })),
-    [saved.litVariants, stops, ridden],
+    [saved.litVariants, hotspots, ridden],
   );
   useDirectionArrows(map, rides);
   // The chosen direction's side of each hintuan it cuts across: its right.
-  useBabaanSides(map, saved.selected, stops);
+  useBabaanSides(map, saved.selected, hotspots);
   return rides;
 }

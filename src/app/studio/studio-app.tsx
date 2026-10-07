@@ -12,12 +12,12 @@ import { HintuanPin } from '@/features/routes/map/hintuan-pin';
 import { APP_MOVE, MapView } from '@/features/routes/map/map-view';
 import { StationLabels } from '@/features/routes/map/station-labels';
 import { useLitRides } from '@/features/routes/map/use-lit-rides';
+import { useSavedHotspots } from '@/features/routes/map/use-saved-hotspots';
 import { useSavedRoutes } from '@/features/routes/map/use-saved-routes';
-import { useSavedStops } from '@/features/routes/map/use-saved-stops';
+import { hotspotLabel, hotspotRing, type HotspotRow } from '@/features/routes/model/hotspots';
 import { hotspotCount } from '@/features/routes/model/places';
 import { routeTimeline } from '@/features/routes/model/ride';
 import { isDrawn, variantLine, type VariantRow } from '@/features/routes/model/routes';
-import { stopLabel, stopRing, type StopRow } from '@/features/routes/model/stops';
 import {
   lineOf,
   listVariants,
@@ -105,7 +105,7 @@ function Workshop({
   // One toast at a time, the newest: a save's, or a problem.
   const [toast, setToast] = useState<
     | { kind: 'route'; v: VariantRow }
-    | { kind: 'stop'; s: StopRow }
+    | { kind: 'hotspot'; s: HotspotRow }
     | { kind: 'notice'; text: string }
     | null
   >(null);
@@ -123,15 +123,15 @@ function Workshop({
     hiddenVariantId: draw.target.variantId,
     loadLine: lineOf,
   });
-  const stops = useSavedStops(map, loadStopsFromSupabase, {
+  const hotspots = useSavedHotspots(map, loadStopsFromSupabase, {
     drawing: draw.drawing,
-    hiddenStopId: draw.area?.stopId ?? null,
+    hiddenHotspotId: draw.area?.stopId ?? null,
     // While a trip is open, the map lights only the trip, as on the public map.
     muted: !!saved.selected,
   });
   // The route list, a hotspot's card and the trip opened from either, as on
   // the public map (useCardStack).
-  const cards = useCardStack(map, saved, stops);
+  const cards = useCardStack(map, saved, hotspots);
   // The camera with the cards, as on the public map (useCardCamera), the
   // owner's ask of 2026-09-30: "most of the interaction of public map should
   // be in studio". A hintuan picked on the trip card, the camera gliding
@@ -150,11 +150,11 @@ function Workshop({
     pickOnPlaceCard,
     openTrip,
     backFromTrip,
-  } = useCardCamera(map, saved, stops, cards);
+  } = useCardCamera(map, saved, hotspots, cards);
 
   // What the lit routes wear on the map, as on the public map (useLitRides);
   // none of the orange over the direction being redrawn.
-  const rides = useLitRides(map, saved, stops.stops, draw.target.variantId, ride.ridden);
+  const rides = useLitRides(map, saved, hotspots.hotspots, draw.target.variantId, ride.ridden);
 
   // The pill counts routes, not directions: a route is two rows, one of them
   // perhaps an empty slot, and five routes once read "10 routes" (finding 7).
@@ -183,13 +183,13 @@ function Workshop({
   }, [recovery.error]);
 
   // What the save panel saves into, and where the drawing is headed.
-  const target = useSaveTarget(draw, saved.variants, stops.stops);
+  const target = useSaveTarget(draw, saved.variants, hotspots.hotspots);
   const { editing, parentRoute, slotReversed, extendEnds } = target;
   // A right-click on saved lines while drawing, and opening a direction's drawing.
   const { onFollow, opening } = useFollow({
     draw,
     variants: saved.variants,
-    stops: stops.stops,
+    hotspots: hotspots.hotspots,
     target,
     setNotice,
   });
@@ -200,8 +200,8 @@ function Workshop({
   };
 
   // The hotspot being edited, when the area trace came from a saved one.
-  const editingStop = draw.area?.stopId
-    ? (stops.stops.find((s) => s.id === draw.area?.stopId) ?? null)
+  const editingHotspot = draw.area?.stopId
+    ? (hotspots.hotspots.find((s) => s.id === draw.area?.stopId) ?? null)
     : null;
 
   const onSaved = (v: VariantRow) => {
@@ -209,22 +209,22 @@ function Workshop({
     draw.cancel();
     void saved.reload();
     // A moved line may have entered or left a hintuan; its links were re-synced.
-    void stops.reload();
+    void hotspots.reload();
     setToast({ kind: 'route', v });
   };
 
-  const onSavedStop = (s: StopRow) => {
+  const onSavedHotspot = (s: HotspotRow) => {
     setSaving(false);
     draw.cancel();
-    void stops.reload();
+    void hotspots.reload();
     // The directions too: their names are generated from the hotspots at
     // their ends when they load, so a renamed end left every card, the list
     // and the pill on the old name until the next route save (finding 8).
     void saved.reload();
-    setToast({ kind: 'stop', s });
+    setToast({ kind: 'hotspot', s });
   };
 
-  const onDeleteStop = async (s: StopRow) => {
+  const onDeleteHotspot = async (s: HotspotRow) => {
     // As Done does: with the session gone the delete went out on the
     // publishable key, matched no row, came back 2xx, and the box was still
     // there after the reload, with nothing said (review of 2026-10-03).
@@ -243,16 +243,16 @@ function Workshop({
     ];
     if (ending.length > 0) {
       setNotice(
-        `"${stopLabel(s)}" is where ${ending.join(', ')} ${ending.length === 1 ? 'ends' : 'end'}. ` +
+        `"${hotspotLabel(s)}" is where ${ending.join(', ')} ${ending.length === 1 ? 'ends' : 'end'}. ` +
           `Delete ${ending.length === 1 ? 'that route' : 'those routes'} first.`,
       );
       return;
     }
-    if (!window.confirm(`Delete ${s.kind} "${stopLabel(s)}"?`)) return;
+    if (!window.confirm(`Delete ${s.kind} "${hotspotLabel(s)}"?`)) return;
     try {
       await deleteStop(s);
-      stops.select(null);
-      await stops.reload();
+      hotspots.select(null);
+      await hotspots.reload();
     } catch (e) {
       setNotice(e instanceof Error ? e.message : String(e));
     }
@@ -271,7 +271,7 @@ function Workshop({
     : false;
 
   const onDelete = async (v: VariantRow) => {
-    // Signed out, the delete would match nothing and say nothing (onDeleteStop).
+    // Signed out, the delete would match nothing and say nothing (onDeleteHotspot).
     if (!signedIn) {
       setSigningIn(true);
       return;
@@ -291,9 +291,9 @@ function Workshop({
       <MapView onReady={setMap} foldCredits />
 
       {/* A config or load problem is a banner, never a blank page. */}
-      {(supabaseConfigError || saved.error || stops.error) && (
+      {(supabaseConfigError || saved.error || hotspots.error) && (
         <div className="absolute top-[calc(1rem+env(safe-area-inset-top))] left-1/2 z-20 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-lg bg-amber-50 px-4 py-2 text-xs text-amber-900 shadow ring-1 ring-amber-200">
-          {supabaseConfigError ?? `Couldn't load saved routes: ${saved.error ?? stops.error}`}
+          {supabaseConfigError ?? `Couldn't load saved routes: ${saved.error ?? hotspots.error}`}
         </div>
       )}
 
@@ -306,7 +306,7 @@ function Workshop({
         <StationLabels
           map={map}
           selected={saved.selected}
-          stops={stops.stops}
+          hotspots={hotspots.hotspots}
           livery={tripLivery}
           pickedId={ride.pickedId}
           onPick={ride.pick}
@@ -335,8 +335,8 @@ function Workshop({
           variants={saved.variants}
           timeline={routeTimeline(
             saved.selected,
-            stops.stops,
-            stops.stopsAlong(saved.selected.id, variantLine(saved.selected)),
+            hotspots.hotspots,
+            hotspots.hotspotsAlong(saved.selected.id, variantLine(saved.selected)),
           )}
           livery={tripLivery}
           onBackToList={backFromTrip}
@@ -395,9 +395,9 @@ function Workshop({
         picked from them, hidden, for the trip's ‹. After the trip on
         purpose, as on the public map: the suites' first `card` is the trip.
       */}
-      {!draw.drawing && stops.selected && (
+      {!draw.drawing && hotspots.selected && (
         <HotspotCard
-          key={stops.selected.id}
+          key={hotspots.selected.id}
           routeCards={{
             selected: saved.highlight?.where === 'hotspot' ? saved.highlight.from : null,
             onSelect: pickOnPlaceCard,
@@ -405,24 +405,24 @@ function Workshop({
           }}
           hidden={!!saved.selected}
           height={height}
-          stop={stops.selected}
-          linkedVariantIds={stops.linkedVariantIds(stops.selected.id)}
+          hotspot={hotspots.selected}
+          linkedVariantIds={hotspots.linkedVariantIds(hotspots.selected.id)}
           variants={saved.variants}
           onSelectVariant={openTrip}
-          stops={stops.stops}
+          hotspots={hotspots.hotspots}
           // Another box: the map goes there, the box clear of the card on
           // show, as on the public map.
           onPickSibling={(id) => {
             saved.highlightCard(null);
-            stops.show(id, clearOfOpen);
+            hotspots.show(id, clearOfOpen);
           }}
           actions={
             userId !== null &&
-            userId === stops.selected.owner_id && (
+            userId === hotspots.selected.owner_id && (
               <CardActions
-                editLabel={stops.selected.kind === 'terminal' ? 'Edit terminal' : 'Edit hintuan'}
+                editLabel={hotspots.selected.kind === 'terminal' ? 'Edit terminal' : 'Edit hintuan'}
                 onEdit={() => {
-                  const s = stops.selected;
+                  const s = hotspots.selected;
                   if (!s) return;
                   closeAll();
                   // A RouteCard picked on the way here, on this card or in
@@ -432,15 +432,15 @@ function Workshop({
                   // the map stays where it is.
                   if (map && map.getZoom() < 16)
                     map.flyTo({ center: s.point.coordinates, zoom: 16 }, APP_MOVE);
-                  draw.loadArea(s.kind, s.id, stopRing(s));
+                  draw.loadArea(s.kind, s.id, hotspotRing(s));
                 }}
                 onDelete={() => {
-                  if (stops.selected) void onDeleteStop(stops.selected);
+                  if (hotspots.selected) void onDeleteHotspot(hotspots.selected);
                 }}
               />
             )
           }
-          onClose={cards.closeStop}
+          onClose={cards.closeHotspot}
         />
       )}
 
@@ -455,20 +455,20 @@ function Workshop({
           hidden={!!saved.selected}
           height={height}
           routes={saved.candidates}
-          stops={stops.candidates}
+          hotspots={hotspots.candidates}
           back={saved.back}
           onFlip={flipList}
           selected={saved.highlight?.where === 'list' ? saved.highlight.from : null}
           onSelect={(p) => saved.highlightCard(p && { where: 'list', ...p })}
           onRoute={openTrip}
-          onStop={(s) => cards.openStop(s.id)}
+          onHotspot={(s) => cards.openHotspot(s.id)}
           onClose={closeAll}
         />
       )}
-      {!draw.drawing && !saved.selected && !stops.selected && !choosing && (
+      {!draw.drawing && !saved.selected && !hotspots.selected && !choosing && (
         <AccountPill
           routes={routeCount}
-          hotspots={stops.stops.length > 0 ? hotspotCount(stops.stops) : 0}
+          hotspots={hotspots.hotspots.length > 0 ? hotspotCount(hotspots.hotspots) : 0}
           email={signedIn ? (session.user.email ?? '') : null}
           onSignIn={() => setSigningIn(true)}
           onPassword={() => setChangingPassword(true)}
@@ -476,10 +476,10 @@ function Workshop({
         />
       )}
 
-      {toast?.kind === 'stop' && !draw.drawing && (
+      {toast?.kind === 'hotspot' && !draw.drawing && (
         <Toast onDismiss={() => setToast(null)}>
           Saved {toast.s.kind === 'terminal' ? 'terminal' : 'hintuan'}{' '}
-          <strong>{stopLabel(toast.s)}</strong>
+          <strong>{hotspotLabel(toast.s)}</strong>
         </Toast>
       )}
 
@@ -548,15 +548,15 @@ function Workshop({
       {saving && draw.drawing && draw.area && (
         <HotspotPanel
           draw={draw}
-          existing={editingStop}
-          existingLinks={editingStop ? stops.linkedVariantIds(editingStop.id) : []}
+          existing={editingHotspot}
+          existingLinks={editingHotspot ? hotspots.linkedVariantIds(editingHotspot.id) : []}
           variants={saved.variants}
-          stops={stops.stops}
-          onSaved={onSavedStop}
+          hotspots={hotspots.hotspots}
+          onSaved={onSavedHotspot}
           onCancel={() => setSaving(false)}
           // A row written before its links failed becomes the outline's own
-          // (adoptStop): ✕, Done and Save again, or a reload, update it.
-          onWritten={draw.adoptStop}
+          // (adoptHotspot): ✕, Done and Save again, or a reload, update it.
+          onWritten={draw.adoptHotspot}
         />
       )}
 
@@ -566,7 +566,7 @@ function Workshop({
           existing={editing}
           route={parentRoute}
           slotReversed={slotReversed}
-          stops={stops.stops}
+          hotspots={hotspots.hotspots}
           variants={saved.variants}
           onSaved={onSaved}
           onCancel={() => setSaving(false)}

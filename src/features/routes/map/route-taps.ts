@@ -43,7 +43,7 @@ export function useRouteTaps<T extends VariantSummary>(
     // sharing a road go to the list, lit the way round it shows them. Inside
     // a hotspot's box the tap is the hotspot's alone (tapTargets). The candidates are whole routes, slots
     // included, so the studio's rows can say "return not mapped yet".
-    // The stops hook reads the same tap and keeps its own half.
+    // The hotspots hook reads the same tap and keeps its own half.
     const onMapClick = (e: MapMouseEvent) => {
       if (read.drawing.current) return;
       // Whatever the tap opens, the card picked before it is let go.

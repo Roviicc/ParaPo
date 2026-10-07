@@ -17,7 +17,7 @@ const THE_MAP_HEARS = [
   'click',
   'dblclick',
 ] as const;
-/** The map's own taps — its `click`, which the app's taps hear (routeTaps, stopTaps) — and nothing else. */
+/** The map's own taps — its `click`, which the app's taps hear (routeTaps, hotspotTaps) — and nothing else. */
 const ITS_TAPS = ['click', 'dblclick'] as const;
 
 /**
@@ -31,15 +31,15 @@ export function tapsOnItsButton(
   onTap: () => void,
   { dragsPass = false } = {},
 ): () => void {
-  const stop = (e: Event) => {
+  const hotspot = (e: Event) => {
     if (!(e.target instanceof Element) || !e.target.closest('button')) return;
     e.stopPropagation();
     // A key's Enter or Space on the button is a click too.
     if (e.type === 'click') onTap();
   };
   const types = dragsPass ? ITS_TAPS : THE_MAP_HEARS;
-  for (const type of types) el.addEventListener(type, stop);
+  for (const type of types) el.addEventListener(type, hotspot);
   return () => {
-    for (const type of types) el.removeEventListener(type, stop);
+    for (const type of types) el.removeEventListener(type, hotspot);
   };
 }

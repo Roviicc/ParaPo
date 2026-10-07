@@ -1,5 +1,5 @@
 import {
-  directionEndStops,
+  directionEndHotspots,
   directionEnds,
   isDrawn,
   type RouteSummary,
@@ -126,9 +126,10 @@ export function sharingAnEnd<V extends VariantSummary>(all: readonly V[], of: V)
  * old file's route may carry no ends; it then has none.
  */
 export function otherRoutesFrom<V extends VariantSummary>(all: readonly V[], of: V): V[] {
-  const start = directionEndStops(of).fromStop;
+  const start = directionEndHotspots(of).fromHotspot;
   if (!start) return [];
   return all.filter(
-    (v) => v.route_id !== of.route_id && isDrawn(v) && directionEndStops(v).fromStop === start,
+    (v) =>
+      v.route_id !== of.route_id && isDrawn(v) && directionEndHotspots(v).fromHotspot === start,
   );
 }

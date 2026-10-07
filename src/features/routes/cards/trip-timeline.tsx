@@ -70,7 +70,7 @@ export interface TripTimelineProps {
  * call, 2026-09-29).
  *
  * The rows are the owner's Timeline set (3716:1894) — TimelineStick for the
- * rail, TimelineDot for the stops — drawn in red there; each livery takes
+ * rail, TimelineDot for the hotspots — drawn in red there; each livery takes
  * its own Card/<livery>/Timeline/surface.
  *
  * A hintuan's row picks it (his Timeline State=Selected, 3769:2847,

@@ -86,7 +86,7 @@ import {
   simplifyLine,
 } from '../../src/shared/utils/geo.ts';
 import { directionName, isLineMode, routeName } from '../../src/features/routes/model/routes.ts';
-import { stopLabel } from '../../src/features/routes/model/stops.ts';
+import { hotspotLabel } from '../../src/features/routes/model/hotspots.ts';
 import { passBoxes } from '../../src/features/routes/geo/line-pass.ts';
 import { MAP_FILE_SCHEMA } from '../../src/features/published-map/map-file.ts';
 import { cleanSignboardSvg } from '../../src/features/routes/model/signboard-svg.ts';
@@ -264,7 +264,7 @@ function maxDeviation(original, simplified) {
 // Rows ordered by id, not by when they were saved: re-saving a direction with
 // the same geometry must not reorder the file and commit a change nobody can
 // see. (The map draws them in file order, which nothing depends on.)
-const [variantRows, stopRows, linkRows] = await Promise.all([
+const [variantRows, hotspotRows, linkRows] = await Promise.all([
   rest(
     'route_variant?select=id,route_id,direction_name,origin_terminal,destination_terminal,shape,confidence,reversed,signboards,' +
       'route:route(id,signboard,route_code,long_name,mode,fare_note,head_stop_id,tail_stop_id,via)&order=id.asc',
@@ -326,9 +326,9 @@ if (!FORCE) {
 // Names are generated from the hotspots at each route's ends and never stored
 // (PLAN.md, "Naming and creating a route", 2026-09-21). The file carries the
 // generated strings so visitors need no join; a renamed hotspot shows on the
-// next publish: routeName and directionName, from a hotspot's stopLabel — its
+// next publish: routeName and directionName, from a hotspot's hotspotLabel — its
 // informal name, what people say, or the name on the ground (0007).
-const stopName = new Map(stopRows.map((s) => [s.id, stopLabel(s)]));
+const hotspotName = new Map(hotspotRows.map((s) => [s.id, hotspotLabel(s)]));
 
 const stats = [];
 /** Each direction's overview, by id: its line at 5 m, 5 decimals. */
@@ -337,8 +337,8 @@ const variants = variantRows.map((v) => {
   if (!v.route) {
     fail(`FAIL  direction ${v.id} came without its route: is the route table still readable?`);
   }
-  const head = stopName.get(v.route.head_stop_id);
-  const tail = stopName.get(v.route.tail_stop_id);
+  const head = hotspotName.get(v.route.head_stop_id);
+  const tail = hotspotName.get(v.route.tail_stop_id);
   if (!head || !tail) {
     // The foreign keys make this impossible unless the stop table was not fully readable.
     fail(
@@ -405,7 +405,7 @@ const variants = variantRows.map((v) => {
   };
 });
 
-const stops = stopRows.map((s) => ({
+const stops = hotspotRows.map((s) => ({
   id: s.id,
   name: s.name,
   informal: s.informal ?? null,
@@ -535,7 +535,7 @@ writeFileSync(INDEX_V4, indexV4File);
 // With its orange stretches, worked out here once rather than by every
 // phone that lights the line (lineFile.mjs; the cheap-phone plan, step 13,
 // 2026-10-05): by the app's own rule (src/features/routes/geo/line-pass.ts: passBoxes,
-// passBounds, passStretches, stopRing, bboxOf, servedBy), on what the app
+// passBounds, passStretches, hotspotRing, bboxOf, servedBy), on what the app
 // reads — the line as written and the hotspots as rounded in the index,
 // shape 4's, every line in — with the key the app checks them by.
 const passBoxesOfIndex = passBoxes(stops);

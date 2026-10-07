@@ -1,11 +1,11 @@
 // What the saved routes show and light (src/features/routes/map/routes-shown.ts), and
-// what a tap marks on the saved hotspots (src/features/routes/map/stops-shown.ts).
+// what a tap marks on the saved hotspots (src/features/routes/map/hotspots-shown.ts).
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/shown-test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { litOf, shownOf, showingOf } from '../../src/features/routes/map/routes-shown.ts';
-import { boxMarks, placeHull } from '../../src/features/routes/map/stops-shown.ts';
+import { boxMarks, placeHull } from '../../src/features/routes/map/hotspots-shown.ts';
 
 /** A direction of `route`, drawn unless `drawn` is false: sample data, shaped like the published file. */
 const dir = (id, route, reversed = false, drawn = true) => ({

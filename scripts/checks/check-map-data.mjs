@@ -46,7 +46,7 @@ import { existsSync, readFileSync, appendFileSync, writeFileSync } from 'node:fs
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { PASS_WITHIN_M, passBounds } from '../../src/features/routes/geo/pass.ts';
-import { stopLabel, stopRing } from '../../src/features/routes/model/stops.ts';
+import { hotspotLabel, hotspotRing } from '../../src/features/routes/model/hotspots.ts';
 import {
   FERRY_LINES,
   LINES,
@@ -68,8 +68,8 @@ export const END_WITHIN_M = 50;
 const PUBLISHED_WITHIN_M = 0.5;
 
 /** Metres from a point to a hotspot: to its box's edge (0 inside), or to its point when it has no box. */
-function toStopM(p, s) {
-  const ring = stopRing(s);
+function toHotspotM(p, s) {
+  const ring = hotspotRing(s);
   return ring.length >= 3 ? distanceToRingM(p, ring) : haversine(p, s.point.coordinates);
 }
 
@@ -136,10 +136,10 @@ export function checkMapData(file) {
     return { problems, warnings, notes, counts: { directions: 0, hotspots: 0, links: 0 } };
   }
 
-  const stopById = new Map();
+  const hotspotById = new Map();
   for (const s of stops) {
-    if (stopById.has(s.id)) problems.push(`hotspot id ${s.id} appears twice`);
-    stopById.set(s.id, s);
+    if (hotspotById.has(s.id)) problems.push(`hotspot id ${s.id} appears twice`);
+    hotspotById.set(s.id, s);
   }
   const variantById = new Map();
   for (const v of variants) {
@@ -148,10 +148,10 @@ export function checkMapData(file) {
   }
 
   for (const s of stops) {
-    const label = stopLabel(s);
+    const label = hotspotLabel(s);
     if (!Array.isArray(s.point?.coordinates) || s.point.coordinates.length !== 2)
       problems.push(`hotspot "${label}" (${s.id}) has no point`);
-    if (s.area && stopRing(s).length < 3)
+    if (s.area && hotspotRing(s).length < 3)
       problems.push(`hotspot "${label}" (${s.id}) has a box with fewer than 3 corners`);
     if (s.kind === 'hintuan' && !s.area)
       warnings.push(
@@ -180,7 +180,7 @@ export function checkMapData(file) {
   for (const l of links) {
     if (!variantById.has(l.route_variant_id))
       problems.push(`a link names direction ${l.route_variant_id}, which is not in the file`);
-    if (!stopById.has(l.stop_id))
+    if (!hotspotById.has(l.stop_id))
       problems.push(`a link names hotspot ${l.stop_id}, which is not in the file`);
     if (!linksOf.has(l.route_variant_id)) linksOf.set(l.route_variant_id, []);
     linksOf.get(l.route_variant_id).push(l);
@@ -190,8 +190,8 @@ export function checkMapData(file) {
   const surelyNear = PASS_WITHIN_M - PUBLISHED_WITHIN_M;
   const surelyFar = PASS_WITHIN_M + PUBLISHED_WITHIN_M;
   const hintuans = stops
-    .filter((s) => s.kind === 'hintuan' && s.area && stopRing(s).length >= 3)
-    .map((s) => ({ s, ring: stopRing(s), bounds: passBounds(stopRing(s), surelyFar) }));
+    .filter((s) => s.kind === 'hintuan' && s.area && hotspotRing(s).length >= 3)
+    .map((s) => ({ s, ring: hotspotRing(s), bounds: passBounds(hotspotRing(s), surelyFar) }));
 
   // The orange stretches' boxes, as the app makes them from this file's hotspots (line-pass.ts).
   const boxes = passBoxes(stops);
@@ -200,8 +200,8 @@ export function checkMapData(file) {
   let unmapped = 0;
   for (const v of variants) {
     const name = `${v.route?.name ?? v.route_id} · ${v.direction_name ?? v.id}`;
-    const head = stopById.get(v.route?.head_stop_id);
-    const tail = stopById.get(v.route?.tail_stop_id);
+    const head = hotspotById.get(v.route?.head_stop_id);
+    const tail = hotspotById.get(v.route?.tail_stop_id);
     if (!head)
       problems.push(
         `${name}: its route's head hotspot ${v.route?.head_stop_id} is not in the file`,
@@ -221,9 +221,9 @@ export function checkMapData(file) {
     } else if (isRail(v.route?.mode)) {
       // The whole ride is priced from end to end by the ends' names (rail-fares.ts).
       for (const end of [head, tail]) {
-        if (end && stationIndex(v.route.route_code, stopLabel(end)) < 0) {
+        if (end && stationIndex(v.route.route_code, hotspotLabel(end)) < 0) {
           warnings.push(
-            `${name}: ends at "${stopLabel(end)}", which is not in the ${v.route.route_code} fare table, so its card shows no fare`,
+            `${name}: ends at "${hotspotLabel(end)}", which is not in the ${v.route.route_code} fare table, so its card shows no fare`,
           );
         }
       }
@@ -242,8 +242,8 @@ export function checkMapData(file) {
       const [from, to] = v.reversed ? [tail, head] : [head, tail];
       const start = line[0];
       const end = line[line.length - 1];
-      const straight = [toStopM(start, from), toStopM(end, to)];
-      const turned = [toStopM(start, to), toStopM(end, from)];
+      const straight = [toHotspotM(start, from), toHotspotM(end, to)];
+      const turned = [toHotspotM(start, to), toHotspotM(end, from)];
       if (straight.every((d) => d <= END_WITHIN_M)) {
         // as drawn
       } else if (turned.every((d) => d <= END_WITHIN_M)) {
@@ -251,11 +251,11 @@ export function checkMapData(file) {
       } else {
         if (straight[0] > END_WITHIN_M)
           warnings.push(
-            `${name}: the line starts ${Math.round(straight[0])} m from ${stopLabel(from)}`,
+            `${name}: the line starts ${Math.round(straight[0])} m from ${hotspotLabel(from)}`,
           );
         if (straight[1] > END_WITHIN_M)
           warnings.push(
-            `${name}: the line ends ${Math.round(straight[1])} m from ${stopLabel(to)}`,
+            `${name}: the line ends ${Math.round(straight[1])} m from ${hotspotLabel(to)}`,
           );
       }
     }
@@ -269,7 +269,7 @@ export function checkMapData(file) {
       if (v.route && !servedBy(s, v.route)) {
         if (linked.has(s.id))
           warnings.push(
-            `${name}: linked to "${stopLabel(s)}", which it does not stop at, so the timeline lists it wrongly`,
+            `${name}: linked to "${hotspotLabel(s)}", which it does not stop at, so the timeline lists it wrongly`,
           );
         continue;
       }
@@ -277,27 +277,27 @@ export function checkMapData(file) {
       if (linked.has(s.id)) {
         if (!overlaps || firstNearIndex(line, ring, surelyFar) < 0) {
           warnings.push(
-            `${name}: linked to "${stopLabel(s)}" but the line never comes within ${PASS_WITHIN_M} m of its box ` +
+            `${name}: linked to "${hotspotLabel(s)}" but the line never comes within ${PASS_WITHIN_M} m of its box ` +
               `(nearest ${Math.round(nearestM(line, ring))} m), so the timeline lists a place the line does not reach`,
           );
         }
       } else if (overlaps && firstNearIndex(line, ring, surelyNear) >= 0) {
         warnings.push(
-          `${name}: passes "${stopLabel(s)}" but is not linked to it, so the timeline leaves it out`,
+          `${name}: passes "${hotspotLabel(s)}" but is not linked to it, so the timeline leaves it out`,
         );
       }
     }
     for (const l of linked.values()) {
-      const s = stopById.get(l.stop_id);
+      const s = hotspotById.get(l.stop_id);
       if (!s || s.kind !== 'terminal') continue;
-      const ring = stopRing(s);
+      const ring = hotspotRing(s);
       const far =
         ring.length >= 3
           ? firstNearIndex(line, ring, END_WITHIN_M) < 0
           : Math.min(...line.map((p) => haversine(p, s.point.coordinates))) > END_WITHIN_M;
       if (far)
         warnings.push(
-          `${name}: linked to the terminal "${stopLabel(s)}" but the line stays more than ${END_WITHIN_M} m from it`,
+          `${name}: linked to the terminal "${hotspotLabel(s)}" but the line stays more than ${END_WITHIN_M} m from it`,
         );
     }
 

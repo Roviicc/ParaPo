@@ -101,8 +101,8 @@ export interface Ride {
   flow?: readonly LngLat[];
   from: string;
   to: string;
-  fromStop?: string | null;
-  toStop?: string | null;
+  fromHotspot?: string | null;
+  toHotspot?: string | null;
 }
 
 /**
@@ -116,7 +116,7 @@ export interface RideEnd {
   name: string;
   named: boolean;
   at: LngLat;
-  stopId: string | null;
+  hotspotId: string | null;
   rides: string[];
 }
 
@@ -133,10 +133,10 @@ export function rideEnds(rides: readonly Ride[]): RideEnd[] {
     .flatMap((r) =>
       (
         [
-          ['from', r.from, r.line[0], r.fromStop ?? null],
-          ['to', r.to, r.line[r.line.length - 1], r.toStop ?? null],
+          ['from', r.from, r.line[0], r.fromHotspot ?? null],
+          ['to', r.to, r.line[r.line.length - 1], r.toHotspot ?? null],
         ] as const
-      ).map(([end, name, at, stopId]) => {
+      ).map(([end, name, at, hotspotId]) => {
         const same = name
           ? named.find((n) => n.name === name && haversine(n.at, at) < SAME_END_M)
           : undefined;
@@ -146,7 +146,7 @@ export function rideEnds(rides: readonly Ride[]): RideEnd[] {
           name,
           named: !!name && !same,
           at,
-          stopId,
+          hotspotId,
           rides: !same && r.id ? [r.id] : [],
         };
         if (e.named) named.push(e);
@@ -414,7 +414,7 @@ export function useDirectionArrows(map: MapLibreMap | null, rides: readonly Ride
       const how = onAMove(held, drawnAt, viewOf(map));
       if (how !== 'hold') draw(how === 'wide');
     };
-    // A camera call made while another moves the map stops that one, which
+    // A camera call made while another moves the map hotspots that one, which
     // says 'moveend', and says 'movestart' at once for its own (MapLibre's
     // easeTo: _stop, then _prepareEase): the compass camera eases at every
     // turn of the phone of 3° or more (useLocator.ts), thirty times for a

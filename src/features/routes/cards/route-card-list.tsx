@@ -3,16 +3,16 @@ import { BottomSheet, type SheetHeight } from '@/shared/ui/bottom-sheet';
 import { RouteCardHeader } from './route-card-header';
 import { RouteCardStack, type PickedPlace } from './route-card-stack';
 import { drawnDepartures } from '../model/departures';
+import { hotspotLabel, type Hotspot } from '../model/hotspots';
 import type { Livery } from '../model/liveries';
 import { hotspotCount } from '../model/places';
 import type { VariantSummary } from '../model/routes';
-import { stopLabel, type StopSummary } from '../model/stops';
 
 interface Props {
   /** Every direction of every route under the tap, slots included, as the hooks hand them over. */
   routes: readonly VariantSummary[];
   /** The hotspots under the tap, listed first. */
-  stops?: readonly StopSummary[];
+  hotspots?: readonly Hotspot[];
   /** Whether the way back is showing rather than the way there. */
   back: boolean;
   /** SWITCH: show them all the other way round. */
@@ -24,7 +24,7 @@ interface Props {
   /** Called with the direction a row opens, and the colour its card wore: its trip wears the same. */
   onRoute: (v: VariantSummary, livery: Livery) => void;
   /** A hotspot's row: open its card. */
-  onStop: (s: StopSummary) => void;
+  onHotspot: (s: Hotspot) => void;
   onClose: () => void;
   /** Kept but not shown, while a trip picked from it is on top: ‹ comes back to it as it was left, every card at rest. */
   hidden?: boolean;
@@ -62,23 +62,23 @@ interface Props {
  */
 export function RouteCardList({
   routes,
-  stops = [],
+  hotspots = [],
   back,
   onFlip,
   selected,
   onSelect,
   onRoute,
-  onStop,
+  onHotspot,
   onClose,
   hidden,
   height,
 }: Props) {
   const places = drawnDepartures(routes, back);
   const switchable = drawnDepartures(routes, !back).length > 0;
-  const hotspots = hotspotCount(stops);
+  const hotspotTotal = hotspotCount(hotspots);
   const count =
-    places.length === 0 && hotspots > 0
-      ? `${hotspots} ${hotspots === 1 ? 'Hotspot' : 'Hotspots'}`
+    places.length === 0 && hotspotTotal > 0
+      ? `${hotspotTotal} ${hotspotTotal === 1 ? 'Hotspot' : 'Hotspots'}`
       : `${places.length} ${places.length === 1 ? 'Route' : 'Routes'}`;
 
   return (
@@ -98,23 +98,23 @@ export function RouteCardList({
         />
       }
     >
-      {stops.length > 0 && (
+      {hotspots.length > 0 && (
         // Full-bleed rows: a whole row is the target, not the words inside it.
         <ul className="border-t border-border-primary">
-          {stops.map((s) => (
+          {hotspots.map((s) => (
             <li key={s.id} className="border-b border-border-primary last:border-b-0">
               <button
                 type="button"
                 data-testid="chooser-item"
-                onClick={() => onStop(s)}
+                onClick={() => onHotspot(s)}
                 className="block w-full px-4 py-2.5 text-left hover:bg-surface-secondary"
               >
                 <span className="block truncate font-medium text-content-primary">
-                  {stopLabel(s)}
+                  {hotspotLabel(s)}
                 </span>
                 <span className="block truncate text-xs text-content-quaternary">
                   {s.kind === 'terminal' ? 'Terminal' : 'Hintuan'}
-                  {stopLabel(s) !== s.name && ` · ${s.name}`}
+                  {hotspotLabel(s) !== s.name && ` · ${s.name}`}
                 </span>
               </button>
             </li>

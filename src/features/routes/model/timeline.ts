@@ -1,14 +1,14 @@
 import { haversine, metresAlong, nearestOnSegment, type LngLat } from '@/shared/utils/geo';
 
+import { hotspotLabel, hotspotRing, type HotspotKind, type Hotspot } from './hotspots';
 import { placeKey } from './places';
 import { servedBy, type ServedRoute } from './routes';
-import { stopLabel, stopRing, type StopKind, type StopSummary } from './stops';
 import { passIndex } from '../geo/pass';
 import type { Ring } from '../geo/ring';
 
 /*
  * A direction as a string of places: the hintuans its line passes, in order,
- * and the timeline its card reads. Split from stops.ts, 2026-09-29.
+ * and the timeline its card reads. Split from hotspots.ts, 2026-09-29.
  */
 
 /**
@@ -18,18 +18,18 @@ import type { Ring } from '../geo/ring';
  * neither are the hintuans this route does not stop at (`servedBy`): the
  * jeep hintuans under a train's track, the stations over a jeep's road.
  */
-export function hintuansAlong<S extends StopSummary>(
+export function hintuansAlong<S extends Hotspot>(
   line: readonly LngLat[],
-  stops: readonly S[],
+  hotspots: readonly S[],
   route: ServedRoute,
-): { stop: S; index: number }[] {
-  const along: { stop: S; index: number; at: number }[] = [];
-  for (const stop of stops) {
-    if (!listedAlong(stop, route)) continue;
-    const where = passedAt(line, stopRing(stop), stop);
-    if (where) along.push({ stop, ...where });
+): { hotspot: S; index: number }[] {
+  const along: { hotspot: S; index: number; at: number }[] = [];
+  for (const hotspot of hotspots) {
+    if (!listedAlong(hotspot, route)) continue;
+    const where = passedAt(line, hotspotRing(hotspot), hotspot);
+    if (where) along.push({ hotspot, ...where });
   }
-  return along.sort(inPassingOrder).map(({ stop, index }) => ({ stop, index }));
+  return along.sort(inPassingOrder).map(({ hotspot, index }) => ({ hotspot, index }));
 }
 
 /**
@@ -38,19 +38,19 @@ export function hintuansAlong<S extends StopSummary>(
  * out with passedAt and inPassingOrder for the babaan sides, which ask it of
  * only the boxes their line cuts (the cheap-phone plan, step 8, 2026-10-04).
  */
-export function listedAlong(stop: StopSummary, route: ServedRoute): boolean {
-  return stop.kind === 'hintuan' && !!stop.area && servedBy(stop, route);
+export function listedAlong(hotspot: Hotspot, route: ServedRoute): boolean {
+  return hotspot.kind === 'hintuan' && !!hotspot.area && servedBy(hotspot, route);
 }
 
 /**
- * Where along the line this box (`ring`, the stop's own) is passed: its
- * `index` (passIndex), and `at`, how far along that segment the stop's
+ * Where along the line this box (`ring`, the hotspot's own) is passed: its
+ * `index` (passIndex), and `at`, how far along that segment the hotspot's
  * middle is. Null when the line does not pass it.
  */
 export function passedAt(
   line: readonly LngLat[],
   ring: Ring,
-  stop: StopSummary,
+  hotspot: Hotspot,
 ): { index: number; at: number } | null {
   const index = passIndex(line, ring);
   // Two boxes met on one segment, a snapped road's 20–30 m, tied and kept
@@ -59,7 +59,8 @@ export function passedAt(
   return index >= 0
     ? {
         index,
-        at: nearestOnSegment(stop.point.coordinates, line[index], line[index + 1] ?? line[index]).t,
+        at: nearestOnSegment(hotspot.point.coordinates, line[index], line[index + 1] ?? line[index])
+          .t,
       }
     : null;
 }
@@ -77,8 +78,8 @@ export const inPassingOrder = (
  * hintuansAlong orders the save panel's (review of 2026-10-03). `line` may
  * be the overview: a position along it is, an index into it is not.
  */
-export function orderLinked<S extends StopSummary>(
-  linked: readonly { stop: S; sequence: number }[],
+export function orderLinked<S extends Hotspot>(
+  linked: readonly { hotspot: S; sequence: number }[],
   line: readonly LngLat[],
 ): S[] {
   const keyed = linked.map((l) => ({ ...l, at: -1 }));
@@ -86,15 +87,15 @@ export function orderLinked<S extends StopSummary>(
   keyed.forEach((l, i) =>
     keyed.forEach((m, j) => i !== j && l.sequence === m.sequence && tied.add(i)),
   );
-  for (const i of tied) keyed[i].at = metresAlong(line, keyed[i].stop.point.coordinates);
-  return keyed.sort((a, b) => a.sequence - b.sequence || a.at - b.at).map((l) => l.stop);
+  for (const i of tied) keyed[i].at = metresAlong(line, keyed[i].hotspot.point.coordinates);
+  return keyed.sort((a, b) => a.sequence - b.sequence || a.at - b.at).map((l) => l.hotspot);
 }
 
 /** One row of a direction's timeline. */
-export interface TimelineStop {
+export interface TimelineRow {
   id: string;
   label: string;
-  kind: StopKind;
+  kind: HotspotKind;
 }
 
 /**
@@ -102,15 +103,15 @@ export interface TimelineStop {
  * the way in order, where it is going. What a signboard is, generated.
  */
 export interface Timeline {
-  from: TimelineStop | null;
-  to: TimelineStop | null;
-  between: TimelineStop[];
+  from: TimelineRow | null;
+  to: TimelineRow | null;
+  between: TimelineRow[];
 }
 
 /**
  * The timeline of a direction with these ends. `along` is the hintuans in
- * the order the line reaches them. A row is a hintuan, named by its stop
- * name: the boxes of one place passed one after another — a mini stop on
+ * the order the line reaches them. A row is a hintuan, named by its hotspot
+ * name: the boxes of one place passed one after another — a mini hotspot on
  * each side of the road, or the several of SM Fairview — are one row, and a
  * box's own ground name is for the hotspot card, not the route. The ends'
  * places are left out of the middle: the rider is already getting off
@@ -120,14 +121,14 @@ export interface Timeline {
  * round to read in travel order. The row keeps the first box's id.
  */
 export function timelineFor(
-  head: StopSummary | null | undefined,
-  tail: StopSummary | null | undefined,
+  head: Hotspot | null | undefined,
+  tail: Hotspot | null | undefined,
   reversed: boolean,
-  along: readonly StopSummary[],
+  along: readonly Hotspot[],
   lineStart?: LngLat,
 ): Timeline {
   // An end is its place, never a box: "SM Fairview", not the terminal's long name.
-  const row = (s: StopSummary): TimelineStop => ({ id: s.id, label: stopLabel(s), kind: s.kind });
+  const row = (s: Hotspot): TimelineRow => ({ id: s.id, label: hotspotLabel(s), kind: s.kind });
   const [from, to] = reversed ? [tail, head] : [head, tail];
   const endPlaces = new Set([head, tail].filter((s) => !!s).map((s) => placeKey(s!)));
   let between = along.filter((s) => s.kind === 'hintuan' && !endPlaces.has(placeKey(s)));
@@ -146,6 +147,6 @@ export function timelineFor(
  * decide, not the drawing. The one travel-order rule (the review's 6.5): the
  * timeline's middle, the ride-to cut and the arrows' line all turn on it.
  */
-export function drawnFromTheEnd(lineStart: LngLat, from: StopSummary, to: StopSummary): boolean {
+export function drawnFromTheEnd(lineStart: LngLat, from: Hotspot, to: Hotspot): boolean {
   return haversine(lineStart, to.point.coordinates) < haversine(lineStart, from.point.coordinates);
 }

@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { LayerSwitch, twinsOf } from '../../src/features/routes/map/layer-switch.ts';
 import { addSavedRoutes } from '../../src/features/routes/map/saved-routes-layers.ts';
-import { addSavedStops, boxState } from '../../src/features/routes/map/saved-stops-layers.ts';
+import { addSavedHotspots, boxState } from '../../src/features/routes/map/saved-hotspots-layers.ts';
 import { PASS_LAYER } from '../../src/features/routes/geo/pass-stretches.ts';
 
 /** A map of layers with paint, counting each paint set, as MapLibre's: unset is undefined. */
@@ -117,7 +117,7 @@ test('the five layers change at once, never between: a 0 ms transition, and off 
     addImage: () => {},
   };
   addSavedRoutes(map);
-  addSavedStops(map);
+  addSavedHotspots(map);
   layers.push(PASS_LAYER);
   const switched = [
     'saved-routes-selected-casing',

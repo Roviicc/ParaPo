@@ -91,7 +91,7 @@ const openRoute = async (p) => {
 };
 
 /** Centre the map on the hintuan's box and tap its middle. Near a line this opens the chooser. */
-const tapStop = async (p) => {
+const tapHotspot = async (p) => {
   const ring = stop.area.coordinates[0];
   const c = [
     ring.reduce((a, q) => a + q[0], 0) / ring.length,
@@ -115,10 +115,10 @@ if (route) {
   });
 }
 if (stop) {
-  await shot(phone, '/', '04-phone-chooser', { after: tapStop });
+  await shot(phone, '/', '04-phone-chooser', { after: tapHotspot });
   await shot(phone, '/', '04b-phone-hotspot', {
     after: async (p) => {
-      await tapStop(p);
+      await tapHotspot(p);
       const item = p.locator('[data-testid="chooser-item"]');
       if (await item.count()) await item.first().tap();
       await wait(1500);

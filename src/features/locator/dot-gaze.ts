@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 
 import type { Highlight } from '@/features/routes/map/use-saved-routes';
+import type { Hotspot } from '@/features/routes/model/hotspots';
 import { placeKey } from '@/features/routes/model/places';
 import { variantLine, type VariantSummary } from '@/features/routes/model/routes';
-import type { StopSummary } from '@/features/routes/model/stops';
 import { M_PER_DEG, nearestOnSegment, type LngLat } from '@/shared/utils/geo';
 
 /**
@@ -84,7 +84,7 @@ export interface Picks {
   pickedId: string | null;
   pinAt: LngLat | null;
   /** The hotspot whose card is open. */
-  place: StopSummary | null;
+  place: Hotspot | null;
   /** The open trip. */
   trip: VariantSummary | null;
   /** The RouteCard picked, in the list or on a hotspot's card. */

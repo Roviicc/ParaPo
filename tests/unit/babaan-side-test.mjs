@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rightOfLine } from '../../src/features/routes/geo/right-of-line.ts';
 import { hintuansAlong } from '../../src/features/routes/model/timeline.ts';
-import { stopRing } from '../../src/features/routes/model/stops.ts';
+import { hotspotRing } from '../../src/features/routes/model/hotspots.ts';
 import { fileURLToPath } from 'node:url';
 import { readPublished } from '../../scripts/checks/check-map-data.mjs';
 
@@ -124,8 +124,8 @@ test('the two directions of the committed map share each box they both cut', () 
   let cut = 0;
   for (const v of file.variants.filter((v) => v.shape)) {
     const line = v.shape.coordinates;
-    for (const { stop } of hintuansAlong(line, file.stops, v.route)) {
-      const ring = stopRing(stop);
+    for (const { hotspot } of hintuansAlong(line, file.stops, v.route)) {
+      const ring = hotspotRing(hotspot);
       const right = rightOfLine(ring, line);
       if (!right) continue;
       const left = rightOfLine(ring, [...line].reverse());
@@ -133,9 +133,9 @@ test('the two directions of the committed map share each box they both cut', () 
       // The two sides of one line make the whole box.
       assert.ok(
         Math.abs(area(right) + area(left) - area(ring)) < area(ring) * 1e-6,
-        `${stop.name}: the halves do not add up`,
+        `${hotspot.name}: the halves do not add up`,
       );
-      assert.ok(area(right) > 0 && area(left) > 0, `${stop.name}: an empty half`);
+      assert.ok(area(right) > 0 && area(left) > 0, `${hotspot.name}: an empty half`);
     }
   }
   assert.ok(cut > 0, 'no box in the committed map is cut');
@@ -242,7 +242,7 @@ function oldHintuansAlong(line, stops, route) {
   const along = [];
   for (const stop of stops) {
     if (stop.kind !== 'hintuan' || !stop.area || !servedBy(stop, route)) continue;
-    const index = passIndex(line, stopRing(stop));
+    const index = passIndex(line, hotspotRing(stop));
     if (index >= 0)
       along.push({
         stop,
@@ -269,7 +269,7 @@ function oldBabaanFeatures(chosen, stops) {
   if (!chosen || isLineMode(chosen.route?.mode)) return [];
   const line = oldTravelLine(chosen, stops);
   return oldHintuansAlong(line, stops, chosen.route).flatMap(({ stop }) => {
-    const side = oldRightOfLine(stopRing(stop), line);
+    const side = oldRightOfLine(hotspotRing(stop), line);
     return side
       ? [{ type: 'Feature', properties: { id: stop.id }, geometry: ringToPolygon(side) }]
       : [];
@@ -279,7 +279,7 @@ function oldBabaanFeatures(chosen, stops) {
 test('step 8: every line of the committed map against every hintuan, both ways, cut exactly as before', () => {
   const file = published();
   const lines = file.variants.filter((v) => v.shape).map((v) => v.shape.coordinates);
-  const boxes = file.stops.filter((s) => s.kind === 'hintuan' && s.area).map(stopRing);
+  const boxes = file.stops.filter((s) => s.kind === 'hintuan' && s.area).map(hotspotRing);
   assert.ok(
     lines.length >= 20 && boxes.length >= 100,
     `${lines.length} lines, ${boxes.length} boxes`,

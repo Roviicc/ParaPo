@@ -1,3 +1,4 @@
+import type { HotspotLink, HotspotRow } from '@/features/routes/model/hotspots';
 import {
   nameVariants,
   type LineStringGeoJSON,
@@ -5,14 +6,13 @@ import {
   type VariantDrawing,
   type VariantRow,
 } from '@/features/routes/model/routes';
-import type { StopLink, StopRow } from '@/features/routes/model/stops';
 
 import { readAll, type Page } from './read-all';
 import { getSupabase } from './supabase';
 
 /**
  * Readers of the live tables, for the editor. They live in studio/, apart
- * from the types in shared/model/routes.ts and shared/model/stops.ts, on
+ * from the types in routes/model/routes.ts and routes/model/hotspots.ts, on
  * purpose: the public map imports those types but reads the published file
  * instead (published-map/map-file.ts), and ESLint forbids the public shell
  * importing studio/. So Supabase's address can never land in a chunk both pages share;
@@ -81,7 +81,7 @@ export async function listVariants(): Promise<VariantRow[]> {
         .range(from, to)
         .then((r) => r as unknown as Page<ListedRow>),
     );
-  const [listed, stops] = await Promise.all([
+  const [listed, hotspots] = await Promise.all([
     list(VARIANT_SELECT).catch((e: unknown) => {
       if (!(e instanceof Error && NO_OVERVIEW.test(e.message))) throw e;
       return list(VARIANT_SELECT_BEFORE_0009);
@@ -97,7 +97,7 @@ export async function listVariants(): Promise<VariantRow[]> {
     ...r,
     shape: overview ?? shape ?? missing.get(r.id) ?? null,
   }));
-  return nameVariants(rows as UnnamedVariantRow[], stops);
+  return nameVariants(rows as UnnamedVariantRow[], hotspots);
 }
 
 /** The full lines of the drawn rows that have no overview yet, by id. */
@@ -131,7 +131,7 @@ const LINES_PER_READ = 50;
 /**
  * These directions with their full lines: the few a hotspot's outline
  * reaches, before its links are worked out on them, read LINES_PER_READ at
- * a time. A stop's `stop_sequence` is an index into the full line, so an
+ * a time. A hotspot's `stop_sequence` is an index into the full line, so an
  * overview must never be what it is counted on.
  */
 export async function linesOf<T extends VariantRow>(variants: readonly T[]): Promise<T[]> {
@@ -193,12 +193,12 @@ export async function withDrawing(v: VariantRow): Promise<VariantDrawing> {
  * StrictMode). A read already in flight is shared; the next load, after it
  * settles, reads afresh.
  */
-let stopsInFlight: Promise<StopRow[]> | null = null;
-function listStops(): Promise<StopRow[]> {
+let hotspotsInFlight: Promise<HotspotRow[]> | null = null;
+function listStops(): Promise<HotspotRow[]> {
   const client = getSupabase();
   if (!client) return Promise.resolve([]);
-  if (stopsInFlight) return stopsInFlight;
-  const read = readAll<StopRow>((from, to) =>
+  if (hotspotsInFlight) return hotspotsInFlight;
+  const read = readAll<HotspotRow>((from, to) =>
     client
       .from('stop')
       .select('*', { count: 'exact' })
@@ -206,19 +206,19 @@ function listStops(): Promise<StopRow[]> {
       .order('id')
       .range(from, to),
   );
-  stopsInFlight = read;
+  hotspotsInFlight = read;
   const settle = () => {
-    if (stopsInFlight === read) stopsInFlight = null;
+    if (hotspotsInFlight === read) hotspotsInFlight = null;
   };
   read.then(settle, settle);
   return read;
 }
 
 /** Every hotspot ↔ direction link. Public read. */
-async function listStopLinks(): Promise<StopLink[]> {
+async function listStopLinks(): Promise<HotspotLink[]> {
   const client = getSupabase();
   if (!client) return [];
-  return readAll<StopLink>((from, to) =>
+  return readAll<HotspotLink>((from, to) =>
     client
       .from('route_stop')
       .select('route_variant_id, stop_id, stop_sequence', { count: 'exact' })
@@ -229,8 +229,8 @@ async function listStopLinks(): Promise<StopLink[]> {
   );
 }
 
-/** What the editor's stops hook loads. Module-level, so it never changes between renders. */
+/** What the editor's hotspots hook loads. Module-level, so it never changes between renders. */
 export const loadStopsFromSupabase = async () => {
-  const [stops, links] = await Promise.all([listStops(), listStopLinks()]);
-  return { stops, links };
+  const [hotspots, links] = await Promise.all([listStops(), listStopLinks()]);
+  return { hotspots, links };
 };

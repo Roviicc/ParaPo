@@ -301,17 +301,17 @@ export function BottomSheet({
     };
     const up = (ev: PointerEvent) => {
       if (ev.pointerId !== e.pointerId) return;
-      stop();
+      hotspot();
       if (moving || raises) swallowTheTapsClick(ev.clientX, ev.clientY);
       if (moving) now.current.settle(track.release(ev.timeStamp, ev.clientY));
       else if (raises) now.current.settle(snapAfterTap(snap));
     };
     const cancel = (ev: PointerEvent) => {
       if (ev.pointerId !== e.pointerId) return;
-      stop();
+      hotspot();
       setDragging(false);
     };
-    const stop = () => {
+    const hotspot = () => {
       drag.current?.abort();
       drag.current = null;
     };
@@ -462,7 +462,7 @@ const framedAt = (snap: Snap): Snap => (aboveMiddle(snap) ? 'middle' : snap);
 
 /**
  * The status bar's height as the page reads it, once: what Max leaves above
- * it besides its strip of map (sheetGesture). 0 where the page stops under it.
+ * it besides its strip of map (sheetGesture). 0 where the page hotspots under it.
  */
 let safeTopRead = false;
 function measureSafeTop() {

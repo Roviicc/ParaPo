@@ -1,8 +1,8 @@
+import type { HotspotRow } from '@/features/routes/model/hotspots';
 import { nameVariants, type VariantRow } from '@/features/routes/model/routes';
-import type { StopRow } from '@/features/routes/model/stops';
 
+import { syncHintuanLinks } from './hotspots-write';
 import { saveVariant, type SaveInput } from './routes-write';
-import { syncHintuanLinks } from './stops-write';
 
 /**
  * A direction saved, then every hintuan's route list brought up to date
@@ -15,12 +15,12 @@ import { syncHintuanLinks } from './stops-write';
  */
 export async function saveRouteAndLinks(
   input: SaveInput,
-  stops: StopRow[],
+  hotspots: HotspotRow[],
   onWritten: (written: { routeId: string; variantId: string }) => void,
 ): Promise<VariantRow> {
   const saved = await saveVariant(input);
   onWritten({ routeId: saved.route_id, variantId: saved.id });
-  const named = nameVariants([saved], stops)[0];
+  const named = nameVariants([saved], hotspots)[0];
   try {
     await syncHintuanLinks(named);
   } catch (err) {

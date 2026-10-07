@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 
+import { hotspotLabel, type HotspotRow } from '@/features/routes/model/hotspots';
 import { placeKey } from '@/features/routes/model/places';
 import { travelLine } from '@/features/routes/model/ride';
 import { variantLine, type VariantRow } from '@/features/routes/model/routes';
-import { stopLabel, type StopRow } from '@/features/routes/model/stops';
 
 import type { Drawing } from '../drawing/use-drawing';
 
@@ -13,7 +13,7 @@ import type { Drawing } from '../drawing/use-drawing';
  * and which way round that slot is; while extending, the places the chosen
  * direction runs between; and the place the drawing is headed for.
  */
-export function useSaveTarget(draw: Drawing, variants: VariantRow[], stops: StopRow[]) {
+export function useSaveTarget(draw: Drawing, variants: VariantRow[], hotspots: HotspotRow[]) {
   // What the save panel is saving into.
   const editing = draw.target.variantId
     ? (variants.find((v) => v.id === draw.target.variantId) ?? null)
@@ -34,17 +34,21 @@ export function useSaveTarget(draw: Drawing, variants: VariantRow[], stops: Stop
   const extendEnds = useMemo(() => {
     const v = draw.picking?.variant;
     if (!v) return null;
-    const head = stops.find((s) => s.id === v.route.head_stop_id);
-    const tail = stops.find((s) => s.id === v.route.tail_stop_id);
+    const head = hotspots.find((s) => s.id === v.route.head_stop_id);
+    const tail = hotspots.find((s) => s.id === v.route.tail_stop_id);
     if (!head || !tail) return null;
     const [from, to] = v.reversed ? [tail, head] : [head, tail];
-    const travel = travelLine(v, stops);
-    return { from: stopLabel(from), to: stopLabel(to), backwards: travel[0] !== variantLine(v)[0] };
-  }, [draw.picking?.variant, stops]);
+    const travel = travelLine(v, hotspots);
+    return {
+      from: hotspotLabel(from),
+      to: hotspotLabel(to),
+      backwards: travel[0] !== variantLine(v)[0],
+    };
+  }, [draw.picking?.variant, hotspots]);
 
   // Where the line being drawn is going, when that is known: the far end of
   // the direction being edited, or of the route's slot a return trip fills.
-  const destinationStopId = editing
+  const destinationHotspotId = editing
     ? editing.reversed
       ? editing.route.head_stop_id
       : editing.route.tail_stop_id
@@ -53,12 +57,12 @@ export function useSaveTarget(draw: Drawing, variants: VariantRow[], stops: Stop
         ? parentRoute.head_stop_id
         : parentRoute.tail_stop_id
       : null;
-  const placeOfStop = (id: string | null) => {
-    const s = id ? stops.find((x) => x.id === id) : undefined;
+  const placeOfHotspot = (id: string | null) => {
+    const s = id ? hotspots.find((x) => x.id === id) : undefined;
     return s ? placeKey(s) : null;
   };
 
-  return { editing, parentRoute, slotReversed, extendEnds, destinationStopId, placeOfStop };
+  return { editing, parentRoute, slotReversed, extendEnds, destinationHotspotId, placeOfHotspot };
 }
 
 export type SaveTarget = ReturnType<typeof useSaveTarget>;

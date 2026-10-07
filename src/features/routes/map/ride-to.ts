@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { zoomForScale, type LngLat } from '@/shared/utils/geo';
 
 import { APP_MOVE } from './map-view';
+import { hotspotLabel, type Hotspot } from '../model/hotspots';
 import { rideCut, travelLine } from '../model/ride';
 import type { VariantSummary } from '../model/routes';
-import { stopLabel, type StopSummary } from '../model/stops';
 
 /** How close a picked hintuan is brought in: the scale bar reading this. */
 const PICKED_SCALE_M = 500;
@@ -27,7 +27,7 @@ const PICKED_SCALE_M = 500;
 export function useRideTo(
   map: MapLibreMap | null,
   selected: VariantSummary | null,
-  stops: readonly StopSummary[],
+  hotspots: readonly Hotspot[],
   opts: {
     /**
      * As a glide starts: where it puts the hintuan, or the end, from the
@@ -71,8 +71,8 @@ export function useRideTo(
   onGlide.current = opts.onGlide;
 
   const cut = useMemo(
-    () => (selected && live ? rideCut(selected, stops, live.rowId) : null),
-    [selected, stops, live],
+    () => (selected && live ? rideCut(selected, hotspots, live.rowId) : null),
+    [selected, hotspots, live],
   );
 
   /** Keeps the camera as the first pick is made; a later pick keeps the first one's. */
@@ -123,7 +123,7 @@ export function useRideTo(
       setAtEnd(on && selectedId ? { variantId: selectedId, end } : null);
       if (!on) return goBack();
       if (!map || !selected) return;
-      const line = travelLine(selected, stops);
+      const line = travelLine(selected, hotspots);
       if (line.length < 2) return;
       remember();
       const at = end === 'from' ? line[0] : line[line.length - 1];
@@ -137,7 +137,7 @@ export function useRideTo(
         APP_MOVE,
       );
     },
-    [map, selected, selectedId, stops, endPicked, remember, goBack],
+    [map, selected, selectedId, hotspots, endPicked, remember, goBack],
   );
 
   // Glide to where the rider would get off, in to where the scale bar reads
@@ -158,7 +158,7 @@ export function useRideTo(
     );
   }, [map, cut]);
 
-  const pickedStop = live ? stops.find((s) => s.id === live.rowId) : undefined;
+  const pickedHotspot = live ? hotspots.find((s) => s.id === live.rowId) : undefined;
   // Kept one object while the cut is, so the lit rides are not made anew each render.
   const ridden = useMemo(
     () => (cut && selectedId ? { variantId: selectedId, line: cut.ridden } : null),
@@ -166,7 +166,7 @@ export function useRideTo(
   );
 
   return {
-    rideTo: cut && live ? { stopId: live.rowId, metres: cut.metres } : null,
+    rideTo: cut && live ? { hotspotId: live.rowId, metres: cut.metres } : null,
     /** The row picked, cut or not: a row whose box the line misses is still shown picked, with nothing to price. */
     pickedId: live?.rowId ?? null,
     /** The ride from its start to the picked hintuan, where its chevrons stop (useLitRides); null with nothing cut. */
@@ -176,9 +176,9 @@ export function useRideTo(
      * the glide goes; for a row whose box the line misses, the hintuan's own
      * point. Null with nothing picked.
      */
-    pinAt: live ? (cut?.at ?? pickedStop?.point.coordinates ?? null) : null,
+    pinAt: live ? (cut?.at ?? pickedHotspot?.point.coordinates ?? null) : null,
     /** The picked hintuan's name, as its row reads it: the circle's title on the map (HintuanPin). */
-    pickedLabel: pickedStop ? stopLabel(pickedStop) : null,
+    pickedLabel: pickedHotspot ? hotspotLabel(pickedHotspot) : null,
     pick,
     /** The end picked from its row (`toEnd`), or null. */
     endPicked,

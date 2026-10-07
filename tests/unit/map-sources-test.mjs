@@ -22,12 +22,12 @@ import {
   unpatched,
 } from '../../src/features/routes/map/saved-routes-layers.ts';
 import {
-  addSavedStops,
-  hiddenStopFilters,
-  stopsData,
-} from '../../src/features/routes/map/saved-stops-layers.ts';
+  addSavedHotspots,
+  hiddenHotspotFilters,
+  hotspotsData,
+} from '../../src/features/routes/map/saved-hotspots-layers.ts';
 import { variantLine } from '../../src/features/routes/model/routes.ts';
-import { stopRing } from '../../src/features/routes/model/stops.ts';
+import { hotspotRing } from '../../src/features/routes/model/hotspots.ts';
 import { labelGroups } from '../../src/features/routes/model/places.ts';
 import { addPassStretches } from '../../src/features/routes/geo/pass-stretches.ts';
 import { addDirectionArrows } from '../../src/features/routes/map/direction-arrows.ts';
@@ -71,7 +71,7 @@ function standInMap() {
 function allAdded() {
   const map = standInMap();
   addSavedRoutes(map);
-  addSavedStops(map);
+  addSavedHotspots(map);
   addPassStretches(map);
   addDirectionArrows(map);
   addBabaanSides(map);
@@ -233,7 +233,7 @@ const asSerialized = ({ layout, ...spec }) =>
  * MapLibre's own groupByLayout over their type, source, zooms, filter and
  * layout. Each bucket's boxes are triangulated and uploaded once.
  */
-const stopFillBuckets = (layers) =>
+const hotspotFillBuckets = (layers) =>
   groupByLayout(layers.filter((l) => l.source === 'saved-stops').map(asSerialized))
     .filter((g) => g[0].type === 'fill')
     .map((g) => g.map((l) => l.id).sort());
@@ -244,16 +244,16 @@ test("the hotspots' three box fills are one bucket as they are added, as the pub
   // The public map sets no filter on them (applyHidden; map-style-test), so
   // what is added is what the worker groups, for good: one fill bucket, where
   // a filter or a layout of SIBLINGS' or HATCH's own would make it two.
-  assert.deepEqual(stopFillBuckets(layers), ONE);
+  assert.deepEqual(hotspotFillBuckets(layers), ONE);
   // The studio's, set on these very layers: none hidden, and one box hidden.
   for (const hidden of ['', 'b1']) {
-    const set = new Map(hiddenStopFilters(hidden));
+    const set = new Map(hiddenHotspotFilters(hidden));
     assert.ok(
       layers.some((l) => set.has(l.id)),
       'the filters are for these layers',
     );
     const filtered = layers.map((l) => (set.has(l.id) ? { ...l, filter: set.get(l.id) } : l));
-    assert.deepEqual(stopFillBuckets(filtered), ONE, `hidden '${hidden}'`);
+    assert.deepEqual(hotspotFillBuckets(filtered), ONE, `hidden '${hidden}'`);
   }
 });
 
@@ -290,8 +290,8 @@ const boxMiddle = (ring) => {
   const lats = ring.map((p) => p[1]);
   return [(Math.min(...lngs) + Math.max(...lngs)) / 2, (Math.min(...lats) + Math.max(...lats)) / 2];
 };
-const stopsBefore = (stops) => {
-  const withArea = stops.filter((s) => stopRing(s).length >= 3);
+const hotspotsBefore = (stops) => {
+  const withArea = stops.filter((s) => hotspotRing(s).length >= 3);
   return {
     type: 'FeatureCollection',
     features: [
@@ -303,7 +303,7 @@ const stopsBefore = (stops) => {
       ...labelGroups(
         withArea.map((s) => ({
           ...s,
-          point: { type: 'Point', coordinates: boxMiddle(stopRing(s)) },
+          point: { type: 'Point', coordinates: boxMiddle(hotspotRing(s)) },
         })),
       ).map((g) => ({
         type: 'Feature',
@@ -320,24 +320,24 @@ test('the committed map is laid out as before: every direction with a line, ever
     `${rows.length} directions, ${stops.length} hotspots`,
   );
   assert.deepEqual(routesData(rows), routesBefore(rows));
-  assert.deepEqual(stopsData(stops), stopsBefore(stops));
+  assert.deepEqual(hotspotsData(stops), hotspotsBefore(stops));
   // A slot, a return not drawn yet, has no line, and is left out as before.
   const slot = { ...rows[0], id: 'slot', shape: null };
   assert.equal(routesData([...rows, slot]).features.length, rows.length);
   assert.deepEqual(routesData([...rows, slot]), routesBefore([...rows, slot]));
   assert.deepEqual(routesData([]), { type: 'FeatureCollection', features: [] });
-  assert.deepEqual(stopsData([]), { type: 'FeatureCollection', features: [] });
+  assert.deepEqual(hotspotsData([]), { type: 'FeatureCollection', features: [] });
 });
 
 test('a source is added with what is loaded by then; with nothing loaded, empty, as it was', () => {
   const loaded = standInMap();
   addSavedRoutes(loaded, rows);
-  addSavedStops(loaded, stops);
+  addSavedHotspots(loaded, stops);
   assert.deepEqual(loaded.sources.get('saved-routes').data, routesBefore(rows));
-  assert.deepEqual(loaded.sources.get('saved-stops').data, stopsBefore(stops));
+  assert.deepEqual(loaded.sources.get('saved-stops').data, hotspotsBefore(stops));
   const early = standInMap();
   addSavedRoutes(early);
-  addSavedStops(early);
+  addSavedHotspots(early);
   for (const id of ['saved-routes', 'saved-stops', 'place-wash'])
     assert.deepEqual(early.sources.get(id).data, { type: 'FeatureCollection', features: [] }, id);
   // The rest of what is added does not change with what is loaded.
@@ -385,7 +385,7 @@ test('read once as the hooks mount: twice in development under StrictMode was on
   assert.equal(effect(other), true);
   assert.deepEqual(reads, ['routes', 'other']);
   // Both hooks run their mount's read through it, keyed on the loader; a reload is the hook's own and reads afresh.
-  for (const file of ['use-saved-routes.ts', 'use-saved-stops.ts']) {
+  for (const file of ['use-saved-routes.ts', 'use-saved-hotspots.ts']) {
     const src = readFileSync(
       new URL(`../../src/features/routes/map/${file}`, import.meta.url),
       'utf8',

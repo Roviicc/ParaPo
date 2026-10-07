@@ -1,7 +1,7 @@
 import type { LngLat, Segment } from '@/shared/utils/geo';
 import { joinSegments } from '@/shared/utils/geo';
 
-import { stopLabel, type StopSummary } from './stops';
+import { hotspotLabel, type Hotspot } from './hotspots';
 
 /** Mirrors the `transport_mode` enum in supabase/migrations/0001_init.sql. */
 export type TransportMode =
@@ -27,7 +27,7 @@ export const MODES: { value: TransportMode; label: string }[] = [
  */
 export const RAIL_MODES: readonly TransportMode[] = ['lrt', 'mrt'];
 
-/** The lines a route_code or a station's `line` may name; 0011 holds `stop.line` to them. */
+/** The lines a route_code or a station's `line` may name; 0011 holds `hotspot.line` to them. */
 export const RAIL_LINES = ['LRT-1', 'LRT-2', 'MRT-3'] as const;
 export type RailLine = (typeof RAIL_LINES)[number];
 export const isRailLine = (code: string | null | undefined): code is RailLine =>
@@ -46,7 +46,7 @@ export const FERRY_LINES = ['PRFS'] as const;
 
 /** Every mode that runs on a line of its own: the trains and the ferry. */
 export const LINE_MODES: readonly TransportMode[] = [...RAIL_MODES, ...FERRY_MODES];
-/** Every line a route_code or a station's `line` may name; 0011 and 0012 hold `stop.line` to them. */
+/** Every line a route_code or a station's `line` may name; 0011 and 0012 hold `hotspot.line` to them. */
 export const LINES: readonly string[] = [...RAIL_LINES, ...FERRY_LINES];
 
 export const isLineMode = (mode: TransportMode | null | undefined): boolean =>
@@ -77,8 +77,8 @@ export interface ServedRoute {
  * nowhere, so it can never pick up the jeep hintuans under its track or
  * along its river.
  */
-export function servedBy(stop: { line?: string | null }, route: ServedRoute): boolean {
-  const line = stop.line ?? null;
+export function servedBy(hotspot: { line?: string | null }, route: ServedRoute): boolean {
+  const line = hotspot.line ?? null;
   if (!isLineMode(route.mode)) return line === null;
   return line !== null && line === (route.route_code ?? null);
 }
@@ -219,7 +219,7 @@ export type VariantDrawing = VariantRow & {
 /** A VariantRow straight from the database, before nameVariants has run. */
 export type UnnamedVariantRow = Omit<VariantRow, 'route'> & { route: RouteRow };
 
-type StopName = Pick<StopSummary, 'id' | 'name' | 'informal'>;
+type HotspotName = Pick<Hotspot, 'id' | 'name' | 'informal'>;
 
 interface Unnamed {
   reversed: boolean;
@@ -231,7 +231,7 @@ interface Unnamed {
  * Fill in the generated names from the hotspots at each route's ends. Nothing
  * stores them (R1, 2026-09-21), so a renamed hotspot shows its new name on the
  * next load or the next publish, and no copy can fall behind. The name read is
- * the hotspot's informal one when it has one (stopLabel, 0007): a route is
+ * the hotspot's informal one when it has one (hotspotLabel, 0007): a route is
  * `Tala – SM Fairview`, never `Tala Jeepney Terminal – SM Fairview Terminal A`.
  *
  * A route whose ends cannot be found falls back to its signboard: the foreign
@@ -239,9 +239,9 @@ interface Unnamed {
  */
 export function nameVariants<V extends Unnamed>(
   variants: V[],
-  stops: StopName[],
+  hotspots: HotspotName[],
 ): (V & { route: V['route'] & { name: string } })[] {
-  const byId = new Map(stops.map((s) => [s.id, stopLabel(s)]));
+  const byId = new Map(hotspots.map((s) => [s.id, hotspotLabel(s)]));
   return variants.map((v) => {
     const head = byId.get(v.route.head_stop_id);
     const tail = byId.get(v.route.tail_stop_id);
@@ -275,13 +275,15 @@ export function directionEnds(v: VariantSummary): { from: string; to: string } {
 }
 
 /** The hotspots a direction runs from and to: its route's head and tail, the way it rides them. */
-export function directionEndStops(v: VariantSummary): {
-  fromStop: string | null;
-  toStop: string | null;
+export function directionEndHotspots(v: VariantSummary): {
+  fromHotspot: string | null;
+  toHotspot: string | null;
 } {
   const head = v.route?.head_stop_id ?? null;
   const tail = v.route?.tail_stop_id ?? null;
-  return v.reversed ? { fromStop: tail, toStop: head } : { fromStop: head, toStop: tail };
+  return v.reversed
+    ? { fromHotspot: tail, toHotspot: head }
+    : { fromHotspot: head, toHotspot: tail };
 }
 
 /** Geometry to draw: the stored shape, or rebuilt from segments when the row has them. */

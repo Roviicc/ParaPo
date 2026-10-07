@@ -16,9 +16,9 @@ import {
 } from './use-overviews';
 import { useRideTo } from '../map/ride-to';
 import type { Highlight } from '../map/use-saved-routes';
+import type { Hotspot } from '../model/hotspots';
 import type { Livery } from '../model/liveries';
 import type { VariantSummary } from '../model/routes';
-import type { StopSummary } from '../model/stops';
 
 interface Routes<V extends VariantSummary> {
   variants: readonly V[];
@@ -32,8 +32,8 @@ interface Routes<V extends VariantSummary> {
   highlightCard: (h: Highlight | null) => void;
 }
 
-interface Stops<S extends StopSummary> {
-  stops: readonly S[];
+interface Hotspots<S extends Hotspot> {
+  hotspots: readonly S[];
   selected: S | null;
 }
 
@@ -43,7 +43,7 @@ interface Cards {
   height: SheetHeight;
   choosing: boolean;
   clearOf: (dock: RefObject<HTMLElement | null>) => () => [number, number];
-  openPlace: (stopId: string, dock: RefObject<HTMLElement | null>) => void;
+  openPlace: (hotspotId: string, dock: RefObject<HTMLElement | null>) => void;
   openTrip: (v: { id: string }, livery?: Livery) => void;
 }
 
@@ -61,10 +61,10 @@ interface Cards {
  * drawing: turned on later, the trip's and the card's overviews would fire
  * at once for whatever is open.
  */
-export function useCardCamera<V extends VariantSummary, S extends StopSummary>(
+export function useCardCamera<V extends VariantSummary, S extends Hotspot>(
   map: MapLibreMap | null,
   saved: Routes<V>,
-  stops: Stops<S>,
+  hotspots: Hotspots<S>,
   cards: Cards,
   opts: { camera?: boolean } = {},
 ) {
@@ -80,7 +80,9 @@ export function useCardCamera<V extends VariantSummary, S extends StopSummary>(
   const tripDock = useRef<HTMLDivElement>(null);
   // The HintuanCard's, for a picked box to land clear of it.
   const hotspotDock = useRef<HTMLDivElement>(null);
-  const ride = useRideTo(map, saved.selected, stops.stops, { onGlide: cards.clearOf(tripDock) });
+  const ride = useRideTo(map, saved.selected, hotspots.hotspots, {
+    onGlide: cards.clearOf(tripDock),
+  });
   useTripOverview(cam, saved.selected, tripDock, cards.snap);
   // The page, and the card's sheet on show in it, for what the camera keeps clear of.
   const root = useRef<HTMLDivElement>(null);
@@ -121,7 +123,7 @@ export function useCardCamera<V extends VariantSummary, S extends StopSummary>(
     const picked = ids && saved.variants.filter((v) => ids.has(v.id));
     return framedBy(
       saved.selected,
-      stops.selected?.point.coordinates ?? null,
+      hotspots.selected?.point.coordinates ?? null,
       cards.choosing,
       picked,
       saved.litVariants,
@@ -192,8 +194,8 @@ export function useCardCamera<V extends VariantSummary, S extends StopSummary>(
      * A place's name on the map: its card opens at the height the trip's is
      * at, or a hotspot card's.
      */
-    openPlace: (stopId: string) =>
-      cards.openPlace(stopId, tripDock.current ? tripDock : hotspotDock),
+    openPlace: (hotspotId: string) =>
+      cards.openPlace(hotspotId, tripDock.current ? tripDock : hotspotDock),
 
     /** A tail's name with no trip open: its ride's trip, in the colour of the card picked, if one is. */
     openRide: (id: string) => {

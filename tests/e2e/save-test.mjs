@@ -4,7 +4,7 @@
 //   node tests/e2e/save-test.mjs         # against http://localhost:5173
 //
 // The other suites run signed out, so until 2026-09-29 nothing in
-// routes-write.ts or stops-write.ts ran under a check (docs/review-2026-09-29.md,
+// routes-write.ts or hotspots-write.ts ran under a check (docs/review-2026-09-29.md,
 // section 4). This one grew from the stand-in the review drove them with
 // (studio-standin.mjs): the tables are today's published map plus 500 hintuans far
 // off the map, held in memory and answered the way PostgREST answers — the
@@ -602,11 +602,11 @@ const loadReads = [...log];
 const listReads = loadReads.filter(
   (w) => w.method === 'GET' && w.table === 'route_variant' && /route:route/.test(w.query),
 ).length;
-const stopReads = loadReads.filter((w) => w.method === 'GET' && w.table === 'stop').length;
+const hotspotReads = loadReads.filter((w) => w.method === 'GET' && w.table === 'stop').length;
 check(
   'the stop table is read once for each read of the direction list, not twice (6)',
-  stopReads > 0 && stopReads <= listReads,
-  `${stopReads} stop read(s), ${listReads} list read(s)`,
+  hotspotReads > 0 && hotspotReads <= listReads,
+  `${hotspotReads} stop read(s), ${listReads} list read(s)`,
 );
 const routesToday = tables.route.length;
 check(

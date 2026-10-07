@@ -26,7 +26,7 @@ interface Routes<V extends VariantSummary> {
   highlightCard: (h: Highlight | null) => void;
 }
 
-interface Stops<S extends { id: string }> {
+interface Hotspots<S extends { id: string }> {
   selected: S | null;
   candidates: readonly S[];
   select: (id: string | null, opts?: { keepList?: boolean }) => void;
@@ -45,19 +45,19 @@ interface Stops<S extends { id: string }> {
 export function useCardStack<V extends VariantSummary, S extends { id: string }>(
   map: MapLibreMap | null,
   saved: Routes<V>,
-  stops: Stops<S>,
+  hotspots: Hotspots<S>,
 ) {
   // One tap, several things: routes, hotspots or both, in the owner's route
   // list — the hotspots first, then the routes as his RouteCards. It stays
   // behind a trip picked from it, hidden, for the trip's ‹ — and so does a
   // hotspot's card (the owner, 2026-09-29).
-  const choice = [...saved.candidates, ...stops.candidates];
-  const choosing = isChoosing(saved.candidates, stops.candidates);
+  const choice = [...saved.candidates, ...hotspots.candidates];
+  const choosing = isChoosing(saved.candidates, hotspots.candidates);
 
   // One height for the sheets that stand in for one another: a pick and ‹
   // keep it; with nothing open it goes back to Middle (sharedSnap).
   const [snap, setSnap] = useState<Snap>('middle');
-  const anyOpen = !!saved.selected || !!stops.selected || choosing;
+  const anyOpen = !!saved.selected || !!hotspots.selected || choosing;
   const resting = sharedSnap(snap, anyOpen);
   if (resting !== snap) setSnap(resting);
   const height: SheetHeight = { snap, onSnap: setSnap };
@@ -74,14 +74,14 @@ export function useCardStack<V extends VariantSummary, S extends { id: string }>
   // the list behind it: a card never changes colour while it is open (the
   // owner, 2026-09-29).
   const [worn, setWorn] = useState<{ id: string; livery: Livery } | null>(null);
-  const tripLivery = useTripLivery(saved.selected, worn, choosing || !!stops.selected);
+  const tripLivery = useTripLivery(saved.selected, worn, choosing || !!hotspots.selected);
   // A list of one RouteCard: its routes wear that card's colour, picked or
   // not, a pick only bringing the camera to them (the owner's ask,
   // 2026-10-02). The colour is the one the card is drawn in (liveriesFor
   // keeps a place's colour for the visit, so the card reads the same).
   // Only while the list is what is up: behind a place's card it decides nothing (showingOf).
   const onlyPlace =
-    choosing && !stops.selected ? drawnDepartures(saved.candidates, saved.back) : [];
+    choosing && !hotspots.selected ? drawnDepartures(saved.candidates, saved.back) : [];
   const onlyFrom = onlyPlace.length === 1 ? onlyPlace[0].from : null;
   const onlyLivery = useMemo(() => (onlyFrom ? liveriesFor([onlyFrom])[0] : null), [onlyFrom]);
   // What is lit wears the colour of the card it answers: the open trip's,
@@ -104,11 +104,13 @@ export function useCardStack<V extends VariantSummary, S extends { id: string }>
   // behind it, with whatever stood behind the trip, and the card's ‹ brings
   // it back as it was; anything else that opens or closes lets that go
   // (tripBehindHolds).
-  const [tripBehind, setTripBehind] = useState<{ id: string; stopId: string | null } | null>(null);
-  if (tripBehind && !tripBehindHolds(!!saved.selected, !!stops.selected)) setTripBehind(null);
+  const [tripBehind, setTripBehind] = useState<{ id: string; hotspotId: string | null } | null>(
+    null,
+  );
+  if (tripBehind && !tripBehindHolds(!!saved.selected, !!hotspots.selected)) setTripBehind(null);
 
   const trip = saved.selected;
-  const back = tripBack(trip, saved.variants, !!stops.selected || choosing);
+  const back = tripBack(trip, saved.variants, !!hotspots.selected || choosing);
 
   return {
     /** What the route list lists, and whether it is up. */
@@ -129,7 +131,7 @@ export function useCardStack<V extends VariantSummary, S extends { id: string }>
     /** ✕ on the list or a trip: everything the tap opened closes. */
     closeAll: () => {
       saved.select(null);
-      stops.select(null);
+      hotspots.select(null);
     },
 
     /**
@@ -140,23 +142,23 @@ export function useCardStack<V extends VariantSummary, S extends { id: string }>
      */
     openTrip: (v: { id: string }, livery?: Livery) => {
       setWorn(livery ? { id: v.id, livery } : null);
-      if (tripBehind) stops.select(stops.selected?.id ?? null);
+      if (tripBehind) hotspots.select(hotspots.selected?.id ?? null);
       saved.select(v.id, { keepList: !tripBehind });
     },
 
     /** A hotspot's row in the list: its card in the list's place. */
-    openStop: (id: string) => {
+    openHotspot: (id: string) => {
       saved.select(null);
-      stops.select(id);
+      hotspots.select(id);
     },
 
     /** ✕ on a hotspot's card: it closes, and with it a trip it stood in front of. */
-    closeStop: () => {
+    closeHotspot: () => {
       saved.highlightCard(null);
       if (tripBehind) {
         saved.select(null);
-        stops.select(null);
-      } else stops.select(null);
+        hotspots.select(null);
+      } else hotspots.select(null);
     },
 
     /**
@@ -169,28 +171,28 @@ export function useCardStack<V extends VariantSummary, S extends { id: string }>
         ? () => saved.select(null, { keepList: true })
         : back === 'fan' && trip
           ? () => {
-              stops.select(null);
+              hotspots.select(null);
               saved.openList(sharingAnEnd(saved.variants, trip), trip.reversed);
             }
           : null,
 
     /** A place's name on the map tapped: its card, over the trip if one is open. */
-    openPlace: (stopId: string, dock: RefObject<HTMLElement | null>) => {
+    openPlace: (hotspotId: string, dock: RefObject<HTMLElement | null>) => {
       saved.highlightCard(null);
       if (trip) {
-        setTripBehind({ id: trip.id, stopId: stops.selected?.id ?? null });
+        setTripBehind({ id: trip.id, hotspotId: hotspots.selected?.id ?? null });
         saved.select(null, { keepList: true });
-        stops.show(stopId, clearOf(dock), { keepList: true });
+        hotspots.show(hotspotId, clearOf(dock), { keepList: true });
       } else {
         saved.select(null);
-        stops.show(stopId, clearOf(dock));
+        hotspots.show(hotspotId, clearOf(dock));
       }
     },
 
     /** The place's card's ‹: the trip it stood in front of, as it was. Null: no ‹. */
     backToTrip: tripBehind
       ? () => {
-          stops.select(tripBehind.stopId, { keepList: true });
+          hotspots.select(tripBehind.hotspotId, { keepList: true });
           saved.select(tripBehind.id, { keepList: true });
         }
       : null,

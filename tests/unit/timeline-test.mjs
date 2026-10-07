@@ -92,7 +92,7 @@ test('what a place is made of: one hintuan, its boxes mini stops', () => {
 test('the committed map: no direction lists the same hintuan twice in a row', () => {
   const m = published();
   for (const v of m.variants) {
-    const rows = labels(hintuansAlong(variantLine(v), m.stops, v.route).map((a) => a.stop));
+    const rows = labels(hintuansAlong(variantLine(v), m.stops, v.route).map((a) => a.hotspot));
     rows.forEach((r, i) => assert.notEqual(r, rows[i - 1], `${v.direction_name}: ${r} twice`));
   }
 });
@@ -160,7 +160,7 @@ const mini = (id, lng, name = 'Amparo') => ({
   point: pt(lng),
   area: ringAt(lng),
 });
-const RIDE_STOPS = [
+const RIDE_HOTSPOTS = [
   { id: 'h', kind: 'terminal', name: 'Head', informal: null, aliases: [], point: pt(0) },
   { id: 't', kind: 'terminal', name: 'Tail', informal: null, aliases: [], point: pt(0.03) },
   mini('near', 0.015),
@@ -181,12 +181,12 @@ const vr = (coordinates, reversed = false) => ({
 const KM = 3339.6 / 3; // one 0.01° step at the equator, in metres
 
 test('a dot for each mini stop, and the ride ends at the last one', () => {
-  const r = rideCut(vr(LINE), RIDE_STOPS, 'near');
+  const r = rideCut(vr(LINE), RIDE_HOTSPOTS, 'near');
   assert.deepEqual(
-    r.dots.map((d) => d.stopId),
+    r.dots.map((d) => d.hotspotId),
     ['near', 'far'],
   );
-  assert.equal(r.endStopId, 'far');
+  assert.equal(r.endHotspotId, 'far');
   assert.ok(Math.abs(r.metres - 2 * KM) < 30, `${r.metres}`);
   assert.ok(Math.abs(r.at[0] - 0.02) < 0.0003);
   assert.ok(Math.abs(lineLength(r.ridden) - r.metres) < 1);
@@ -194,31 +194,31 @@ test('a dot for each mini stop, and the ride ends at the last one', () => {
 });
 
 test('tapping the other dot moves the get-off side, not the hintuan', () => {
-  const r = rideCut(vr(LINE), RIDE_STOPS, 'near', 'near');
-  assert.equal(r.endStopId, 'near');
+  const r = rideCut(vr(LINE), RIDE_HOTSPOTS, 'near', 'near');
+  assert.equal(r.endHotspotId, 'near');
   assert.ok(Math.abs(r.metres - 1.5 * KM) < 30, `${r.metres}`);
   assert.deepEqual(
-    r.dots.map((d) => d.stopId),
+    r.dots.map((d) => d.hotspotId),
     ['near', 'far'],
   );
 });
 
 test('each dot sits at the middle of its own stretch', () => {
-  const r = rideCut(vr(LINE), RIDE_STOPS, 'near');
-  const near = r.dots.find((d) => d.stopId === 'near');
+  const r = rideCut(vr(LINE), RIDE_HOTSPOTS, 'near');
+  const near = r.dots.find((d) => d.hotspotId === 'near');
   assert.ok(Math.abs(near.at[0] - 0.015) < 0.0003, `${near.at[0]}`);
 });
 
 test('a line drawn from the far end is cut on the leaving side', () => {
-  const r = rideCut(vr([...LINE].reverse()), RIDE_STOPS, 'near');
-  assert.equal(r.endStopId, 'far');
+  const r = rideCut(vr([...LINE].reverse()), RIDE_HOTSPOTS, 'near');
+  assert.equal(r.endHotspotId, 'far');
   assert.ok(Math.abs(r.metres - 2 * KM) < 30, `${r.metres}`);
   assert.ok(Math.abs(r.at[0] - 0.02) < 0.0003);
 });
 
 test('a place the line never passes: null', () => {
   assert.equal(
-    rideCut(vr(LINE), [...RIDE_STOPS.slice(0, 2), mini('off', 0.015, 'Elsewhere')], 'near'),
+    rideCut(vr(LINE), [...RIDE_HOTSPOTS.slice(0, 2), mini('off', 0.015, 'Elsewhere')], 'near'),
     null,
   );
 });
@@ -396,7 +396,7 @@ test('two hintuans on one segment are listed in the order the line reaches them'
     route_code: null,
   });
   assert.deepEqual(
-    along.map((a) => a.stop.id),
+    along.map((a) => a.hotspot.id),
     ['near', 'far'],
   );
   assert.deepEqual(
@@ -424,9 +424,9 @@ test("the card's timeline, read from the links, puts two on one segment in the o
   ];
   // Stored by sequence; the two on segment 0 in the order they were read.
   const linked = [
-    { stop: later, sequence: 1 },
-    { stop: far, sequence: 0 },
-    { stop: near, sequence: 0 },
+    { hotspot: later, sequence: 1 },
+    { hotspot: far, sequence: 0 },
+    { hotspot: near, sequence: 0 },
   ];
   assert.deepEqual(
     orderLinked(linked, line).map((s) => s.id),
@@ -438,7 +438,7 @@ test("the card's timeline, read from the links, puts two on one segment in the o
     ['far', 'near', 'later'],
   );
   assert.deepEqual(
-    orderLinked([{ stop: first, sequence: 0 }], line).map((s) => s.id),
+    orderLinked([{ hotspot: first, sequence: 0 }], line).map((s) => s.id),
     ['first'],
   );
 });
@@ -481,19 +481,22 @@ test('step 16 (b): a line drawn from the far end, turned round once and kept; th
 });
 
 // The public map works a trip card's timeline out once per trip and hotspots
-// (CommuterApp's useMemo on the trip, the hotspots and their stopsAlong; the
+// (CommuterApp's useMemo on the trip, the hotspots and their hotspotsAlong; the
 // cheap-phone plan, step 15, 2026-10-05), not at each render of the page:
 // so it may read nothing but what it is given, and change none of it.
 test("the committed map: a trip card's timeline is the same for the same trip and hotspots, and touches neither", () => {
   const m = published();
   let trips = 0;
   for (const v of m.variants.filter((x) => x.shape?.coordinates?.length > 1)) {
-    // As useSavedStops' stopsAlong hands them: the links in order, two on one segment as the line reaches them.
+    // As useSavedHotspots' hotspotsAlong hands them: the links in order, two on one segment as the line reaches them.
     const along = orderLinked(
       m.links
         .filter((l) => l.route_variant_id === v.id)
-        .map((l) => ({ stop: m.stops.find((s) => s.id === l.stop_id), sequence: l.stop_sequence }))
-        .filter((l) => !!l.stop),
+        .map((l) => ({
+          hotspot: m.stops.find((s) => s.id === l.stop_id),
+          sequence: l.stop_sequence,
+        }))
+        .filter((l) => !!l.hotspot),
       variantLine(v),
     );
     const was = structuredClone({ v, stops: m.stops, along });

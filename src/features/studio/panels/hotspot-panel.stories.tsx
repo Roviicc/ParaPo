@@ -1,19 +1,19 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 
-import type { StopRow } from '@/features/routes/model/stops';
+import type { HotspotRow } from '@/features/routes/model/hotspots';
 import type { LngLat } from '@/shared/utils/geo';
 
 import { HotspotPanel } from './hotspot-panel';
 import type { Drawing } from '../drawing/use-drawing';
 
 /** Sample data only, shaped like saved rows. Not read from Supabase. */
-function stop(
+function hotspot(
   id: string,
   name: string,
-  kind: StopRow['kind'],
+  kind: HotspotRow['kind'],
   informal: string | null = null,
-): StopRow {
+): HotspotRow {
   return {
     id,
     owner_id: 'sample-owner',
@@ -29,10 +29,10 @@ function stop(
 }
 
 /** The hotspots already saved: what the informal-name box offers while typing. */
-const stops: StopRow[] = [
-  stop('s-tala', 'Tala Jeepney Terminal', 'terminal', 'Tala'),
-  stop('s-fairview-a', 'SM Fairview Terminal A', 'terminal', 'SM Fairview'),
-  stop('s-malaria', 'Malaria', 'hintuan'),
+const hotspots: HotspotRow[] = [
+  hotspot('s-tala', 'Tala Jeepney Terminal', 'terminal', 'Tala'),
+  hotspot('s-fairview-a', 'SM Fairview Terminal A', 'terminal', 'SM Fairview'),
+  hotspot('s-malaria', 'Malaria', 'hintuan'),
 ];
 
 /**
@@ -69,7 +69,7 @@ const meta = {
     existing: null,
     existingLinks: [],
     variants: [],
-    stops,
+    hotspots,
     onSaved: fn(),
     onCancel: fn(),
   },
@@ -90,6 +90,6 @@ export const NewTerminal: Story = {
 export const EditTerminal: Story = {
   args: {
     draw: outline('terminal', 's-tala'),
-    existing: { ...stops[0], aliases: ['Tala Terminal', 'Terminal Tala'] },
+    existing: { ...hotspots[0], aliases: ['Tala Terminal', 'Terminal Tala'] },
   },
 };

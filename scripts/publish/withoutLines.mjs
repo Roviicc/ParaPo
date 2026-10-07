@@ -27,11 +27,13 @@ export function withoutLines({ variants, stops, links }, { modes, lines }) {
   const variantIds = new Set(
     variants.filter((v) => modes.includes(v.route?.mode)).map((v) => v.id),
   );
-  const stopIds = new Set(stops.filter((s) => s.line && lines.includes(s.line)).map((s) => s.id));
+  const hotspotIds = new Set(
+    stops.filter((s) => s.line && lines.includes(s.line)).map((s) => s.id),
+  );
   return {
     variants: variants.filter((v) => !variantIds.has(v.id)),
-    stops: stops.filter((s) => !stopIds.has(s.id)),
-    links: links.filter((l) => !variantIds.has(l.route_variant_id) && !stopIds.has(l.stop_id)),
-    ids: { variants: variantIds, stops: stopIds },
+    stops: stops.filter((s) => !hotspotIds.has(s.id)),
+    links: links.filter((l) => !variantIds.has(l.route_variant_id) && !hotspotIds.has(l.stop_id)),
+    ids: { variants: variantIds, stops: hotspotIds },
   };
 }

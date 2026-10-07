@@ -1,15 +1,15 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
 
+import type { HotspotRow } from '@/features/routes/model/hotspots';
 import type { RouteRow, VariantRow } from '@/features/routes/model/routes';
-import type { StopRow } from '@/features/routes/model/stops';
 import { M_PER_DEG, type LngLat, type Segment } from '@/shared/utils/geo';
 
 import { SavePanel } from './save-panel';
 import type { Drawing } from '../drawing/use-drawing';
 
 /** Two terminals, one near each end of the sample line, so the pickers have something to guess. */
-function terminal(id: string, name: string, at: LngLat): StopRow {
+function terminal(id: string, name: string, at: LngLat): HotspotRow {
   const [x, y] = at;
   const d = 0.0003;
   return {
@@ -37,7 +37,7 @@ function terminal(id: string, name: string, at: LngLat): StopRow {
   };
 }
 
-const stops: StopRow[] = [
+const hotspots: HotspotRow[] = [
   {
     ...terminal('sample-tala', 'Tala Jeepney Terminal', [121.043326, 14.742006]),
     informal: 'Tala',
@@ -97,7 +97,7 @@ const meta = {
     ]),
     existing: null,
     route: null,
-    stops,
+    hotspots,
     onSaved: fn(),
     onCancel: fn(),
   },
@@ -156,15 +156,15 @@ const hintuan = (
   name: string,
   at: LngLat,
   informal: string | null = null,
-): StopRow => ({
+): HotspotRow => ({
   ...terminal(id, name, at),
   kind: 'hintuan',
   informal,
 });
 export const ManyBoxesOnePlace: Story = {
   args: {
-    stops: [
-      ...stops,
+    hotspots: [
+      ...hotspots,
       hintuan('h1', 'Fairview Teraccess', [121.0426, 14.7412], 'SM Fairview'),
       hintuan('h2', 'Fairview Teraccess', [121.0428, 14.7413], 'SM Fairview'),
       hintuan('h3', 'SM Fairview Main Babaan', [121.043, 14.7414], 'SM Fairview'),
@@ -227,8 +227,8 @@ export const ReturnTripDrawnFromTheWrongEnd: Story = {
  */
 export const PassesThroughHintuans: Story = {
   args: {
-    stops: [
-      ...stops,
+    hotspots: [
+      ...hotspots,
       hintuan('h-on-1', 'Barracks', [121.0428, 14.742005]),
       hintuan('h-on-2', 'Malaria', [121.0421, 14.741995]),
       hintuan('h-off', 'Nowhere Near', [121.045, 14.745]),
@@ -243,7 +243,7 @@ const roadside = (
   lng: number,
   metres: number,
   informal: string | null = null,
-): StopRow => {
+): HotspotRow => {
   const half = 0.00005; // ≈ 5.5 m
   const edge = 14.742005 + metres / M_PER_DEG;
   const s = hintuan(id, name, [lng, edge + half * Math.sign(metres)], informal);
@@ -271,8 +271,8 @@ const roadside = (
  */
 export const PassesBesideTheRoad: Story = {
   args: {
-    stops: [
-      ...stops,
+    hotspots: [
+      ...hotspots,
       roadside('h-near', 'Fatima Church side', 121.0428, 2, 'Fatima'),
       roadside('h-far', 'Fatima', 121.0428, -12),
       roadside('h-near-2', 'Pangarap', 121.0422, 3),
@@ -296,7 +296,7 @@ const talaFairviewOut: VariantRow = {
 };
 
 /** A third place, and a route that already runs from it to SM Fairview. */
-const lagro: StopRow = {
+const lagro: HotspotRow = {
   ...terminal('sample-lagro', 'Lagro Terminal', [121.06, 14.74]),
   informal: 'Lagro',
 };
@@ -321,7 +321,7 @@ const lagroFairviewOut: VariantRow = {
 export const EditRoute: Story = {
   args: {
     existing: talaFairviewOut,
-    stops: [...stops, lagro],
+    hotspots: [...hotspots, lagro],
     variants: [talaFairviewOut, lagroFairviewOut],
   },
 };

@@ -15,9 +15,9 @@ export const LAYERS = {
   /** The routes' white rim, bottom of their stack: what paints under the lines goes under it. */
   routesCasing: 'saved-routes-casing',
   /** The hotspots' fill: a tap asks it for boxes. */
-  stopsFill: 'saved-stops-fill',
+  hotspotsFill: 'saved-stops-fill',
   /** A hintuan's name. */
-  stopsHintuanLabel: 'saved-stops-label-hintuan',
+  hotspotsHintuanLabel: 'saved-stops-label-hintuan',
   /** A lit ride's end circles. */
   endCircles: 'direction-end-circles',
   /** The line being drawn: its rim, and its snapped and freehand stretches. */

@@ -33,7 +33,7 @@ const JOIN_M = 0.01;
  * It was dropped always, and a routed segment does not start on the click: it
  * starts where the router put that click on the road, up to SNAP_RADIUS_M
  * (25 m) away. After a freehand segment, which does end on the click, the
- * road's first vertex was lost, and the saved line, its metres, its stop
+ * road's first vertex was lost, and the saved line, its metres, its hotspot
  * order and the published line cut that corner, while the map, which draws
  * segment by segment, showed it whole (review of 2026-10-03, finding 7).
  */

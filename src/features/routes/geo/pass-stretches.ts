@@ -13,8 +13,8 @@ import { applyHidden, useLayerReady } from '../map/layers';
 import { PASS_COLOUR, litWidth } from '../map/line-style';
 import { litOpacity, useLighting } from '../map/saved-routes-layers';
 import { ROUTES_HIT_LAYER } from '../map/tap';
+import type { Hotspot } from '../model/hotspots';
 import type { VariantSummary } from '../model/routes';
-import type { StopSummary } from '../model/stops';
 
 /**
  * Where a lit direction passes a hintuan, the line turns orange for that
@@ -94,7 +94,7 @@ export function addPassStretches(map: Pick<MapLibreMap, 'addSource' | 'addLayer'
 export function usePassStretches(
   map: MapLibreMap | null,
   variants: readonly VariantSummary[],
-  stops: readonly StopSummary[],
+  hotspots: readonly Hotspot[],
   lit: readonly string[],
   hiddenVariantId: string | null = null,
 ): void {
@@ -106,10 +106,10 @@ export function usePassStretches(
     addPassStretches(map);
   }, [map, hitReady]);
 
-  // The boxes once per list of stops, and each direction's stretches once
+  // The boxes once per list of hotspots, and each direction's stretches once
   // per direction against them (stretchesOf): a line arriving for one
   // direction works out that direction's alone, not every lit one's again.
-  const boxes = useMemo(() => passBoxes(stops), [stops]);
+  const boxes = useMemo(() => passBoxes(hotspots), [hotspots]);
   const features = useMemo(() => variants.flatMap((v) => stretchesOf(v, boxes)), [variants, boxes]);
 
   useEffect(() => {
@@ -153,8 +153,8 @@ const stretchesKept = new WeakMap<
  *
  * Kept by the boxes, then by the direction, both the very objects passed,
  * which is safe because neither is ever changed in place:
- * - `boxes` is made from a list of stops (passBoxes, the hook's memo of
- *   `stops`), and any other list of stops — a reload, a save — makes new
+ * - `boxes` is made from a list of hotspots (passBoxes, the hook's memo of
+ *   `hotspots`), and any other list of hotspots — a reload, a save — makes new
  *   boxes, with nothing kept yet;
  * - `v` is everything a stretch reads (its id, route_id, route and line,
  *   and the stretches its line file brought with that line), and a

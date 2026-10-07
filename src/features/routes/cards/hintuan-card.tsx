@@ -16,16 +16,16 @@ import { haversine } from '@/shared/utils/geo';
 import { wayWord } from './route-card-header';
 import { RouteCardStack, type PickedPlace } from './route-card-stack';
 import { drawnDepartures } from '../model/departures';
+import { hotspotLabel, type HotspotKind, type Hotspot } from '../model/hotspots';
 import type { Livery } from '../model/liveries';
 import { placeBoxes } from '../model/places';
 import type { VariantSummary } from '../model/routes';
-import { stopLabel, type StopKind, type StopSummary } from '../model/stops';
 
 interface Props {
   /** The box picked: the one tapped on the map, or a row since. Its row is Selected. */
-  stop: StopSummary;
+  hotspot: Hotspot;
   /** Every hotspot, for the other boxes of its place. */
-  stops: readonly StopSummary[];
+  hotspots: readonly Hotspot[];
   /** The directions that stop at a box, by its id. */
   linkedVariantIds: (id: string) => readonly string[];
   variants: readonly VariantSummary[];
@@ -77,10 +77,10 @@ const BAR = {
   terminal:
     'bg-map-hotspots-card-terminal-surface border-map-hotspots-card-terminal-border-primary',
   hintuan: 'bg-map-hotspots-card-hintuan-surface border-map-hotspots-card-hintuan-border-primary',
-} satisfies Record<StopKind, string>;
+} satisfies Record<HotspotKind, string>;
 
 const LETTER = { terminal: <TerminalIcon />, hintuan: <HintuanIcon /> } satisfies Record<
-  StopKind,
+  HotspotKind,
   unknown
 >;
 
@@ -111,8 +111,8 @@ const LETTER = { terminal: <TerminalIcon />, hintuan: <HintuanIcon /> } satisfie
  * rests disabled until then (his call, 2026-09-30).
  */
 export function HintuanCard({
-  stop,
-  stops,
+  hotspot,
+  hotspots,
   linkedVariantIds,
   variants,
   onSelectVariant,
@@ -126,8 +126,11 @@ export function HintuanCard({
   height,
   dockRef,
 }: Props) {
-  const label = stopLabel(stop);
-  const rows = placeBoxes(stop, stops.some((s) => s.id === stop.id) ? stops : [stop, ...stops]);
+  const label = hotspotLabel(hotspot);
+  const rows = placeBoxes(
+    hotspot,
+    hotspots.some((s) => s.id === hotspot.id) ? hotspots : [hotspot, ...hotspots],
+  );
   const byId = new Map(variants.map((v) => [v.id, v]));
   const linked = (id: string) =>
     linkedVariantIds(id)
@@ -140,7 +143,7 @@ export function HintuanCard({
   // of the place, each direction once.
   const routes = deselected
     ? [...new Map(rows.flatMap((r) => linked(r.box.id)).map((v) => [v.id, v])).values()]
-    : linked(stop.id);
+    : linked(hotspot.id);
 
   // The way round asked for; routes passing one way only show that way.
   const [flipped, setFlipped] = useState(false);
@@ -155,16 +158,16 @@ export function HintuanCard({
   const other = !back;
   const switchTo =
     there && backToo
-      ? stop
+      ? hotspot
       : deselected
         ? null
         : (rows
             .map((r) => r.box)
-            .filter((b) => b.id !== stop.id && passes(b.id, other))
+            .filter((b) => b.id !== hotspot.id && passes(b.id, other))
             .sort(
               (a, b) =>
-                haversine(a.point.coordinates, stop.point.coordinates) -
-                haversine(b.point.coordinates, stop.point.coordinates),
+                haversine(a.point.coordinates, hotspot.point.coordinates) -
+                haversine(b.point.coordinates, hotspot.point.coordinates),
             )[0] ?? null);
 
   // What the RouteCards show, for the map to light; null once the card
@@ -237,7 +240,7 @@ export function HintuanCard({
     >
       <ul>
         {rows.map(({ box, label: name }, i) => {
-          const selected = !deselected && box.id === stop.id;
+          const selected = !deselected && box.id === hotspot.id;
           return (
             <li key={box.id}>
               <button
@@ -315,7 +318,7 @@ export function HintuanCard({
                   if (!switchTo) return;
                   routeCards.onSelect(null);
                   setFlipped(other);
-                  routeCards.onSwitch?.(switchTo.id !== stop.id ? switchTo.id : null);
+                  routeCards.onSwitch?.(switchTo.id !== hotspot.id ? switchTo.id : null);
                 }}
               />
             </div>

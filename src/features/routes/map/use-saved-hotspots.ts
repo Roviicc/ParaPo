@@ -3,13 +3,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { LngLat } from '@/shared/utils/geo';
 
+import { useHotspotTaps } from './hotspot-taps';
+import { boxMarks, placeHull } from './hotspots-shown';
 import { loadOnce } from './load-once';
 import { APP_MOVE } from './map-view';
-import { useSavedStopsLayers } from './saved-stops-layers';
-import { useStopTaps } from './stop-taps';
-import { boxMarks, placeHull } from './stops-shown';
+import { useSavedHotspotsLayers } from './saved-hotspots-layers';
 import { letGoHolds } from '../cards/card-stack';
-import type { StopLink, StopSummary } from '../model/stops';
+import type { HotspotLink, Hotspot } from '../model/hotspots';
 import { orderLinked } from '../model/timeline';
 
 /**
@@ -20,19 +20,19 @@ import { orderLinked } from '../model/timeline';
  * published file, the editor the live tables. Pass a function defined once at
  * module level, not a new one per render, or it reloads every render.
  *
- * The editor also passes `drawing` and `hiddenStopId`; the public map passes
+ * The editor also passes `drawing` and `hiddenHotspotId`; the public map passes
  * neither, and both default to off. Both pass `muted` while a trip is open: the hotspot card or route list it was picked from waits
  * hidden behind it, and the hotspots that lit go dark until ‹ brings it back
  * (the owner, 2026-09-29: the map lights only the trip).
  */
-export function useSavedStops<S extends StopSummary>(
+export function useSavedHotspots<S extends Hotspot>(
   map: MapLibreMap | null,
-  load: () => Promise<{ stops: S[]; links: StopLink[] }>,
-  opts: { drawing?: boolean; hiddenStopId?: string | null; muted?: boolean } = {},
+  load: () => Promise<{ hotspots: S[]; links: HotspotLink[] }>,
+  opts: { drawing?: boolean; hiddenHotspotId?: string | null; muted?: boolean } = {},
 ) {
   const muted = opts.muted ?? false;
-  const [stops, setStops] = useState<S[]>([]);
-  const [links, setLinks] = useState<StopLink[]>([]);
+  const [hotspots, setHotspots] = useState<S[]>([]);
+  const [links, setLinks] = useState<HotspotLink[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /**
@@ -68,13 +68,13 @@ export function useSavedStops<S extends StopSummary>(
   // The click handler is bound once; this is how it reads today's hotspots.
   const byId = useRef(new Map<string, S>());
   useEffect(() => {
-    byId.current = new Map(stops.map((s) => [s.id, s]));
-  }, [stops]);
+    byId.current = new Map(hotspots.map((s) => [s.id, s]));
+  }, [hotspots]);
 
   const reload = useCallback(async () => {
     try {
       const loaded = await load();
-      setStops(loaded.stops);
+      setHotspots(loaded.hotspots);
       setLinks(loaded.links);
       setError(null);
     } catch (e) {
@@ -89,7 +89,7 @@ export function useSavedStops<S extends StopSummary>(
     loadOnce(loadedBy, load, () => void reload());
   }, [load, reload]);
 
-  // What a tap marks, and the place wash (stopsShown.ts).
+  // What a tap marks, and the place wash (hotspots-shown.ts).
   // The chosen box let go on its card (HintuanCard's `deselected`): its place's boxes all alike.
   // Another box — a row, a tap on the map — or the card closed: the next
   // one opens with its box Selected.
@@ -97,30 +97,30 @@ export function useSavedStops<S extends StopSummary>(
   const letGone = letGoHolds(letGoId, selectedId);
   const letGo = useCallback(() => setLetGoId(selectedId), [selectedId]);
   const marks = useMemo(
-    () => boxMarks(stops, selectedId, candidates, muted, letGone),
-    [stops, selectedId, candidates, muted, letGone],
+    () => boxMarks(hotspots, selectedId, candidates, muted, letGone),
+    [hotspots, selectedId, candidates, muted, letGone],
   );
-  const hull = useMemo(() => placeHull(stops, selectedId, muted), [stops, selectedId, muted]);
+  const hull = useMemo(() => placeHull(hotspots, selectedId, muted), [hotspots, selectedId, muted]);
 
   // ----------------------------------------------------------------- layers
 
-  useSavedStopsLayers(map, stops, opts.hiddenStopId, marks, hull);
+  useSavedHotspotsLayers(map, hotspots, opts.hiddenHotspotId, marks, hull);
 
   // ----------------------------------------------------------------- events
 
-  useStopTaps(
+  useHotspotTaps(
     map,
     { drawing: drawingRef, byId },
     { selectedId: setSelectedId, candidates: setCandidates },
   );
 
-  const selected = stops.find((s) => s.id === selectedId) ?? null;
+  const selected = hotspots.find((s) => s.id === selectedId) ?? null;
 
   /** Direction ids linked to a hotspot, in stop_sequence order. */
   const linkedVariantIds = useCallback(
-    (stopId: string) =>
+    (hotspotId: string) =>
       links
-        .filter((l) => l.stop_id === stopId)
+        .filter((l) => l.stop_id === hotspotId)
         .sort((a, b) => a.stop_sequence - b.stop_sequence)
         .map((l) => l.route_variant_id),
     [links],
@@ -131,16 +131,19 @@ export function useSavedStops<S extends StopSummary>(
    * the card's timeline. Given the line, two on one segment are put in the
    * order it reaches them (orderLinked); without it, as the links are read.
    */
-  const stopsAlong = useCallback(
+  const hotspotsAlong = useCallback(
     (variantId: string, line: readonly LngLat[] = []): S[] =>
       orderLinked(
         links
           .filter((l) => l.route_variant_id === variantId)
-          .map((l) => ({ stop: stops.find((s) => s.id === l.stop_id), sequence: l.stop_sequence }))
-          .filter((l): l is { stop: S; sequence: number } => !!l.stop),
+          .map((l) => ({
+            hotspot: hotspots.find((s) => s.id === l.stop_id),
+            sequence: l.stop_sequence,
+          }))
+          .filter((l): l is { hotspot: S; sequence: number } => !!l.hotspot),
         line,
       ),
-    [links, stops],
+    [links, hotspots],
   );
 
   /** Select a box and bring the map to it — what tapping a timeline row does, in both apps. */
@@ -148,7 +151,7 @@ export function useSavedStops<S extends StopSummary>(
     // `offset`, asked as the flight starts: where the box should land from
     // the map's centre, clear of a card over the map (the HintuanCard's rows).
     (id: string, offset?: () => [number, number], opts?: { keepList?: boolean }) => {
-      const s = stops.find((x) => x.id === id);
+      const s = hotspots.find((x) => x.id === id);
       select(id, opts);
       if (s && map)
         map.flyTo(
@@ -160,11 +163,11 @@ export function useSavedStops<S extends StopSummary>(
           APP_MOVE,
         );
     },
-    [stops, select, map],
+    [hotspots, select, map],
   );
 
   return {
-    stops,
+    hotspots,
     links,
     error,
     reload,
@@ -173,7 +176,7 @@ export function useSavedStops<S extends StopSummary>(
     show,
     candidates,
     linkedVariantIds,
-    stopsAlong,
+    hotspotsAlong,
     /** The selected box let go on its card: no row Selected until one is picked. */
     letGone,
     letGo,

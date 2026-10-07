@@ -858,7 +858,7 @@ check(
 // ------------------------------------------------------------------- the data
 const snapshot = await page.evaluate(async () => {
   const routesFC = await window.__src('saved-routes');
-  const stopsFC = await window.__src('saved-stops');
+  const hotspotsFC = await window.__src('saved-stops');
   // Each direction's full line, as the page reads it for a lit direction
   // (map-file.ts): the source holds overviews until then, and where two routes
   // share a road is found on the lines themselves, as before the index.
@@ -876,7 +876,7 @@ const snapshot = await page.evaluate(async () => {
   }
   return {
     routes,
-    polys: (stopsFC?.features ?? [])
+    polys: (hotspotsFC?.features ?? [])
       .filter((f) => f.geometry.type === 'Polygon')
       .map((f) => ({
         id: f.properties.id,

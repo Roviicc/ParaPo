@@ -2,7 +2,7 @@ import { passIndex } from '@/features/routes/geo/pass';
 import { entryDistance, type Ring } from '@/features/routes/geo/ring';
 import { servedBy, variantLine, type VariantRow } from '@/features/routes/model/routes';
 
-// Pure functions, kept apart from the writes (stopsWrite.ts), which need the
+// Pure functions, kept apart from the writes (hotspots-write.ts), which need the
 // Supabase client a test cannot load: so they can be unit-tested, and so the
 // save panel can show exactly what a save will write before it writes it.
 

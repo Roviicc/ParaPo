@@ -14,7 +14,7 @@ import type { Drawing } from '../drawing/use-drawing';
 export function SaveNotices({
   segments,
   uTurns,
-  stopsCount,
+  hotspotsCount,
   wrongWay,
   borrowed,
   sameEnds,
@@ -24,7 +24,7 @@ export function SaveNotices({
   segments: Drawing['segments'];
   /** The U-turns ringed on the map. */
   uTurns: Drawing['uTurns'];
-  stopsCount: number;
+  hotspotsCount: number;
   /** The slot's direction, the end the line starts nearer, and the end it should. */
   wrongWay: { direction: string; startsAt: string; from: string } | null;
   borrowed: { metres: number; parent: VariantRow } | null;
@@ -109,7 +109,7 @@ export function SaveNotices({
         </p>
       )}
 
-      {stopsCount === 0 && (
+      {hotspotsCount === 0 && (
         <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
           No hotspots yet. A route is named after the hotspots at its two ends, so draw a terminal
           at each end of this line first — then come back and save.

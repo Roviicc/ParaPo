@@ -326,10 +326,10 @@ const wears = (seen, want) =>
 
 const snapshot = await page.evaluate(async () => {
   const m = window.__map;
-  const stopsFC = await window.__src('saved-stops');
+  const hotspotsFC = await window.__src('saved-stops');
   const routesFC = await window.__src('saved-routes');
-  const polyFeatures = (stopsFC?.features ?? []).filter((f) => f.geometry.type === 'Polygon');
-  const pointFeatures = (stopsFC?.features ?? []).filter((f) => f.geometry.type === 'Point');
+  const polyFeatures = (hotspotsFC?.features ?? []).filter((f) => f.geometry.type === 'Polygon');
+  const pointFeatures = (hotspotsFC?.features ?? []).filter((f) => f.geometry.type === 'Point');
   const order = m.getStyle().layers.map((l) => l.id);
   return {
     polys: polyFeatures.map((f) => ({
@@ -604,8 +604,9 @@ for (const [i, p] of snapshot.polys.entries()) {
       );
       // The map lights only the trip: the hotspot goes dark under it, and ‹
       // lights it again (the owner, 2026-09-29).
-      const stopsLit = async () => (await page.evaluate(() => window.__lit('saved-stops'))) ?? [];
-      const litUnder = await stopsLit();
+      const hotspotsLit = async () =>
+        (await page.evaluate(() => window.__lit('saved-stops'))) ?? [];
+      const litUnder = await hotspotsLit();
       check(
         `  the hotspot is not lit under the trip`,
         !litUnder.includes(p.id),
@@ -617,8 +618,8 @@ for (const [i, p] of snapshot.polys.entries()) {
       const again = await cardKind();
       check(
         `  ‹ on the trip goes back to the hotspot's card, lit again`,
-        again.kind === 'hotspot' && again.text === opened && (await stopsLit()).includes(p.id),
-        `card ${again.kind}; lit ${JSON.stringify(await stopsLit())}`,
+        again.kind === 'hotspot' && again.text === opened && (await hotspotsLit()).includes(p.id),
+        `card ${again.kind}; lit ${JSON.stringify(await hotspotsLit())}`,
       );
       const relit = await litNow();
       check(

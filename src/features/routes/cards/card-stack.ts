@@ -13,8 +13,8 @@ import { isDrawn, variantLine, type VariantSummary } from '../model/routes';
  */
 
 /** Several things under one tap — routes, hotspots or both: the route list asks which. */
-export function isChoosing(routes: readonly unknown[], stops: readonly unknown[]): boolean {
-  return routes.length + stops.length > 1;
+export function isChoosing(routes: readonly unknown[], hotspots: readonly unknown[]): boolean {
+  return routes.length + hotspots.length > 1;
 }
 
 /**

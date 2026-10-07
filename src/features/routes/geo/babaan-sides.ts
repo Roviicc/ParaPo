@@ -7,9 +7,9 @@ import { rightOfLine } from './right-of-line';
 import { ringToPolygon, type Ring } from './ring';
 import { HOTSPOT_COLOUR } from '../map/colours';
 import { LAYERS, useLayerReady } from '../map/layers';
+import { hotspotRing, type Hotspot } from '../model/hotspots';
 import { travelLine } from '../model/ride';
 import { isLineMode, type VariantSummary } from '../model/routes';
-import { stopRing, type StopSummary } from '../model/stops';
 import { inPassingOrder, listedAlong, passedAt } from '../model/timeline';
 
 /**
@@ -27,7 +27,7 @@ import { inPassingOrder, listedAlong, passedAt } from '../model/timeline';
 const SRC = 'babaan-side';
 const FILL = 'babaan-side-fill';
 const EDGE = 'babaan-side-edge';
-/** Under the route lines, over the boxes, as the boxes are (useSavedStops). */
+/** Under the route lines, over the boxes, as the boxes are (useSavedHotspots). */
 const ROUTES_ABOVE = LAYERS.routesCasing;
 
 /**
@@ -61,7 +61,7 @@ export function addBabaanSides(map: Pick<MapLibreMap, 'addSource' | 'addLayer'>)
 export function useBabaanSides(
   map: MapLibreMap | null,
   chosen: VariantSummary | null,
-  stops: readonly StopSummary[],
+  hotspots: readonly Hotspot[],
 ): void {
   const casingReady = useLayerReady(map, ROUTES_ABOVE);
   useEffect(() => {
@@ -69,7 +69,7 @@ export function useBabaanSides(
     addBabaanSides(map);
   }, [map, casingReady]);
 
-  const features = useMemo(() => babaanSideFeatures(chosen, stops), [chosen, stops]);
+  const features = useMemo(() => babaanSideFeatures(chosen, hotspots), [chosen, hotspots]);
 
   useEffect(() => {
     const src = map?.getSource(SRC) as GeoJSONSource | undefined;
@@ -101,22 +101,22 @@ export function useBabaanSides(
  * against each other, word for word, on the committed map and on made-up
  * directions.
  */
-export function babaanSideFeatures(chosen: VariantSummary | null, stops: readonly StopSummary[]) {
+export function babaanSideFeatures(chosen: VariantSummary | null, hotspots: readonly Hotspot[]) {
   if (!chosen || isLineMode(chosen.route?.mode)) return [];
-  const line = travelLine(chosen, stops);
+  const line = travelLine(chosen, hotspots);
   const reach = lineBounds(line);
-  const cut: { stop: StopSummary; side: Ring; index: number; at: number }[] = [];
-  for (const stop of stops) {
-    if (!listedAlong(stop, chosen.route)) continue;
-    const ring = stopRing(stop);
+  const cut: { hotspot: Hotspot; side: Ring; index: number; at: number }[] = [];
+  for (const hotspot of hotspots) {
+    if (!listedAlong(hotspot, chosen.route)) continue;
+    const ring = hotspotRing(hotspot);
     if (!bboxesOverlap(reach, bboxOf(ring, 1))) continue;
     const side = rightOfLine(ring, line);
-    const where = side && passedAt(line, ring, stop);
-    if (side && where) cut.push({ stop, side, ...where });
+    const where = side && passedAt(line, ring, hotspot);
+    if (side && where) cut.push({ hotspot, side, ...where });
   }
-  return cut.sort(inPassingOrder).map(({ stop, side }) => ({
+  return cut.sort(inPassingOrder).map(({ hotspot, side }) => ({
     type: 'Feature' as const,
-    properties: { id: stop.id },
+    properties: { id: hotspot.id },
     geometry: ringToPolygon(side),
   }));
 }

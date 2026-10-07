@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import { RouteCardList } from './route-card-list';
+import type { Hotspot } from '../model/hotspots';
 import type { VariantSummary } from '../model/routes';
-import type { StopSummary } from '../model/stops';
 
 /** Sample data only, shaped like the published file. Not the real map. */
 function route(id: string, name: string): VariantSummary['route'] {
@@ -91,12 +91,12 @@ const oneWay: VariantSummary[] = [
   variant('d', 'Lagro – Quiapo', 'Quiapo → Lagro', 16, true, false),
 ];
 
-function stop(
+function hotspot(
   id: string,
   name: string,
-  kind: StopSummary['kind'],
+  kind: Hotspot['kind'],
   informal: string | null = null,
-): StopSummary {
+): Hotspot {
   return {
     id,
     name,
@@ -111,15 +111,15 @@ function stop(
 }
 
 /** Tala's terminal, where its routes run through it: the tap a terminal most often gets. */
-const talaTerminal = stop('s1', 'Tala Jeepney Terminal', 'terminal', 'Tala');
+const talaTerminal = hotspot('s1', 'Tala Jeepney Terminal', 'terminal', 'Tala');
 
 /** Two boxes under one finger, and no line. */
-const twoBoxes = [talaTerminal, stop('s2', 'Malaria', 'hintuan')];
+const twoBoxes = [talaTerminal, hotspot('s2', 'Malaria', 'hintuan')];
 
-/** One hintuan's two boxes, a mini stop either side of the road. */
+/** One hintuan's two boxes, a mini hotspot either side of the road. */
 const oneHintuan = [
-  stop('s3', 'SM Fairview Main Babaan', 'hintuan', 'SM Fairview'),
-  stop('s4', 'SM Fairview Main Sakayan', 'hintuan', 'SM Fairview'),
+  hotspot('s3', 'SM Fairview Main Babaan', 'hintuan', 'SM Fairview'),
+  hotspot('s4', 'SM Fairview Main Sakayan', 'hintuan', 'SM Fairview'),
 ];
 
 type Frame = 'phone' | 'tablet' | 'wide';
@@ -179,7 +179,7 @@ const meta = {
     onFlip: fn(),
     onSelect: fn(),
     onRoute: fn(),
-    onStop: fn(),
+    onHotspot: fn(),
     onClose: fn(),
   },
 } satisfies Meta<typeof RouteCardList>;
@@ -213,19 +213,19 @@ export const NothingTheOtherWay: Story = { args: { routes: oneWay } };
  * the Chooser's row until the owner's hintuan design, then the cards. The
  * count stays the routes' (his pick, 2026-09-29).
  */
-export const WithAHotspot: Story = { args: { stops: [talaTerminal] } };
+export const WithAHotspot: Story = { args: { hotspots: [talaTerminal] } };
 
 /** The same, from 1024 wide. */
 export const WithAHotspotFloating: Story = {
-  args: { stops: [talaTerminal] },
+  args: { hotspots: [talaTerminal] },
   parameters: { frame: 'wide' },
 };
 
 /** Two boxes and no line: "2 Hotspots", with no route to count (the owner, 2026-09-29), and nothing to SWITCH. */
-export const TwoHotspots: Story = { args: { routes: [], stops: twoBoxes } };
+export const TwoHotspots: Story = { args: { routes: [], hotspots: twoBoxes } };
 
 /** Both boxes of one hintuan and no line: a row each, and "1 Hotspot", as a rider counts it (hotspotCount; the owner, 2026-09-29). */
-export const OneHintuanTwoBoxes: Story = { args: { routes: [], stops: oneHintuan } };
+export const OneHintuanTwoBoxes: Story = { args: { routes: [], hotspots: oneHintuan } };
 
 /**
  * The owner's BottomSheetConfiguration (3815:5637, 2026-09-30) holds the list

@@ -7,8 +7,8 @@ import type {
 import type { LngLat, Segment } from '@/shared/utils/geo';
 import { joinSegments, overviewOf, roundLngLat } from '@/shared/utils/geo';
 
+import { NOTHING_CHANGED } from './hotspots-write';
 import { VARIANT_SELECT } from './live';
-import { NOTHING_CHANGED } from './stops-write';
 import { requireSupabase } from './supabase';
 import type { BorrowPart } from '../drawing/borrow';
 

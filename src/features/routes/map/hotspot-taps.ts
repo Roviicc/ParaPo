@@ -1,15 +1,15 @@
 import type { MapLibreMap, MapMouseEvent } from 'maplibre-gl';
 import { useEffect, type RefObject } from 'react';
 
-import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, bindHover, resolveTap, tapTargets } from './tap';
-import type { StopSummary } from '../model/stops';
+import { ROUTES_HIT_LAYER, HOTSPOTS_FILL_LAYER, bindHover, resolveTap, tapTargets } from './tap';
+import type { Hotspot } from '../model/hotspots';
 
 /*
  * A tap on the saved hotspots: what it opens, lists or lets go. Split from
- * useSavedStops.ts, 2026-09-29.
+ * useSavedHotspots.ts, 2026-09-29.
  */
 
-const FILL = STOPS_FILL_LAYER;
+const FILL = HOTSPOTS_FILL_LAYER;
 const ROUTES_HIT = ROUTES_HIT_LAYER;
 
 /**
@@ -18,7 +18,7 @@ const ROUTES_HIT = ROUTES_HIT_LAYER;
  * hotspots and whether the editor is drawing through `read`, and answers
  * through the hook's setters (`set`), which never change.
  */
-export function useStopTaps<S extends StopSummary>(
+export function useHotspotTaps<S extends Hotspot>(
   map: MapLibreMap | null,
   read: { drawing: RefObject<boolean>; byId: RefObject<Map<string, S>> },
   set: { selectedId: (id: string | null) => void; candidates: (c: S[]) => void },
@@ -39,12 +39,12 @@ export function useStopTaps<S extends StopSummary>(
     const onMapClick = (e: MapMouseEvent) => {
       if (read.drawing.current) return;
       const out = resolveTap(tapTargets(map, e.point, e.originalEvent));
-      if (out.kind === 'stop') {
-        set.selectedId(out.stopId);
+      if (out.kind === 'hotspot') {
+        set.selectedId(out.hotspotId);
         set.candidates([]);
       } else if (out.kind === 'several') {
         set.selectedId(null);
-        set.candidates(out.stopIds.map((id) => read.byId.current.get(id)).filter((s) => !!s));
+        set.candidates(out.hotspotIds.map((id) => read.byId.current.get(id)).filter((s) => !!s));
       } else {
         set.selectedId(null);
         set.candidates([]);

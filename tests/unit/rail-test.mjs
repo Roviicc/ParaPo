@@ -19,7 +19,7 @@ import {
 } from '../../src/features/routes/model/routes.ts';
 import { hintuansAlong } from '../../src/features/routes/model/timeline.ts';
 import { rideCut } from '../../src/features/routes/model/ride.ts';
-import { linksThrough } from '../../src/features/studio/data/stops-geometry.ts';
+import { linksThrough } from '../../src/features/studio/data/hotspots-geometry.ts';
 
 const JEEP = { mode: 'jeepney', route_code: null };
 const LRT1 = { mode: 'lrt', route_code: 'LRT-1' };
@@ -103,7 +103,7 @@ const hintuan = (id, lng, name, line = null) => ({
   area: ringAt(lng),
   line,
 });
-const STOPS = [
+const HOTSPOTS = [
   { id: 'h', kind: 'terminal', name: 'Head', informal: null, aliases: [], point: pt(0) },
   { id: 't', kind: 'terminal', name: 'Tail', informal: null, aliases: [], point: pt(0.03) },
   hintuan('jeep-buendia', 0.01, 'Buendia'),
@@ -117,7 +117,7 @@ const LINE = [
   [0.02, 0],
   [0.03, 0],
 ];
-const ids = (route) => hintuansAlong(LINE, STOPS, route).map((a) => a.stop.id);
+const ids = (route) => hintuansAlong(LINE, HOTSPOTS, route).map((a) => a.hotspot.id);
 
 test('along the same road, each line lists only what it stops at', () => {
   assert.deepEqual(ids(JEEP), ['jeep-buendia', 'jeep-libertad']);
@@ -133,16 +133,16 @@ test("the ride-to cut of a place shared by a jeep hintuan and a station keeps to
     shape: { type: 'LineString', coordinates: LINE },
   });
   assert.deepEqual(
-    rideCut(v(JEEP), STOPS, 'jeep-buendia').dots.map((d) => d.stopId),
+    rideCut(v(JEEP), HOTSPOTS, 'jeep-buendia').dots.map((d) => d.hotspotId),
     ['jeep-buendia'],
   );
   assert.deepEqual(
-    rideCut(v(LRT1), STOPS, 'lrt-buendia').dots.map((d) => d.stopId),
+    rideCut(v(LRT1), HOTSPOTS, 'lrt-buendia').dots.map((d) => d.hotspotId),
     ['lrt-buendia'],
   );
 });
 
-// The studio's links when a hintuan is saved (stops-geometry.ts, linksThrough):
+// The studio's links when a hintuan is saved (hotspots-geometry.ts, linksThrough):
 // the one place that writes a box's route list, by the same rule.
 test('a saved box is linked only to the directions that stop at it', () => {
   const dir = (id, route) => ({ id, route, shape: { type: 'LineString', coordinates: LINE } });

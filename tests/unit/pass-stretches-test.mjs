@@ -13,7 +13,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PASS_WITHIN_M, passBounds, passStretches } from '../../src/features/routes/geo/pass.ts';
-import { stopRing } from '../../src/features/routes/model/stops.ts';
+import { hotspotRing } from '../../src/features/routes/model/hotspots.ts';
 import { bboxOf, bboxesOverlap, haversine } from '../../src/shared/utils/geo.ts';
 import { distanceToRingM } from '../../src/features/routes/geo/ring.ts';
 import { fileURLToPath } from 'node:url';
@@ -27,7 +27,7 @@ const file = published();
 const lines = file.variants
   .filter((v) => v.shape)
   .map((v) => ({ id: v.id, line: v.shape.coordinates }));
-const rings = file.stops.filter((s) => s.area).map((s) => ({ id: s.id, ring: stopRing(s) }));
+const rings = file.stops.filter((s) => s.area).map((s) => ({ id: s.id, ring: hotspotRing(s) }));
 
 /** The walk as it was before the bounds checks: the ring distance for every vertex, samples only near the box. */
 function slowStretches(line, ring, withinM = PASS_WITHIN_M, stepM = 1) {
@@ -189,7 +189,7 @@ function oldFeatures(variants, stops) {
   const boxes = stops
     .filter((s) => s.kind === 'hintuan' && s.area)
     .map((s) => {
-      const ring = stopRing(s);
+      const ring = hotspotRing(s);
       return { stop: s, ring, bounds: passBounds(ring) };
     });
   return variants.flatMap((v) => {

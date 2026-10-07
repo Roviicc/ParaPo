@@ -1,6 +1,6 @@
 // What a tap lands on (src/features/routes/map/tap.ts), asked of the map once a tap
 // (the cheap-phone plan, step 7, 2026-10-04): both hooks hear the map's one
-// click (routeTaps, stopTaps) and ask the same question, so the second takes
+// click (routeTaps, hotspotTaps) and ask the same question, so the second takes
 // the first's answer, kept on the browser's event, or without one on the
 // point MapLibre made for the listeners. Against a stand-in map that counts
 // its queries. And the hand over a line or a box bound only where a pointer
@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ROUTES_HIT_LAYER,
-  STOPS_FILL_LAYER,
+  HOTSPOTS_FILL_LAYER,
   bindHover,
   resolveTap,
   tapBox,
@@ -30,7 +30,7 @@ function standIn(under) {
   const asked = [];
   return {
     asked,
-    getLayer: (id) => (id === ROUTES_HIT_LAYER || id === STOPS_FILL_LAYER ? { id } : undefined),
+    getLayer: (id) => (id === ROUTES_HIT_LAYER || id === HOTSPOTS_FILL_LAYER ? { id } : undefined),
     queryRenderedFeatures(where, { layers }) {
       asked.push([layers[0], Array.isArray(where[0]) ? 'box' : 'point']);
       const found = under[Array.isArray(where[0]) ? layers[0] : 'inside'] ?? [];
@@ -54,10 +54,10 @@ test("a tap's answer is asked of the map once, and the other hook takes it", () 
   const first = tapTargets(map, point, event);
   // Inside a box (none here), then the routes in the finger's box.
   assert.deepEqual(map.asked, [
-    [STOPS_FILL_LAYER, 'point'],
+    [HOTSPOTS_FILL_LAYER, 'point'],
     [ROUTES_HIT_LAYER, 'box'],
   ]);
-  assert.deepEqual(first, { routeIds: ['a-out'], routeKeys: ['a'], stopIds: [] });
+  assert.deepEqual(first, { routeIds: ['a-out'], routeKeys: ['a'], hotspotIds: [] });
   const second = tapTargets(map, point, event);
   assert.equal(map.asked.length, 2, 'the second hook asks nothing');
   assert.equal(second, first, 'and has the same answer');
@@ -65,13 +65,13 @@ test("a tap's answer is asked of the map once, and the other hook takes it", () 
 });
 
 test('the next tap is asked afresh, even on the same spot', () => {
-  const map = standIn({ [STOPS_FILL_LAYER]: [{ id: 's1' }] });
+  const map = standIn({ [HOTSPOTS_FILL_LAYER]: [{ id: 's1' }] });
   const point = { x: 10, y: 10 };
   // Near a box, a finger's width off its edge: all three questions.
   assert.deepEqual(tapTargets(map, point, touch()), {
     routeIds: [],
     routeKeys: [],
-    stopIds: ['s1'],
+    hotspotIds: ['s1'],
   });
   assert.equal(map.asked.length, 3);
   tapTargets(map, point, touch());
@@ -81,7 +81,11 @@ test('the next tap is asked afresh, even on the same spot', () => {
 test("without the browser's event, the answer is kept on MapLibre's point, the one every listener gets", () => {
   const map = standIn({ inside: [{ id: 's1' }, { id: 's2' }, { id: 's1' }] });
   const point = { x: 5, y: 6 };
-  assert.deepEqual(tapTargets(map, point), { routeIds: [], routeKeys: [], stopIds: ['s1', 's2'] });
+  assert.deepEqual(tapTargets(map, point), {
+    routeIds: [],
+    routeKeys: [],
+    hotspotIds: ['s1', 's2'],
+  });
   assert.equal(map.asked.length, 1, 'inside a box: one question');
   tapTargets(map, point);
   assert.equal(map.asked.length, 1, 'the same point: kept');
@@ -182,19 +186,19 @@ test('a phone binds no hand, until a pointer that can hover comes; then it is bo
   const query = hoverQuery(false);
   try {
     const map = listeningMap();
-    const undo = bindHover(map, STOPS_FILL_LAYER, enter, leave);
+    const undo = bindHover(map, HOTSPOTS_FILL_LAYER, enter, leave);
     assert.deepEqual(map.bound, [], 'a finger: no pair, so no query of the map as it moves');
     assert.equal(query.heard.size, 1);
     // A mouse paired, or a keyboard with a trackpad attached, mid-visit.
     query.change(true);
-    assert.deepEqual(map.bound, pair(STOPS_FILL_LAYER));
+    assert.deepEqual(map.bound, pair(HOTSPOTS_FILL_LAYER));
     assert.equal(query.heard.size, 0, 'bound once, no longer listening');
     // Gone again: the pair stays, as before step 7, so a hand left showing
     // is taken off by the next pointer's first move off the box.
     query.change(false);
-    assert.deepEqual(map.bound, pair(STOPS_FILL_LAYER), 'kept');
+    assert.deepEqual(map.bound, pair(HOTSPOTS_FILL_LAYER), 'kept');
     query.change(true);
-    assert.deepEqual(map.bound, pair(STOPS_FILL_LAYER), 'still the one pair');
+    assert.deepEqual(map.bound, pair(HOTSPOTS_FILL_LAYER), 'still the one pair');
     undo();
     assert.deepEqual(map.bound, []);
   } finally {

@@ -16,7 +16,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PASS_WITHIN_M, passIndex } from '../../src/features/routes/geo/pass.ts';
-import { stopRing } from '../../src/features/routes/model/stops.ts';
+import { hotspotRing } from '../../src/features/routes/model/hotspots.ts';
 import {
   entryDistance,
   firstTouchIndex,
@@ -35,7 +35,7 @@ const file = published();
 const lines = file.variants
   .filter((v) => v.shape)
   .map((v) => ({ id: v.id, line: v.shape.coordinates }));
-const rings = file.stops.filter((s) => s.area).map((s) => ({ id: s.id, ring: stopRing(s) }));
+const rings = file.stops.filter((s) => s.area).map((s) => ({ id: s.id, ring: hotspotRing(s) }));
 
 // ---------------------------------------------------- the walks as they were
 function slowTouch(line, ring) {

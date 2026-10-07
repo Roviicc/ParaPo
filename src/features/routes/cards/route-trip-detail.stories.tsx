@@ -174,7 +174,7 @@ export const Ferry: Story = {
   },
 };
 
-/** A ferry stop picked: its pill and the tile both say Free. */
+/** A ferry hotspot picked: its pill and the tile both say Free. */
 export const FerryPicked: Story = {
   args: { ...Ferry.args, picked: 'h3' },
   play: pickedAsDrawn,

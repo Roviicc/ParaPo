@@ -88,7 +88,7 @@ export function useSavedRoutes<T extends VariantSummary>(
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /**
    * The directions under a tap that landed on several things (routes, hotspots
-   * or both), for a chooser. Empty otherwise. The stops hook keeps the
+   * or both), for a chooser. Empty otherwise. The hotspots hook keeps the
    * hotspot half of the same tap.
    */
   const [candidates, setCandidates] = useState<T[]>([]);

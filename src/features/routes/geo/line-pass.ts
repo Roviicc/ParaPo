@@ -2,8 +2,8 @@ import { bboxOf, bboxesOverlap, type BBox, type LngLat } from '@/shared/utils/ge
 
 import { passBounds, passStretches } from './pass';
 import type { Ring } from './ring';
+import { hotspotRing, type Hotspot } from '../model/hotspots';
 import { servedBy, variantLine, type VariantSummary } from '../model/routes';
-import { stopRing, type StopSummary } from '../model/stops';
 
 /*
  * The orange stretches as a direction's line file carries them (the
@@ -46,7 +46,7 @@ export const PASS_RULE = 1;
 
 /** A hintuan's box as the stretches are worked out against it: its ring, and the ground a line must reach (passBounds). */
 export interface PassBox {
-  stop: StopSummary;
+  hotspot: Hotspot;
   ring: Ring;
   bounds: BBox;
 }
@@ -65,12 +65,12 @@ export interface LinePass {
 }
 
 /** Every hintuan with a box: what the stretches are worked out against. */
-export function passBoxes(stops: readonly StopSummary[]): readonly PassBox[] {
-  return stops
+export function passBoxes(hotspots: readonly Hotspot[]): readonly PassBox[] {
+  return hotspots
     .filter((s) => s.kind === 'hintuan' && s.area)
     .map((s) => {
-      const ring = stopRing(s);
-      return { stop: s, ring, bounds: passBounds(ring) };
+      const ring = hotspotRing(s);
+      return { hotspot: s, ring, bounds: passBounds(ring) };
     });
 }
 
@@ -87,7 +87,7 @@ export function boxesReached(
   boxes: readonly PassBox[],
 ): PassBox[] {
   const reach = bboxOf(line);
-  return boxes.filter((b) => bboxesOverlap(reach, b.bounds) && servedBy(b.stop, v.route));
+  return boxes.filter((b) => bboxesOverlap(reach, b.bounds) && servedBy(b.hotspot, v.route));
 }
 
 /** The stretches of `line` past these boxes, box by box in their order. */
@@ -119,8 +119,8 @@ export function stretchesPast(v: VariantSummary, boxes: readonly PassBox[]): Pas
  */
 export function passKey(reached: readonly PassBox[]): string {
   let text = `${PASS_RULE}`;
-  for (const { stop, ring } of reached) {
-    text += `|${stop.id}:`;
+  for (const { hotspot, ring } of reached) {
+    text += `|${hotspot.id}:`;
     for (const [x, y] of ring) text += `${Math.round(x * 1e6)},${Math.round(y * 1e6)};`;
   }
   return hash53(text).toString(36);

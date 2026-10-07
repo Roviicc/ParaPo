@@ -10,7 +10,7 @@ export { useSession } from './auth/use-session';
 export { lineOf, listVariants, loadStopsFromSupabase } from './data/live';
 export { deleteVariant } from './data/routes-write';
 export { signboardUrl } from './data/signboards';
-export { deleteStop } from './data/stops-write';
+export { deleteStop } from './data/hotspots-write';
 export { getSupabase, setSupabase, supabaseConfig, supabaseConfigError } from './data/supabase';
 export { DrawToolbar } from './drawing/draw-toolbar';
 export { useDrawing } from './drawing/use-drawing';

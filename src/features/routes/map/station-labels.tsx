@@ -7,9 +7,9 @@ import { haversine } from '@/shared/utils/geo';
 import { tapsOnItsButton } from './marker-tap';
 import { CARD_SURFACE, CARD_TEXT } from '../cards/livery-card';
 import { TimelineDot } from '../cards/trip-timeline';
+import { hotspotLabel, type Hotspot } from '../model/hotspots';
 import type { Livery } from '../model/liveries';
 import { isLineMode, servedBy, type VariantSummary } from '../model/routes';
-import { stopLabel, type StopSummary } from '../model/stops';
 import './hintuan-pin.css';
 
 /** The scale bar's width (MapView's ScaleControl, MapLibre's default maxWidth). */
@@ -54,19 +54,19 @@ function namesShow(map: MapLibreMap): boolean {
 export function StationLabels({
   map,
   selected,
-  stops,
+  hotspots,
   livery,
   pickedId,
   onPick,
 }: {
   map: MapLibreMap;
   selected: VariantSummary;
-  stops: readonly StopSummary[];
+  hotspots: readonly Hotspot[];
   livery: Livery;
   /** The picked hintuan, which its HintuanPin names. */
   pickedId?: string | null;
   /** Called with the tapped station's id. */
-  onPick?: (stopId: string) => void;
+  onPick?: (hotspotId: string) => void;
 }) {
   const [named, setNamed] = useState(() => namesShow(map));
   useEffect(() => {
@@ -82,11 +82,18 @@ export function StationLabels({
   if (!isLineMode(route?.mode)) return null;
   // A line's stations, a train's or the ferry's (servedBy): both directions stop at each.
   const ends = new Set([route.head_stop_id, route.tail_stop_id, pickedId]);
-  const stations = stops.filter((s) => servedBy(s, route) && !ends.has(s.id));
+  const stations = hotspots.filter((s) => servedBy(s, route) && !ends.has(s.id));
   return (
     <>
       {stations.map((s) => (
-        <StationLabel key={s.id} map={map} stop={s} livery={livery} named={named} onPick={onPick} />
+        <StationLabel
+          key={s.id}
+          map={map}
+          hotspot={s}
+          livery={livery}
+          named={named}
+          onPick={onPick}
+        />
       ))}
     </>
   );
@@ -94,16 +101,16 @@ export function StationLabels({
 
 function StationLabel({
   map,
-  stop,
+  hotspot,
   livery,
   named,
   onPick,
 }: {
   map: MapLibreMap;
-  stop: StopSummary;
+  hotspot: Hotspot;
   livery: Livery;
   named: boolean;
-  onPick?: (stopId: string) => void;
+  onPick?: (hotspotId: string) => void;
 }) {
   const [el] = useState(() => {
     const div = document.createElement('div');
@@ -113,20 +120,20 @@ function StationLabel({
   });
   useEffect(() => {
     const m = new Marker({ element: el, anchor: 'center' })
-      .setLngLat(stop.point.coordinates)
+      .setLngLat(hotspot.point.coordinates)
       .addTo(map);
     return () => {
       m.remove();
     };
-  }, [map, el, stop.point.coordinates]);
+  }, [map, el, hotspot.point.coordinates]);
   // Read as the tap comes: a fresh function each render binds nothing anew (HintuanPin).
   const pick = useRef(onPick);
   pick.current = onPick;
-  useEffect(() => tapsOnItsButton(el, () => pick.current?.(stop.id)), [el, stop.id]);
+  useEffect(() => tapsOnItsButton(el, () => pick.current?.(hotspot.id)), [el, hotspot.id]);
 
   // Further out, a smaller dot (hintuanPin.css), so the stations read as beads, not a wall.
   el.toggleAttribute('data-far', !named);
-  const label = stopLabel(stop);
+  const label = hotspotLabel(hotspot);
   // The dot and its name are one tap (the owner's ask, 2026-10-02): one button around both.
   const Tap = onPick ? 'button' : 'div';
   return createPortal(

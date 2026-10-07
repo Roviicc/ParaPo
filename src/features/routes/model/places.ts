@@ -1,11 +1,11 @@
 import { haversine, type LngLat } from '@/shared/utils/geo';
 
-import { stopLabel, type StopKind, type StopSummary } from './stops';
+import { hotspotLabel, type HotspotKind, type Hotspot } from './hotspots';
 
 /*
  * Places: the boxes that are one place to a rider — one name, a terminal and
- * its hintuans, a mini stop on each side of the road — and how they are
- * counted and labelled. Split from stops.ts, 2026-09-29.
+ * its hintuans, a mini hotspot on each side of the road — and how they are
+ * counted and labelled. Split from hotspots.ts, 2026-09-29.
  */
 
 /**
@@ -13,8 +13,8 @@ import { stopLabel, type StopKind, type StopSummary } from './stops';
  * fairview" typed once does not become a second place (H3). The pickers
  * group by it and the timeline names by it.
  */
-export function placeKey(s: Pick<StopSummary, 'name' | 'informal'>): string {
-  return stopLabel(s).trim().toLowerCase();
+export function placeKey(s: Pick<Hotspot, 'name' | 'informal'>): string {
+  return hotspotLabel(s).trim().toLowerCase();
 }
 
 /**
@@ -24,10 +24,10 @@ export function placeKey(s: Pick<StopSummary, 'name' | 'informal'>): string {
  * who tapped a hintuan can find the terminal. Decided with the owner
  * 2026-09-22.
  */
-export function siblingsOf<S extends StopSummary>(stop: StopSummary, all: readonly S[]): S[] {
-  const key = placeKey(stop);
+export function siblingsOf<S extends Hotspot>(hotspot: Hotspot, all: readonly S[]): S[] {
+  const key = placeKey(hotspot);
   return all
-    .filter((s) => s.id !== stop.id && placeKey(s) === key)
+    .filter((s) => s.id !== hotspot.id && placeKey(s) === key)
     .sort((a, b) =>
       a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'terminal' ? -1 : 1,
     );
@@ -41,11 +41,11 @@ export function siblingsOf<S extends StopSummary>(stop: StopSummary, all: readon
  * "Fairview Teraccess 1", "Fairview Teraccess 2" — and a name only one box
  * has stays as it is.
  */
-export function placeBoxes<S extends StopSummary>(
-  stop: StopSummary,
+export function placeBoxes<S extends Hotspot>(
+  hotspot: Hotspot,
   all: readonly S[],
 ): { box: S; label: string }[] {
-  const key = placeKey(stop);
+  const key = placeKey(hotspot);
   const drawn = (a: S, b: S) =>
     a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id);
   const boxes = all
@@ -71,11 +71,12 @@ export function placeBoxes<S extends StopSummary>(
 }
 
 /**
- * "terminal + hintuan · 2 mini stops", "hintuan · 2 mini stops": what a place
+ * "terminal + hintuan · 2 mini stops", "hintuan · 2 mini stops" (the owner's label,
+ * kept word for word): what a place
  * is made of. A place's hintuan boxes are one hintuan to a rider; each box is
- * a mini stop, there for information. The owner's model, 2026-09-28.
+ * a mini hotspot, there for information. The owner's model, 2026-09-28.
  */
-export function placeSummary(boxes: readonly StopSummary[]): string {
+export function placeSummary(boxes: readonly Hotspot[]): string {
   const terminals = boxes.filter((s) => s.kind === 'terminal').length;
   const minis = boxes.length - terminals;
   const parts: string[] = [];
@@ -86,12 +87,12 @@ export function placeSummary(boxes: readonly StopSummary[]): string {
 
 /**
  * How many hotspots there are, as a rider counts them: each terminal, and
- * each place's hintuan once however many mini stops it has. The owner's
+ * each place's hintuan once however many mini hotspots it has. The owner's
  * rule of 2026-09-28; the studio's pill and the route list's header read it.
  */
-export function hotspotCount(stops: readonly StopSummary[]): number {
-  const hintuans = new Set(stops.filter((s) => s.kind === 'hintuan').map(placeKey));
-  return stops.filter((s) => s.kind === 'terminal').length + hintuans.size;
+export function hotspotCount(hotspots: readonly Hotspot[]): number {
+  const hintuans = new Set(hotspots.filter((s) => s.kind === 'hintuan').map(placeKey));
+  return hotspots.filter((s) => s.kind === 'terminal').length + hintuans.size;
 }
 
 /** How far apart two boxes of one name may be and still be one hintuan: both sides of a road. */
@@ -103,11 +104,11 @@ export const SAME_HINTUAN_M = 100;
  * a label halfway between them, so one hintuan does not read as two. The
  * owner's ask of 2026-09-28, with Bestlink. Farther apart, each keeps its own.
  */
-export function labelGroups<S extends StopSummary>(
-  stops: readonly S[],
-): { ids: string[]; kind: StopKind; name: string; point: LngLat }[] {
+export function labelGroups<S extends Hotspot>(
+  hotspots: readonly S[],
+): { ids: string[]; kind: HotspotKind; name: string; point: LngLat }[] {
   const groups: { key: string; boxes: S[] }[] = [];
-  for (const s of stops) {
+  for (const s of hotspots) {
     const key = `${s.kind}|${s.name.trim().toLowerCase()}`;
     const near = groups.find(
       (g) =>
