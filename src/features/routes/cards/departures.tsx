@@ -1,13 +1,13 @@
 import { departures } from '../model/departures';
-import type { VariantSummary } from '../model/routes';
+import type { Direction } from '../model/routes';
 
 interface Props {
   /** Every direction of every route to list, slots included. */
-  routes: readonly VariantSummary[];
+  routes: readonly Direction[];
   /** Whether the routes are shown the way back rather than outbound. */
   back: boolean;
   /** Called with the direction picked. */
-  onRoute: (v: VariantSummary) => void;
+  onRoute: (v: Direction) => void;
   /** The `data-testid` of each place and of each row: `<prefix>-origin`, `<prefix>-item`. */
   testId: string;
 }

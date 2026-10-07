@@ -1,10 +1,10 @@
 import type { HotspotLink, HotspotRow } from '@/features/routes/model/hotspots';
 import {
-  nameVariants,
+  nameDirections,
   type LineStringGeoJSON,
-  type UnnamedVariantRow,
-  type VariantDrawing,
-  type VariantRow,
+  type UnnamedDirectionRow,
+  type DirectionDrawing,
+  type DirectionRow,
 } from '@/features/routes/model/routes';
 
 import { readAll, type Page } from './read-all';
@@ -54,7 +54,7 @@ const VARIANT_SELECT_BEFORE_0009 = VARIANT_SELECT.replace('overview', 'shape');
 const DRAWING_SELECT = 'control_points, segments, shape';
 
 /** A row as the list reads it: its overview where its line will go. */
-type ListedRow = Omit<UnnamedVariantRow, 'shape'> & {
+type ListedRow = Omit<UnnamedDirectionRow, 'shape'> & {
   overview?: LineStringGeoJSON | null;
   shape?: LineStringGeoJSON | null;
 };
@@ -66,7 +66,7 @@ const NO_OVERVIEW = /\boverview\b.*does not exist/;
  * Every saved direction of every route, with the generated names filled in
  * from the hotspots at each route's ends. Public: RLS allows anyone to read.
  */
-export async function listVariants(): Promise<VariantRow[]> {
+export async function listVariants(): Promise<DirectionRow[]> {
   const client = getSupabase();
   if (!client) return [];
   // The client reads a row type off the select and guesses the embedded
@@ -97,7 +97,7 @@ export async function listVariants(): Promise<VariantRow[]> {
     ...r,
     shape: overview ?? shape ?? missing.get(r.id) ?? null,
   }));
-  return nameVariants(rows as UnnamedVariantRow[], hotspots);
+  return nameDirections(rows as UnnamedDirectionRow[], hotspots);
 }
 
 /** The full lines of the drawn rows that have no overview yet, by id. */
@@ -134,10 +134,10 @@ const LINES_PER_READ = 50;
  * a time. A hotspot's `stop_sequence` is an index into the full line, so an
  * overview must never be what it is counted on.
  */
-export async function linesOf<T extends VariantRow>(variants: readonly T[]): Promise<T[]> {
+export async function linesOf<T extends DirectionRow>(directions: readonly T[]): Promise<T[]> {
   const client = getSupabase();
-  if (!client || variants.length === 0) return [...variants];
-  const ids = variants.map((v) => v.id);
+  if (!client || directions.length === 0) return [...directions];
+  const ids = directions.map((v) => v.id);
   const reads = [];
   for (let i = 0; i < ids.length; i += LINES_PER_READ) {
     reads.push(
@@ -153,7 +153,7 @@ export async function linesOf<T extends VariantRow>(variants: readonly T[]): Pro
     for (const r of data as { id: string; shape: LineStringGeoJSON | null }[])
       byId.set(r.id, r.shape);
   }
-  return variants.map((v) => ({
+  return directions.map((v) => ({
     ...v,
     shape: byId.has(v.id) ? (byId.get(v.id) ?? null) : v.shape,
   }));
@@ -164,7 +164,7 @@ export async function linesOf<T extends VariantRow>(variants: readonly T[]): Pro
  * follow: one small request for the one row, in place of every row's drawing
  * on every load.
  */
-export async function withDrawing(v: VariantRow): Promise<VariantDrawing> {
+export async function withDrawing(v: DirectionRow): Promise<DirectionDrawing> {
   const client = getSupabase();
   if (!client) throw new Error('Supabase is not configured');
   const { data, error } = await client
@@ -178,9 +178,9 @@ export async function withDrawing(v: VariantRow): Promise<VariantDrawing> {
     ...v,
     shape: d.shape,
     control_points: Array.isArray(d.control_points)
-      ? (d.control_points as VariantDrawing['control_points'])
+      ? (d.control_points as DirectionDrawing['control_points'])
       : [],
-    segments: Array.isArray(d.segments) ? (d.segments as VariantDrawing['segments']) : [],
+    segments: Array.isArray(d.segments) ? (d.segments as DirectionDrawing['segments']) : [],
   };
 }
 

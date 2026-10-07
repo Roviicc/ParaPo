@@ -2,7 +2,7 @@ import type { MapLibreMap } from 'maplibre-gl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { coarsePointer } from '@/features/routes/map/tap';
-import type { VariantDrawing } from '@/features/routes/model/routes';
+import type { DirectionDrawing } from '@/features/routes/model/routes';
 import {
   joinSegments,
   lineLength,
@@ -63,7 +63,7 @@ export interface Borrow {
  * of it is taken: the direction, and the spot tapped on it so far.
  */
 export interface Picking {
-  variant: VariantDrawing;
+  direction: DirectionDrawing;
   spot: LineSpot | null;
 }
 
@@ -94,7 +94,7 @@ export function useDrawing(
      * A right-click on saved lines while drawing a route: the directions under
      * it and where. The studio decides which one is meant and calls `connect`.
      */
-    onFollow?: (variantIds: string[], at: LngLat, offered?: LngLat) => void;
+    onFollow?: (directionIds: string[], at: LngLat, offered?: LngLat) => void;
   } = {},
 ) {
   const [drawing, setDrawing] = useState(false);
@@ -380,7 +380,7 @@ export function useDrawing(
 
   /** Open a saved direction for editing: its row with its drawing (live.ts withDrawing). */
   const load = useCallback(
-    (v: VariantDrawing) => {
+    (v: DirectionDrawing) => {
       reset();
       writePoints(v.control_points ?? []);
       writeSegments(v.segments ?? []);
@@ -398,13 +398,13 @@ export function useDrawing(
    * the new route leaves it, then keeps the part before or after that spot.
    */
   const startExtend = useCallback(
-    (v: VariantDrawing) => {
+    (v: DirectionDrawing) => {
       reset();
       setFreehand(false);
       setArea(null);
       areaRef.current = null;
       setTarget({ routeId: null, variantId: null });
-      const p = { variant: v, spot: null };
+      const p = { direction: v, spot: null };
       setPicking(p);
       pickingRef.current = p;
       setDrawing(true);
@@ -422,11 +422,11 @@ export function useDrawing(
     (part: BorrowPart) => {
       const p = pickingRef.current;
       if (!p?.spot) return;
-      const cut = cutAt(p.variant.control_points ?? [], p.variant.segments ?? [], p.spot, part);
+      const cut = cutAt(p.direction.control_points ?? [], p.direction.segments ?? [], p.spot, part);
       writePoints(cut.controlPoints);
       writeSegments(cut.segments);
       joinRef.current = part === 'end' ? (cut.controlPoints[0] ?? null) : null;
-      setBorrow({ variantId: p.variant.id, part });
+      setBorrow({ variantId: p.direction.id, part });
       setPicking(null);
       pickingRef.current = null;
     },
@@ -472,7 +472,7 @@ export function useDrawing(
    * the join replaces, taken out only once the join goes ahead.
    */
   const connect = useCallback(
-    (v: VariantDrawing, at: LngLat, backwards: boolean, drop?: LngLat): string | null => {
+    (v: DirectionDrawing, at: LngLat, backwards: boolean, drop?: LngLat): string | null => {
       const gate = joinGate();
       if (!gate.go) return gate.problem;
       const cp = v.control_points ?? [];

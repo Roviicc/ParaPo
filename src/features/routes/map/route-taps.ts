@@ -4,7 +4,7 @@ import { useEffect, type RefObject } from 'react';
 import { ROUTES_HIT_LAYER, bindHover, resolveTap, tapTargets } from './tap';
 import type { Highlight } from './use-saved-routes';
 import { directionToOpen } from '../model/departures';
-import type { VariantSummary } from '../model/routes';
+import type { Direction } from '../model/routes';
 
 /*
  * A tap on the saved directions: what it opens, lists or lets go. Split from
@@ -20,7 +20,7 @@ const HIT = ROUTES_HIT_LAYER;
  * `read`, and answers through the hook's setters (`set`), which never
  * change.
  */
-export function useRouteTaps<T extends VariantSummary>(
+export function useRouteTaps<T extends Direction>(
   map: MapLibreMap | null,
   read: {
     drawing: RefObject<boolean>;

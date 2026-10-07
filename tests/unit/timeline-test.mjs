@@ -18,7 +18,7 @@ import {
   hintuansAlong,
   orderLinked,
 } from '../../src/features/routes/model/timeline.ts';
-import { variantLine } from '../../src/features/routes/model/routes.ts';
+import { directionLine } from '../../src/features/routes/model/routes.ts';
 import { rideCut, routeTimeline } from '../../src/features/routes/model/ride.ts';
 import { otherRoutesFrom, sharingAnEnd } from '../../src/features/routes/model/departures.ts';
 import { haversine, lineLength } from '../../src/shared/utils/geo.ts';
@@ -92,7 +92,7 @@ test('what a place is made of: one hintuan, its boxes mini stops', () => {
 test('the committed map: no direction lists the same hintuan twice in a row', () => {
   const m = published();
   for (const v of m.variants) {
-    const rows = labels(hintuansAlong(variantLine(v), m.stops, v.route).map((a) => a.hotspot));
+    const rows = labels(hintuansAlong(directionLine(v), m.stops, v.route).map((a) => a.hotspot));
     rows.forEach((r, i) => assert.notEqual(r, rows[i - 1], `${v.direction_name}: ${r} twice`));
   }
 });
@@ -237,7 +237,7 @@ test('the committed map: every trip-card row cuts, forward, short of the whole',
       .sort((a, b) => a.stop_sequence - b.stop_sequence)
       .map((l) => m.stops.find((s) => s.id === l.stop_id))
       .filter(Boolean);
-    const whole = lineLength(variantLine(v));
+    const whole = lineLength(directionLine(v));
     let last = 0;
     for (const row of routeTimeline(v, m.stops, along).between) {
       const cut = rideCut(v, m.stops, row.id);
@@ -497,7 +497,7 @@ test("the committed map: a trip card's timeline is the same for the same trip an
           sequence: l.stop_sequence,
         }))
         .filter((l) => !!l.hotspot),
-      variantLine(v),
+      directionLine(v),
     );
     const was = structuredClone({ v, stops: m.stops, along });
     const first = routeTimeline(v, m.stops, along);

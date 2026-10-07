@@ -11,7 +11,7 @@ import {
   type HotspotLink,
   type HotspotRow,
 } from '@/features/routes/model/hotspots';
-import { variantLine, type VariantRow } from '@/features/routes/model/routes';
+import { directionLine, type DirectionRow } from '@/features/routes/model/routes';
 import { hintuansAlong } from '@/features/routes/model/timeline';
 import { roundLngLat } from '@/shared/utils/geo';
 
@@ -33,9 +33,9 @@ export interface SaveStopInput {
   note: string;
   ring: Ring;
   /** Terminal only: the directions the owner ticked. Ignored for a hintuan. */
-  variantIds?: string[];
+  directionIds?: string[];
   /** Every saved direction — needed to compute hintuan links and sequences. */
-  variants: VariantRow[];
+  directions: DirectionRow[];
 }
 
 /**
@@ -98,20 +98,20 @@ export async function saveStop(
   // Links: computed for a hintuan, chosen for a terminal. Either way the
   // sequence is where the direction first meets the outline (0 when a ticked
   // terminal route never actually enters it — still a valid, ordered link).
-  const byId = new Map(input.variants.map((v) => [v.id, v]));
+  const byId = new Map(input.directions.map((v) => [v.id, v]));
   const links: HotspotLink[] =
     input.kind === 'hintuan'
-      ? linksThrough(ring, input.variants, hotspot.line ?? null).map((l) => ({
+      ? linksThrough(ring, input.directions, hotspot.line ?? null).map((l) => ({
           route_variant_id: l.variantId,
           stop_id: hotspot.id,
           stop_sequence: l.sequence,
         }))
-      : (input.variantIds ?? [])
+      : (input.directionIds ?? [])
           .filter((id) => byId.has(id))
           .map((id) => ({
             route_variant_id: id,
             stop_id: hotspot.id,
-            stop_sequence: Math.max(0, firstTouchIndex(variantLine(byId.get(id)!), ring)),
+            stop_sequence: Math.max(0, firstTouchIndex(directionLine(byId.get(id)!), ring)),
           }));
 
   try {
@@ -159,7 +159,7 @@ export const NOTHING_CHANGED =
  * hintuan it now passes under, unlink it from each it no longer does. Terminal
  * links are the owner's and are never touched here.
  */
-export async function syncHintuanLinks(variant: VariantRow): Promise<void> {
+export async function syncHintuanLinks(direction: DirectionRow): Promise<void> {
   const client = requireSupabase();
   // Paged, as every table read is (readAll.ts): past 1,000 hintuans one
   // request would silently see a subset (review finding 4).
@@ -178,7 +178,7 @@ export async function syncHintuanLinks(variant: VariantRow): Promise<void> {
       client
         .from('route_stop')
         .select('stop_id', { count: 'exact' })
-        .eq('route_variant_id', variant.id)
+        .eq('route_variant_id', direction.id)
         .order('stop_id')
         .range(from, to),
     ),
@@ -187,9 +187,9 @@ export async function syncHintuanLinks(variant: VariantRow): Promise<void> {
 
   // The same rule the save panel showed before Save was pressed. A link to a
   // hintuan this route does not stop at (servedBy) is one it no longer earns.
-  const along = hintuansAlong(variantLine(variant), hintuans, variant.route);
+  const along = hintuansAlong(directionLine(direction), hintuans, direction.route);
   const keep: HotspotLink[] = along.map(({ hotspot, index }) => ({
-    route_variant_id: variant.id,
+    route_variant_id: direction.id,
     stop_id: hotspot.id,
     stop_sequence: index,
   }));
@@ -204,7 +204,7 @@ export async function syncHintuanLinks(variant: VariantRow): Promise<void> {
     const del = await client
       .from('route_stop')
       .delete()
-      .eq('route_variant_id', variant.id)
+      .eq('route_variant_id', direction.id)
       .in('stop_id', drop);
     if (del.error) throw new Error(del.error.message);
   }

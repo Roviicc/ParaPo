@@ -6,7 +6,7 @@ import { zoomForScale, type LngLat } from '@/shared/utils/geo';
 import { APP_MOVE } from './map-view';
 import { hotspotLabel, type Hotspot } from '../model/hotspots';
 import { rideCut, travelLine } from '../model/ride';
-import type { VariantSummary } from '../model/routes';
+import type { Direction } from '../model/routes';
 
 /** How close a picked hintuan is brought in: the scale bar reading this. */
 const PICKED_SCALE_M = 500;
@@ -26,7 +26,7 @@ const PICKED_SCALE_M = 500;
  */
 export function useRideTo(
   map: MapLibreMap | null,
-  selected: VariantSummary | null,
+  selected: Direction | null,
   hotspots: readonly Hotspot[],
   opts: {
     /**
@@ -39,16 +39,16 @@ export function useRideTo(
   // Which direction the pick was made on: a pick belongs to its ride, so the
   // first render of another one — SWITCH, a new trip — never cuts its line
   // at the old row.
-  const [picked, setPicked] = useState<{ variantId: string; rowId: string } | null>(null);
-  const live = picked && picked.variantId === selected?.id ? picked : null;
+  const [picked, setPicked] = useState<{ directionId: string; rowId: string } | null>(null);
+  const live = picked && picked.directionId === selected?.id ? picked : null;
 
   // An end of the trip, picked from its row: the line stays whole, its dot
   // picked like a hintuan's (the owner's asks, 2026-09-29: "tapping
   // Novaliches should indicate green circle too", then the origin: "it
   // should have!"). One pick at a time with the hintuans; kept by
   // direction, as a pick is.
-  const [atEnd, setAtEnd] = useState<{ variantId: string; end: 'from' | 'to' } | null>(null);
-  const endPicked = selected && atEnd?.variantId === selected.id ? atEnd.end : null;
+  const [atEnd, setAtEnd] = useState<{ directionId: string; end: 'from' | 'to' } | null>(null);
+  const endPicked = selected && atEnd?.directionId === selected.id ? atEnd.end : null;
 
   // The camera as the first hintuan or end was picked: a second tap on the
   // picked row brings it back (the owner's asks, 2026-10-02, and for the
@@ -103,9 +103,9 @@ export function useRideTo(
       else if (id !== null && selectedId) remember();
       else if (id === null) before.current = null;
       setPicked((cur) =>
-        id === null || !selectedId || (cur?.variantId === selectedId && cur.rowId === id)
+        id === null || !selectedId || (cur?.directionId === selectedId && cur.rowId === id)
           ? null
-          : { variantId: selectedId, rowId: id },
+          : { directionId: selectedId, rowId: id },
       );
     },
     [selectedId, liveRow, remember, goBack],
@@ -120,7 +120,7 @@ export function useRideTo(
     (end: 'from' | 'to') => {
       setPicked(null);
       const on = endPicked !== end;
-      setAtEnd(on && selectedId ? { variantId: selectedId, end } : null);
+      setAtEnd(on && selectedId ? { directionId: selectedId, end } : null);
       if (!on) return goBack();
       if (!map || !selected) return;
       const line = travelLine(selected, hotspots);
@@ -161,7 +161,7 @@ export function useRideTo(
   const pickedHotspot = live ? hotspots.find((s) => s.id === live.rowId) : undefined;
   // Kept one object while the cut is, so the lit rides are not made anew each render.
   const ridden = useMemo(
-    () => (cut && selectedId ? { variantId: selectedId, line: cut.ridden } : null),
+    () => (cut && selectedId ? { directionId: selectedId, line: cut.ridden } : null),
     [cut, selectedId],
   );
 

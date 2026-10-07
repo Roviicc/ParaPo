@@ -1093,9 +1093,9 @@ if (PART === 1) {
             const m = window.__map;
             const read = async () => {
               const { loadMapFile } = await import('/src/features/published-map/map-file.ts');
-              const { variantLine } = await import('/src/features/routes/model/routes.ts');
+              const { directionLine } = await import('/src/features/routes/model/routes.ts');
               const v = (await loadMapFile()).variants.find((x) => x.id === id);
-              const line = v ? variantLine(v) : [];
+              const line = v ? directionLine(v) : [];
               const c = m.getCanvas().getBoundingClientRect();
               const card = document.querySelector('[data-testid="card"]').getBoundingClientRect();
               const pts = line

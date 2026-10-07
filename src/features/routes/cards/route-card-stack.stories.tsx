@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { expect, fn, userEvent, within } from 'storybook/test';
 
 import { RouteCardStack } from './route-card-stack';
-import type { VariantSummary } from '../model/routes';
+import type { Direction } from '../model/routes';
 
 /**
  * Sample data only, shaped like the published file: the owner's two routes
@@ -16,7 +16,7 @@ function direction(
   dir: string,
   km: number,
   reversed = false,
-): VariantSummary {
+): Direction {
   return {
     id: route + (reversed ? '-back' : '-out'),
     route_id: route,
@@ -45,7 +45,7 @@ function direction(
     },
   };
 }
-const tala: VariantSummary[] = [
+const tala: Direction[] = [
   direction('nova', 'Tala – Novaliches', 'Tala → Novaliches', 12.4),
   direction('nova', 'Tala – Novaliches', 'Novaliches → Tala', 13.1, true),
   direction('sm', 'Tala – SM Fairview', 'Tala → SM Fairview', 9.4),

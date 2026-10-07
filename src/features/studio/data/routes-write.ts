@@ -1,8 +1,8 @@
 import type {
   LineStringGeoJSON,
   TransportMode,
-  UnnamedVariantRow,
-  VariantRow,
+  UnnamedDirectionRow,
+  DirectionRow,
 } from '@/features/routes/model/routes';
 import type { LngLat, Segment } from '@/shared/utils/geo';
 import { joinSegments, overviewOf, roundLngLat } from '@/shared/utils/geo';
@@ -60,7 +60,7 @@ const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim());
  * Writes require a signed-in editor who owns the row; RLS enforces it. The row
  * comes back as the list reads it (VARIANT_SELECT, without the drawing just
  * sent) and without its generated name: the caller has the hotspot list and
- * runs nameVariants on it.
+ * runs nameDirections on it.
  */
 /** Postgres: a unique index refused the row. */
 const UNIQUE_VIOLATION = '23505';
@@ -117,7 +117,7 @@ export const ENDS_TAKEN =
 const DRAWN_ALREADY =
   'A route between these two places already has this direction drawn. To change it, open it and press Edit route.';
 
-export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> {
+export async function saveVariant(input: SaveInput): Promise<UnnamedDirectionRow> {
   const client = requireSupabase();
 
   let routeId = input.routeId;
@@ -234,7 +234,7 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
         await client.from('route').delete().eq('id', routeId);
       throw new Error(error.message);
     }
-    const saved = (data as unknown as UnnamedVariantRow[]).find(
+    const saved = (data as unknown as UnnamedDirectionRow[]).find(
       (v) => v.reversed === input.reversed,
     );
     if (!saved) throw new Error('Saved the route but could not read the direction back');
@@ -258,7 +258,7 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
 
   const { data, error } = await target.select(VARIANT_SELECT).maybeSingle();
   if (error) throw new Error(error.message);
-  if (data) return withLine(data as unknown as UnnamedVariantRow, shape);
+  if (data) return withLine(data as unknown as UnnamedDirectionRow, shape);
 
   // No slot to fill. Only reachable for a route saved before 0006, or one
   // whose slot was deleted by hand; an insert is the honest repair. When the
@@ -270,7 +270,7 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
     .single();
   if (insertError?.code === UNIQUE_VIOLATION) throw new Error(DRAWN_ALREADY);
   if (insertError) throw new Error(insertError.message);
-  return withLine(made as unknown as UnnamedVariantRow, shape);
+  return withLine(made as unknown as UnnamedDirectionRow, shape);
 }
 
 /**
@@ -278,9 +278,9 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedVariantRow> 
  * the caller gets it with the line it wrote, which its links are worked out on.
  */
 function withLine(
-  row: UnnamedVariantRow & { overview?: unknown },
+  row: UnnamedDirectionRow & { overview?: unknown },
   shape: LineStringGeoJSON,
-): UnnamedVariantRow {
+): UnnamedDirectionRow {
   const { overview: _overview, ...rest } = row;
   return { ...rest, shape };
 }
@@ -299,7 +299,7 @@ function withLine(
  * Every step reads its error (finding 16): a refused clean-up is said, not
  * left as a route nobody can reach.
  */
-export async function deleteVariant(variant: VariantRow): Promise<void> {
+export async function deleteVariant(direction: DirectionRow): Promise<void> {
   const client = requireSupabase();
   const emptied = await client
     .from('route_variant')
@@ -317,29 +317,29 @@ export async function deleteVariant(variant: VariantRow): Promise<void> {
       // copies only listed ones.
       signboards: [] as string[],
     })
-    .eq('id', variant.id)
+    .eq('id', direction.id)
     .select('id');
   if (emptied.error) throw new Error(emptied.error.message);
   // RLS refusing an update is no rows, not an error: said, not reloaded as
   // if done (review of 2026-10-03, finding 6).
   if (!emptied.data?.length) throw new Error(NOTHING_CHANGED);
-  const unlinked = await client.from('route_stop').delete().eq('route_variant_id', variant.id);
+  const unlinked = await client.from('route_stop').delete().eq('route_variant_id', direction.id);
   if (unlinked.error) throw new Error(unlinked.error.message);
   const orphaned = await client
     .from('route_variant')
     .update({ borrowed_from: null })
-    .eq('borrowed_from', variant.id);
+    .eq('borrowed_from', direction.id);
   if (orphaned.error) throw new Error(orphaned.error.message);
 
   const { count, error: countError } = await client
     .from('route_variant')
     .select('id', { count: 'exact', head: true })
-    .eq('route_id', variant.route_id)
+    .eq('route_id', direction.route_id)
     .not('shape', 'is', null);
   if (countError) throw new Error(countError.message);
   if (count === 0) {
     // Both ways empty: the route goes, its two slots with it (cascade).
-    const gone = await client.from('route').delete().eq('id', variant.route_id).select('id');
+    const gone = await client.from('route').delete().eq('id', direction.route_id).select('id');
     if (gone.error) throw new Error(gone.error.message);
     if (!gone.data?.length) throw new Error(NOTHING_CHANGED);
   }

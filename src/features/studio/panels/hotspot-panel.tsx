@@ -4,7 +4,7 @@ import { PASS_WITHIN_M } from '@/features/routes/geo/pass';
 import { ringCrossesItself } from '@/features/routes/geo/ring';
 import { coarse } from '@/features/routes/map/map-view';
 import { parseAliases, hotspotLabel, type HotspotRow } from '@/features/routes/model/hotspots';
-import { variantLine, type VariantRow } from '@/features/routes/model/routes';
+import { directionLine, type DirectionRow } from '@/features/routes/model/routes';
 import { bboxOf, bboxesOverlap, OVERVIEW_M } from '@/shared/utils/geo';
 
 import { terminalAlreadyAt } from './places';
@@ -21,7 +21,7 @@ interface Props {
   /** For an existing terminal: the directions currently linked to it. */
   existingLinks: string[];
   /** Every saved direction — the terminal checklist and the hintuan preview. */
-  variants: VariantRow[];
+  directions: DirectionRow[];
   /** Every saved hotspot, so the informal-name box can offer the names already in use. */
   hotspots?: HotspotRow[];
   onSaved: (s: HotspotRow) => void;
@@ -35,9 +35,9 @@ const field =
   'focus:border-neutral-900';
 
 /** Directions grouped under their route's generated name, for both lists. */
-function groupBySignboard(variants: VariantRow[]) {
-  const groups = new Map<string, { signboard: string; directions: VariantRow[] }>();
-  for (const v of variants) {
+function groupBySignboard(directions: DirectionRow[]) {
+  const groups = new Map<string, { signboard: string; directions: DirectionRow[] }>();
+  for (const v of directions) {
     const key = v.route_id;
     const g = groups.get(key) ?? { signboard: v.route?.name ?? '(unnamed)', directions: [] };
     g.directions.push(v);
@@ -58,7 +58,7 @@ export function HotspotPanel({
   draw,
   existing,
   existingLinks,
-  variants,
+  directions,
   hotspots = [],
   onSaved,
   onCancel,
@@ -102,20 +102,20 @@ export function HotspotPanel({
   // The list holds overviews (0009); a link's sequence is an index into the
   // full line, so the directions the outline can reach are read in full
   // before anything is worked out on them, and Save waits for them.
-  const [lined, setLined] = useState<VariantRow[] | null>(null);
+  const [lined, setLined] = useState<DirectionRow[] | null>(null);
   useEffect(() => {
     let live = true;
     // Reach: the starts-here distance, the pass rule and the overview's own slack.
     const reach = bboxOf(ring, 100 + PASS_WITHIN_M + OVERVIEW_M);
-    const near = variants.filter((v) => {
-      const line = variantLine(v);
+    const near = directions.filter((v) => {
+      const line = directionLine(v);
       return line.length > 1 && bboxesOverlap(bboxOf(line), reach);
     });
     linesOf(near).then(
       (full) => {
         if (!live) return;
         const byId = new Map(full.map((v) => [v.id, v]));
-        setLined(variants.map((v) => byId.get(v.id) ?? v));
+        setLined(directions.map((v) => byId.get(v.id) ?? v));
       },
       (e: unknown) =>
         live &&
@@ -126,8 +126,8 @@ export function HotspotPanel({
     return () => {
       live = false;
     };
-  }, [ring, variants]);
-  const lines = lined ?? variants;
+  }, [ring, directions]);
+  const lines = lined ?? directions;
 
   const station = existing?.line ?? null;
   const through = useMemo(() => linksThrough(ring, lines, station), [ring, lines, station]);
@@ -191,8 +191,8 @@ export function HotspotPanel({
           aliases: parseAliases(aliasText, [name, informal]),
           note,
           ring,
-          variantIds: kind === 'terminal' ? [...ticked] : undefined,
-          variants: lines,
+          directionIds: kind === 'terminal' ? [...ticked] : undefined,
+          directions: lines,
         },
         setWrittenId,
       );

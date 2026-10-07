@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
 
 import type { HotspotRow } from '@/features/routes/model/hotspots';
-import type { RouteRow, VariantRow } from '@/features/routes/model/routes';
+import type { RouteRow, DirectionRow } from '@/features/routes/model/routes';
 import { M_PER_DEG, type LngLat, type Segment } from '@/shared/utils/geo';
 
 import { SavePanel } from './save-panel';
@@ -281,7 +281,7 @@ export const PassesBesideTheRoad: Story = {
 };
 
 /** Tala – SM Fairview's outbound as the list holds it, for Edit route. */
-const talaFairviewOut: VariantRow = {
+const talaFairviewOut: DirectionRow = {
   id: 'sample-out',
   route_id: 'sample-route',
   direction_name: 'Tala → SM Fairview',
@@ -300,7 +300,7 @@ const lagro: HotspotRow = {
   ...terminal('sample-lagro', 'Lagro Terminal', [121.06, 14.74]),
   informal: 'Lagro',
 };
-const lagroFairviewOut: VariantRow = {
+const lagroFairviewOut: DirectionRow = {
   ...talaFairviewOut,
   id: 'sample-lagro-out',
   route_id: 'sample-route-2',
@@ -322,7 +322,7 @@ export const EditRoute: Story = {
   args: {
     existing: talaFairviewOut,
     hotspots: [...hotspots, lagro],
-    variants: [talaFairviewOut, lagroFairviewOut],
+    directions: [talaFairviewOut, lagroFairviewOut],
   },
 };
 

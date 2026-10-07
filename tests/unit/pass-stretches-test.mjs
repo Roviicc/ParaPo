@@ -182,7 +182,7 @@ import {
   stretchesOf,
   stretchesPast,
 } from '../../src/features/routes/geo/pass-stretches.ts';
-import { servedBy, variantLine } from '../../src/features/routes/model/routes.ts';
+import { servedBy, directionLine } from '../../src/features/routes/model/routes.ts';
 
 /** usePassStretches' features before step 16, word for word (but for types). */
 function oldFeatures(variants, stops) {
@@ -193,7 +193,7 @@ function oldFeatures(variants, stops) {
       return { stop: s, ring, bounds: passBounds(ring) };
     });
   return variants.flatMap((v) => {
-    const line = variantLine(v);
+    const line = directionLine(v);
     if (line.length < 2) return [];
     const reach = bboxOf(line);
     return boxes

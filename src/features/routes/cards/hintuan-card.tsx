@@ -19,7 +19,7 @@ import { drawnDepartures } from '../model/departures';
 import { hotspotLabel, type HotspotKind, type Hotspot } from '../model/hotspots';
 import type { Livery } from '../model/liveries';
 import { placeBoxes } from '../model/places';
-import type { VariantSummary } from '../model/routes';
+import type { Direction } from '../model/routes';
 
 interface Props {
   /** The box picked: the one tapped on the map, or a row since. Its row is Selected. */
@@ -27,10 +27,10 @@ interface Props {
   /** Every hotspot, for the other boxes of its place. */
   hotspots: readonly Hotspot[];
   /** The directions that stop at a box, by its id. */
-  linkedVariantIds: (id: string) => readonly string[];
-  variants: readonly VariantSummary[];
+  linkedDirectionIds: (id: string) => readonly string[];
+  directions: readonly Direction[];
   /** Called with the direction picked, and the colour its card wore: its trip wears the same. */
-  onSelectVariant: (v: VariantSummary, livery?: Livery) => void;
+  onSelectDirection: (v: Direction, livery?: Livery) => void;
   /**
    * The routes stopping at the box as RouteCards, as the route list shows
    * them: the place whose card is Selected, what to do when one is picked or
@@ -113,9 +113,9 @@ const LETTER = { terminal: <TerminalIcon />, hintuan: <HintuanIcon /> } satisfie
 export function HintuanCard({
   hotspot,
   hotspots,
-  linkedVariantIds,
-  variants,
-  onSelectVariant,
+  linkedDirectionIds,
+  directions,
+  onSelectDirection,
   routeCards,
   onPickBox,
   deselected = false,
@@ -131,11 +131,11 @@ export function HintuanCard({
     hotspot,
     hotspots.some((s) => s.id === hotspot.id) ? hotspots : [hotspot, ...hotspots],
   );
-  const byId = new Map(variants.map((v) => [v.id, v]));
+  const byId = new Map(directions.map((v) => [v.id, v]));
   const linked = (id: string) =>
-    linkedVariantIds(id)
+    linkedDirectionIds(id)
       .map((v) => byId.get(v))
-      .filter((v): v is VariantSummary => !!v);
+      .filter((v): v is Direction => !!v);
   /** Whether a box is passed `back` — the way back — or the way there, by a drawn direction. */
   const passes = (id: string, back: boolean) => drawnDepartures(linked(id), back).length > 0;
 
@@ -290,7 +290,7 @@ export function HintuanCard({
             back={back}
             selected={routeCards.selected}
             onSelect={routeCards.onSelect}
-            onRoute={onSelectVariant}
+            onRoute={onSelectDirection}
             testId="card"
           />
           {/* HintuanCardRouteCounter (3851:12206, 2026-10-01), across the join of the rows and the cards, 24 in. */}

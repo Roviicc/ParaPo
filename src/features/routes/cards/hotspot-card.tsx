@@ -9,15 +9,15 @@ import { departures, drawnDepartures } from '../model/departures';
 import { hotspotLabel, type Hotspot } from '../model/hotspots';
 import type { Livery } from '../model/liveries';
 import { placeSummary, siblingsOf } from '../model/places';
-import type { VariantSummary } from '../model/routes';
+import type { Direction } from '../model/routes';
 
 interface Props {
   hotspot: Hotspot;
   /** Directions linked to this hotspot, in stop_sequence order. */
-  linkedVariantIds: string[];
-  variants: VariantSummary[];
+  linkedDirectionIds: string[];
+  directions: Direction[];
   /** Called with the direction picked, and, from a RouteCard, the colour its card wore: its trip wears the same. */
-  onSelectVariant: (v: VariantSummary, livery?: Livery) => void;
+  onSelectDirection: (v: Direction, livery?: Livery) => void;
   /**
    * The routes through here as the owner's RouteCards, as the route list
    * shows them — the public map's, 2026-09-29 — with the place whose card is
@@ -54,9 +54,9 @@ interface Props {
  */
 export function HotspotCard({
   hotspot,
-  linkedVariantIds,
-  variants,
-  onSelectVariant,
+  linkedDirectionIds,
+  directions,
+  onSelectDirection,
   routeCards,
   hotspots = [],
   onPickSibling,
@@ -68,8 +68,8 @@ export function HotspotCard({
   const isTerminal = hotspot.kind === 'terminal';
   const label = hotspotLabel(hotspot);
   const siblings = siblingsOf(hotspot, hotspots);
-  const byId = new Map(variants.map((v) => [v.id, v]));
-  const linked = linkedVariantIds.map((id) => byId.get(id)).filter((v): v is VariantSummary => !!v);
+  const byId = new Map(directions.map((v) => [v.id, v]));
+  const linked = linkedDirectionIds.map((id) => byId.get(id)).filter((v): v is Direction => !!v);
   // The routes through here, one way round, by the place each leaves from,
   // ⇄ for the way back: the owner's RouteCards on the public map, the rows
   // in the studio. Both directions of a route are linked to a box on a
@@ -207,13 +207,13 @@ export function HotspotCard({
               back={back}
               selected={routeCards.selected}
               onSelect={routeCards.onSelect}
-              onRoute={onSelectVariant}
+              onRoute={onSelectDirection}
               testId="card"
             />
           </div>
         ) : (
           <ul className="-mx-4 mt-1 border-t border-border-primary">
-            <Departures routes={linked} back={back} onRoute={onSelectVariant} testId="card" />
+            <Departures routes={linked} back={back} onRoute={onSelectDirection} testId="card" />
           </ul>
         )}
 

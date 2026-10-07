@@ -8,7 +8,7 @@ import {
   ruleOn,
   fareFor,
 } from '@/features/routes/model/fares';
-import { MODES, variantLine, type VariantSummary } from '@/features/routes/model/routes';
+import { MODES, directionLine, type Direction } from '@/features/routes/model/routes';
 import { lineLength } from '@/shared/utils/geo';
 
 /**
@@ -21,13 +21,14 @@ import { lineLength } from '@/shared/utils/geo';
  * minimum, the route's own fare note and where the estimate comes from. Then
  * Edit, Extend and Delete, when the direction is the editor's own.
  */
-export function RouteFacts({ variant, actions }: { variant: VariantSummary; actions?: ReactNode }) {
-  const r = variant.route;
+export function RouteFacts({ direction, actions }: { direction: Direction; actions?: ReactNode }) {
+  const r = direction.route;
   const mode = MODES.find((m) => m.value === r?.mode)?.label ?? r?.mode ?? '';
   const today = hasFareRule(r?.mode) ? ruleOn(manilaDate()) : null;
   // The whole ride's, as the trip card's Expected fare prices it.
-  const whole = today && fareFor(variant.metres ?? lineLength(variantLine(variant)), today.rule);
-  const verified = variant.confidence === 'verified';
+  const whole =
+    today && fareFor(direction.metres ?? lineLength(directionLine(direction)), today.rule);
+  const verified = direction.confidence === 'verified';
 
   return (
     <div data-testid="route-facts" className="flex w-full flex-col gap-3 px-3 pb-4">

@@ -1,6 +1,6 @@
 import { passIndex } from '@/features/routes/geo/pass';
 import { entryDistance, type Ring } from '@/features/routes/geo/ring';
-import { servedBy, variantLine, type VariantRow } from '@/features/routes/model/routes';
+import { servedBy, directionLine, type DirectionRow } from '@/features/routes/model/routes';
 
 // Pure functions, kept apart from the writes (hotspots-write.ts), which need the
 // Supabase client a test cannot load: so they can be unit-tested, and so the
@@ -16,13 +16,13 @@ import { servedBy, variantLine, type VariantRow } from '@/features/routes/model/
  */
 export function linksThrough(
   ring: Ring,
-  variants: VariantRow[],
+  directions: DirectionRow[],
   line: string | null,
 ): { variantId: string; sequence: number }[] {
   const out: { variantId: string; sequence: number }[] = [];
-  for (const v of variants) {
+  for (const v of directions) {
     if (!servedBy({ line }, v.route)) continue;
-    const idx = passIndex(variantLine(v), ring);
+    const idx = passIndex(directionLine(v), ring);
     if (idx >= 0) out.push({ variantId: v.id, sequence: idx });
   }
   return out;
@@ -40,10 +40,10 @@ const STARTS_WITHIN_M = 100;
  * metre or two off the road, and the first real terminal traced (Tala) had
  * the route start 20 cm outside its outline.
  */
-export function variantsStartingIn(ring: Ring, variants: VariantRow[]): string[] {
-  return variants
+export function variantsStartingIn(ring: Ring, directions: DirectionRow[]): string[] {
+  return directions
     .filter((v) => {
-      const d = entryDistance(variantLine(v), ring);
+      const d = entryDistance(directionLine(v), ring);
       return d >= 0 && d <= STARTS_WITHIN_M;
     })
     .map((v) => v.id);

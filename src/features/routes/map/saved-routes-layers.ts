@@ -7,7 +7,7 @@ import { useLayerSwitch, type LayerSwitch } from './layer-switch';
 import { LAYERS, applyHidden, firstLayerOfType, layOutOnce } from './layers';
 import { CASING_EXTRA, litWidth, roadWidth } from './line-style';
 import { ROUTES_HIT_LAYER } from './tap';
-import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes';
+import { directionLine, type LineStringGeoJSON, type Direction } from '../model/routes';
 
 /*
  * The saved directions on the map: their source, their five layers, and
@@ -105,11 +105,11 @@ export function useLitLineColour(map: MapLibreMap | null, colour: string) {
  * The saved directions as their source takes them: one feature for each
  * that has a line to draw, its id promoted for the lighting.
  */
-export function routesData(rows: readonly VariantSummary[]) {
+export function routesData(rows: readonly Direction[]) {
   return {
     type: 'FeatureCollection' as const,
     features: rows
-      .map((v) => ({ v, line: variantLine(v) }))
+      .map((v) => ({ v, line: directionLine(v) }))
       .filter(({ line }) => line.length > 1)
       .map(({ v, line }) => ({
         type: 'Feature' as const,
@@ -151,7 +151,7 @@ export function unpatched(
  */
 export function addSavedRoutes(
   map: Pick<MapLibreMap, 'addSource' | 'addLayer' | 'getLayersOrder' | 'getLayer'>,
-  rows: readonly VariantSummary[] = [],
+  rows: readonly Direction[] = [],
 ): void {
   // Under the basemap's labels, so a road painted blue still shows its
   // name. The draft's layers, when there are any, sit above the labels and
@@ -282,16 +282,16 @@ export function routesDrawn(
  */
 export function useSavedRoutesLayers(
   map: MapLibreMap | null,
-  rows: readonly VariantSummary[],
+  rows: readonly Direction[],
   lines: ReadonlyMap<string, LineStringGeoJSON>,
-  hiddenVariantId: string | null | undefined,
+  hiddenDirectionId: string | null | undefined,
   lit: readonly string[],
 ) {
   // The rows the source was last laid out from, and the full lines patched
   // in since, each by the very array or object handed on: what was sent
   // is not sent again (the cheap-phone plan, step 10 (c) and (e),
   // 2026-10-04).
-  const laidOut = useRef<readonly VariantSummary[] | null>(null);
+  const laidOut = useRef<readonly Direction[] | null>(null);
   const patched = useRef(new Map<string, LineStringGeoJSON>());
 
   // Added with the rows already in, when they are (the public map's file
@@ -359,12 +359,12 @@ export function useSavedRoutesLayers(
   const hiddenNow = useRef<string | null>(null);
   useEffect(() => {
     if (!map || !map.getLayer(LINE)) return;
-    applyHidden(hiddenNow, hiddenVariantId, (hidden) => {
+    applyHidden(hiddenNow, hiddenDirectionId, (hidden) => {
       const filter = ['!=', ['get', 'id'], hidden] as const;
       for (const id of [CASING, LINE, SELECTED_CASING, SELECTED, HIT])
         map.setFilter(id, filter as never);
     });
-  }, [map, hiddenVariantId]);
+  }, [map, hiddenDirectionId]);
 
   // The lit copy and its casing, off while nothing is lit, from the start;
   // their GL program compiled by a twin while the map is idle (layerSwitch.ts).

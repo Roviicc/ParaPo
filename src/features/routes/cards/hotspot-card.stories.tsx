@@ -5,7 +5,7 @@ import { expect, fn, userEvent, within } from 'storybook/test';
 
 import { HotspotCard } from './hotspot-card';
 import type { HotspotRow } from '../model/hotspots';
-import type { VariantSummary } from '../model/routes';
+import type { Direction } from '../model/routes';
 
 /** Sample data only, shaped like saved rows. Not read from Supabase. */
 const route = {
@@ -20,7 +20,7 @@ const route = {
   name: 'Tala – SM Fairview',
 } as const;
 
-const outbound: VariantSummary = {
+const outbound: Direction = {
   id: 'sample-out',
   route_id: route.id,
   direction_name: 'Tala → SM Fairview',
@@ -32,7 +32,7 @@ const outbound: VariantSummary = {
   route,
 };
 
-const inbound: VariantSummary = {
+const inbound: Direction = {
   ...outbound,
   id: 'sample-in',
   direction_name: 'SM Fairview → Tala',
@@ -99,9 +99,9 @@ const meta = {
   parameters: { layout: 'fullscreen' },
   args: {
     hotspot: terminal,
-    linkedVariantIds: [outbound.id, inbound.id],
-    variants: [outbound, inbound],
-    onSelectVariant: fn(),
+    linkedDirectionIds: [outbound.id, inbound.id],
+    directions: [outbound, inbound],
+    onSelectDirection: fn(),
     onClose: fn(),
   },
 } satisfies Meta<typeof HotspotCard>;
@@ -123,7 +123,7 @@ export const EmptyHintuan: Story = {
       kind: 'hintuan',
       note: 'Wait under the waiting shed across from the chapel.',
     },
-    linkedVariantIds: [],
+    linkedDirectionIds: [],
   },
 };
 
@@ -150,7 +150,7 @@ export const PartOfAPlace: Story = {
     hotspot: fairviewBoxes[1]!,
     hotspots: fairviewBoxes,
     onPickSibling: fn(),
-    linkedVariantIds: [inbound.id],
+    linkedDirectionIds: [inbound.id],
   },
 };
 
@@ -172,7 +172,7 @@ const drawn = (
   direction: string,
   km: number,
   reversed = false,
-): VariantSummary => ({
+): Direction => ({
   ...outbound,
   id: key + (reversed ? '-back' : '-out'),
   route_id: key,
@@ -209,8 +209,8 @@ export const RouteCards: Story = {
     hotspot: fairviewBoxes[2]!,
     hotspots: fairviewBoxes,
     onPickSibling: fn(),
-    linkedVariantIds: talaRoutes.map((v) => v.id),
-    variants: talaRoutes,
+    linkedDirectionIds: talaRoutes.map((v) => v.id),
+    directions: talaRoutes,
   },
 };
 
@@ -264,7 +264,7 @@ export const RouteCardsPhone: Story = {
 export const RouteCardsNothingTheOtherWay: Story = {
   args: {
     ...RouteCards.args,
-    variants: talaRoutes.map((v) => (v.reversed ? { ...v, shape: null } : v)),
+    directions: talaRoutes.map((v) => (v.reversed ? { ...v, shape: null } : v)),
   },
 };
 
@@ -272,8 +272,8 @@ export const RouteCardsNothingTheOtherWay: Story = {
 export const RouteCardsTerminal: Story = {
   args: {
     routeCards,
-    linkedVariantIds: talaRoutes.map((v) => v.id),
-    variants: talaRoutes,
+    linkedDirectionIds: talaRoutes.map((v) => v.id),
+    directions: talaRoutes,
   },
 };
 

@@ -61,7 +61,7 @@ export function useDrawEvents(
     picking: RefObject<Picking | null>;
     join: RefObject<LngLat | null>;
     borrow: RefObject<Borrow | null>;
-    follow: RefObject<((variantIds: string[], at: LngLat, offered?: LngLat) => void) | undefined>;
+    follow: RefObject<((directionIds: string[], at: LngLat, offered?: LngLat) => void) | undefined>;
     selected: RefObject<number | null>;
   },
   actions: {
@@ -162,11 +162,11 @@ export function useDrawEvents(
       // picks the nearest spot on it; a tap elsewhere is ignored.
       const p = refs.picking.current;
       if (p) {
-        const spot = nearestSpot(p.variant.segments ?? [], [e.lngLat.lng, e.lngLat.lat]);
+        const spot = nearestSpot(p.direction.segments ?? [], [e.lngLat.lng, e.lngLat.lat]);
         if (!spot) return;
         const px = map.project(spot.point);
         if (Math.hypot(px.x - e.point.x, px.y - e.point.y) > PICK_PX) return;
-        const next = { variant: p.variant, spot };
+        const next = { direction: p.direction, spot };
         refs.picking.current = next;
         setPicking(next);
         return;

@@ -15,8 +15,8 @@ import {
   isFerry,
   isRail,
   LINE_NOTES,
-  variantLine,
-  type VariantSummary,
+  directionLine,
+  type Direction,
 } from '../model/routes';
 import type { Timeline } from '../model/timeline';
 
@@ -32,7 +32,7 @@ import type { Timeline } from '../model/timeline';
  * the card never shows a frame in the wrong colour.
  */
 export function useTripLivery(
-  open: VariantSummary | null,
+  open: Direction | null,
   worn: { id: string; livery: Livery } | null,
   wornBehind: boolean,
 ): Livery | null {
@@ -76,8 +76,8 @@ export function useTripLivery(
  * 2026-10-03.
  */
 export function TripCard({
-  variant,
-  variants,
+  direction,
+  directions,
   timeline,
   livery,
   onBackToList,
@@ -94,13 +94,13 @@ export function TripCard({
   signboardUrl = publishedSignboard,
   extras,
 }: {
-  variant: VariantSummary;
-  variants: readonly VariantSummary[];
+  direction: Direction;
+  directions: readonly Direction[];
   timeline: Timeline;
   /** The colour it opened in, kept through SWITCH; its line wears it too. */
   livery: Livery;
   onBackToList: (() => void) | null;
-  onSwitch: (sibling: VariantSummary) => void;
+  onSwitch: (sibling: Direction) => void;
   onClose: () => void;
   /** The hintuan picked on the timeline (useRideTo), and how far the ride to it runs, when its line reaches it. */
   picked: string | null;
@@ -114,21 +114,21 @@ export function TripCard({
   /** Its sheet's height, shared with the list or card behind it (BottomSheet). */
   height: SheetHeight;
   /** A row of "Other routes" tapped: that direction's trip in this one's place. Without it, no rows. */
-  onOtherRoute?: (variant: VariantSummary) => void;
+  onOtherRoute?: (direction: Direction) => void;
   /** Where a signboard's file is read: beside the published map, or the studio's bucket. */
   signboardUrl?: (name: string) => string;
   /** Under the tiles, the studio's alone: its facts and its Edit, Extend and Delete. */
   extras?: ReactNode;
 }) {
-  const { from, to } = directionEnds(variant);
-  const sibling = otherDirection(variants, variant);
+  const { from, to } = directionEnds(direction);
+  const sibling = otherDirection(directions, direction);
   const switchable = !!sibling && isDrawn(sibling);
   // The whole ride, measured once on its full line — the index's figure, so
   // an overview drawn while the line is read never prices it: its Kilometer
   // and its Expected fare.
-  const metres = variant.metres ?? lineLength(variantLine(variant));
+  const metres = direction.metres ?? lineLength(directionLine(direction));
   const [fareKind, setFareKind] = useFareKind();
-  const others = onOtherRoute ? otherRoutesFrom(variants, variant) : [];
+  const others = onOtherRoute ? otherRoutesFrom(directions, direction) : [];
   return (
     <RouteTripDetail
       livery={livery}
@@ -136,11 +136,11 @@ export function TripCard({
       pickedMetres={pickedMetres}
       discounted={fareKind === 'discounted'}
       onDiscounted={(d) => setFareKind(d ? 'discounted' : 'regular')}
-      fare={fareFor(variant, metres, timeline)}
+      fare={fareFor(direction, metres, timeline)}
       routeOrigin={from}
       hintuans={timeline.between}
       picked={picked}
-      pickedFare={pickedFareFor(variant, pickedMetres, timeline, picked)}
+      pickedFare={pickedFareFor(direction, pickedMetres, timeline, picked)}
       onPick={onPick}
       onEnd={onEnd}
       endPicked={endPicked}
@@ -148,14 +148,14 @@ export function TripCard({
       height={height}
       routeDirection={to}
       switchable={switchable}
-      back={variant.reversed}
+      back={direction.reversed}
       onSwitch={() => {
         if (sibling && switchable) onSwitch(sibling);
       }}
       onBackToList={onBackToList}
       onClose={onClose}
-      signboards={(variant.signboards ?? []).map(signboardUrl)}
-      note={LINE_NOTES[variant.route?.route_code ?? '']}
+      signboards={(direction.signboards ?? []).map(signboardUrl)}
+      note={LINE_NOTES[direction.route?.route_code ?? '']}
       otherRoutes={others.map((v) => ({ id: v.id, to: directionEnds(v).to }))}
       onOtherRoute={(id) => {
         const v = others.find((o) => o.id === id);
@@ -176,26 +176,26 @@ function faresFor(mode: Parameters<typeof rideFare>[0], metres: number): Fares |
 }
 
 /** The whole ride's fare: a train's by its stations (railFares), the ferry's free, a jeep's by its metres. */
-function fareFor(variant: VariantSummary, metres: number, timeline: Timeline): Fare | undefined {
-  if (isFerry(variant.route?.mode)) return FREE;
-  if (isRail(variant.route?.mode))
-    return railFares(variant.route.route_code, timeline.from?.label, timeline.to?.label);
-  return faresFor(variant.route?.mode, metres);
+function fareFor(direction: Direction, metres: number, timeline: Timeline): Fare | undefined {
+  if (isFerry(direction.route?.mode)) return FREE;
+  if (isRail(direction.route?.mode))
+    return railFares(direction.route.route_code, timeline.from?.label, timeline.to?.label);
+  return faresFor(direction.route?.mode, metres);
 }
 
 /** The fare to the picked hintuan: a jeep's by the metres to it, a train's to that station, the ferry's free. */
 function pickedFareFor(
-  variant: VariantSummary,
+  direction: Direction,
   pickedMetres: number | undefined,
   timeline: Timeline,
   picked: string | null,
 ): Fare | undefined {
-  if (isFerry(variant.route?.mode)) return picked ? FREE : undefined;
-  if (isRail(variant.route?.mode)) {
+  if (isFerry(direction.route?.mode)) return picked ? FREE : undefined;
+  if (isRail(direction.route?.mode)) {
     const row = picked ? timeline.between.find((r) => r.id === picked) : undefined;
-    return row ? railFares(variant.route.route_code, timeline.from?.label, row.label) : undefined;
+    return row ? railFares(direction.route.route_code, timeline.from?.label, row.label) : undefined;
   }
-  return pickedMetres === undefined ? undefined : faresFor(variant.route?.mode, pickedMetres);
+  return pickedMetres === undefined ? undefined : faresFor(direction.route?.mode, pickedMetres);
 }
 
 /** A board as the publish writes it, beside the map's own files. */

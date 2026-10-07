@@ -1,4 +1,4 @@
-import { isDrawn, type VariantSummary } from '../model/routes';
+import { isDrawn, type Direction } from '../model/routes';
 
 /*
  * What the saved directions show and light, worked out from what the sheet
@@ -16,13 +16,13 @@ import { isDrawn, type VariantSummary } from '../model/routes';
  * 2026-10-03). `cardShows` is null with no card open (HintuanCard's
  * onShown), so a card that shows no route still lights none of the list's.
  */
-export function showingOf<T extends VariantSummary>(
+export function showingOf<T extends Direction>(
   candidates: readonly T[],
   back: boolean,
-  variants: readonly T[],
+  directions: readonly T[],
   cardShows: readonly string[] | null,
 ): T[] {
-  if (cardShows) return variants.filter((v) => cardShows.includes(v.id) && isDrawn(v));
+  if (cardShows) return directions.filter((v) => cardShows.includes(v.id) && isDrawn(v));
   return candidates.filter((v) => v.reversed === back && isDrawn(v));
 }
 
@@ -30,16 +30,16 @@ export function showingOf<T extends VariantSummary>(
  * What is lit: the chosen direction alone; or the Selected card's; or, with
  * none picked, everything shown.
  */
-export function litOf<T extends VariantSummary>(
+export function litOf<T extends Direction>(
   selectedId: string | null,
   highlightIds: readonly string[] | null,
-  variants: readonly T[],
+  directions: readonly T[],
   showing: T[],
 ): T[] {
   return selectedId
-    ? variants.filter((v) => v.id === selectedId && isDrawn(v))
+    ? directions.filter((v) => v.id === selectedId && isDrawn(v))
     : highlightIds
-      ? variants.filter((v) => highlightIds.includes(v.id) && isDrawn(v))
+      ? directions.filter((v) => highlightIds.includes(v.id) && isDrawn(v))
       : showing;
 }
 
@@ -51,7 +51,7 @@ export function litOf<T extends VariantSummary>(
 export function shownOf(
   selectedId: string | null,
   lit: readonly string[],
-  showing: readonly VariantSummary[],
+  showing: readonly Direction[],
 ): readonly string[] {
   return selectedId || showing.length === 0 ? lit : showing.map((v) => v.id);
 }
@@ -59,7 +59,7 @@ export function shownOf(
 /**
  * `next`, or `was` when the two hold the very same things in the same
  * order: what is lit kept one array while it is unchanged (useSavedRoutes'
- * litVariants and lit). Every full line read makes a new list of
+ * litDirections and lit). Every full line read makes a new list of
  * directions, and litOf made a new array of the same ones lit: a list's
  * (its rows keep the directions as they were tapped) at each of its lines,
  * a trip's at any other direction's. The chevrons, which start afresh with

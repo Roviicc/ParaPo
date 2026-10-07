@@ -8,7 +8,7 @@ import { useBabaanSides } from '../geo/babaan-sides';
 import { usePassStretches } from '../geo/pass-stretches';
 import type { Hotspot } from '../model/hotspots';
 import { travelLine } from '../model/ride';
-import { directionEndHotspots, directionEnds, type VariantSummary } from '../model/routes';
+import { directionEndHotspots, directionEnds, type Direction } from '../model/routes';
 
 /**
  * What a lit route wears on the map, in both apps: its orange stretches
@@ -20,28 +20,28 @@ import { directionEndHotspots, directionEnds, type VariantSummary } from '../mod
 export function useLitRides(
   map: MapLibreMap | null,
   saved: {
-    variants: readonly VariantSummary[];
+    directions: readonly Direction[];
     /** The directions whose full line has been read. */
     fullIds: ReadonlySet<string>;
     lit: readonly string[];
-    litVariants: readonly VariantSummary[];
-    selected: VariantSummary | null;
+    litDirections: readonly Direction[];
+    selected: Direction | null;
   },
   hotspots: readonly Hotspot[],
   /** The direction being redrawn in the studio: no stretches over the draft. */
-  hiddenVariantId: string | null = null,
+  hiddenDirectionId: string | null = null,
   /** A hintuan picked on the trip (useRideTo's `ridden`): that ride's chevrons stop there. */
-  ridden: { variantId: string; line: LngLat[] } | null = null,
+  ridden: { directionId: string; line: LngLat[] } | null = null,
 ): Ride[] {
   // Where a lit direction passes a hintuan, the line turns orange for that
   // stretch: worked out on the full lines read — a lit direction's is asked
   // for as it lights, and its orange comes with it — rather than on every
   // overview at load. Offline, a line never read has none.
   const withLines = useMemo(
-    () => saved.variants.filter((v) => saved.fullIds.has(v.id)),
-    [saved.variants, saved.fullIds],
+    () => saved.directions.filter((v) => saved.fullIds.has(v.id)),
+    [saved.directions, saved.fullIds],
   );
-  usePassStretches(map, withLines, hotspots, saved.lit, hiddenVariantId);
+  usePassStretches(map, withLines, hotspots, saved.lit, hiddenDirectionId);
 
   // Which way the jeep goes, on what is lit only — the chosen direction, the
   // Selected card's directions, or else a list's or a hotspot card's: chevrons
@@ -49,14 +49,14 @@ export function useLitRides(
   // circle with its place's name and, where the route says, its hotspot.
   const rides = useMemo(
     () =>
-      saved.litVariants.map((v) => ({
+      saved.litDirections.map((v) => ({
         id: v.id,
         line: travelLine(v, hotspots),
-        ...(ridden?.variantId === v.id ? { flow: ridden.line } : {}),
+        ...(ridden?.directionId === v.id ? { flow: ridden.line } : {}),
         ...directionEnds(v),
         ...directionEndHotspots(v),
       })),
-    [saved.litVariants, hotspots, ridden],
+    [saved.litDirections, hotspots, ridden],
   );
   useDirectionArrows(map, rides);
   // The chosen direction's side of each hintuan it cuts across: its right.

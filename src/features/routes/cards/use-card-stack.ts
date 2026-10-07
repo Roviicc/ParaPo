@@ -12,10 +12,10 @@ import { useLitLineColour } from '../map/saved-routes-layers';
 import type { Highlight } from '../map/use-saved-routes';
 import { drawnDepartures, sharingAnEnd } from '../model/departures';
 import { liveriesFor, type Livery } from '../model/liveries';
-import type { VariantSummary } from '../model/routes';
+import type { Direction } from '../model/routes';
 
-interface Routes<V extends VariantSummary> {
-  variants: readonly V[];
+interface Routes<V extends Direction> {
+  directions: readonly V[];
   selected: V | null;
   candidates: readonly V[];
   /** Which way round the list shows them. */
@@ -42,7 +42,7 @@ interface Hotspots<S extends { id: string }> {
  * their state. Split from CommuterApp and StudioApp, which each held it
  * inline (2026-10-01).
  */
-export function useCardStack<V extends VariantSummary, S extends { id: string }>(
+export function useCardStack<V extends Direction, S extends { id: string }>(
   map: MapLibreMap | null,
   saved: Routes<V>,
   hotspots: Hotspots<S>,
@@ -110,7 +110,7 @@ export function useCardStack<V extends VariantSummary, S extends { id: string }>
   if (tripBehind && !tripBehindHolds(!!saved.selected, !!hotspots.selected)) setTripBehind(null);
 
   const trip = saved.selected;
-  const back = tripBack(trip, saved.variants, !!hotspots.selected || choosing);
+  const back = tripBack(trip, saved.directions, !!hotspots.selected || choosing);
 
   return {
     /** What the route list lists, and whether it is up. */
@@ -172,7 +172,7 @@ export function useCardStack<V extends VariantSummary, S extends { id: string }>
         : back === 'fan' && trip
           ? () => {
               hotspots.select(null);
-              saved.openList(sharingAnEnd(saved.variants, trip), trip.reversed);
+              saved.openList(sharingAnEnd(saved.directions, trip), trip.reversed);
             }
           : null,
 

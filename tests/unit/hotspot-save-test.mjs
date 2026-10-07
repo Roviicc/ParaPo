@@ -27,7 +27,7 @@ const input = {
   aliases: [],
   note: '',
   ring,
-  variants: [],
+  directions: [],
 };
 const row = { id: 's1', name: 'Tala Ilalim', informal: 'Tala', kind: 'hintuan', line: null };
 

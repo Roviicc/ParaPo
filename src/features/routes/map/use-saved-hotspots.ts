@@ -117,7 +117,7 @@ export function useSavedHotspots<S extends Hotspot>(
   const selected = hotspots.find((s) => s.id === selectedId) ?? null;
 
   /** Direction ids linked to a hotspot, in stop_sequence order. */
-  const linkedVariantIds = useCallback(
+  const linkedDirectionIds = useCallback(
     (hotspotId: string) =>
       links
         .filter((l) => l.stop_id === hotspotId)
@@ -132,10 +132,10 @@ export function useSavedHotspots<S extends Hotspot>(
    * order it reaches them (orderLinked); without it, as the links are read.
    */
   const hotspotsAlong = useCallback(
-    (variantId: string, line: readonly LngLat[] = []): S[] =>
+    (directionId: string, line: readonly LngLat[] = []): S[] =>
       orderLinked(
         links
-          .filter((l) => l.route_variant_id === variantId)
+          .filter((l) => l.route_variant_id === directionId)
           .map((l) => ({
             hotspot: hotspots.find((s) => s.id === l.stop_id),
             sequence: l.stop_sequence,
@@ -175,7 +175,7 @@ export function useSavedHotspots<S extends Hotspot>(
     select,
     show,
     candidates,
-    linkedVariantIds,
+    linkedDirectionIds,
     hotspotsAlong,
     /** The selected box let go on its card: no row Selected until one is picked. */
     letGone,

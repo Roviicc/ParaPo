@@ -586,7 +586,7 @@ const waitFor = async (fn, ms = 5000) => {
   }
   return false;
 };
-const variantsOf = (routeId) => tables.route_variant.filter((v) => v.route_id === routeId);
+const directionsOf = (routeId) => tables.route_variant.filter((v) => v.route_id === routeId);
 
 // The ground the suite draws on, at street level: two hintuans 900 m apart,
 // a route between them, its return trip by another street.
@@ -692,11 +692,11 @@ const outRoute = tables.route.find(
 check(
   'a new route is one route row and two directions, one of them an empty slot',
   !!outRoute &&
-    variantsOf(outRoute.id).length === 2 &&
-    variantsOf(outRoute.id).filter((v) => v.shape === null).length === 1,
+    directionsOf(outRoute.id).length === 2 &&
+    directionsOf(outRoute.id).filter((v) => v.shape === null).length === 1,
   said(w),
 );
-const outV = outRoute && variantsOf(outRoute.id).find((v) => v.shape);
+const outV = outRoute && directionsOf(outRoute.id).find((v) => v.shape);
 check(
   '  the save writes the overview beside the line, from the same points (0009)',
   !!outV?.overview &&
@@ -764,7 +764,7 @@ n = log.length;
 await saveButton().click();
 await waitFor(async () => (await toast().count()) > 0);
 w = writesSince(n);
-const backV = variantsOf(outRoute?.id).find((v) => v !== outV);
+const backV = directionsOf(outRoute?.id).find((v) => v !== outV);
 check(
   '  it fills the slot: one update, only of an empty row, no new route (2)',
   w.some(
@@ -774,8 +774,8 @@ check(
 );
 check(
   '  both directions are drawn, still two rows',
-  variantsOf(outRoute?.id).length === 2 && variantsOf(outRoute?.id).every((v) => v.shape),
-  `${variantsOf(outRoute?.id).map((v) => (v.shape ? 'drawn' : 'slot'))}`,
+  directionsOf(outRoute?.id).length === 2 && directionsOf(outRoute?.id).every((v) => v.shape),
+  `${directionsOf(outRoute?.id).map((v) => (v.shape ? 'drawn' : 'slot'))}`,
 );
 await page.waitForTimeout(1200);
 check(
@@ -988,14 +988,14 @@ await page.waitForTimeout(500);
 w = writesSince(n);
 check(
   'Delete empties the direction into a slot: the row stays, with no line (3)',
-  variantsOf(outRoute?.id).length === 2 &&
-    variantsOf(outRoute?.id).find((v) => v.id === outV?.id)?.shape === null,
+  directionsOf(outRoute?.id).length === 2 &&
+    directionsOf(outRoute?.id).find((v) => v.id === outV?.id)?.shape === null,
   said(w),
 );
 check(
   '  its links go with its line, and its overview',
   !tables.route_stop.some((l) => l.route_variant_id === outV?.id) &&
-    variantsOf(outRoute?.id).find((v) => v.id === outV?.id)?.overview === null,
+    directionsOf(outRoute?.id).find((v) => v.id === outV?.id)?.overview === null,
 );
 check(
   '  the route stays: its other way is drawn',
@@ -1023,8 +1023,8 @@ check(
 check(
   '  one route, two drawn directions',
   tables.route.filter((r) => r.id === outRoute?.id).length === 1 &&
-    variantsOf(outRoute?.id).length === 2 &&
-    variantsOf(outRoute?.id).every((v) => v.shape),
+    directionsOf(outRoute?.id).length === 2 &&
+    directionsOf(outRoute?.id).every((v) => v.shape),
   said(w),
 );
 await dismissToasts();
@@ -1093,7 +1093,7 @@ check(
 const viaRoute = tables.route.find((r) => r.via === 'Stand-in Road');
 check(
   '  the route and its directions are in',
-  !!viaRoute && variantsOf(viaRoute.id).length === 2,
+  !!viaRoute && directionsOf(viaRoute.id).length === 2,
   said(w),
 );
 check(
@@ -1137,7 +1137,7 @@ check(
   /a change here is a change to both directions/.test(await body()),
 );
 n = log.length;
-const backId = variantsOf(outRoute?.id).find((v) => v.id !== outV?.id)?.id;
+const backId = directionsOf(outRoute?.id).find((v) => v.id !== outV?.id)?.id;
 // A terminal link the owner set on this direction, as a hotspot's checklist
 // would: Edit route must leave it where it is.
 const aTerminal = tables.stop.find((s) => s.kind === 'terminal');
@@ -1191,7 +1191,7 @@ await waitFor(async () => {
 }, 8000);
 check(
   '  and the other direction, which shares the route, is renamed with it',
-  variantsOf(outRoute?.id).some((v) => v.id === backId) &&
+  directionsOf(outRoute?.id).some((v) => v.id === backId) &&
     (await cardName()) === 'Stand-in Tail → Stand-in Phase',
   await cardName(),
 );

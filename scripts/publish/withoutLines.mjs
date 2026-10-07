@@ -24,16 +24,16 @@ export const EVERY_LINE = { modes: LINE_MODES, lines: LINES };
  * `ids` are what was left out.
  */
 export function withoutLines({ variants, stops, links }, { modes, lines }) {
-  const variantIds = new Set(
+  const directionIds = new Set(
     variants.filter((v) => modes.includes(v.route?.mode)).map((v) => v.id),
   );
   const hotspotIds = new Set(
     stops.filter((s) => s.line && lines.includes(s.line)).map((s) => s.id),
   );
   return {
-    variants: variants.filter((v) => !variantIds.has(v.id)),
+    variants: variants.filter((v) => !directionIds.has(v.id)),
     stops: stops.filter((s) => !hotspotIds.has(s.id)),
-    links: links.filter((l) => !variantIds.has(l.route_variant_id) && !hotspotIds.has(l.stop_id)),
-    ids: { variants: variantIds, stops: hotspotIds },
+    links: links.filter((l) => !directionIds.has(l.route_variant_id) && !hotspotIds.has(l.stop_id)),
+    ids: { variants: directionIds, stops: hotspotIds },
   };
 }

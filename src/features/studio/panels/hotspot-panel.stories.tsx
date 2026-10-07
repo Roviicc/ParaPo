@@ -68,7 +68,7 @@ const meta = {
     draw: outline('hintuan'),
     existing: null,
     existingLinks: [],
-    variants: [],
+    directions: [],
     hotspots,
     onSaved: fn(),
     onCancel: fn(),

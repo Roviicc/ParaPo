@@ -26,7 +26,7 @@ import {
   hiddenHotspotFilters,
   hotspotsData,
 } from '../../src/features/routes/map/saved-hotspots-layers.ts';
-import { variantLine } from '../../src/features/routes/model/routes.ts';
+import { directionLine } from '../../src/features/routes/model/routes.ts';
 import { hotspotRing } from '../../src/features/routes/model/hotspots.ts';
 import { labelGroups } from '../../src/features/routes/model/places.ts';
 import { addPassStretches } from '../../src/features/routes/geo/pass-stretches.ts';
@@ -270,7 +270,7 @@ const stops = index.stops;
 const routesBefore = (rows) => ({
   type: 'FeatureCollection',
   features: rows
-    .map((v) => ({ v, line: variantLine(v) }))
+    .map((v) => ({ v, line: directionLine(v) }))
     .filter(({ line }) => line.length > 1)
     .map(({ v, line }) => ({
       type: 'Feature',

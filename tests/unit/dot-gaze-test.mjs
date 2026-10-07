@@ -13,7 +13,7 @@ import {
   nearestOnLines,
 } from '../../src/features/locator/dot-gaze.ts';
 import { placeKey } from '../../src/features/routes/model/places.ts';
-import { variantLine } from '../../src/features/routes/model/routes.ts';
+import { directionLine } from '../../src/features/routes/model/routes.ts';
 
 const here = [121.05, 14.7];
 const m = 1 / 111_320;
@@ -76,13 +76,16 @@ function before(ride, stops, saved, locator) {
     },
     {
       key: saved.selected?.route_id ?? null,
-      at: () => nearestLit(saved.selected ? [variantLine(saved.selected)] : []),
+      at: () => nearestLit(saved.selected ? [directionLine(saved.selected)] : []),
     },
     {
       key: saved.highlight && `${saved.highlight.where}:${saved.highlight.from}`,
-      at: () => nearestLit(saved.litVariants.map(variantLine)),
+      at: () => nearestLit(saved.litDirections.map(directionLine)),
     },
-    { key: routesOf(saved.candidates), at: () => nearestLit(saved.litVariants.map(variantLine)) },
+    {
+      key: routesOf(saved.candidates),
+      at: () => nearestLit(saved.litDirections.map(directionLine)),
+    },
   ];
 }
 
@@ -120,29 +123,29 @@ test("the public map's subjects: the same keys, gazed at the same places, as Com
     trip: null,
     highlight: null,
     candidates: [],
-    litVariants: [],
+    litDirections: [],
   };
   const states = [
     nothing,
-    { ...nothing, candidates: [b, a, a2], litVariants: [b, a, a2] },
+    { ...nothing, candidates: [b, a, a2], litDirections: [b, a, a2] },
     {
       ...nothing,
       candidates: [a, b],
-      litVariants: [a],
+      litDirections: [a],
       highlight: { where: 'list', from: 'Tala', ids: ['a1'], livery: 'yellow' },
     },
     {
       ...nothing,
       place,
       candidates: [],
-      litVariants: [a, b],
+      litDirections: [a, b],
       highlight: { where: 'hotspot', from: 'SM Fairview', ids: ['a1'], livery: 'blue' },
     },
-    { ...nothing, trip: a2, litVariants: [a2], candidates: [a, a2, b] },
+    { ...nothing, trip: a2, litDirections: [a2], candidates: [a, a2, b] },
     {
       ...nothing,
       trip: a,
-      litVariants: [a],
+      litDirections: [a],
       pickedId: 'h7',
       pinAt: [here[0] + 0.002, here[1] + 0.002],
     },
@@ -156,7 +159,7 @@ test("the public map's subjects: the same keys, gazed at the same places, as Com
           selected: p.trip,
           highlight: p.highlight,
           candidates: p.candidates,
-          litVariants: p.litVariants,
+          litDirections: p.litDirections,
         },
         { fix },
       );

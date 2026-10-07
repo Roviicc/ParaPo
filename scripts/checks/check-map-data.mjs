@@ -141,10 +141,10 @@ export function checkMapData(file) {
     if (hotspotById.has(s.id)) problems.push(`hotspot id ${s.id} appears twice`);
     hotspotById.set(s.id, s);
   }
-  const variantById = new Map();
+  const directionById = new Map();
   for (const v of variants) {
-    if (variantById.has(v.id)) problems.push(`direction id ${v.id} appears twice`);
-    variantById.set(v.id, v);
+    if (directionById.has(v.id)) problems.push(`direction id ${v.id} appears twice`);
+    directionById.set(v.id, v);
   }
 
   for (const s of stops) {
@@ -178,7 +178,7 @@ export function checkMapData(file) {
 
   const linksOf = new Map();
   for (const l of links) {
-    if (!variantById.has(l.route_variant_id))
+    if (!directionById.has(l.route_variant_id))
       problems.push(`a link names direction ${l.route_variant_id}, which is not in the file`);
     if (!hotspotById.has(l.stop_id))
       problems.push(`a link names hotspot ${l.stop_id}, which is not in the file`);

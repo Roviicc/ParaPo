@@ -1,4 +1,4 @@
-import type { VariantRow } from '@/features/routes/model/routes';
+import type { DirectionRow } from '@/features/routes/model/routes';
 
 import { routeStreets } from '../drawing/streets';
 import type { Drawing } from '../drawing/use-drawing';
@@ -27,7 +27,7 @@ export function SaveNotices({
   hotspotsCount: number;
   /** The slot's direction, the end the line starts nearer, and the end it should. */
   wrongWay: { direction: string; startsAt: string; from: string } | null;
-  borrowed: { metres: number; parent: VariantRow } | null;
+  borrowed: { metres: number; parent: DirectionRow } | null;
   sameEnds: { name: string; drawn: boolean } | null;
   direction: string;
 }) {

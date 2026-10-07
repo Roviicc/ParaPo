@@ -1,5 +1,5 @@
 import type { HotspotRow } from '@/features/routes/model/hotspots';
-import { nameVariants, type VariantRow } from '@/features/routes/model/routes';
+import { nameDirections, type DirectionRow } from '@/features/routes/model/routes';
 
 import { syncHintuanLinks } from './hotspots-write';
 import { saveVariant, type SaveInput } from './routes-write';
@@ -17,10 +17,10 @@ export async function saveRouteAndLinks(
   input: SaveInput,
   hotspots: HotspotRow[],
   onWritten: (written: { routeId: string; variantId: string }) => void,
-): Promise<VariantRow> {
+): Promise<DirectionRow> {
   const saved = await saveVariant(input);
   onWritten({ routeId: saved.route_id, variantId: saved.id });
-  const named = nameVariants([saved], hotspots)[0];
+  const named = nameDirections([saved], hotspots)[0];
   try {
     await syncHintuanLinks(named);
   } catch (err) {

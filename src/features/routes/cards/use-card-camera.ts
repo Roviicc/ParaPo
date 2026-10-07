@@ -18,15 +18,15 @@ import { useRideTo } from '../map/ride-to';
 import type { Highlight } from '../map/use-saved-routes';
 import type { Hotspot } from '../model/hotspots';
 import type { Livery } from '../model/liveries';
-import type { VariantSummary } from '../model/routes';
+import type { Direction } from '../model/routes';
 
-interface Routes<V extends VariantSummary> {
-  variants: readonly V[];
+interface Routes<V extends Direction> {
+  directions: readonly V[];
   selected: V | null;
   /** What the route list lists, if it is up. */
   candidates: readonly V[];
   highlight: Highlight | null;
-  litVariants: readonly V[];
+  litDirections: readonly V[];
   select: (id: string | null, opts?: { keepList?: boolean }) => void;
   flip: () => void;
   highlightCard: (h: Highlight | null) => void;
@@ -61,7 +61,7 @@ interface Cards {
  * drawing: turned on later, the trip's and the card's overviews would fire
  * at once for whatever is open.
  */
-export function useCardCamera<V extends VariantSummary, S extends Hotspot>(
+export function useCardCamera<V extends Direction, S extends Hotspot>(
   map: MapLibreMap | null,
   saved: Routes<V>,
   hotspots: Hotspots<S>,
@@ -89,9 +89,9 @@ export function useCardCamera<V extends VariantSummary, S extends Hotspot>(
   const openSheet = () =>
     root.current?.querySelector<HTMLElement>('[data-floats]:not([hidden])') ?? null;
   // The route list opened: every route it lights, whole.
-  useListOverview(cam, saved.candidates, saved.litVariants, openSheet, cards.snap);
+  useListOverview(cam, saved.candidates, saved.litDirections, openSheet, cards.snap);
   // A RouteCard picked, in the list or a hotspot's card: its routes whole.
-  useCardOverview(cam, saved.highlight, saved.variants, openSheet, cards.snap);
+  useCardOverview(cam, saved.highlight, saved.directions, openSheet, cards.snap);
   // …and on a hotspot's card, let go, the camera the visitor had before it.
   const before = useCameraBefore(cam);
   // A trip opened from a card — a list's, a hotspot's, a tail's name — and
@@ -114,19 +114,19 @@ export function useCardCamera<V extends VariantSummary, S extends Hotspot>(
   // SWITCH, on any card: the routes the other way round, whole.
   const [switches, setSwitches] = useState(0);
   const switched = () => setSwitches((n) => n + 1);
-  useSwitchOverview(cam, saved.litVariants, switches, openSheet, cards.snap);
+  useSwitchOverview(cam, saved.litDirections, switches, openSheet, cards.snap);
   // The sheet settled at another height: what the card on show frames, again,
   // in the map it leaves — a trip's route, a picked card's routes or what the
   // list lights, a hotspot's place (framedBy).
   const framed = (): Framed => {
     const ids = saved.highlight && new Set(saved.highlight.ids);
-    const picked = ids && saved.variants.filter((v) => ids.has(v.id));
+    const picked = ids && saved.directions.filter((v) => ids.has(v.id));
     return framedBy(
       saved.selected,
       hotspots.selected?.point.coordinates ?? null,
       cards.choosing,
       picked,
-      saved.litVariants,
+      saved.litDirections,
     );
   };
   useHeightOverview(cam, cards.snap, framed, openSheet);
@@ -199,7 +199,7 @@ export function useCardCamera<V extends VariantSummary, S extends Hotspot>(
 
     /** A tail's name with no trip open: its ride's trip, in the colour of the card picked, if one is. */
     openRide: (id: string) => {
-      const v = saved.variants.find((x) => x.id === id);
+      const v = saved.directions.find((x) => x.id === id);
       if (!v) return;
       keepForTrip();
       cards.openTrip(v, saved.highlight?.livery);

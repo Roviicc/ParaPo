@@ -1,4 +1,4 @@
-import { variantLine, type VariantSummary } from '../model/routes';
+import { directionLine, type Direction } from '../model/routes';
 
 /** [[west, south], [east, north]]. */
 export type Bounds = [[number, number], [number, number]];
@@ -11,12 +11,12 @@ export type Bounds = [[number, number], [number, number]];
 export const ROUTES_FRAMING = { padding: 100, maxZoom: 13 } as const;
 
 /**
- * The box round every point of `variants`' lines, as the opening's framing
- * reads them (variantLine: the overviews the map draws first); null with
+ * The box round every point of `directions`' lines, as the opening's framing
+ * reads them (directionLine: the overviews the map draws first); null with
  * fewer than two points.
  */
-export function routesBounds(variants: readonly VariantSummary[]): Bounds | null {
-  const coords = variants.flatMap(variantLine);
+export function routesBounds(directions: readonly Direction[]): Bounds | null {
+  const coords = directions.flatMap(directionLine);
   if (coords.length < 2) return null;
   let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity];
   for (const [x, y] of coords) {

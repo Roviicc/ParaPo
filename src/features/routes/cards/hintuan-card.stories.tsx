@@ -5,7 +5,7 @@ import { expect, fn, userEvent, within } from 'storybook/test';
 
 import { HintuanCard } from './hintuan-card';
 import type { Hotspot } from '../model/hotspots';
-import type { RouteSummary, VariantSummary } from '../model/routes';
+import type { RouteSummary, Direction } from '../model/routes';
 
 /*
  * Sample data only, shaped like saved rows: SM Fairview as the owner drew it
@@ -24,12 +24,7 @@ const route = (id: string, name: string, tail: string): RouteSummary => ({
   name,
 });
 
-const direction = (
-  id: string,
-  r: RouteSummary,
-  name: string,
-  reversed: boolean,
-): VariantSummary => ({
+const direction = (id: string, r: RouteSummary, name: string, reversed: boolean): Direction => ({
   id,
   route_id: r.id,
   direction_name: name,
@@ -173,9 +168,9 @@ const meta = {
   args: {
     hotspot: terminal,
     hotspots,
-    linkedVariantIds: (id: string) => links[id] ?? [],
-    variants: [fvOut, fvIn, nvOut, nvIn],
-    onSelectVariant: fn(),
+    linkedDirectionIds: (id: string) => links[id] ?? [],
+    directions: [fvOut, fvIn, nvOut, nvIn],
+    onSelectDirection: fn(),
     routeCards: { selected: null, onSelect: fn(), onShown: fn() },
     onPickBox: fn(),
     onClose: fn(),

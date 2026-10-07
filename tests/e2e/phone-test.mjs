@@ -1040,7 +1040,7 @@ const tripChecks = async () => {
   const [tripId] = (await litIds(page)) ?? [];
   const want = await page.evaluate(async (id) => {
     try {
-      const [{ rideFare }, { kmLabel, lineLength }, { variantLine }] = await Promise.all([
+      const [{ rideFare }, { kmLabel, lineLength }, { directionLine }] = await Promise.all([
         import('/src/features/routes/model/fares.ts'),
         import('/src/shared/utils/geo.ts'),
         import('/src/features/routes/model/routes.ts'),
@@ -1049,7 +1049,7 @@ const tripChecks = async () => {
       const { loadMapFile, loadLine } = await import('/src/features/published-map/map-file.ts');
       const found = (await loadMapFile()).variants.find((x) => x.id === id);
       const v = found && { ...found, shape: (await loadLine(id)) ?? found.shape };
-      const metres = v && lineLength(variantLine(v));
+      const metres = v && lineLength(directionLine(v));
       return v ? { km: kmLabel(metres), fare: rideFare(v.route?.mode, metres) ?? null } : null;
     } catch {
       return null;

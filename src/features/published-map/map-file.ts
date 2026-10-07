@@ -1,6 +1,6 @@
 import { keepLinePass } from '@/features/routes/geo/line-pass';
 import type { HotspotLink, Hotspot } from '@/features/routes/model/hotspots';
-import type { LineStringGeoJSON, VariantSummary } from '@/features/routes/model/routes';
+import type { LineStringGeoJSON, Direction } from '@/features/routes/model/routes';
 
 /**
  * The published map, as the public map reads it (since 2026-09-29, stage 7 of
@@ -23,13 +23,13 @@ export interface MapFile {
   /** The credit a reuser has to keep. */
   attribution?: string;
   /** Each with its overview as `shape`: the full line is `loadLine`'s. */
-  variants: VariantSummary[];
+  variants: Direction[];
   stops: Hotspot[];
   links: HotspotLink[];
 }
 
 /** A direction as the index carries it: its overview under its own name. */
-type IndexVariant = Omit<VariantSummary, 'shape'> & { overview?: LineStringGeoJSON | null };
+type IndexVariant = Omit<Direction, 'shape'> & { overview?: LineStringGeoJSON | null };
 
 /** No hash in the name, so it keeps revalidating headers; never make it immutable. */
 export const MAP_FILE_URL = '/data/index.v4.json';
@@ -174,7 +174,7 @@ function asMap(file: RawFile, url: string, schema: number): MapFile {
   if (file.schema !== schema) throw new Error(`${url} is shape ${file.schema ?? 1}, not the index`);
   // The overview is what the map draws until the line itself is read.
   const variants = file.variants.map(
-    ({ overview, ...v }) => ({ ...v, shape: overview ?? null }) as VariantSummary,
+    ({ overview, ...v }) => ({ ...v, shape: overview ?? null }) as Direction,
   );
   return { ...file, variants } as MapFile;
 }
@@ -283,7 +283,7 @@ export function loadMapFile(): Promise<MapFile> {
  * to the file's framing, unless the visitor has moved the map by then
  * (framing.ts, framesRoutes).
  */
-export async function openingVariants(): Promise<VariantSummary[] | null> {
+export async function openingVariants(): Promise<Direction[] | null> {
   // The load's end as it is now: undefined while it is on its way.
   const ended = () => (settled ? (settled.file?.variants ?? null) : undefined);
   const now = ended();

@@ -66,7 +66,7 @@ export function EndTitles({
   badged?: boolean;
   onPick?: (hotspotId: string) => void;
   /** A direction's trip to open, from the one ride a tail names. */
-  onTrip?: (variantId: string) => void;
+  onTrip?: (directionId: string) => void;
 }) {
   // Rides that end short of their tail, at a picked hintuan.
   const short = new Set(rides.filter((r) => r.flow && r.id).map((r) => r.id));

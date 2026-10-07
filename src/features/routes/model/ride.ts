@@ -2,7 +2,7 @@ import { haversine, lineLength, type LngLat } from '@/shared/utils/geo';
 
 import { hotspotRing, type Hotspot } from './hotspots';
 import { placeKey } from './places';
-import { servedBy, variantLine, type VariantSummary } from './routes';
+import { servedBy, directionLine, type Direction } from './routes';
 import { drawnFromTheEnd, timelineFor, type Timeline } from './timeline';
 import { passStretches } from '../geo/pass';
 
@@ -16,13 +16,13 @@ import { passStretches } from '../geo/pass';
  * resolved to hotspots, and the hotspots its links say it passes, in order.
  */
 export function routeTimeline(
-  v: VariantSummary,
+  v: Direction,
   hotspots: readonly Hotspot[],
   along: readonly Hotspot[],
 ): Timeline {
   const head = hotspots.find((s) => s.id === v.route?.head_stop_id) ?? null;
   const tail = hotspots.find((s) => s.id === v.route?.tail_stop_id) ?? null;
-  return timelineFor(head, tail, v.reversed, along, variantLine(v)[0]);
+  return timelineFor(head, tail, v.reversed, along, directionLine(v)[0]);
 }
 
 /** Distance along the line of a point lying on it: the first segment that holds the point wins. */
@@ -74,7 +74,7 @@ export interface RideDot {
  * way not ridden, for the map to fade.
  */
 export function rideCut(
-  v: VariantSummary,
+  v: Direction,
   hotspots: readonly Hotspot[],
   rowHotspotId: string,
   endHotspotId: string | null = null,
@@ -123,8 +123,8 @@ export function rideCut(
  * 2026-10-04). Which way round is still asked each time, of the hotspots as
  * they are now.
  */
-export function travelLine(v: VariantSummary, hotspots: readonly Hotspot[]): readonly LngLat[] {
-  const line = variantLine(v);
+export function travelLine(v: Direction, hotspots: readonly Hotspot[]): readonly LngLat[] {
+  const line = directionLine(v);
   if (line.length < 2) return line;
   const head = hotspots.find((s) => s.id === v.route?.head_stop_id);
   const tail = hotspots.find((s) => s.id === v.route?.tail_stop_id);

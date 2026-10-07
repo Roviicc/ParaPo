@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
-import type { VariantSummary } from '@/features/routes/model/routes';
+import type { Direction } from '@/features/routes/model/routes';
 
 import { SignboardEditor, type SignboardCalls } from './signboard-editor';
 
@@ -30,7 +30,7 @@ const direction = (signboards: string[], reversed = false) =>
     confidence: 'drawn',
     route: { id: 'r1' },
     signboards,
-  }) as unknown as VariantSummary;
+  }) as unknown as Direction;
 
 /** The bucket and the row, in memory: each call answers as the live one does, after a moment. */
 const standIn = (): SignboardCalls => ({
@@ -52,7 +52,7 @@ const meta = {
   title: 'Features/Studio/SignboardEditor',
   component: SignboardEditor,
   parameters: { layout: 'padded' },
-  args: { variant: direction(['a.svg', 'b.svg']), onChanged: fn() },
+  args: { direction: direction(['a.svg', 'b.svg']), onChanged: fn() },
   decorators: [(Story) => <div className="w-[369px] bg-surface pt-4">{Story()}</div>],
 } satisfies Meta<typeof SignboardEditor>;
 export default meta;
@@ -60,7 +60,7 @@ type Story = StoryObj<typeof meta>;
 
 /** No board yet for this way: says so, and offers Add SVG. */
 export const Empty: Story = {
-  args: { variant: direction([]), calls: standIn() },
+  args: { direction: direction([]), calls: standIn() },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByText('No signboard yet for this way.')).toBeVisible();
   },
@@ -80,7 +80,7 @@ export const TwoBoards: Story = {
 
 /** The way back's: the heading names it. */
 export const Pabalik: Story = {
-  args: { variant: direction(['b.svg'], true), calls: standIn() },
+  args: { direction: direction(['b.svg'], true), calls: standIn() },
   play: async ({ canvasElement }) => {
     await expect(
       within(canvasElement).getByRole('heading', { name: 'Signboard · Pabalik' }),

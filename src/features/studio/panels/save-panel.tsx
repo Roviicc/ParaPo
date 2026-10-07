@@ -7,7 +7,7 @@ import {
   MODES,
   type RouteRow,
   type TransportMode,
-  type VariantRow,
+  type DirectionRow,
 } from '@/features/routes/model/routes';
 import { haversine, type LngLat } from '@/shared/utils/geo';
 
@@ -22,7 +22,7 @@ import type { Drawing } from '../drawing/use-drawing';
 interface Props {
   draw: Drawing;
   /** The direction being edited, when this is an edit rather than a new save. */
-  existing: VariantRow | null;
+  existing: DirectionRow | null;
   /** The parent route, when adding another direction to a route that exists. */
   route: RouteRow | null;
   /**
@@ -39,8 +39,8 @@ interface Props {
    * that the chosen ends already make a route whose empty slot this fills,
    * and, in Edit route, for refusing ends another route already has.
    */
-  variants?: VariantRow[];
-  onSaved: (v: VariantRow) => void;
+  directions?: DirectionRow[];
+  onSaved: (v: DirectionRow) => void;
   onCancel: () => void;
 }
 
@@ -62,7 +62,7 @@ export function SavePanel({
   route,
   slotReversed = null,
   hotspots,
-  variants = [],
+  directions = [],
   onSaved,
   onCancel,
 }: Props) {
@@ -101,7 +101,9 @@ export function SavePanel({
   // way round, that route is the one meant — the head is where its jeeps wait.
   const [firstGuess] = useState(() => {
     const [h, t] = [guess(lineStart), guess(lineEnd)];
-    const swapped = variants.some((v) => v.route.head_stop_id === t && v.route.tail_stop_id === h);
+    const swapped = directions.some(
+      (v) => v.route.head_stop_id === t && v.route.tail_stop_id === h,
+    );
     return swapped ? [t, h] : [h, t];
   });
   const [headId, setHeadId] = useState(parent?.head_stop_id ?? firstGuess[0]);
@@ -136,7 +138,7 @@ export function SavePanel({
     parent,
     slotReversed,
     hotspots,
-    variants,
+    directions,
     head,
     tail,
     headId,

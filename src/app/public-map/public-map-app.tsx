@@ -30,7 +30,7 @@ import { useSavedHotspots } from '@/features/routes/map/use-saved-hotspots';
 import { useSavedRoutes } from '@/features/routes/map/use-saved-routes';
 import { placeKey } from '@/features/routes/model/places';
 import { routeTimeline } from '@/features/routes/model/ride';
-import { variantLine } from '@/features/routes/model/routes';
+import { directionLine } from '@/features/routes/model/routes';
 import { useTurn } from '@/shared/hooks/commit-turn';
 
 import { useStatusBarColour } from './status-bar';
@@ -42,7 +42,7 @@ import { useStatusBarColour } from './status-bar';
  * Module-level, as the loaders below are.
  */
 const openOnRoutes = () =>
-  openingVariants().then((variants) => (variants ? routesBounds(variants) : null));
+  openingVariants().then((directions) => (directions ? routesBounds(directions) : null));
 
 /**
  * The public map at /. Everything published so far and a card for whatever is
@@ -100,7 +100,7 @@ export function PublicMapApp() {
   const offline = useOffline();
   // The phone's status bar in the map's colour (statusBar.ts).
   useStatusBarColour(map);
-  const age = useMapAge(saved.variants);
+  const age = useMapAge(saved.directions);
   const needRefresh = useNeedRefresh();
 
   const { tripLivery, look, inCardColour, height } = cards;
@@ -112,7 +112,11 @@ export function PublicMapApp() {
   const timeline = useMemo(
     () =>
       trip
-        ? routeTimeline(trip, hotspots.hotspots, hotspots.hotspotsAlong(trip.id, variantLine(trip)))
+        ? routeTimeline(
+            trip,
+            hotspots.hotspots,
+            hotspots.hotspotsAlong(trip.id, directionLine(trip)),
+          )
         : null,
     [trip, hotspots.hotspots, hotspots.hotspotsAlong],
   );
@@ -126,7 +130,7 @@ export function PublicMapApp() {
     <div
       ref={root}
       data-dock-host
-      data-directions={saved.variants.length}
+      data-directions={saved.directions.length}
       className="@container relative h-full w-full overflow-clip"
     >
       {/*
@@ -161,7 +165,7 @@ export function PublicMapApp() {
           trip: saved.selected,
           highlight: saved.highlight,
           candidates: saved.candidates,
-          litVariants: saved.litVariants,
+          litDirections: saved.litDirections,
         }}
         hushedAt={hushedAt}
       />
@@ -233,8 +237,8 @@ export function PublicMapApp() {
         // as they were (the owner, 2026-10-01: "don't shrink it"), and the
         // sheet at its height. A trip opened afresh opens folded.
         <TripCard
-          variant={saved.selected}
-          variants={saved.variants}
+          direction={saved.selected}
+          directions={saved.directions}
           timeline={timeline}
           livery={tripLivery}
           onBackToList={hush(backFromTrip)}
@@ -283,9 +287,9 @@ export function PublicMapApp() {
           dockRef={hotspotDock}
           hotspot={hotspots.selected}
           hotspots={hotspots.hotspots}
-          linkedVariantIds={hotspots.linkedVariantIds}
-          variants={saved.variants}
-          onSelectVariant={openTrip}
+          linkedDirectionIds={hotspots.linkedDirectionIds}
+          directions={saved.directions}
+          onSelectDirection={openTrip}
           // Its Selected row tapped again: no box is the one until a row is
           // picked (the owner, 2026-10-01).
           deselected={hotspots.letGone}

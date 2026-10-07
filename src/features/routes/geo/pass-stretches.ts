@@ -14,7 +14,7 @@ import { PASS_COLOUR, litWidth } from '../map/line-style';
 import { litOpacity, useLighting } from '../map/saved-routes-layers';
 import { ROUTES_HIT_LAYER } from '../map/tap';
 import type { Hotspot } from '../model/hotspots';
-import type { VariantSummary } from '../model/routes';
+import type { Direction } from '../model/routes';
 
 /**
  * Where a lit direction passes a hintuan, the line turns orange for that
@@ -90,13 +90,13 @@ export function addPassStretches(map: Pick<MapLibreMap, 'addSource' | 'addLayer'
   map.addLayer(PASS_LAYER, ROUTES_HIT_LAYER);
 }
 
-/** Draw the orange stretches of the lit directions; `lit` and `hiddenVariantId` as the line hook has them. */
+/** Draw the orange stretches of the lit directions; `lit` and `hiddenDirectionId` as the line hook has them. */
 export function usePassStretches(
   map: MapLibreMap | null,
-  variants: readonly VariantSummary[],
+  directions: readonly Direction[],
   hotspots: readonly Hotspot[],
   lit: readonly string[],
-  hiddenVariantId: string | null = null,
+  hiddenDirectionId: string | null = null,
 ): void {
   // Over the lit copy and under the hit area: this waits for the line hook's
   // layers (useLayerReady), whichever hook the page calls first.
@@ -110,7 +110,10 @@ export function usePassStretches(
   // per direction against them (stretchesOf): a line arriving for one
   // direction works out that direction's alone, not every lit one's again.
   const boxes = useMemo(() => passBoxes(hotspots), [hotspots]);
-  const features = useMemo(() => variants.flatMap((v) => stretchesOf(v, boxes)), [variants, boxes]);
+  const features = useMemo(
+    () => directions.flatMap((v) => stretchesOf(v, boxes)),
+    [directions, boxes],
+  );
 
   useEffect(() => {
     const src = map?.getSource(SRC) as GeoJSONSource | undefined;
@@ -123,10 +126,10 @@ export function usePassStretches(
   const hiddenNow = useRef<string | null>(null);
   useEffect(() => {
     if (!map || !map.getLayer(SELECTED_PASS)) return;
-    applyHidden(hiddenNow, hiddenVariantId, (hidden) => {
+    applyHidden(hiddenNow, hiddenDirectionId, (hidden) => {
       map.setFilter(SELECTED_PASS, ['!=', ['get', 'id'], hidden] as never);
     });
-  }, [map, hiddenVariantId, hitReady]);
+  }, [map, hiddenDirectionId, hitReady]);
 
   // The stretches follow their direction: the same state, on this source,
   // once it is there; and their layer off while nothing is lit, from the
@@ -140,10 +143,7 @@ export function usePassStretches(
 // plan, step 13, 2026-10-05), and handed on from here as before.
 export { passBoxes, stretchesPast, type PassBox, type PassFeature };
 
-const stretchesKept = new WeakMap<
-  readonly PassBox[],
-  WeakMap<VariantSummary, readonly PassFeature[]>
->();
+const stretchesKept = new WeakMap<readonly PassBox[], WeakMap<Direction, readonly PassFeature[]>>();
 
 /**
  * One direction's orange stretches past these boxes, worked out once and
@@ -167,7 +167,7 @@ const stretchesKept = new WeakMap<
  * very boxes, and walked otherwise (linePass.ts, publishedStretches; the
  * cheap-phone plan, step 13, 2026-10-05).
  */
-export function stretchesOf(v: VariantSummary, boxes: readonly PassBox[]): readonly PassFeature[] {
+export function stretchesOf(v: Direction, boxes: readonly PassBox[]): readonly PassFeature[] {
   let byDirection = stretchesKept.get(boxes);
   if (!byDirection) {
     byDirection = new WeakMap();

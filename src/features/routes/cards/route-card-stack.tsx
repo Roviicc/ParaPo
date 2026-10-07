@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { RouteCard } from './route-card';
 import { drawnDepartures } from '../model/departures';
 import { liveriesFor, type Livery } from '../model/liveries';
-import type { VariantSummary } from '../model/routes';
+import type { Direction } from '../model/routes';
 
 /** A card picked: the place it stands for, the directions its rows list, and its colour, for the map to light them in. */
 export interface PickedPlace {
@@ -14,7 +14,7 @@ export interface PickedPlace {
 
 interface Props {
   /** Every direction of every route to show, slots included, as the hooks hand them over. */
-  routes: readonly VariantSummary[];
+  routes: readonly Direction[];
   /** Whether they are shown the way back rather than outbound. */
   back: boolean;
   /** The place whose card is Selected, by name; null when none is. */
@@ -22,7 +22,7 @@ interface Props {
   /** A card was picked, or let go (null). */
   onSelect: (place: PickedPlace | null) => void;
   /** Called with the direction a row opens, and the colour its card wore: its trip wears the same. */
-  onRoute: (v: VariantSummary, livery: Livery) => void;
+  onRoute: (v: Direction, livery: Livery) => void;
   /** What the suites call each card and row (RouteCard). */
   testId: 'chooser' | 'card';
 }

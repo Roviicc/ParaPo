@@ -8,7 +8,7 @@ import { bboxOf, zoomForScale, type LngLat } from '@/shared/utils/geo';
 import type { Framed } from './card-stack';
 import { APP_MOVE } from '../map/map-view';
 import type { Highlight } from '../map/use-saved-routes';
-import { variantLine, type VariantSummary } from '../model/routes';
+import { directionLine, type Direction } from '../model/routes';
 
 /*
  * The camera taking in routes whole — a trip opened, a RouteCard picked,
@@ -76,14 +76,14 @@ function overview(
  */
 export function useTripOverview(
   map: MapLibreMap | null,
-  trip: VariantSummary | null,
+  trip: Direction | null,
   dock: RefObject<HTMLDivElement | null>,
   snap: Snap,
 ): void {
   const routeId = trip?.route_id;
   useEffect(() => {
     if (!map || !trip) return;
-    overview(map, [variantLine(trip)], dock.current, snap);
+    overview(map, [directionLine(trip)], dock.current, snap);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only as a trip opens (see above): its own changes move nothing
   }, [map, routeId]);
 }
@@ -98,7 +98,7 @@ export function useTripOverview(
 export function useCardOverview(
   map: MapLibreMap | null,
   picked: Highlight | null,
-  variants: readonly VariantSummary[],
+  directions: readonly Direction[],
   dock: () => HTMLElement | null,
   snap: Snap,
 ): void {
@@ -106,7 +106,7 @@ export function useCardOverview(
   useEffect(() => {
     if (!map || !picked) return;
     const ids = new Set(picked.ids);
-    overview(map, variants.filter((v) => ids.has(v.id)).map(variantLine), dock(), snap);
+    overview(map, directions.filter((v) => ids.has(v.id)).map(directionLine), dock(), snap);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only as a card is picked (see above): the key says which
   }, [map, key]);
 }
@@ -121,8 +121,8 @@ export function useCardOverview(
  */
 export function useListOverview(
   map: MapLibreMap | null,
-  listed: readonly VariantSummary[],
-  lit: readonly VariantSummary[],
+  listed: readonly Direction[],
+  lit: readonly Direction[],
   dock: () => HTMLElement | null,
   snap: Snap,
 ): void {
@@ -135,7 +135,7 @@ export function useListOverview(
   useEffect(() => {
     if (!map || !key) return;
     const frame = requestAnimationFrame(() =>
-      overview(map, litRef.current.map(variantLine), dock(), snap),
+      overview(map, litRef.current.map(directionLine), dock(), snap),
     );
     return () => cancelAnimationFrame(frame);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only as the list opens on other routes (see above): the key says which
@@ -151,7 +151,7 @@ export function useListOverview(
  */
 export function useSwitchOverview(
   map: MapLibreMap | null,
-  lit: readonly VariantSummary[],
+  lit: readonly Direction[],
   switches: number,
   dock: () => HTMLElement | null,
   snap: Snap,
@@ -161,7 +161,7 @@ export function useSwitchOverview(
   useEffect(() => {
     if (!map || switches === 0) return;
     const frame = requestAnimationFrame(() =>
-      overview(map, litRef.current.map(variantLine), dock(), snap),
+      overview(map, litRef.current.map(directionLine), dock(), snap),
     );
     return () => cancelAnimationFrame(frame);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only as SWITCH is pressed (see above): the count says when

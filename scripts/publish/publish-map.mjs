@@ -264,7 +264,7 @@ function maxDeviation(original, simplified) {
 // Rows ordered by id, not by when they were saved: re-saving a direction with
 // the same geometry must not reorder the file and commit a change nobody can
 // see. (The map draws them in file order, which nothing depends on.)
-const [variantRows, hotspotRows, linkRows] = await Promise.all([
+const [directionRows, hotspotRows, linkRows] = await Promise.all([
   rest(
     'route_variant?select=id,route_id,direction_name,origin_terminal,destination_terminal,shape,confidence,reversed,signboards,' +
       'route:route(id,signboard,route_code,long_name,mode,fare_note,head_stop_id,tail_stop_id,via)&order=id.asc',
@@ -281,7 +281,7 @@ const [variantRows, hotspotRows, linkRows] = await Promise.all([
 const boardText = new Map();
 const boardsOf = new Map();
 let boardsMissing = 0;
-for (const v of variantRows) {
+for (const v of directionRows) {
   const names = (Array.isArray(v.signboards) ? v.signboards : []).filter((n) => BOARD_NAME.test(n));
   for (const n of names) if (!boardText.has(n)) boardText.set(n, null);
   if (names.length) boardsOf.set(v.id, names);
@@ -333,7 +333,7 @@ const hotspotName = new Map(hotspotRows.map((s) => [s.id, hotspotLabel(s)]));
 const stats = [];
 /** Each direction's overview, by id: its line at 5 m, 5 decimals. */
 const overviews = new Map();
-const variants = variantRows.map((v) => {
+const variants = directionRows.map((v) => {
   if (!v.route) {
     fail(`FAIL  direction ${v.id} came without its route: is the route table still readable?`);
   }

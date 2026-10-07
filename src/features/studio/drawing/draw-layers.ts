@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { MAP_PAINT } from '@/design-system/foundation/map-colours';
 import { HOTSPOT_COLOUR } from '@/features/routes/map/colours';
 import { LAYERS } from '@/features/routes/map/layers';
-import { variantLine } from '@/features/routes/model/routes';
+import { directionLine } from '@/features/routes/model/routes';
 import type { LngLat, Segment } from '@/shared/utils/geo';
 
 import type { AreaTarget, Picking } from './use-drawing';
@@ -276,7 +276,7 @@ export function useDrawRendering(
     const line = {
       type: 'Feature' as const,
       properties: {},
-      geometry: { type: 'LineString' as const, coordinates: variantLine(picking.variant) },
+      geometry: { type: 'LineString' as const, coordinates: directionLine(picking.direction) },
     };
     const spot = picking.spot && {
       type: 'Feature' as const,

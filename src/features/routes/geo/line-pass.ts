@@ -3,7 +3,7 @@ import { bboxOf, bboxesOverlap, type BBox, type LngLat } from '@/shared/utils/ge
 import { passBounds, passStretches } from './pass';
 import type { Ring } from './ring';
 import { hotspotRing, type Hotspot } from '../model/hotspots';
-import { servedBy, variantLine, type VariantSummary } from '../model/routes';
+import { servedBy, directionLine, type Direction } from '../model/routes';
 
 /*
  * The orange stretches as a direction's line file carries them (the
@@ -82,7 +82,7 @@ export function passBoxes(hotspots: readonly Hotspot[]): readonly PassBox[] {
  * hintuan is not a stretch of its ride (servedBy).
  */
 export function boxesReached(
-  v: VariantSummary,
+  v: Direction,
   line: readonly LngLat[],
   boxes: readonly PassBox[],
 ): PassBox[] {
@@ -95,15 +95,15 @@ function stretchesAlong(line: readonly LngLat[], reached: readonly PassBox[]): L
   return reached.flatMap(({ ring }) => passStretches(line, ring));
 }
 
-const feature = (v: VariantSummary, coordinates: LngLat[]): PassFeature => ({
+const feature = (v: Direction, coordinates: LngLat[]): PassFeature => ({
   type: 'Feature',
   properties: { id: v.id, route_id: v.route_id },
   geometry: { type: 'LineString', coordinates },
 });
 
 /** One direction's orange stretches past these boxes, worked out afresh. */
-export function stretchesPast(v: VariantSummary, boxes: readonly PassBox[]): PassFeature[] {
-  const line = variantLine(v);
+export function stretchesPast(v: Direction, boxes: readonly PassBox[]): PassFeature[] {
+  const line = directionLine(v);
   if (line.length < 2) return [];
   return stretchesAlong(line, boxesReached(v, line, boxes)).map((coordinates) =>
     feature(v, coordinates),
@@ -132,8 +132,8 @@ export function passKey(reached: readonly PassBox[]): string {
  * same points, not rounded, since JSON carries a number exactly — and their
  * key. A line of fewer than two points has none, and the key of no box.
  */
-export function linePass(v: VariantSummary, boxes: readonly PassBox[]): LinePass {
-  const line = variantLine(v);
+export function linePass(v: Direction, boxes: readonly PassBox[]): LinePass {
+  const line = directionLine(v);
   const reached = line.length < 2 ? [] : boxesReached(v, line, boxes);
   return { pass: stretchesAlong(line, reached), passKey: passKey(reached) };
 }
@@ -172,13 +172,10 @@ export function keepLinePass(shape: object, file: { pass?: unknown; passKey?: un
  * against the index's own boxes each time, so a line file that is newer or
  * older than the index is never painted with another map's hintuans.
  */
-export function publishedStretches(
-  v: VariantSummary,
-  boxes: readonly PassBox[],
-): PassFeature[] | null {
+export function publishedStretches(v: Direction, boxes: readonly PassBox[]): PassFeature[] | null {
   const kept = v.shape ? published.get(v.shape) : undefined;
   if (!kept) return null;
-  const line = variantLine(v);
+  const line = directionLine(v);
   if (line.length < 2 || passKey(boxesReached(v, line, boxes)) !== kept.passKey) return null;
   return kept.pass.map((coordinates) => feature(v, coordinates));
 }

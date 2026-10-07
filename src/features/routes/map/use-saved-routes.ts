@@ -8,7 +8,7 @@ import { useRouteTaps } from './route-taps';
 import { litOf, shownOf, showingOf, steady } from './routes-shown';
 import { ROUTES_LINE, useSavedRoutesLayers } from './saved-routes-layers';
 import type { Livery } from '../model/liveries';
-import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes';
+import { directionLine, type LineStringGeoJSON, type Direction } from '../model/routes';
 
 /**
  * The RouteCard picked in a list of them — the route list's, or a hotspot's
@@ -39,24 +39,24 @@ export interface Highlight {
  * once at module level, not a new one per render, or it reloads every
  * render.
  *
- * The editor also passes `drawing` and `hiddenVariantId`; the public map
+ * The editor also passes `drawing` and `hiddenDirectionId`; the public map
  * passes neither, and both default to off.
  *
  * Both pass `loadLine`: their lists carry each direction's overview (the
  * public map's file, mapFile.ts; the editor's tables, 0009), and a
  * direction's full line is read when it is lit or chosen, or on screen at
  * street zoom (the public map's loadLine; the editor's lineOf, live.ts).
- * From then on `variants` carries that line in its `shape` — so the orange
+ * From then on `directions` carries that line in its `shape` — so the orange
  * stretches, the chevrons, the ride-cut and the babaan sides all work on the
  * line itself — and the map draws it in place of the overview. The editor
  * still reads a line itself for what it opens to edit (live.ts, linesOf).
  */
-export function useSavedRoutes<T extends VariantSummary>(
+export function useSavedRoutes<T extends Direction>(
   map: MapLibreMap | null,
   load: () => Promise<T[]>,
   opts: {
     drawing?: boolean;
-    hiddenVariantId?: string | null;
+    hiddenDirectionId?: string | null;
     loadLine?: (id: string) => Promise<LineStringGeoJSON | null>;
   } = {},
 ) {
@@ -68,7 +68,7 @@ export function useSavedRoutes<T extends VariantSummary>(
   // direction must not make the chosen one new (its ride-to would glide the
   // camera back to the picked hintuan).
   const withLine = useRef(new Map<string, { row: T; line: LineStringGeoJSON; v: T }>());
-  const variants = useMemo(
+  const directions = useMemo(
     () =>
       lines.size === 0
         ? rows
@@ -156,11 +156,11 @@ export function useSavedRoutes<T extends VariantSummary>(
     setHighlight(null);
   }, [opts.drawing]);
 
-  // The click handler is bound once; this is how it reads today's variants.
+  // The click handler is bound once; this is how it reads today's directions.
   const byId = useRef(new Map<string, T>());
   useEffect(() => {
-    byId.current = new Map(variants.map((v) => [v.id, v]));
-  }, [variants]);
+    byId.current = new Map(directions.map((v) => [v.id, v]));
+  }, [directions]);
 
   // The full lines as they come in, handed on together once a frame
   // (perFrame): a list's six lines were six renders of the whole app, each
@@ -204,24 +204,24 @@ export function useSavedRoutes<T extends VariantSummary>(
 
   // What is shown and what is lit (routesShown.ts).
   const showing = useMemo(
-    () => showingOf(candidates, back, variants, cardShows),
-    [candidates, back, variants, cardShows],
+    () => showingOf(candidates, back, directions, cardShows),
+    [candidates, back, directions, cardShows],
   );
   // Each kept one array while it holds the same (steady): an unrelated
   // line's arrival lights nothing new, and the chevrons flow on.
   const litNow = useMemo(
-    () => litOf(selectedId, highlight?.ids ?? null, variants, showing),
-    [selectedId, variants, highlight, showing],
+    () => litOf(selectedId, highlight?.ids ?? null, directions, showing),
+    [selectedId, directions, highlight, showing],
   );
   const litKept = useRef(litNow);
-  const litVariants = (litKept.current = steady(litKept.current, litNow));
-  const litIdsNow = useMemo(() => litVariants.map((v) => v.id), [litVariants]);
+  const litDirections = (litKept.current = steady(litKept.current, litNow));
+  const litIdsNow = useMemo(() => litDirections.map((v) => v.id), [litDirections]);
   const litIdsKept = useRef(litIdsNow);
   const lit = (litIdsKept.current = steady(litIdsKept.current, litIdsNow));
 
   // ----------------------------------------------------------------- layers
 
-  useSavedRoutesLayers(map, rows, lines, opts.hiddenVariantId, lit);
+  useSavedRoutesLayers(map, rows, lines, opts.hiddenDirectionId, lit);
 
   // Open on the routes, not on a fixed centre. Once, on first load, and never
   // while drawing: a draft already has a view the user chose. The public map
@@ -231,11 +231,11 @@ export function useSavedRoutes<T extends VariantSummary>(
   const fittedRef = useRef(false);
   useEffect(() => {
     if (!map || fittedRef.current || drawingRef.current) return;
-    const bounds = routesBounds(variants);
+    const bounds = routesBounds(directions);
     if (!bounds) return;
     fittedRef.current = true;
     if (framesRoutes(map, bounds)) map.fitBounds(bounds, { ...ROUTES_FRAMING, duration: 0 });
-  }, [map, variants]);
+  }, [map, directions]);
 
   // Reading a direction's full line, once. One that failed (offline, never
   // stored) is asked again when it lights, not at every look at the screen.
@@ -246,7 +246,7 @@ export function useSavedRoutes<T extends VariantSummary>(
   // file with the page, 200, and that was kept as the line (review of
   // 2026-10-03, finding 10).
   const drawn = useMemo(
-    () => new Set(rows.filter((v) => variantLine(v).length > 1).map((v) => v.id)),
+    () => new Set(rows.filter((v) => directionLine(v).length > 1).map((v) => v.id)),
     [rows],
   );
   const request = useCallback(
@@ -318,10 +318,10 @@ export function useSavedRoutes<T extends VariantSummary>(
     },
   );
 
-  const selected = variants.find((v) => v.id === selectedId) ?? null;
+  const selected = directions.find((v) => v.id === selectedId) ?? null;
 
   return {
-    variants,
+    directions,
     /** The directions whose full line has been read, on either map (`loadLine`). */
     fullIds,
     error,
@@ -337,6 +337,6 @@ export function useSavedRoutes<T extends VariantSummary>(
     highlightCard: setHighlight,
     showCard: setCardShows,
     lit,
-    litVariants,
+    litDirections,
   };
 }

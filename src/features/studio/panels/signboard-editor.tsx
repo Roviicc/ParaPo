@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 
-import type { VariantSummary } from '@/features/routes/model/routes';
+import type { Direction } from '@/features/routes/model/routes';
 
 import * as live from '../data/signboards';
 
@@ -20,33 +20,33 @@ export type SignboardCalls = Pick<
  * `onChanged` reloads the directions, so the card above shows the new list.
  */
 export function SignboardEditor({
-  variant,
+  direction,
   onChanged,
   calls = live,
 }: {
-  variant: VariantSummary;
+  direction: Direction;
   onChanged: () => void;
   calls?: SignboardCalls;
 }) {
   const { addSignboard, removeSignboard, moveSignboardEarlier, signboardUrl } = calls;
-  const [names, setNames] = useState<readonly string[]>(variant.signboards ?? []);
+  const [names, setNames] = useState<readonly string[]>(direction.signboards ?? []);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const heading = useId();
-  const way = variant.reversed ? 'Pabalik' : 'Papunta';
+  const way = direction.reversed ? 'Pabalik' : 'Papunta';
 
   // Another direction, or the list read again: the boards as they stand.
-  const listed = (variant.signboards ?? []).join('\n');
+  const listed = (direction.signboards ?? []).join('\n');
   useEffect(() => {
     setNames(listed ? listed.split('\n') : []);
-  }, [variant.id, listed]);
+  }, [direction.id, listed]);
   // A problem stays until the next change or another direction: the list read
   // again after an earlier change can land after it, and took it away unread
   // (save-test on a GitHub runner, 2026-10-01).
   useEffect(() => {
     setProblem(null);
-  }, [variant.id]);
+  }, [direction.id]);
 
   // `step` takes a list already written, before the change is done: what a
   // later refusal must not take back (addSignboards).
@@ -74,7 +74,7 @@ export function SignboardEditor({
     const picked = [...(files ?? [])];
     if (input.current) input.current.value = '';
     if (!picked.length) return;
-    void run((now, step) => live.addSignboards(variant.id, now, picked, step, addSignboard));
+    void run((now, step) => live.addSignboards(direction.id, now, picked, step, addSignboard));
   };
 
   return (
@@ -104,7 +104,7 @@ export function SignboardEditor({
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void run((now) => moveSignboardEarlier(variant.id, now, n))}
+                  onClick={() => void run((now) => moveSignboardEarlier(direction.id, now, n))}
                   aria-label={`Move signboard ${i + 1} earlier`}
                   className="rounded-md px-1.5 py-1 text-sm text-content-tertiary hover:bg-surface-tertiary disabled:opacity-60 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
                 >
@@ -114,7 +114,7 @@ export function SignboardEditor({
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => void run((now) => removeSignboard(variant.id, now, n))}
+                onClick={() => void run((now) => removeSignboard(direction.id, now, n))}
                 aria-label={`Remove signboard ${i + 1}`}
                 className="rounded-md px-1.5 py-1 text-sm text-content-error hover:bg-surface-error disabled:opacity-60 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
               >

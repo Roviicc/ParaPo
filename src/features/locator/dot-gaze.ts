@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Highlight } from '@/features/routes/map/use-saved-routes';
 import type { Hotspot } from '@/features/routes/model/hotspots';
 import { placeKey } from '@/features/routes/model/places';
-import { variantLine, type VariantSummary } from '@/features/routes/model/routes';
+import { directionLine, type Direction } from '@/features/routes/model/routes';
 import { M_PER_DEG, nearestOnSegment, type LngLat } from '@/shared/utils/geo';
 
 /**
@@ -86,12 +86,12 @@ export interface Picks {
   /** The hotspot whose card is open. */
   place: Hotspot | null;
   /** The open trip. */
-  trip: VariantSummary | null;
+  trip: Direction | null;
   /** The RouteCard picked, in the list or on a hotspot's card. */
   highlight: Highlight | null;
   /** What the route list lists, and what is lit. */
   candidates: readonly { route_id: string }[];
-  litVariants: readonly VariantSummary[];
+  litDirections: readonly Direction[];
 }
 
 /**
@@ -112,12 +112,12 @@ export function gazeSubjects(p: Picks, from: LngLat | null): Subject[] {
       key: p.place && placeKey(p.place),
       at: () => (p.place?.point.coordinates as LngLat | undefined) ?? null,
     },
-    { key: p.trip?.route_id ?? null, at: () => nearestLit(p.trip ? [variantLine(p.trip)] : []) },
+    { key: p.trip?.route_id ?? null, at: () => nearestLit(p.trip ? [directionLine(p.trip)] : []) },
     {
       key: p.highlight && `${p.highlight.where}:${p.highlight.from}`,
-      at: () => nearestLit(p.litVariants.map(variantLine)),
+      at: () => nearestLit(p.litDirections.map(directionLine)),
     },
-    { key: routesOf(p.candidates), at: () => nearestLit(p.litVariants.map(variantLine)) },
+    { key: routesOf(p.candidates), at: () => nearestLit(p.litDirections.map(directionLine)) },
   ];
 }
 

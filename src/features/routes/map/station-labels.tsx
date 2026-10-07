@@ -9,7 +9,7 @@ import { CARD_SURFACE, CARD_TEXT } from '../cards/livery-card';
 import { TimelineDot } from '../cards/trip-timeline';
 import { hotspotLabel, type Hotspot } from '../model/hotspots';
 import type { Livery } from '../model/liveries';
-import { isLineMode, servedBy, type VariantSummary } from '../model/routes';
+import { isLineMode, servedBy, type Direction } from '../model/routes';
 import './hintuan-pin.css';
 
 /** The scale bar's width (MapView's ScaleControl, MapLibre's default maxWidth). */
@@ -60,7 +60,7 @@ export function StationLabels({
   onPick,
 }: {
   map: MapLibreMap;
-  selected: VariantSummary;
+  selected: Direction;
   hotspots: readonly Hotspot[];
   livery: Livery;
   /** The picked hintuan, which its HintuanPin names. */

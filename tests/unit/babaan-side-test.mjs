@@ -176,7 +176,7 @@ import { bboxOf } from '../../src/shared/utils/geo.ts';
 import { nearestOnSegment } from '../../src/shared/utils/geo.ts';
 import { pointInRing, ringToPolygon } from '../../src/features/routes/geo/ring.ts';
 import { passIndex } from '../../src/features/routes/geo/pass.ts';
-import { isLineMode, servedBy, variantLine } from '../../src/features/routes/model/routes.ts';
+import { isLineMode, servedBy, directionLine } from '../../src/features/routes/model/routes.ts';
 import { drawnFromTheEnd } from '../../src/features/routes/model/timeline.ts';
 import { babaanSideFeatures } from '../../src/features/routes/geo/babaan-sides.ts';
 
@@ -256,7 +256,7 @@ function oldHintuansAlong(line, stops, route) {
 }
 /** travelLine (ride.ts) before step 16's cache, word for word. */
 function oldTravelLine(v, stops) {
-  const line = variantLine(v);
+  const line = directionLine(v);
   if (line.length < 2) return line;
   const head = stops.find((s) => s.id === v.route?.head_stop_id);
   const tail = stops.find((s) => s.id === v.route?.tail_stop_id);

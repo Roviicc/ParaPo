@@ -25,12 +25,12 @@ import {
   within,
 } from '../../src/features/routes/map/framing.ts';
 import { ROUTES_LINE, routesDrawn } from '../../src/features/routes/map/saved-routes-layers.ts';
-import { variantLine } from '../../src/features/routes/model/routes.ts';
+import { directionLine } from '../../src/features/routes/model/routes.ts';
 import { routesOnMap } from '../../scripts/research/phoneSpeedParts.mjs';
 
 /** useSavedRoutes' fit as it was until 2026-10-04, verbatim but for the map: the box it handed fitBounds, or null where it fitted nothing. */
 function oldBox(variants) {
-  const coords = variants.flatMap(variantLine);
+  const coords = variants.flatMap(directionLine);
   if (coords.length < 2) return null;
   let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity];
   for (const [x, y] of coords) {

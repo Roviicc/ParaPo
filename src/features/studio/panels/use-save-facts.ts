@@ -6,10 +6,10 @@ import {
   directionName,
   isDrawn,
   routeName,
-  variantLine,
+  directionLine,
   type RouteRow,
   type TransportMode,
-  type VariantRow,
+  type DirectionRow,
 } from '@/features/routes/model/routes';
 import { hintuansAlong, timelineFor } from '@/features/routes/model/timeline';
 import { haversine, joinSegments, type LngLat } from '@/shared/utils/geo';
@@ -31,7 +31,7 @@ export function useSaveFacts({
   parent,
   slotReversed,
   hotspots,
-  variants,
+  directions,
   head,
   tail,
   headId,
@@ -40,11 +40,11 @@ export function useSaveFacts({
   mode,
 }: {
   draw: Drawing;
-  existing: VariantRow | null;
+  existing: DirectionRow | null;
   parent: RouteRow | null;
   slotReversed: boolean | null;
   hotspots: HotspotRow[];
-  variants: VariantRow[];
+  directions: DirectionRow[];
   head: HotspotRow | undefined;
   tail: HotspotRow | undefined;
   headId: string;
@@ -75,7 +75,7 @@ export function useSaveFacts({
   // empty slot, or is refused when the direction is drawn (routesWrite).
   const sameEnds = useMemo(() => {
     if (parent || !headId || !tailId) return null;
-    const v = variants.find(
+    const v = directions.find(
       (x) =>
         x.route.head_stop_id === headId &&
         x.route.tail_stop_id === tailId &&
@@ -83,21 +83,21 @@ export function useSaveFacts({
         x.reversed === reversed,
     );
     return v ? { name: v.route.name, drawn: isDrawn(v) } : null;
-  }, [parent, headId, tailId, via, reversed, variants]);
+  }, [parent, headId, tailId, via, reversed, directions]);
 
   // Edit route, the ends changed: onto another route's (refused, as the
   // database would), or turned round (a direction's way round is kept
   // against its route's head, so a swap would mislabel both lines).
   const endsTaken = useMemo(() => {
     if (!existing || !headId || !tailId) return false;
-    return variants.some(
+    return directions.some(
       (x) =>
         x.route_id !== existing.route_id &&
         x.route.head_stop_id === headId &&
         x.route.tail_stop_id === tailId &&
         (x.route.via ?? '') === via.trim(),
     );
-  }, [existing, headId, tailId, via, variants]);
+  }, [existing, headId, tailId, via, directions]);
   // By place, as the pickers choose: another box of the same place is the
   // same end.
   const headNow = existing ? hotspots.find((s) => s.id === existing.route.head_stop_id) : undefined;
@@ -115,7 +115,9 @@ export function useSaveFacts({
   // point dragged away or undone is counted as it really is.
   const borrowFromId = draw.borrow?.variantId ?? existing?.borrowed_from ?? null;
   const borrowPart = draw.borrow?.part ?? existing?.borrowed_part ?? null;
-  const borrowParent = borrowFromId ? (variants.find((v) => v.id === borrowFromId) ?? null) : null;
+  const borrowParent = borrowFromId
+    ? (directions.find((v) => v.id === borrowFromId) ?? null)
+    : null;
   // The parent's full line: the list holds its overview (0009), which is the
   // same road but not the same points.
   const [parentFull, setParentFull] = useState<{ id: string; line: LngLat[] } | null>(null);
@@ -149,7 +151,7 @@ export function useSaveFacts({
   const borrowedM = useMemo(() => {
     if (!borrowParent || !borrowPart) return 0;
     return borrowedOn(
-      parentFull?.id === borrowParent.id ? parentFull.line : variantLine(borrowParent),
+      parentFull?.id === borrowParent.id ? parentFull.line : directionLine(borrowParent),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- measured again as the drawing or the parent's full line changes; borrowedOn reads nothing else that changes
   }, [borrowParent, borrowPart, draw.segments, parentFull]);

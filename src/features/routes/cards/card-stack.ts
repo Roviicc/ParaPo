@@ -2,7 +2,7 @@ import type { Snap } from '@/shared/ui/sheet-gesture';
 import type { LngLat } from '@/shared/utils/geo';
 
 import { sharingAnEnd } from '../model/departures';
-import { isDrawn, variantLine, type VariantSummary } from '../model/routes';
+import { isDrawn, directionLine, type Direction } from '../model/routes';
 
 /*
  * The cards that stand in for one another over the map — the route list, a
@@ -25,13 +25,13 @@ export function isChoosing(routes: readonly unknown[], hotspots: readonly unknow
  * 2026-09-29); else nothing, and no ‹.
  */
 export function tripBack(
-  trip: VariantSummary | null,
-  variants: readonly VariantSummary[],
+  trip: Direction | null,
+  directions: readonly Direction[],
   behind: boolean,
 ): 'behind' | 'fan' | null {
   if (behind) return 'behind';
   if (!trip) return null;
-  const sameWay = sharingAnEnd(variants, trip).filter(
+  const sameWay = sharingAnEnd(directions, trip).filter(
     (v) => v.reversed === trip.reversed && isDrawn(v),
   );
   return sameWay.length > 1 ? 'fan' : null;
@@ -75,15 +75,15 @@ export type Framed = { lines: readonly (readonly LngLat[])[] } | { at: LngLat } 
  * is the picked card's directions, null with no card picked.
  */
 export function framedBy(
-  trip: VariantSummary | null,
+  trip: Direction | null,
   placeAt: LngLat | null,
   choosing: boolean,
-  picked: readonly VariantSummary[] | null,
-  lit: readonly VariantSummary[],
+  picked: readonly Direction[] | null,
+  lit: readonly Direction[],
 ): Framed {
-  const card = picked && { lines: picked.map(variantLine) };
-  if (trip) return { lines: [variantLine(trip)] };
+  const card = picked && { lines: picked.map(directionLine) };
+  if (trip) return { lines: [directionLine(trip)] };
   if (placeAt) return card ?? { at: placeAt };
-  if (choosing) return card ?? { lines: lit.map(variantLine) };
+  if (choosing) return card ?? { lines: lit.map(directionLine) };
   return null;
 }

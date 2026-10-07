@@ -9,7 +9,7 @@ import { HOTSPOT_COLOUR } from '../map/colours';
 import { LAYERS, useLayerReady } from '../map/layers';
 import { hotspotRing, type Hotspot } from '../model/hotspots';
 import { travelLine } from '../model/ride';
-import { isLineMode, type VariantSummary } from '../model/routes';
+import { isLineMode, type Direction } from '../model/routes';
 import { inPassingOrder, listedAlong, passedAt } from '../model/timeline';
 
 /**
@@ -60,7 +60,7 @@ export function addBabaanSides(map: Pick<MapLibreMap, 'addSource' | 'addLayer'>)
 
 export function useBabaanSides(
   map: MapLibreMap | null,
-  chosen: VariantSummary | null,
+  chosen: Direction | null,
   hotspots: readonly Hotspot[],
 ): void {
   const casingReady = useLayerReady(map, ROUTES_ABOVE);
@@ -101,7 +101,7 @@ export function useBabaanSides(
  * against each other, word for word, on the committed map and on made-up
  * directions.
  */
-export function babaanSideFeatures(chosen: VariantSummary | null, hotspots: readonly Hotspot[]) {
+export function babaanSideFeatures(chosen: Direction | null, hotspots: readonly Hotspot[]) {
   if (!chosen || isLineMode(chosen.route?.mode)) return [];
   const line = travelLine(chosen, hotspots);
   const reach = lineBounds(line);

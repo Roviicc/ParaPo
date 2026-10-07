@@ -17,7 +17,7 @@ import { useSavedRoutes } from '@/features/routes/map/use-saved-routes';
 import { hotspotLabel, hotspotRing, type HotspotRow } from '@/features/routes/model/hotspots';
 import { hotspotCount } from '@/features/routes/model/places';
 import { routeTimeline } from '@/features/routes/model/ride';
-import { isDrawn, variantLine, type VariantRow } from '@/features/routes/model/routes';
+import { isDrawn, directionLine, type DirectionRow } from '@/features/routes/model/routes';
 import {
   lineOf,
   listVariants,
@@ -104,7 +104,7 @@ function Workshop({
   const [hotspotMenu, setHotspotMenu] = useState(false);
   // One toast at a time, the newest: a save's, or a problem.
   const [toast, setToast] = useState<
-    | { kind: 'route'; v: VariantRow }
+    | { kind: 'route'; v: DirectionRow }
     | { kind: 'hotspot'; s: HotspotRow }
     | { kind: 'notice'; text: string }
     | null
@@ -120,7 +120,7 @@ function Workshop({
   // read when it is lit or chosen, its drawing when it is opened (below).
   const saved = useSavedRoutes(map, listVariants, {
     drawing: draw.drawing,
-    hiddenVariantId: draw.target.variantId,
+    hiddenDirectionId: draw.target.variantId,
     loadLine: lineOf,
   });
   const hotspots = useSavedHotspots(map, loadStopsFromSupabase, {
@@ -159,8 +159,8 @@ function Workshop({
   // The pill counts routes, not directions: a route is two rows, one of them
   // perhaps an empty slot, and five routes once read "10 routes" (finding 7).
   const routeCount = useMemo(
-    () => new Set(saved.variants.map((v) => v.route_id)).size,
-    [saved.variants],
+    () => new Set(saved.directions.map((v) => v.route_id)).size,
+    [saved.directions],
   );
 
   const signedIn = !!session;
@@ -183,12 +183,12 @@ function Workshop({
   }, [recovery.error]);
 
   // What the save panel saves into, and where the drawing is headed.
-  const target = useSaveTarget(draw, saved.variants, hotspots.hotspots);
+  const target = useSaveTarget(draw, saved.directions, hotspots.hotspots);
   const { editing, parentRoute, slotReversed, extendEnds } = target;
   // A right-click on saved lines while drawing, and opening a direction's drawing.
   const { onFollow, opening } = useFollow({
     draw,
-    variants: saved.variants,
+    directions: saved.directions,
     hotspots: hotspots.hotspots,
     target,
     setNotice,
@@ -204,7 +204,7 @@ function Workshop({
     ? (hotspots.hotspots.find((s) => s.id === draw.area?.stopId) ?? null)
     : null;
 
-  const onSaved = (v: VariantRow) => {
+  const onSaved = (v: DirectionRow) => {
     setSaving(false);
     draw.cancel();
     void saved.reload();
@@ -236,7 +236,7 @@ function Workshop({
     // (0006's foreign keys), and its refusal was the notice (finding 15).
     const ending = [
       ...new Set(
-        saved.variants
+        saved.directions
           .filter((v) => v.route.head_stop_id === s.id || v.route.tail_stop_id === s.id)
           .map((v) => v.route.name),
       ),
@@ -265,12 +265,12 @@ function Workshop({
   // replaced the other direction's line (review finding 2). The direction
   // just saved is drawn whatever the list says until its reload lands.
   const slotLeft = justSaved
-    ? saved.variants.some(
+    ? saved.directions.some(
         (v) => v.route_id === justSaved.route_id && v.id !== justSaved.id && v.shape === null,
       )
     : false;
 
-  const onDelete = async (v: VariantRow) => {
+  const onDelete = async (v: DirectionRow) => {
     // Signed out, the delete would match nothing and say nothing (onDeleteHotspot).
     if (!signedIn) {
       setSigningIn(true);
@@ -331,12 +331,12 @@ function Workshop({
       {!draw.drawing && saved.selected && tripLivery && (
         <TripCard
           key={saved.selected.route_id}
-          variant={saved.selected}
-          variants={saved.variants}
+          direction={saved.selected}
+          directions={saved.directions}
           timeline={routeTimeline(
             saved.selected,
             hotspots.hotspots,
-            hotspots.hotspotsAlong(saved.selected.id, variantLine(saved.selected)),
+            hotspots.hotspotsAlong(saved.selected.id, directionLine(saved.selected)),
           )}
           livery={tripLivery}
           onBackToList={backFromTrip}
@@ -353,7 +353,7 @@ function Workshop({
           extras={
             <>
               <RouteFacts
-                variant={saved.selected}
+                direction={saved.selected}
                 actions={
                   userId !== null &&
                   userId === saved.selected.owner_id && (
@@ -383,7 +383,7 @@ function Workshop({
                 }
               />
               {userId !== null && userId === saved.selected.owner_id && (
-                <SignboardEditor variant={saved.selected} onChanged={() => void saved.reload()} />
+                <SignboardEditor direction={saved.selected} onChanged={() => void saved.reload()} />
               )}
             </>
           }
@@ -406,9 +406,9 @@ function Workshop({
           hidden={!!saved.selected}
           height={height}
           hotspot={hotspots.selected}
-          linkedVariantIds={hotspots.linkedVariantIds(hotspots.selected.id)}
-          variants={saved.variants}
-          onSelectVariant={openTrip}
+          linkedDirectionIds={hotspots.linkedDirectionIds(hotspots.selected.id)}
+          directions={saved.directions}
+          onSelectDirection={openTrip}
           hotspots={hotspots.hotspots}
           // Another box: the map goes there, the box clear of the card on
           // show, as on the public map.
@@ -549,8 +549,8 @@ function Workshop({
         <HotspotPanel
           draw={draw}
           existing={editingHotspot}
-          existingLinks={editingHotspot ? hotspots.linkedVariantIds(editingHotspot.id) : []}
-          variants={saved.variants}
+          existingLinks={editingHotspot ? hotspots.linkedDirectionIds(editingHotspot.id) : []}
+          directions={saved.directions}
           hotspots={hotspots.hotspots}
           onSaved={onSavedHotspot}
           onCancel={() => setSaving(false)}
@@ -567,7 +567,7 @@ function Workshop({
           route={parentRoute}
           slotReversed={slotReversed}
           hotspots={hotspots.hotspots}
-          variants={saved.variants}
+          directions={saved.directions}
           onSaved={onSaved}
           onCancel={() => setSaving(false)}
         />

@@ -157,7 +157,7 @@ export interface LineStringGeoJSON {
  * One direction as the public map needs it: its line and what its card shows.
  * No control points or segments — those exist for editing.
  */
-export interface VariantSummary {
+export interface Direction {
   id: string;
   route_id: string;
   direction_name: string | null;
@@ -191,10 +191,10 @@ export interface VariantSummary {
  * One direction as the editor lists it: what the map, the cards, the links
  * and a save need to know about every direction, without its drawing. The
  * drawing — the clicks and the road between each pair — is read on its own
- * when a direction is opened (VariantDrawing, live.ts withDrawing): it is
+ * when a direction is opened (DirectionDrawing, live.ts withDrawing): it is
  * half of every row, and the editor lists a thousand rows to open one.
  */
-export type VariantRow = VariantSummary & {
+export type DirectionRow = Direction & {
   owner_id: string;
   updated_at: string;
   route: RouteRow & { name: string };
@@ -211,13 +211,13 @@ export type VariantRow = VariantSummary & {
 };
 
 /** A direction with its drawing, for reopening and re-saving it. */
-export type VariantDrawing = VariantRow & {
+export type DirectionDrawing = DirectionRow & {
   control_points: LngLat[];
   segments: Segment[];
 };
 
-/** A VariantRow straight from the database, before nameVariants has run. */
-export type UnnamedVariantRow = Omit<VariantRow, 'route'> & { route: RouteRow };
+/** A DirectionRow straight from the database, before nameDirections has run. */
+export type UnnamedDirectionRow = Omit<DirectionRow, 'route'> & { route: RouteRow };
 
 type HotspotName = Pick<Hotspot, 'id' | 'name' | 'informal'>;
 
@@ -237,12 +237,12 @@ interface Unnamed {
  * A route whose ends cannot be found falls back to its signboard: the foreign
  * keys make that impossible from the database, so it only means an old file.
  */
-export function nameVariants<V extends Unnamed>(
-  variants: V[],
+export function nameDirections<V extends Unnamed>(
+  directions: V[],
   hotspots: HotspotName[],
 ): (V & { route: V['route'] & { name: string } })[] {
   const byId = new Map(hotspots.map((s) => [s.id, hotspotLabel(s)]));
-  return variants.map((v) => {
+  return directions.map((v) => {
     const head = byId.get(v.route.head_stop_id);
     const tail = byId.get(v.route.tail_stop_id);
     if (!head || !tail) {
@@ -257,8 +257,8 @@ export function nameVariants<V extends Unnamed>(
 }
 
 /** Whether a direction has a line to draw, as opposed to being a slot. */
-export function isDrawn(v: VariantSummary & { segments?: Segment[] | null }): boolean {
-  return variantLine(v).length > 1;
+export function isDrawn(v: Direction & { segments?: Segment[] | null }): boolean {
+  return directionLine(v).length > 1;
 }
 
 /**
@@ -267,7 +267,7 @@ export function isDrawn(v: VariantSummary & { segments?: Segment[] | null }): bo
  * Falls back to the route's name, read the way this direction rides it, for a
  * row that has no direction name (a file from before names were generated).
  */
-export function directionEnds(v: VariantSummary): { from: string; to: string } {
+export function directionEnds(v: Direction): { from: string; to: string } {
   const [from, to] = (v.direction_name ?? '').split(' → ');
   if (from && to) return { from, to };
   const [head = '', tail = ''] = (v.route?.name ?? '').replace(/ via .*$/, '').split(` ${DASH} `);
@@ -275,7 +275,7 @@ export function directionEnds(v: VariantSummary): { from: string; to: string } {
 }
 
 /** The hotspots a direction runs from and to: its route's head and tail, the way it rides them. */
-export function directionEndHotspots(v: VariantSummary): {
+export function directionEndHotspots(v: Direction): {
   fromHotspot: string | null;
   toHotspot: string | null;
 } {
@@ -287,7 +287,7 @@ export function directionEndHotspots(v: VariantSummary): {
 }
 
 /** Geometry to draw: the stored shape, or rebuilt from segments when the row has them. */
-export function variantLine(v: VariantSummary & { segments?: Segment[] | null }): LngLat[] {
+export function directionLine(v: Direction & { segments?: Segment[] | null }): LngLat[] {
   if (v.shape?.coordinates?.length) return v.shape.coordinates;
   return joinSegments(v.segments ?? []);
 }

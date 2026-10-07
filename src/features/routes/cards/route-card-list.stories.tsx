@@ -5,10 +5,10 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import { RouteCardList } from './route-card-list';
 import type { Hotspot } from '../model/hotspots';
-import type { VariantSummary } from '../model/routes';
+import type { Direction } from '../model/routes';
 
 /** Sample data only, shaped like the published file. Not the real map. */
-function route(id: string, name: string): VariantSummary['route'] {
+function route(id: string, name: string): Direction['route'] {
   return {
     id,
     signboard: null,
@@ -26,14 +26,14 @@ function route(id: string, name: string): VariantSummary['route'] {
  * One direction, its line `km` long straight north; `drawn` false leaves it
  * a slot.
  */
-function variant(
+function direction(
   key: string,
   name: string,
   direction: string,
   km: number,
   reversed = false,
   drawn = true,
-): VariantSummary {
+): Direction {
   return {
     id: key + (reversed ? '-back' : '-out'),
     route_id: key + '-route',
@@ -56,15 +56,15 @@ function variant(
 }
 
 /** The owner's frames: two routes into Tala, and out of it the other way round. */
-const talaRoutes: VariantSummary[] = [
-  variant('a', 'Novaliches (Bayan) – Tala', 'Novaliches (Bayan) → Tala', 8.4),
-  variant('a', 'Novaliches (Bayan) – Tala', 'Tala → Novaliches (Bayan)', 8.6, true),
-  variant('b', 'SM Fairview – Tala', 'SM Fairview → Tala', 9.1),
-  variant('b', 'SM Fairview – Tala', 'Tala → SM Fairview', 9.3, true),
+const talaRoutes: Direction[] = [
+  direction('a', 'Novaliches (Bayan) – Tala', 'Novaliches (Bayan) → Tala', 8.4),
+  direction('a', 'Novaliches (Bayan) – Tala', 'Tala → Novaliches (Bayan)', 8.6, true),
+  direction('b', 'SM Fairview – Tala', 'SM Fairview → Tala', 9.1),
+  direction('b', 'SM Fairview – Tala', 'Tala → SM Fairview', 9.3, true),
 ];
 
 /** Six places, for a list taller than the room. */
-const many: VariantSummary[] = [
+const many: Direction[] = [
   'Novaliches (Bayan)',
   'SM Fairview',
   'Lagro',
@@ -72,23 +72,23 @@ const many: VariantSummary[] = [
   'Quiapo',
   'Cubao',
 ].flatMap((p, i) => [
-  variant('m' + i, `${p} – Tala`, `${p} → Tala`, 3 + i * 2),
-  variant('m' + i, `${p} – Tala`, `Tala → ${p}`, 3 + i * 2, true),
+  direction('m' + i, `${p} – Tala`, `${p} → Tala`, 3 + i * 2),
+  direction('m' + i, `${p} – Tala`, `Tala → ${p}`, 3 + i * 2, true),
 ]);
 
 /** A place whose name runs to two lines on a phone. */
 const LONG = 'Novaliches (Bayan) via Zabarte';
-const longName: VariantSummary[] = [
-  variant('l', `${LONG} – Tala`, `${LONG} → Tala`, 8.4),
-  variant('l', `${LONG} – Tala`, `Tala → ${LONG}`, 8.6, true),
+const longName: Direction[] = [
+  direction('l', `${LONG} – Tala`, `${LONG} → Tala`, 8.4),
+  direction('l', `${LONG} – Tala`, `Tala → ${LONG}`, 8.6, true),
 ];
 
 /** Their ways back still slots: nothing to SWITCH to. */
-const oneWay: VariantSummary[] = [
-  variant('c', 'Lagro – Fatima', 'Lagro → Fatima', 2.5),
-  variant('c', 'Lagro – Fatima', 'Fatima → Lagro', 2.5, true, false),
-  variant('d', 'Lagro – Quiapo', 'Lagro → Quiapo', 16),
-  variant('d', 'Lagro – Quiapo', 'Quiapo → Lagro', 16, true, false),
+const oneWay: Direction[] = [
+  direction('c', 'Lagro – Fatima', 'Lagro → Fatima', 2.5),
+  direction('c', 'Lagro – Fatima', 'Fatima → Lagro', 2.5, true, false),
+  direction('d', 'Lagro – Quiapo', 'Lagro → Quiapo', 16),
+  direction('d', 'Lagro – Quiapo', 'Quiapo → Lagro', 16, true, false),
 ];
 
 function hotspot(

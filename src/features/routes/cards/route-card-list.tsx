@@ -6,11 +6,11 @@ import { drawnDepartures } from '../model/departures';
 import { hotspotLabel, type Hotspot } from '../model/hotspots';
 import type { Livery } from '../model/liveries';
 import { hotspotCount } from '../model/places';
-import type { VariantSummary } from '../model/routes';
+import type { Direction } from '../model/routes';
 
 interface Props {
   /** Every direction of every route under the tap, slots included, as the hooks hand them over. */
-  routes: readonly VariantSummary[];
+  routes: readonly Direction[];
   /** The hotspots under the tap, listed first. */
   hotspots?: readonly Hotspot[];
   /** Whether the way back is showing rather than the way there. */
@@ -22,7 +22,7 @@ interface Props {
   /** A card was picked — the map lights its directions alone — or let go (null): everything listed lit again. */
   onSelect: (place: PickedPlace | null) => void;
   /** Called with the direction a row opens, and the colour its card wore: its trip wears the same. */
-  onRoute: (v: VariantSummary, livery: Livery) => void;
+  onRoute: (v: Direction, livery: Livery) => void;
   /** A hotspot's row: open its card. */
   onHotspot: (s: Hotspot) => void;
   onClose: () => void;

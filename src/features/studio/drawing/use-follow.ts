@@ -3,9 +3,9 @@ import type { HotspotRow } from '@/features/routes/model/hotspots';
 import { travelLine } from '@/features/routes/model/ride';
 import {
   isDrawn,
-  variantLine,
-  type VariantDrawing,
-  type VariantRow,
+  directionLine,
+  type DirectionDrawing,
+  type DirectionRow,
 } from '@/features/routes/model/routes';
 import type { LngLat } from '@/shared/utils/geo';
 
@@ -22,13 +22,13 @@ import type { SaveTarget } from '../panels/use-save-target';
  */
 export function useFollow({
   draw,
-  variants,
+  directions,
   hotspots,
   target,
   setNotice,
 }: {
   draw: Drawing;
-  variants: VariantRow[];
+  directions: DirectionRow[];
   hotspots: HotspotRow[];
   target: SaveTarget;
   setNotice: (text: string) => void;
@@ -48,8 +48,8 @@ export function useFollow({
     }
     const home = target.placeOfHotspot(target.destinationHotspotId);
     const options = ids
-      .map((id) => variants.find((v) => v.id === id))
-      .filter((v): v is VariantRow => !!v && isDrawn(v))
+      .map((id) => directions.find((v) => v.id === id))
+      .filter((v): v is DirectionRow => !!v && isDrawn(v))
       .map((v) => ({
         v,
         travel: travelLine(v, hotspots),
@@ -68,7 +68,7 @@ export function useFollow({
       return;
     }
     const v = choice.follow.v;
-    const backwards = choice.follow.travel[0] !== variantLine(v)[0];
+    const backwards = choice.follow.travel[0] !== directionLine(v)[0];
     void opening(v, (d) => {
       const problem = draw.connect(d, at, backwards, offered);
       if (problem) setNotice(problem);
@@ -80,7 +80,7 @@ export function useFollow({
    * it for the one being opened, then hand it to the tool. A read that fails
    * is a notice, and the tool is never started on an empty drawing.
    */
-  const opening = async (v: VariantRow, then: (d: VariantDrawing) => void) => {
+  const opening = async (v: DirectionRow, then: (d: DirectionDrawing) => void) => {
     try {
       then(await withDrawing(v));
     } catch (e) {
