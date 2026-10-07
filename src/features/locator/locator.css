@@ -11,8 +11,12 @@
 }
 @keyframes locator-breathe {
   0%,
-  100% { scale: 1; }
-  50% { scale: 1.15; }
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 1.15;
+  }
 }
 /*
  * Its wandering eyes (the owner's, 2026-10-01): they dart to a spot, hold
@@ -29,18 +33,48 @@
   animation: locator-blink 5.3s ease-in-out infinite;
 }
 @keyframes locator-glance {
-  0%, 12% { translate: 0 0; }
-  15%, 26% { translate: -6px 0; }
-  29%, 36% { translate: -4px -2px; }
-  39%, 50% { translate: 0 0; }
-  53%, 60% { translate: -3px 3px; }
-  63%, 74% { translate: -7px 1px; }
-  77%, 86% { translate: -2px -1px; }
-  89%, 100% { translate: 0 0; }
+  0%,
+  12% {
+    translate: 0 0;
+  }
+  15%,
+  26% {
+    translate: -6px 0;
+  }
+  29%,
+  36% {
+    translate: -4px -2px;
+  }
+  39%,
+  50% {
+    translate: 0 0;
+  }
+  53%,
+  60% {
+    translate: -3px 3px;
+  }
+  63%,
+  74% {
+    translate: -7px 1px;
+  }
+  77%,
+  86% {
+    translate: -2px -1px;
+  }
+  89%,
+  100% {
+    translate: 0 0;
+  }
 }
 @keyframes locator-blink {
-  0%, 92%, 100% { scale: 1 1; }
-  95% { scale: 1 0.1; }
+  0%,
+  92%,
+  100% {
+    scale: 1 1;
+  }
+  95% {
+    scale: 1 0.1;
+  }
 }
 
 /*
@@ -85,8 +119,12 @@
 }
 
 /* Neutral: a curious look up, one eye wider; a wink; wide-eyed; sleepy when long still. */
-.locator-dot[data-face='curious'] .locator-eyes { transform: translate(-4px, -2px); }
-.locator-dot[data-face='curious'] .locator-eye:nth-child(2) { scale: 1.25; }
+.locator-dot[data-face='curious'] .locator-eyes {
+  transform: translate(-4px, -2px);
+}
+.locator-dot[data-face='curious'] .locator-eye:nth-child(2) {
+  scale: 1.25;
+}
 .locator-dot[data-face='wink'] .locator-eyes,
 .locator-dot[data-face='wink'] .locator-eye:nth-child(1) {
   animation-play-state: paused;
@@ -94,12 +132,18 @@
 .locator-dot[data-face='wink'] .locator-eye:nth-child(2) {
   animation: locator-wink 1.6s ease-in-out;
 }
-.locator-dot[data-face='surprised'] .locator-eyes { transform: translate(-4px, -1px); }
-.locator-dot[data-face='surprised'] .locator-eye { scale: 1.4 1.15; }
+.locator-dot[data-face='surprised'] .locator-eyes {
+  transform: translate(-4px, -1px);
+}
+.locator-dot[data-face='surprised'] .locator-eye {
+  scale: 1.4 1.15;
+}
 .locator-dot[data-face='sleepy'] {
   animation-duration: 4s;
 }
-.locator-dot[data-face='sleepy'] .locator-eyes { transform: translate(-4px, 1.5px); }
+.locator-dot[data-face='sleepy'] .locator-eyes {
+  transform: translate(-4px, 1.5px);
+}
 .locator-dot[data-face='sleepy'] .locator-eye {
   scale: 1 0.3;
   animation: locator-doze 4s ease-in-out infinite;
@@ -109,7 +153,9 @@
 .locator-dot[data-mood='happy'] {
   animation-duration: 1.4s;
 }
-.locator-dot[data-mood='happy'] .locator-eyes { transform: translate(-4px, 1px); }
+.locator-dot[data-mood='happy'] .locator-eyes {
+  transform: translate(-4px, 1px);
+}
 .locator-dot[data-face='smile'] .locator-eye,
 .locator-dot[data-face='hop'] .locator-eye,
 .locator-dot[data-face='boing'] .locator-eye,
@@ -152,8 +198,12 @@
 .locator-dot[data-face='glare'] {
   animation: locator-shake 0.45s ease-in-out 2;
 }
-.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-eyes { transform: translate(-4px, 0.5px); }
-.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-eye { scale: 1 0.8; }
+.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-eyes {
+  transform: translate(-4px, 0.5px);
+}
+.locator-dot:is([data-face='glare'], [data-face='huff']) .locator-eye {
+  scale: 1 0.8;
+}
 
 /*
  * Its gaze at what was just picked (dotGaze.ts; the owner's ask, 2026-10-01:
@@ -188,48 +238,126 @@
 }
 
 @keyframes locator-look {
-  0%, 14% { translate: 0 0; }
-  17%, 30% { translate: 2.5px 0; }
-  33%, 44% { translate: -2.5px 0; }
-  47%, 58% { translate: 0 -2px; }
-  61%, 72% { translate: 0 1.5px; }
-  75%, 86% { translate: -2px -1px; }
-  89%, 100% { translate: 0 0; }
+  0%,
+  14% {
+    translate: 0 0;
+  }
+  17%,
+  30% {
+    translate: 2.5px 0;
+  }
+  33%,
+  44% {
+    translate: -2.5px 0;
+  }
+  47%,
+  58% {
+    translate: 0 -2px;
+  }
+  61%,
+  72% {
+    translate: 0 1.5px;
+  }
+  75%,
+  86% {
+    translate: -2px -1px;
+  }
+  89%,
+  100% {
+    translate: 0 0;
+  }
 }
 @keyframes locator-boing {
-  0% { transform: translateY(0) scale(1, 1); }
-  14% { transform: translateY(1px) scale(1.18, 0.82); }
-  40% { transform: translateY(-6px) scale(0.9, 1.12); }
-  64% { transform: translateY(0) scale(1.1, 0.9); }
-  80% { transform: translateY(-1px) scale(0.97, 1.03); }
-  100% { transform: translateY(0) scale(1, 1); }
+  0% {
+    transform: translateY(0) scale(1, 1);
+  }
+  14% {
+    transform: translateY(1px) scale(1.18, 0.82);
+  }
+  40% {
+    transform: translateY(-6px) scale(0.9, 1.12);
+  }
+  64% {
+    transform: translateY(0) scale(1.1, 0.9);
+  }
+  80% {
+    transform: translateY(-1px) scale(0.97, 1.03);
+  }
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
 }
 @keyframes locator-huff {
-  0% { transform: scale(1); }
-  16% { transform: scale(1.2); }
-  30% { transform: scale(1.18) translateX(-1.8px); }
-  44% { transform: scale(1.14) translateX(1.8px); }
-  58% { transform: scale(1.1) translateX(-1.4px); }
-  72% { transform: scale(1.05) translateX(1px); }
-  100% { transform: scale(1) translateX(0); }
+  0% {
+    transform: scale(1);
+  }
+  16% {
+    transform: scale(1.2);
+  }
+  30% {
+    transform: scale(1.18) translateX(-1.8px);
+  }
+  44% {
+    transform: scale(1.14) translateX(1.8px);
+  }
+  58% {
+    transform: scale(1.1) translateX(-1.4px);
+  }
+  72% {
+    transform: scale(1.05) translateX(1px);
+  }
+  100% {
+    transform: scale(1) translateX(0);
+  }
 }
 @keyframes locator-wink {
-  0%, 25%, 75%, 100% { scale: 1 1; }
-  40%, 60% { scale: 1.1 0.15; }
+  0%,
+  25%,
+  75%,
+  100% {
+    scale: 1 1;
+  }
+  40%,
+  60% {
+    scale: 1.1 0.15;
+  }
 }
 @keyframes locator-doze {
-  0%, 70%, 100% { scale: 1 0.3; }
-  80%, 90% { scale: 1 0.08; }
+  0%,
+  70%,
+  100% {
+    scale: 1 0.3;
+  }
+  80%,
+  90% {
+    scale: 1 0.08;
+  }
 }
 @keyframes locator-hop {
-  0%, 100% { transform: translateY(0); }
-  40% { transform: translateY(-3px); }
-  60% { transform: translateY(-3px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-3px);
+  }
+  60% {
+    transform: translateY(-3px);
+  }
 }
 @keyframes locator-shake {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-1.5px); }
-  40%, 80% { transform: translateX(1.5px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-1.5px);
+  }
+  40%,
+  80% {
+    transform: translateX(1.5px);
+  }
 }
 
 /* Asked to keep still: no breathing, glancing, hops or shakes — each face still shows, held. */
@@ -239,7 +367,11 @@
   .locator-eyes,
   .locator-dot[data-face]:not([data-face='glance'], [data-face='wink']) .locator-eyes,
   .locator-eye,
-  .locator-dot[data-face] .locator-eye:nth-child(n) { animation: none; }
+  .locator-dot[data-face] .locator-eye:nth-child(n) {
+    animation: none;
+  }
   .locator-eyes,
-  .locator-eye { transition: none; }
+  .locator-eye {
+    transition: none;
+  }
 }

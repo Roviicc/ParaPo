@@ -1,10 +1,10 @@
-import type { ComponentProps } from 'react'
-import { useState } from 'react'
-import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fn, userEvent, within } from 'storybook/test'
-import { HotspotCard } from './hotspot-card'
-import type { VariantSummary } from '../model/routes'
-import type { StopRow } from '../model/stops'
+import type { ComponentProps } from 'react';
+import { useState } from 'react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, fn, userEvent, within } from 'storybook/test';
+import { HotspotCard } from './hotspot-card';
+import type { VariantSummary } from '../model/routes';
+import type { StopRow } from '../model/stops';
 
 /** Sample data only, shaped like saved rows. Not read from Supabase. */
 const route = {
@@ -17,7 +17,7 @@ const route = {
   tail_stop_id: 'sample-fairview',
   via: null,
   name: 'Tala – SM Fairview',
-} as const
+} as const;
 
 const outbound: VariantSummary = {
   id: 'sample-out',
@@ -29,9 +29,14 @@ const outbound: VariantSummary = {
   reversed: false,
   confidence: 'drawn',
   route,
-}
+};
 
-const inbound: VariantSummary = { ...outbound, id: 'sample-in', direction_name: 'SM Fairview → Tala', reversed: true }
+const inbound: VariantSummary = {
+  ...outbound,
+  id: 'sample-in',
+  direction_name: 'SM Fairview → Tala',
+  reversed: true,
+};
 
 const terminal: StopRow = {
   id: 'sample-stop',
@@ -44,12 +49,12 @@ const terminal: StopRow = {
   area: null,
   note: null,
   created_at: '2026-09-12T00:00:00Z',
-}
+};
 
 /** Keeps the Selected card as the public map does, so the RouteCards stories can be tapped through. */
 function Picking(props: ComponentProps<typeof HotspotCard>) {
-  const [selected, setSelected] = useState(props.routeCards?.selected ?? null)
-  const routeCards = props.routeCards
+  const [selected, setSelected] = useState(props.routeCards?.selected ?? null);
+  const routeCards = props.routeCards;
   return (
     <HotspotCard
       {...props}
@@ -58,17 +63,17 @@ function Picking(props: ComponentProps<typeof HotspotCard>) {
           ...routeCards,
           selected,
           onSelect: (p) => {
-            routeCards.onSelect(p)
-            setSelected(p?.from ?? null)
+            routeCards.onSelect(p);
+            setSelected(p?.from ?? null);
           },
         }
       }
     />
-  )
+  );
 }
 
 /** The public map's RouteCards, nothing picked yet. */
-const routeCards = { selected: null, onSelect: fn(), onShown: fn() }
+const routeCards = { selected: null, onSelect: fn(), onShown: fn() };
 
 const meta = {
   title: 'Features/Routes/HotspotCard',
@@ -82,8 +87,8 @@ const meta = {
       <div
         className={
           ctx.parameters.phone
-            ? 'relative h-[700px] w-[390px] overflow-clip bg-neutral-200 @container'
-            : 'relative h-[28rem] bg-neutral-200 @container'
+            ? '@container relative h-[700px] w-[390px] overflow-clip bg-neutral-200'
+            : '@container relative h-[28rem] bg-neutral-200'
         }
       >
         <Story />
@@ -98,13 +103,13 @@ const meta = {
     onSelectVariant: fn(),
     onClose: fn(),
   },
-} satisfies Meta<typeof HotspotCard>
+} satisfies Meta<typeof HotspotCard>;
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 /** A terminal with the route through it, in the studio's rows: by the place it leaves from, ⇄ for the way back. The stop name leads; the ground name is the small line under it. */
-export const Terminal: Story = {}
+export const Terminal: Story = {};
 
 /** A hintuan with a note and nothing linked yet. */
 export const EmptyHintuan: Story = {
@@ -119,7 +124,7 @@ export const EmptyHintuan: Story = {
     },
     linkedVariantIds: [],
   },
-}
+};
 
 /**
  * One box of a place with company: the card says what SM Fairview is made
@@ -133,12 +138,12 @@ const fairview = (id: string, name: string, kind: StopRow['kind']): StopRow => (
   aliases: [],
   kind,
   point: { type: 'Point', coordinates: [121.0424 + Math.random() * 0.001, 14.7415] },
-})
+});
 const fairviewBoxes = [
   fairview('fv-terminal', 'SM City Fairview Jeepney Terminal', 'terminal'),
   fairview('fv-babaan', 'SM Fairview Main Babaan', 'hintuan'),
   fairview('fv-teraccess', 'Fairview Teraccess', 'hintuan'),
-]
+];
 export const PartOfAPlace: Story = {
   args: {
     stop: fairviewBoxes[1]!,
@@ -146,7 +151,7 @@ export const PartOfAPlace: Story = {
     onPickSibling: fn(),
     linkedVariantIds: [inbound.id],
   },
-}
+};
 
 /** A handset-sized box, so the card becomes a bottom sheet. */
 export const Phone: Story = {
@@ -154,27 +159,39 @@ export const Phone: Story = {
   args: {
     stop: { ...terminal, note: 'Jeeps queue along the kanto by the covered court.' },
   },
-}
+};
 
 /**
  * Drawn directions, each line `km` long: the owner's two routes out of
  * Tala, both through SM Fairview. Sample data.
  */
-const drawn = (key: string, name: string, direction: string, km: number, reversed = false): VariantSummary => ({
+const drawn = (
+  key: string,
+  name: string,
+  direction: string,
+  km: number,
+  reversed = false,
+): VariantSummary => ({
   ...outbound,
   id: key + (reversed ? '-back' : '-out'),
   route_id: key,
   direction_name: direction,
-  shape: { type: 'LineString', coordinates: [[121.04, 14.7], [121.04, 14.7 + km / 111.2]] },
+  shape: {
+    type: 'LineString',
+    coordinates: [
+      [121.04, 14.7],
+      [121.04, 14.7 + km / 111.2],
+    ],
+  },
   reversed,
   route: { ...route, id: key, name, head_stop_id: 'sample-stop', tail_stop_id: key + '-tail' },
-})
+});
 const talaRoutes = [
   drawn('nova', 'Tala – Novaliches', 'Tala → Novaliches', 12.4),
   drawn('nova', 'Tala – Novaliches', 'Novaliches → Tala', 13.1, true),
   drawn('sm', 'Tala – SM Fairview', 'Tala → SM Fairview', 9.4),
   drawn('sm', 'Tala – SM Fairview', 'SM Fairview → Tala', 11.2, true),
-]
+];
 
 /**
  * The public map's card (`routeCards`, the owner's ask of 2026-09-29): the
@@ -194,24 +211,30 @@ export const RouteCards: Story = {
     linkedVariantIds: talaRoutes.map((v) => v.id),
     variants: talaRoutes,
   },
-}
+};
 
 /** Tala's card picked: pressed in, its routes lit on the map. */
-export const RouteCardsSelected: Story = { args: { ...RouteCards.args, routeCards: { selected: 'Tala', onSelect: fn(), onShown: fn() } } }
+export const RouteCardsSelected: Story = {
+  args: { ...RouteCards.args, routeCards: { selected: 'Tala', onSelect: fn(), onShown: fn() } },
+};
 
 /** ⇄ pressed: the way back, a card per place — Novaliches, SM Fairview — never alike side by side; it lets a picked card go. */
 export const RouteCardsTheWayBack: Story = {
   args: RouteCardsSelected.args,
   play: async ({ args, canvasElement }) => {
-    const flip = within(canvasElement).getByTestId('card-flip')
-    await userEvent.click(flip)
-    flip.blur()
-    await expect(args.routeCards?.onSelect).toHaveBeenCalledWith(null)
+    const flip = within(canvasElement).getByTestId('card-flip');
+    await userEvent.click(flip);
+    flip.blur();
+    await expect(args.routeCards?.onSelect).toHaveBeenCalledWith(null);
     // The map is told the way back is what the cards show now.
-    await expect(args.routeCards?.onShown).toHaveBeenLastCalledWith(expect.arrayContaining(['nova-back', 'sm-back']))
-    await expect(args.routeCards?.onShown).not.toHaveBeenLastCalledWith(expect.arrayContaining(['nova-out']))
+    await expect(args.routeCards?.onShown).toHaveBeenLastCalledWith(
+      expect.arrayContaining(['nova-back', 'sm-back']),
+    );
+    await expect(args.routeCards?.onShown).not.toHaveBeenLastCalledWith(
+      expect.arrayContaining(['nova-out']),
+    );
   },
-}
+};
 
 /**
  * On a phone, at Max: the cards scroll in the sheet under the hotspot's
@@ -224,13 +247,13 @@ export const RouteCardsPhone: Story = {
   args: RouteCards.args,
   parameters: { phone: true },
   play: async ({ canvasElement }) => {
-    const handle = within(canvasElement).getByTestId('dock-handle')
-    handle.focus()
-    await userEvent.keyboard('{Enter}')
-    handle.blur()
-    await expect(within(canvasElement).getByTestId('card')).toHaveAttribute('data-snap', 'max')
+    const handle = within(canvasElement).getByTestId('dock-handle');
+    handle.focus();
+    await userEvent.keyboard('{Enter}');
+    handle.blur();
+    await expect(within(canvasElement).getByTestId('card')).toHaveAttribute('data-snap', 'max');
   },
-}
+};
 
 /**
  * The ways back not drawn yet: the RouteCards list drawn ways only, so the
@@ -242,7 +265,7 @@ export const RouteCardsNothingTheOtherWay: Story = {
     ...RouteCards.args,
     variants: talaRoutes.map((v) => (v.reversed ? { ...v, shape: null } : v)),
   },
-}
+};
 
 /** A terminal's card, "Routes that stage here": the same RouteCards (the owner, 2026-09-29). */
 export const RouteCardsTerminal: Story = {
@@ -251,7 +274,7 @@ export const RouteCardsTerminal: Story = {
     linkedVariantIds: talaRoutes.map((v) => v.id),
     variants: talaRoutes,
   },
-}
+};
 
 /** Only slots are linked here yet: the RouteCards list drawn ways only, so there is nothing to list. */
-export const RouteCardsNothingDrawn: Story = { args: { routeCards } }
+export const RouteCardsNothingDrawn: Story = { args: { routeCards } };

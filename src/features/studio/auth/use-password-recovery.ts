@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
-import { getSupabase } from '../data/supabase'
+import { useCallback, useEffect, useState } from 'react';
+import { getSupabase } from '../data/supabase';
 
-type RecoveryUrl = { recovering: boolean; error: string | null }
+type RecoveryUrl = { recovering: boolean; error: string | null };
 
 /**
  * Tracks arrival from a password-reset link.
@@ -24,43 +24,43 @@ type RecoveryUrl = { recovering: boolean; error: string | null }
  *    gone, which is why the URL check comes first.
  */
 export function usePasswordRecovery(): RecoveryUrl & { done: () => void } {
-  const [state, setState] = useState<RecoveryUrl>(() => readRecoveryUrl())
+  const [state, setState] = useState<RecoveryUrl>(() => readRecoveryUrl());
 
   useEffect(() => {
-    const supabase = getSupabase()
-    if (!supabase) return
+    const supabase = getSupabase();
+    if (!supabase) return;
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') setState({ recovering: true, error: null })
-    })
-    return () => sub.subscription.unsubscribe()
-  }, [])
+      if (event === 'PASSWORD_RECOVERY') setState({ recovering: true, error: null });
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   const done = useCallback(() => {
-    setState({ recovering: false, error: null })
+    setState({ recovering: false, error: null });
     // Drop the token fragment / code so a refresh does not re-open the form.
-    window.history.replaceState(null, '', window.location.pathname)
-  }, [])
+    window.history.replaceState(null, '', window.location.pathname);
+  }, []);
 
-  return { ...state, done }
+  return { ...state, done };
 }
 
 function readRecoveryUrl(): RecoveryUrl {
-  if (typeof window === 'undefined') return { recovering: false, error: null }
-  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
-  const query = new URLSearchParams(window.location.search)
-  const params = hash.get('type') || hash.get('error') ? hash : query
+  if (typeof window === 'undefined') return { recovering: false, error: null };
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const query = new URLSearchParams(window.location.search);
+  const params = hash.get('type') || hash.get('error') ? hash : query;
 
   if (params.get('type') !== 'recovery' && !params.get('error')) {
-    return { recovering: false, error: null }
+    return { recovering: false, error: null };
   }
   if (params.get('error')) {
-    return { recovering: false, error: linkError(params.get('error_code')) }
+    return { recovering: false, error: linkError(params.get('error_code')) };
   }
-  return { recovering: true, error: null }
+  return { recovering: true, error: null };
 }
 
 function linkError(code: string | null): string {
   return code === 'otp_expired'
     ? 'the link has expired or was already used. Ask for a new one.'
-    : 'the link could not be used. Ask for a new one.'
+    : 'the link could not be used. Ask for a new one.';
 }

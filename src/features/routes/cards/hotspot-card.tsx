@@ -1,21 +1,21 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { Departures } from './departures'
-import type { Livery } from '../model/liveries'
-import { RouteCardStack, type PickedPlace } from './route-card-stack'
-import { departures, drawnDepartures } from '../model/departures'
-import type { VariantSummary } from '../model/routes'
-import { BottomSheet, SheetHeader, type SheetHeight } from '@/shared/ui/bottom-sheet'
-import { placeSummary, siblingsOf } from '../model/places'
-import { stopLabel, type StopSummary } from '../model/stops'
-import { SwitchIcon } from './switch-icon'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { Departures } from './departures';
+import type { Livery } from '../model/liveries';
+import { RouteCardStack, type PickedPlace } from './route-card-stack';
+import { departures, drawnDepartures } from '../model/departures';
+import type { VariantSummary } from '../model/routes';
+import { BottomSheet, SheetHeader, type SheetHeight } from '@/shared/ui/bottom-sheet';
+import { placeSummary, siblingsOf } from '../model/places';
+import { stopLabel, type StopSummary } from '../model/stops';
+import { SwitchIcon } from './switch-icon';
 
 type Props = {
-  stop: StopSummary
+  stop: StopSummary;
   /** Directions linked to this hotspot, in stop_sequence order. */
-  linkedVariantIds: string[]
-  variants: VariantSummary[]
+  linkedVariantIds: string[];
+  variants: VariantSummary[];
   /** Called with the direction picked, and, from a RouteCard, the colour its card wore: its trip wears the same. */
-  onSelectVariant: (v: VariantSummary, livery?: Livery) => void
+  onSelectVariant: (v: VariantSummary, livery?: Livery) => void;
   /**
    * The routes through here as the owner's RouteCards, as the route list
    * shows them — the public map's, 2026-09-29 — with the place whose card is
@@ -25,23 +25,23 @@ type Props = {
    * yet" is its list of returns still to draw.
    */
   routeCards?: {
-    selected: string | null
-    onSelect: (place: PickedPlace | null) => void
+    selected: string | null;
+    onSelect: (place: PickedPlace | null) => void;
     /** What the RouteCards show while the card is open; null once it closes. */
-    onShown: (ids: readonly string[] | null) => void
-  }
+    onShown: (ids: readonly string[] | null) => void;
+  };
   /** Every hotspot, so the card can name the place this box belongs to and list its siblings. */
-  stops?: readonly StopSummary[]
+  stops?: readonly StopSummary[];
   /** Show a sibling box on the map: select it and go there. */
-  onPickSibling?: (id: string) => void
+  onPickSibling?: (id: string) => void;
   /** Buttons along the bottom. The editor passes Edit and Delete; the public map passes nothing. */
-  actions?: ReactNode
-  onClose: () => void
+  actions?: ReactNode;
+  onClose: () => void;
   /** Kept but not shown, while a trip picked from it is on top: ‹ comes back to it as it was left, every card at rest. */
-  hidden?: boolean
+  hidden?: boolean;
   /** Its height, shared with the trip opened from it (BottomSheet). */
-  height?: SheetHeight
-}
+  height?: SheetHeight;
+};
 
 /**
  * What anyone sees when they tap a hotspot. The card does not know who is
@@ -63,13 +63,11 @@ export function HotspotCard({
   hidden,
   height,
 }: Props) {
-  const isTerminal = stop.kind === 'terminal'
-  const label = stopLabel(stop)
-  const siblings = siblingsOf(stop, stops)
-  const byId = new Map(variants.map((v) => [v.id, v]))
-  const linked = linkedVariantIds
-    .map((id) => byId.get(id))
-    .filter((v): v is VariantSummary => !!v)
+  const isTerminal = stop.kind === 'terminal';
+  const label = stopLabel(stop);
+  const siblings = siblingsOf(stop, stops);
+  const byId = new Map(variants.map((v) => [v.id, v]));
+  const linked = linkedVariantIds.map((id) => byId.get(id)).filter((v): v is VariantSummary => !!v);
   // The routes through here, one way round, by the place each leaves from,
   // ⇄ for the way back: the owner's RouteCards on the public map, the rows
   // in the studio. Both directions of a route are linked to a box on a
@@ -81,28 +79,32 @@ export function HotspotCard({
   // The RouteCards list drawn directions only (the owner dropped "not mapped
   // yet" from them, 2026-09-28), so for them a way round with nothing drawn
   // is no way round at all.
-  const listed = routeCards ? drawnDepartures : departures
-  const [flipped, setFlipped] = useState(false)
-  const there = listed(linked, false).length > 0
-  const backToo = listed(linked, true).length > 0
-  const back = there && backToo ? flipped : backToo
-  const flipLabel = back ? 'Show the way there' : 'Show the way back'
-  const none = routeCards ? !there && !backToo : linked.length === 0
+  const listed = routeCards ? drawnDepartures : departures;
+  const [flipped, setFlipped] = useState(false);
+  const there = listed(linked, false).length > 0;
+  const backToo = listed(linked, true).length > 0;
+  const back = there && backToo ? flipped : backToo;
+  const flipLabel = back ? 'Show the way there' : 'Show the way back';
+  const none = routeCards ? !there && !backToo : linked.length === 0;
 
   // What the RouteCards show, for the map to light (the owner, 2026-09-29:
   // "on hintuan it should light its routes"); nothing once the card closes.
   // Told only when that changes: the caller's function is read from a ref,
   // so one made afresh each render cannot set the lights going in a loop.
-  const showsKey = routeCards ? drawnDepartures(linked, back).flatMap((p) => p.directions.map((d) => d.v.id)).join('\n') : ''
-  const onShown = useRef(routeCards?.onShown)
-  onShown.current = routeCards?.onShown
+  const showsKey = routeCards
+    ? drawnDepartures(linked, back)
+        .flatMap((p) => p.directions.map((d) => d.v.id))
+        .join('\n')
+    : '';
+  const onShown = useRef(routeCards?.onShown);
+  onShown.current = routeCards?.onShown;
   // Before the first paint, and null once closed, as HintuanCard's (2026-10-03).
   useLayoutEffect(() => {
-    const tell = onShown.current
-    if (!tell) return
-    tell(showsKey ? showsKey.split('\n') : [])
-    return () => tell(null)
-  }, [showsKey])
+    const tell = onShown.current;
+    if (!tell) return;
+    tell(showsKey ? showsKey.split('\n') : []);
+    return () => tell(null);
+  }, [showsKey]);
 
   return (
     <BottomSheet
@@ -154,7 +156,9 @@ export function HotspotCard({
                     title="Show this box on the map"
                     className={
                       'rounded-full px-2.5 py-1 text-xs ' +
-                      (s.kind === 'terminal' ? 'bg-sky-50 text-sky-800' : 'bg-orange-50 text-orange-800') +
+                      (s.kind === 'terminal'
+                        ? 'bg-sky-50 text-sky-800'
+                        : 'bg-orange-50 text-orange-800') +
                       (onPickSibling ? ' hover:bg-neutral-900 hover:text-content-inverse' : '')
                     }
                   >
@@ -176,8 +180,8 @@ export function HotspotCard({
               data-testid="card-flip"
               aria-pressed={back}
               onClick={() => {
-                setFlipped((b) => !b)
-                routeCards?.onSelect(null)
+                setFlipped((b) => !b);
+                routeCards?.onSelect(null);
               }}
               aria-label={flipLabel}
               title={flipLabel}
@@ -214,5 +218,5 @@ export function HotspotCard({
         {actions && <div className="mt-4 flex gap-2">{actions}</div>}
       </div>
     </BottomSheet>
-  )
+  );
 }

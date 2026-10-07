@@ -1,25 +1,37 @@
-import { useMemo, useState } from 'react'
-import type { MapLibreMap } from 'maplibre-gl'
-import { HintuanCard } from '@/features/routes/cards/hintuan-card'
-import { placeKey } from '@/features/routes/model/places'
-import { MAP_FILE_TOO_NEW, loadLine, loadStopsFromFile, loadVariantsFromFile, openingVariants, reloadForNewerApp, reloadToUpdate, useNeedRefresh, Notices, useMapAge, useOffline } from '@/features/published-map'
-import { METRO_MANILA, MapView } from '@/features/routes/map/map-view'
-import { routesBounds } from '@/features/routes/map/framing'
-import { RouteCardList } from '@/features/routes/cards/route-card-list'
-import { useCardStack } from '@/features/routes/cards/use-card-stack'
-import { useCardCamera } from '@/features/routes/cards/use-card-camera'
-import { routeTimeline } from '@/features/routes/model/ride'
-import { useLitRides } from '@/features/routes/map/use-lit-rides'
-import { useSavedRoutes } from '@/features/routes/map/use-saved-routes'
-import { useSavedStops } from '@/features/routes/map/use-saved-stops'
-import { HintuanPin } from '@/features/routes/map/hintuan-pin'
-import { StationLabels } from '@/features/routes/map/station-labels'
-import { EndTitles } from '@/features/routes/map/end-titles'
-import { TripCard } from '@/features/routes/cards/trip-card'
-import { useStatusBarColour } from './status-bar'
-import { VisitorLocation, useGazeHush } from '@/features/locator'
-import { useTurn } from '@/shared/hooks/commit-turn'
-import { variantLine } from '@/features/routes/model/routes'
+import { useMemo, useState } from 'react';
+import type { MapLibreMap } from 'maplibre-gl';
+import { HintuanCard } from '@/features/routes/cards/hintuan-card';
+import { placeKey } from '@/features/routes/model/places';
+import {
+  MAP_FILE_TOO_NEW,
+  loadLine,
+  loadStopsFromFile,
+  loadVariantsFromFile,
+  openingVariants,
+  reloadForNewerApp,
+  reloadToUpdate,
+  useNeedRefresh,
+  Notices,
+  useMapAge,
+  useOffline,
+} from '@/features/published-map';
+import { METRO_MANILA, MapView } from '@/features/routes/map/map-view';
+import { routesBounds } from '@/features/routes/map/framing';
+import { RouteCardList } from '@/features/routes/cards/route-card-list';
+import { useCardStack } from '@/features/routes/cards/use-card-stack';
+import { useCardCamera } from '@/features/routes/cards/use-card-camera';
+import { routeTimeline } from '@/features/routes/model/ride';
+import { useLitRides } from '@/features/routes/map/use-lit-rides';
+import { useSavedRoutes } from '@/features/routes/map/use-saved-routes';
+import { useSavedStops } from '@/features/routes/map/use-saved-stops';
+import { HintuanPin } from '@/features/routes/map/hintuan-pin';
+import { StationLabels } from '@/features/routes/map/station-labels';
+import { EndTitles } from '@/features/routes/map/end-titles';
+import { TripCard } from '@/features/routes/cards/trip-card';
+import { useStatusBarColour } from './status-bar';
+import { VisitorLocation, useGazeHush } from '@/features/locator';
+import { useTurn } from '@/shared/hooks/commit-turn';
+import { variantLine } from '@/features/routes/model/routes';
 
 /**
  * The routes' framing the map opens on (the owner's Q1, 2026-10-04): their
@@ -27,7 +39,8 @@ import { variantLine } from '@/features/routes/model/routes'
  * (openingVariants), the box the routes' own fit frames (useSavedRoutes).
  * Module-level, as the loaders below are.
  */
-const openOnRoutes = () => openingVariants().then((variants) => (variants ? routesBounds(variants) : null))
+const openOnRoutes = () =>
+  openingVariants().then((variants) => (variants ? routesBounds(variants) : null));
 
 /**
  * The public map at /. Everything published so far and a card for whatever is
@@ -39,26 +52,39 @@ const openOnRoutes = () => openingVariants().then((variants) => (variants ? rout
  * tap near a line counts, and a tap where routes share a road offers a choice.
  */
 export default function CommuterApp() {
-  const [map, setMap] = useState<MapLibreMap | null>(null)
+  const [map, setMap] = useState<MapLibreMap | null>(null);
   // One index, fetched once, shared by both hooks; a direction's full line
   // read as it is lit (mapFile.ts).
-  const saved = useSavedRoutes(map, loadVariantsFromFile, { loadLine })
+  const saved = useSavedRoutes(map, loadVariantsFromFile, { loadLine });
   // While a trip is open, the map lights only the trip (the owner, 2026-09-29).
-  const stops = useSavedStops(map, loadStopsFromFile, { muted: !!saved.selected })
-  const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW
+  const stops = useSavedStops(map, loadStopsFromFile, { muted: !!saved.selected });
+  const tooNew = saved.error === MAP_FILE_TOO_NEW || stops.error === MAP_FILE_TOO_NEW;
 
   // The route list, a hotspot's card and the trip opened from either: which
   // is up, what stands behind what, their height and colours (useCardStack).
-  const cards = useCardStack(map, saved, stops)
+  const cards = useCardStack(map, saved, stops);
   // The camera with the cards: a hintuan picked on the trip, gliding there;
   // a trip, a picked RouteCard and SWITCH taken in whole, again as the sheet
   // settles; the camera from before a hotspot's card was picked, back as it
   // is let go (useCardCamera).
-  const { root, tripDock, hotspotDock, ride, clearOfOpen, switchTrip, flipList, otherRoute, pickOnPlaceCard, openPlace, openRide, openTrip, backFromTrip } =
-    useCardCamera(map, saved, stops, cards)
+  const {
+    root,
+    tripDock,
+    hotspotDock,
+    ride,
+    clearOfOpen,
+    switchTrip,
+    flipList,
+    otherRoute,
+    pickOnPlaceCard,
+    openPlace,
+    openRide,
+    openTrip,
+    backFromTrip,
+  } = useCardCamera(map, saved, stops, cards);
   // What the lit routes wear on the map, their ends named (useLitRides): a
   // picked hintuan's ride flowing only as far as there.
-  const rides = useLitRides(map, saved, stops.stops, null, ride.ridden)
+  const rides = useLitRides(map, saved, stops.stops, null, ride.ridden);
 
   // The visitor's own position, the dot and the camera with them live in
   // VisitorLocation, so a fix, the phone's compass and the dot's moods
@@ -66,25 +92,26 @@ export default function CommuterApp() {
   // still moves here, where its hook stood: after the cards' camera above,
   // which a sheet set to another height moves in the same commit
   // (commitTurn.ts).
-  const locatorTurn = useTurn()
+  const locatorTurn = useTurn();
   // The dot's gaze is hushed by ‹ and ✕: going back picks nothing (dotGaze.ts).
-  const { hush, hushedAt } = useGazeHush()
-  const offline = useOffline()
+  const { hush, hushedAt } = useGazeHush();
+  const offline = useOffline();
   // The phone's status bar in the map's colour (statusBar.ts).
-  useStatusBarColour(map)
-  const age = useMapAge(saved.variants)
-  const needRefresh = useNeedRefresh()
+  useStatusBarColour(map);
+  const age = useMapAge(saved.variants);
+  const needRefresh = useNeedRefresh();
 
-  const { tripLivery, look, inCardColour, height } = cards
+  const { tripLivery, look, inCardColour, height } = cards;
 
   // The open trip's hintuans, worked out as the trip or the hotspots change,
   // not at each render of the page (the cheap-phone plan, step 15,
   // 2026-10-05): they read nothing else (timeline-test).
-  const trip = saved.selected
+  const trip = saved.selected;
   const timeline = useMemo(
-    () => (trip ? routeTimeline(trip, stops.stops, stops.stopsAlong(trip.id, variantLine(trip))) : null),
+    () =>
+      trip ? routeTimeline(trip, stops.stops, stops.stopsAlong(trip.id, variantLine(trip))) : null,
     [trip, stops.stops, stops.stopsAlong],
-  )
+  );
 
   return (
     // `data-directions`: how many the map file brought, for the suites on a
@@ -92,7 +119,12 @@ export default function CommuterApp() {
     // count pill that told them went on 2026-09-29.
     // `data-dock-host`: the open card's sheet says where its top is here,
     // for the LocatorButton to follow (BottomSheet).
-    <div ref={root} data-dock-host data-directions={saved.variants.length} className="@container relative h-full w-full overflow-clip">
+    <div
+      ref={root}
+      data-dock-host
+      data-directions={saved.variants.length}
+      className="@container relative h-full w-full overflow-clip"
+    >
       {/*
         No count of routes and hotspots in a corner, and no +, − or compass:
         the owner's notes on his screenshot, "annoying for users"
@@ -102,7 +134,12 @@ export default function CommuterApp() {
         Opened framed on the routes, and handed over to draw them as soon as
         its style is in (`openOn`, the owner's Q1 of 2026-10-04).
       */}
-      <MapView onReady={setMap} zoomButtons={false} maxBounds={METRO_MANILA} openOn={openOnRoutes} />
+      <MapView
+        onReady={setMap}
+        zoomButtons={false}
+        maxBounds={METRO_MANILA}
+        openOn={openOnRoutes}
+      />
       {/*
         The visitor's own position, and the camera with them, kept clear of
         the card on show; the dot gazes at what was just picked.
@@ -141,7 +178,14 @@ export default function CommuterApp() {
         gliding in to it (the owner's ask, 2026-10-03), as the studio's do.
       */}
       {map && saved.selected && tripLivery && (
-        <StationLabels map={map} selected={saved.selected} stops={stops.stops} livery={tripLivery} pickedId={ride.pickedId} onPick={ride.pick} />
+        <StationLabels
+          map={map}
+          selected={saved.selected}
+          stops={stops.stops}
+          livery={tripLivery}
+          pickedId={ride.pickedId}
+          onPick={ride.pick}
+        />
       )}
       {/*
         Keyed on the pick: another hintuan pops a fresh circle. Its name,
@@ -169,8 +213,8 @@ export default function CommuterApp() {
         loadFailed={!!(saved.error || stops.error)}
         tooNew={tooNew}
         onTryAgain={() => {
-          void saved.reload()
-          void stops.reload()
+          void saved.reload();
+          void stops.reload();
         }}
         onReloadNewer={() => void reloadForNewerApp()}
         offline={offline}
@@ -242,14 +286,14 @@ export default function CommuterApp() {
           // picked (the owner, 2026-10-01).
           deselected={stops.letGone}
           onDeselect={() => {
-            saved.highlightCard(null)
-            stops.letGo()
+            saved.highlightCard(null);
+            stops.letGo();
           }}
           // Another box: the map goes there, the box clear of the card,
           // which stays at its height (the owner, 2026-10-01).
           onPickBox={(id) => {
-            saved.highlightCard(null)
-            stops.show(id, cards.clearOf(hotspotDock))
+            saved.highlightCard(null);
+            stops.show(id, cards.clearOf(hotspotDock));
           }}
           onBack={hush(cards.backToTrip)}
           onClose={hush(cards.closeStop)}
@@ -278,8 +322,6 @@ export default function CommuterApp() {
           onClose={cards.closeAll}
         />
       )}
-
     </div>
-  )
+  );
 }
-

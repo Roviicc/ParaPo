@@ -9,10 +9,10 @@
 // the same key, and works them out itself otherwise. An app from before
 // ignores both fields, which is not a new shape (src/features/published-map/map-file.ts has
 // the rules).
-import { linePass } from '../../src/features/routes/geo/line-pass.ts'
+import { linePass } from '../../src/features/routes/geo/line-pass.ts';
 
 /** Shape 2's, which shapes 3 and 4 kept: every index reads the same files. */
-export const LINE_FILE_SCHEMA = 2
+export const LINE_FILE_SCHEMA = 2;
 
 /**
  * The text of `v`'s line file: its id, its line as published, and its
@@ -22,6 +22,8 @@ export const LINE_FILE_SCHEMA = 2
  * and their key). Key order is the file's contract; keep it fixed.
  */
 export function lineFileText(v, boxes) {
-  const { pass, passKey } = linePass(v, boxes)
-  return JSON.stringify({ schema: LINE_FILE_SCHEMA, id: v.id, shape: v.shape, pass, passKey }) + '\n'
+  const { pass, passKey } = linePass(v, boxes);
+  return (
+    JSON.stringify({ schema: LINE_FILE_SCHEMA, id: v.id, shape: v.shape, pass, passKey }) + '\n'
+  );
 }

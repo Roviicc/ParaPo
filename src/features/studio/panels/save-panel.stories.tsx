@@ -1,15 +1,15 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fn, userEvent, within } from 'storybook/test'
-import { M_PER_DEG, type LngLat, type Segment } from '@/shared/utils/geo'
-import type { RouteRow, VariantRow } from '@/features/routes/model/routes'
-import type { StopRow } from '@/features/routes/model/stops'
-import { SavePanel } from './save-panel'
-import type { Drawing } from '../drawing/use-drawing'
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, fn, userEvent, within } from 'storybook/test';
+import { M_PER_DEG, type LngLat, type Segment } from '@/shared/utils/geo';
+import type { RouteRow, VariantRow } from '@/features/routes/model/routes';
+import type { StopRow } from '@/features/routes/model/stops';
+import { SavePanel } from './save-panel';
+import type { Drawing } from '../drawing/use-drawing';
 
 /** Two terminals, one near each end of the sample line, so the pickers have something to guess. */
 function terminal(id: string, name: string, at: LngLat): StopRow {
-  const [x, y] = at
-  const d = 0.0003
+  const [x, y] = at;
+  const d = 0.0003;
   return {
     id,
     owner_id: 'sample-owner',
@@ -18,16 +18,33 @@ function terminal(id: string, name: string, at: LngLat): StopRow {
     aliases: [],
     kind: 'terminal',
     point: { type: 'Point', coordinates: at },
-    area: { type: 'Polygon', coordinates: [[[x - d, y - d], [x + d, y - d], [x + d, y + d], [x - d, y + d], [x - d, y - d]]] },
+    area: {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [x - d, y - d],
+          [x + d, y - d],
+          [x + d, y + d],
+          [x - d, y + d],
+          [x - d, y - d],
+        ],
+      ],
+    },
     note: null,
     created_at: '2026-09-21T00:00:00Z',
-  }
+  };
 }
 
 const stops: StopRow[] = [
-  { ...terminal('sample-tala', 'Tala Jeepney Terminal', [121.043326, 14.742006]), informal: 'Tala' },
-  { ...terminal('sample-fairview', 'SM Fairview Terminal A', [121.0424, 14.741507]), informal: 'SM Fairview' },
-]
+  {
+    ...terminal('sample-tala', 'Tala Jeepney Terminal', [121.043326, 14.742006]),
+    informal: 'Tala',
+  },
+  {
+    ...terminal('sample-fairview', 'SM Fairview Terminal A', [121.0424, 14.741507]),
+    informal: 'SM Fairview',
+  },
+];
 
 /**
  * Just the parts of a drawing the panel reads. Sample data only: a story has no
@@ -38,13 +55,13 @@ function drawing(segments: Segment[], uTurns = 0): Drawing {
     [121.043326, 14.742006],
     [121.04184, 14.742003],
     [121.0424, 14.741507],
-  ]
+  ];
   return {
     controlPoints,
     segments,
     metres: 640,
     uTurns: Array.from({ length: uTurns }, (_, i) => ({ point: i + 1, stub: [], metres: 60 })),
-  } as unknown as Drawing
+  } as unknown as Drawing;
 }
 
 const routed = (streets?: Segment['streets']): Segment => ({
@@ -54,7 +71,7 @@ const routed = (streets?: Segment['streets']): Segment => ({
     [121.04184, 14.742003],
   ],
   streets,
-})
+});
 
 const meta = {
   title: 'Features/Studio/SavePanel',
@@ -82,28 +99,34 @@ const meta = {
     onSaved: fn(),
     onCancel: fn(),
   },
-} satisfies Meta<typeof SavePanel>
+} satisfies Meta<typeof SavePanel>;
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 /** A new route, every stretch routed since street names were recorded. */
-export const WithStreetNames: Story = {}
+export const WithStreetNames: Story = {};
 
 /** One stretch drawn straight: the list says so rather than running across it. */
 export const WithAStraightStretch: Story = {
   args: {
     draw: drawing([
       routed([{ name: 'Sinai Street', metres: 160 }]),
-      { snap: 'freehand', coordinates: [[121.04184, 14.742003], [121.0424, 14.741507]] },
+      {
+        snap: 'freehand',
+        coordinates: [
+          [121.04184, 14.742003],
+          [121.0424, 14.741507],
+        ],
+      },
     ]),
   },
-}
+};
 
 /** A route saved before names were recorded: no list, and a hint how to get one. */
 export const RoutedBeforeNames: Story = {
   args: { draw: drawing([routed(), routed()]) },
-}
+};
 
 /** The route turns back on itself at a point: warned before saving. */
 export const WithAUTurn: Story = {
@@ -119,18 +142,23 @@ export const WithAUTurn: Story = {
       1,
     ),
   },
-}
+};
 
 /**
  * The owner's list on 2026-09-22: one terminal and four hintuans at SM
  * Fairview (one typed "SM fairview"), two boxes each named Lagro and Fatima,
  * and Tala. The pickers must show eight places, never a box name.
  */
-const hintuan = (id: string, name: string, at: LngLat, informal: string | null = null): StopRow => ({
+const hintuan = (
+  id: string,
+  name: string,
+  at: LngLat,
+  informal: string | null = null,
+): StopRow => ({
   ...terminal(id, name, at),
   kind: 'hintuan',
   informal,
-})
+});
 export const ManyBoxesOnePlace: Story = {
   args: {
     stops: [
@@ -148,7 +176,7 @@ export const ManyBoxesOnePlace: Story = {
       hintuan('h11', 'Malaria', [121.07, 14.76], 'Malaria'),
     ],
   },
-}
+};
 
 /** The route the return-trip stories add a direction to. */
 const talaFairview: RouteRow = {
@@ -164,12 +192,15 @@ const talaFairview: RouteRow = {
   head_stop_id: 'sample-tala',
   tail_stop_id: 'sample-fairview',
   via: null,
-}
+};
 
 /** The sample line, drawn the other way: from SM Fairview back to Tala. */
 function drawingBack(): Drawing {
-  const d = drawing([routed([{ name: 'Assyria Street', metres: 55 }]), routed([{ name: 'Sinai Street', metres: 160 }])])
-  return { ...d, controlPoints: [...d.controlPoints].reverse() } as Drawing
+  const d = drawing([
+    routed([{ name: 'Assyria Street', metres: 55 }]),
+    routed([{ name: 'Sinai Street', metres: 160 }]),
+  ]);
+  return { ...d, controlPoints: [...d.controlPoints].reverse() } as Drawing;
 }
 
 /**
@@ -180,12 +211,12 @@ function drawingBack(): Drawing {
  */
 export const TheReturnTrip: Story = {
   args: { route: talaFairview, slotReversed: true, draw: drawingBack() },
-}
+};
 
 /** The same slot, but the line was started from Tala again: warned, not blocked. */
 export const ReturnTripDrawnFromTheWrongEnd: Story = {
   args: { route: talaFairview, slotReversed: true },
-}
+};
 
 /**
  * Two hintuans drawn across the sample line, one far from it: the panel lists
@@ -201,19 +232,33 @@ export const PassesThroughHintuans: Story = {
       hintuan('h-off', 'Nowhere Near', [121.045, 14.745]),
     ],
   },
-}
+};
 
 /** A small box, centred `metres` north of the sample line, with its near edge `metres` away. */
-const roadside = (id: string, name: string, lng: number, metres: number, informal: string | null = null): StopRow => {
-  const half = 0.00005 // ≈ 5.5 m
-  const edge = 14.742005 + metres / M_PER_DEG
-  const s = hintuan(id, name, [lng, edge + half * Math.sign(metres)], informal)
+const roadside = (
+  id: string,
+  name: string,
+  lng: number,
+  metres: number,
+  informal: string | null = null,
+): StopRow => {
+  const half = 0.00005; // ≈ 5.5 m
+  const edge = 14.742005 + metres / M_PER_DEG;
+  const s = hintuan(id, name, [lng, edge + half * Math.sign(metres)], informal);
   s.area = {
     type: 'Polygon',
-    coordinates: [[[lng - 0.0001, edge], [lng + 0.0001, edge], [lng + 0.0001, edge + 2 * half * Math.sign(metres)], [lng - 0.0001, edge + 2 * half * Math.sign(metres)], [lng - 0.0001, edge]]],
-  }
-  return s
-}
+    coordinates: [
+      [
+        [lng - 0.0001, edge],
+        [lng + 0.0001, edge],
+        [lng + 0.0001, edge + 2 * half * Math.sign(metres)],
+        [lng - 0.0001, edge + 2 * half * Math.sign(metres)],
+        [lng - 0.0001, edge],
+      ],
+    ],
+  };
+  return s;
+};
 
 /**
  * The way hintuans are really drawn: on the roadside, not across the road.
@@ -231,7 +276,7 @@ export const PassesBesideTheRoad: Story = {
       roadside('h-near-2', 'Pangarap', 121.0422, 3),
     ],
   },
-}
+};
 
 /** Tala – SM Fairview's outbound as the list holds it, for Edit route. */
 const talaFairviewOut: VariantRow = {
@@ -246,17 +291,25 @@ const talaFairviewOut: VariantRow = {
   owner_id: 'sample-owner',
   updated_at: '2026-09-21T00:00:00Z',
   route: { ...talaFairview, name: 'Tala – SM Fairview' },
-}
+};
 
 /** A third place, and a route that already runs from it to SM Fairview. */
-const lagro: StopRow = { ...terminal('sample-lagro', 'Lagro Terminal', [121.06, 14.74]), informal: 'Lagro' }
+const lagro: StopRow = {
+  ...terminal('sample-lagro', 'Lagro Terminal', [121.06, 14.74]),
+  informal: 'Lagro',
+};
 const lagroFairviewOut: VariantRow = {
   ...talaFairviewOut,
   id: 'sample-lagro-out',
   route_id: 'sample-route-2',
   direction_name: 'Lagro → SM Fairview',
-  route: { ...talaFairview, id: 'sample-route-2', head_stop_id: 'sample-lagro', name: 'Lagro – SM Fairview' },
-}
+  route: {
+    ...talaFairview,
+    id: 'sample-route-2',
+    head_stop_id: 'sample-lagro',
+    name: 'Lagro – SM Fairview',
+  },
+};
 
 /**
  * Edit route on a saved direction (the owner's ask, 2026-09-29): Head, Tail,
@@ -264,28 +317,36 @@ const lagroFairviewOut: VariantRow = {
  * the route's, so a change is a change to both directions.
  */
 export const EditRoute: Story = {
-  args: { existing: talaFairviewOut, stops: [...stops, lagro], variants: [talaFairviewOut, lagroFairviewOut] },
-}
+  args: {
+    existing: talaFairviewOut,
+    stops: [...stops, lagro],
+    variants: [talaFairviewOut, lagroFairviewOut],
+  },
+};
 
 /** Edit route onto ends another route already has: refused in one sentence, before anything is written. */
 export const EditRouteEndsTaken: Story = {
   args: EditRoute.args,
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.selectOptions(canvas.getByTestId('save-head'), 'Lagro')
-    await userEvent.click(canvas.getByRole('button', { name: 'Update' }))
-    await expect(await canvas.findByText(/Another route already runs between these two places/)).toBeVisible()
+    const canvas = within(canvasElement);
+    await userEvent.selectOptions(canvas.getByTestId('save-head'), 'Lagro');
+    await userEvent.click(canvas.getByRole('button', { name: 'Update' }));
+    await expect(
+      await canvas.findByText(/Another route already runs between these two places/),
+    ).toBeVisible();
   },
-}
+};
 
 /** Edit route with Head and Tail swapped: refused, since each direction keeps its way round against the head. */
 export const EditRouteTurnedRound: Story = {
   args: EditRoute.args,
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.selectOptions(canvas.getByTestId('save-head'), 'SM Fairview')
-    await userEvent.selectOptions(canvas.getByTestId('save-tail'), 'Tala')
-    await userEvent.click(canvas.getByRole('button', { name: 'Update' }))
-    await expect(await canvas.findByText(/Head and tail swapped would turn the route round/)).toBeVisible()
+    const canvas = within(canvasElement);
+    await userEvent.selectOptions(canvas.getByTestId('save-head'), 'SM Fairview');
+    await userEvent.selectOptions(canvas.getByTestId('save-tail'), 'Tala');
+    await userEvent.click(canvas.getByRole('button', { name: 'Update' }));
+    await expect(
+      await canvas.findByText(/Head and tail swapped would turn the route round/),
+    ).toBeVisible();
   },
-}
+};

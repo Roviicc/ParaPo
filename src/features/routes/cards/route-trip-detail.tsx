@@ -1,18 +1,18 @@
-import { useId, useState, type ReactNode, type Ref } from "react";
-import { kmLabel } from "@/shared/utils/geo";
-import { RouteCardHeader } from "./route-card-header";
-import { BottomSheet, type SheetHeight } from "@/shared/ui/bottom-sheet";
-import { ReloadIcon } from "@/shared/ui/route-icons";
-import { RouteEndPointBar } from "./route-end-point-bar";
-import { TripTimeline, type TripTimelineProps } from "./trip-timeline";
+import { useId, useState, type ReactNode, type Ref } from 'react';
+import { kmLabel } from '@/shared/utils/geo';
+import { RouteCardHeader } from './route-card-header';
+import { BottomSheet, type SheetHeight } from '@/shared/ui/bottom-sheet';
+import { ReloadIcon } from '@/shared/ui/route-icons';
+import { RouteEndPointBar } from './route-end-point-bar';
+import { TripTimeline, type TripTimelineProps } from './trip-timeline';
 
 /** A ride's pesos both ways: `₱26` regular, and its discounted price — students, seniors, PWDs. */
 export type Fares = { regular: string; discounted: string };
 /** A ride nobody pays for, the ferry's (the owner's pick, 2026-10-03): the tile says Free, with no Regular or Discounted to turn. */
-export const FREE = "free";
+export const FREE = 'free';
 export type Fare = Fares | typeof FREE;
 
-type Props = Omit<TripTimelineProps, "pickedPesos"> & {
+type Props = Omit<TripTimelineProps, 'pickedPesos'> & {
   /** Figma's Kilometer tile: the whole ride's length, in metres; written `12.8km`. */
   metres: number;
   /** …and the ride to the picked hintuan, which the tile shows while it is picked, as the fare tile does. */
@@ -159,7 +159,10 @@ export function RouteTripDetail({
           hintuans={hintuans}
           picked={picked}
           onPick={onPick}
-          pickedPesos={pickedFare && (pickedFare === FREE ? "Free" : discounted ? pickedFare.discounted : pickedFare.regular)}
+          pickedPesos={
+            pickedFare &&
+            (pickedFare === FREE ? 'Free' : discounted ? pickedFare.discounted : pickedFare.regular)
+          }
           onEnd={onEnd}
           endPicked={endPicked}
           routeDirection={routeDirection}
@@ -182,45 +185,54 @@ export function RouteTripDetail({
             </span>
             <span className={NAME}>Fare</span>
           </div>
-        ) : shown && (
-          <button
-            type="button"
-            data-testid="trip-fare-turn"
-            aria-label={`${discounted ? "Discounted" : "Regular"} fare ${discounted ? shown.discounted : shown.regular}. Show the ${discounted ? "regular" : "discounted"} fare`}
-            onClick={() => {
-              setDiscounted(!discounted);
-              setTurns((t) => t + 1);
-            }}
-            className={
-              TILE +
-              " transition-colors duration-quick ease-move hover:bg-surface-tertiary active:bg-surface-quaternary"
-            }
-          >
-            <span data-testid="trip-fare" className={FIGURE}>
-              {discounted ? shown.discounted : shown.regular}
-            </span>
-            <span className={NAME + " flex items-center gap-1.5"}>
-              <span
-                aria-hidden
-                style={{ rotate: `${turns * 360}deg` }}
-                className="size-4 shrink-0 text-content-quaternary transition-[rotate] duration-turn ease-move motion-reduce:transition-none *:size-full"
-              >
-                <ReloadIcon />
+        ) : (
+          shown && (
+            <button
+              type="button"
+              data-testid="trip-fare-turn"
+              aria-label={`${discounted ? 'Discounted' : 'Regular'} fare ${discounted ? shown.discounted : shown.regular}. Show the ${discounted ? 'regular' : 'discounted'} fare`}
+              onClick={() => {
+                setDiscounted(!discounted);
+                setTurns((t) => t + 1);
+              }}
+              className={
+                TILE +
+                ' transition-colors duration-quick ease-move hover:bg-surface-tertiary active:bg-surface-quaternary'
+              }
+            >
+              <span data-testid="trip-fare" className={FIGURE}>
+                {discounted ? shown.discounted : shown.regular}
               </span>
-              {discounted ? "Discounted fare" : "Regular fare"}
-            </span>
-          </button>
+              <span className={NAME + ' flex items-center gap-1.5'}>
+                <span
+                  aria-hidden
+                  style={{ rotate: `${turns * 360}deg` }}
+                  className="size-4 shrink-0 text-content-quaternary transition-[rotate] duration-turn ease-move *:size-full motion-reduce:transition-none"
+                >
+                  <ReloadIcon />
+                </span>
+                {discounted ? 'Discounted fare' : 'Regular fare'}
+              </span>
+            </button>
+          )
         )}
       </div>
       {note && (
-        <p data-testid="trip-note" className="w-full px-3 pb-4 font-sn-pro text-sm/5 text-content-tertiary">
+        <p
+          data-testid="trip-note"
+          className="w-full px-3 pb-4 font-sn-pro text-sm/5 text-content-tertiary"
+        >
           {note}
         </p>
       )}
       {signboards.length > 0 && (
         // Each board 40 tall at its own width, 8 apart, wrapping on a narrow
         // phone (3919:11447). Pictures, so nothing in a file can run.
-        <section data-testid="trip-signboards" aria-labelledby={boardsHeading} className="flex w-full flex-col gap-2 px-3 pt-2 pb-4 font-sn-pro">
+        <section
+          data-testid="trip-signboards"
+          aria-labelledby={boardsHeading}
+          className="flex w-full flex-col gap-2 px-3 pt-2 pb-4 font-sn-pro"
+        >
           <h3 id={boardsHeading} className="text-sm/5 font-medium text-content-tertiary">
             Signboard
           </h3>
@@ -230,7 +242,11 @@ export function RouteTripDetail({
                 <img
                   data-testid="trip-signboard"
                   src={src}
-                  alt={signboards.length > 1 ? `Signboard ${i + 1} of ${signboards.length}` : "Signboard"}
+                  alt={
+                    signboards.length > 1
+                      ? `Signboard ${i + 1} of ${signboards.length}`
+                      : 'Signboard'
+                  }
                   className="block h-10 w-auto max-w-full"
                   decoding="async"
                 />
@@ -240,7 +256,11 @@ export function RouteTripDetail({
         </section>
       )}
       {otherRoutes.length > 0 && (
-        <section data-testid="trip-other-routes" aria-labelledby={othersHeading} className="flex w-full flex-col gap-2 px-3 pt-2 pb-4 font-sn-pro">
+        <section
+          data-testid="trip-other-routes"
+          aria-labelledby={othersHeading}
+          className="flex w-full flex-col gap-2 px-3 pt-2 pb-4 font-sn-pro"
+        >
           <h3 id={othersHeading} className="text-sm/5 font-medium text-content-tertiary">
             Other routes
           </h3>
@@ -271,6 +291,6 @@ export function RouteTripDetail({
  * Content/primary is the token nearest it.
  */
 const TILE =
-  "flex min-w-0 flex-1 basis-0 flex-col items-center justify-center gap-2 rounded-2xl bg-surface-secondary p-4";
-const FIGURE = "block text-2xl/8 font-bold text-content-primary";
-const NAME = "block text-sm/5 font-normal text-content-tertiary";
+  'flex min-w-0 flex-1 basis-0 flex-col items-center justify-center gap-2 rounded-2xl bg-surface-secondary p-4';
+const FIGURE = 'block text-2xl/8 font-bold text-content-primary';
+const NAME = 'block text-sm/5 font-normal text-content-tertiary';

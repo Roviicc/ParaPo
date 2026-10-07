@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, type RefObject } from 'react'
-import type { MapLibreMap } from 'maplibre-gl'
-import { clearOfSheet, roomBeside } from '@/shared/ui/bottom-sheet'
-import type { Framed } from './card-stack'
-import { shownAt, type Snap } from '@/shared/ui/sheet-gesture'
-import { bboxOf, zoomForScale, type LngLat } from '@/shared/utils/geo'
-import { APP_MOVE } from '../map/map-view'
-import type { Highlight } from '../map/use-saved-routes'
-import { variantLine, type VariantSummary } from '../model/routes'
+import { useEffect, useMemo, useRef, type RefObject } from 'react';
+import type { MapLibreMap } from 'maplibre-gl';
+import { clearOfSheet, roomBeside } from '@/shared/ui/bottom-sheet';
+import type { Framed } from './card-stack';
+import { shownAt, type Snap } from '@/shared/ui/sheet-gesture';
+import { bboxOf, zoomForScale, type LngLat } from '@/shared/utils/geo';
+import { APP_MOVE } from '../map/map-view';
+import type { Highlight } from '../map/use-saved-routes';
+import { variantLine, type VariantSummary } from '../model/routes';
 
 /*
  * The camera taking in routes whole — a trip opened, a RouteCard picked,
@@ -20,7 +20,7 @@ import { variantLine, type VariantSummary } from '../model/routes'
  * up). Further out than that only by the
  * visitor's own hand.
  */
-export const RAISED_FARTHEST_M = 5000
+export const RAISED_FARTHEST_M = 5000;
 
 /**
  * The camera takes in these lines whole, zooming in or out, clear of the
@@ -34,19 +34,35 @@ function overview(
   snap: Snap,
   farthestM?: number,
 ) {
-  const points = lines.filter((l) => l.length >= 2).flat()
-  if (points.length < 2) return
-  const [w, s, e, n] = bboxOf(points)
-  const padding = roomBeside(map.getContainer(), dock, snap)
-  const floor = farthestM === undefined ? -Infinity : zoomForScale(farthestM, (s + n) / 2)
-  const fit = map.cameraForBounds([[w, s], [e, n]], { padding, maxZoom: 16 })
+  const points = lines.filter((l) => l.length >= 2).flat();
+  if (points.length < 2) return;
+  const [w, s, e, n] = bboxOf(points);
+  const padding = roomBeside(map.getContainer(), dock, snap);
+  const floor = farthestM === undefined ? -Infinity : zoomForScale(farthestM, (s + n) / 2);
+  const fit = map.cameraForBounds(
+    [
+      [w, s],
+      [e, n],
+    ],
+    { padding, maxZoom: 16 },
+  );
   if (fit?.zoom === undefined || fit.zoom >= floor) {
-    map.fitBounds([[w, s], [e, n]], { padding, maxZoom: 16, duration: 700, linear: true }, APP_MOVE)
-    return
+    map.fitBounds(
+      [
+        [w, s],
+        [e, n],
+      ],
+      { padding, maxZoom: 16, duration: 700, linear: true },
+      APP_MOVE,
+    );
+    return;
   }
   // In closer than the fit: the lines' middle at the middle of the room the sheet leaves.
-  const offset: [number, number] = [(padding.left - padding.right) / 2, (padding.top - padding.bottom) / 2]
-  map.easeTo({ center: [(w + e) / 2, (s + n) / 2], zoom: floor, offset, duration: 700 }, APP_MOVE)
+  const offset: [number, number] = [
+    (padding.left - padding.right) / 2,
+    (padding.top - padding.bottom) / 2,
+  ];
+  map.easeTo({ center: [(w + e) / 2, (s + n) / 2], zoom: floor, offset, duration: 700 }, APP_MOVE);
 }
 
 /**
@@ -62,13 +78,13 @@ export function useTripOverview(
   dock: RefObject<HTMLDivElement | null>,
   snap: Snap,
 ): void {
-  const routeId = trip?.route_id
+  const routeId = trip?.route_id;
   useEffect(() => {
-    if (!map || !trip) return
-    overview(map, [variantLine(trip)], dock.current, snap)
+    if (!map || !trip) return;
+    overview(map, [variantLine(trip)], dock.current, snap);
     // Only as a trip opens (see above).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, routeId])
+  }, [map, routeId]);
 }
 
 /**
@@ -85,14 +101,14 @@ export function useCardOverview(
   dock: () => HTMLElement | null,
   snap: Snap,
 ): void {
-  const key = picked ? `${picked.where}\n${picked.from}\n${picked.ids.join()}` : null
+  const key = picked ? `${picked.where}\n${picked.from}\n${picked.ids.join()}` : null;
   useEffect(() => {
-    if (!map || !picked) return
-    const ids = new Set(picked.ids)
-    overview(map, variants.filter((v) => ids.has(v.id)).map(variantLine), dock(), snap)
+    if (!map || !picked) return;
+    const ids = new Set(picked.ids);
+    overview(map, variants.filter((v) => ids.has(v.id)).map(variantLine), dock(), snap);
     // Only as a card is picked (see above).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, key])
+  }, [map, key]);
 }
 
 /**
@@ -110,16 +126,21 @@ export function useListOverview(
   dock: () => HTMLElement | null,
   snap: Snap,
 ): void {
-  const litRef = useRef(lit)
-  litRef.current = lit
-  const key = listed.map((v) => v.id).sort().join()
+  const litRef = useRef(lit);
+  litRef.current = lit;
+  const key = listed
+    .map((v) => v.id)
+    .sort()
+    .join();
   useEffect(() => {
-    if (!map || !key) return
-    const frame = requestAnimationFrame(() => overview(map, litRef.current.map(variantLine), dock(), snap))
-    return () => cancelAnimationFrame(frame)
+    if (!map || !key) return;
+    const frame = requestAnimationFrame(() =>
+      overview(map, litRef.current.map(variantLine), dock(), snap),
+    );
+    return () => cancelAnimationFrame(frame);
     // Only as the list opens on other routes (see above).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, key])
+  }, [map, key]);
 }
 
 /**
@@ -136,15 +157,17 @@ export function useSwitchOverview(
   dock: () => HTMLElement | null,
   snap: Snap,
 ): void {
-  const litRef = useRef(lit)
-  litRef.current = lit
+  const litRef = useRef(lit);
+  litRef.current = lit;
   useEffect(() => {
-    if (!map || switches === 0) return
-    const frame = requestAnimationFrame(() => overview(map, litRef.current.map(variantLine), dock(), snap))
-    return () => cancelAnimationFrame(frame)
+    if (!map || switches === 0) return;
+    const frame = requestAnimationFrame(() =>
+      overview(map, litRef.current.map(variantLine), dock(), snap),
+    );
+    return () => cancelAnimationFrame(frame);
     // Only as SWITCH is pressed (see above).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, switches])
+  }, [map, switches]);
 }
 
 /**
@@ -166,24 +189,29 @@ export function useHeightOverview(
   frame: () => Framed,
   dock: () => HTMLElement | null,
 ): void {
-  const last = useRef(snap)
-  const now = useRef({ frame, dock })
-  now.current = { frame, dock }
+  const last = useRef(snap);
+  const now = useRef({ frame, dock });
+  now.current = { frame, dock };
   useEffect(() => {
-    const was = last.current
-    if (was === snap) return
-    last.current = snap
-    const framed = now.current.frame()
-    if (!map || !framed) return
-    const sheet = now.current.dock()
-    const h = sheet?.offsetHeight ?? 0
-    const up = shownAt(snap, h) > shownAt(was, h)
-    if ('lines' in framed) overview(map, framed.lines, sheet, snap, up ? RAISED_FARTHEST_M : undefined)
-    else map.easeTo({ center: framed.at, offset: clearOfSheet(map.getContainer(), sheet, snap), duration: 700 }, APP_MOVE)
-  }, [map, snap])
+    const was = last.current;
+    if (was === snap) return;
+    last.current = snap;
+    const framed = now.current.frame();
+    if (!map || !framed) return;
+    const sheet = now.current.dock();
+    const h = sheet?.offsetHeight ?? 0;
+    const up = shownAt(snap, h) > shownAt(was, h);
+    if ('lines' in framed)
+      overview(map, framed.lines, sheet, snap, up ? RAISED_FARTHEST_M : undefined);
+    else
+      map.easeTo(
+        { center: framed.at, offset: clearOfSheet(map.getContainer(), sheet, snap), duration: 700 },
+        APP_MOVE,
+      );
+  }, [map, snap]);
 }
 
-type Camera = { center: LngLat; zoom: number; bearing: number; pitch: number }
+type Camera = { center: LngLat; zoom: number; bearing: number; pitch: number };
 
 /**
  * A hotspot's RouteCard picked and let go: the camera goes back to where the
@@ -194,28 +222,33 @@ type Camera = { center: LngLat; zoom: number; bearing: number; pitch: number }
  * as it is let go.
  */
 export function useCameraBefore(map: MapLibreMap | null) {
-  const kept = useRef<Camera | null>(null)
+  const kept = useRef<Camera | null>(null);
   // One object for the map's life, so an effect may name it.
   return useMemo(
     () => ({
       /** The camera now kept — or, given, one kept by another (`held`). */
       keep: (at: Camera | null = null) => {
-        if (!map) return
-        const c = map.getCenter()
-        kept.current = at ?? { center: [c.lng, c.lat], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() }
+        if (!map) return;
+        const c = map.getCenter();
+        kept.current = at ?? {
+          center: [c.lng, c.lat],
+          zoom: map.getZoom(),
+          bearing: map.getBearing(),
+          pitch: map.getPitch(),
+        };
       },
       /** What is kept, if anything. */
       held: () => kept.current,
       back: () => {
-        const was = kept.current
-        kept.current = null
-        if (map && was) map.easeTo({ ...was, duration: 700 }, APP_MOVE)
+        const was = kept.current;
+        kept.current = null;
+        if (map && was) map.easeTo({ ...was, duration: 700 }, APP_MOVE);
       },
       /** Let it go, the camera staying where it is. */
       forget: () => {
-        kept.current = null
+        kept.current = null;
       },
     }),
     [map],
-  )
+  );
 }

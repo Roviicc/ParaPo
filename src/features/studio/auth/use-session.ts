@@ -1,24 +1,22 @@
-import { useEffect, useState } from 'react'
-import type { Session } from '@supabase/supabase-js'
-import { getSupabase } from '../data/supabase'
+import { useEffect, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { getSupabase } from '../data/supabase';
 
 /** `undefined` while the initial session is still being restored. */
 export function useSession(): Session | null | undefined {
-  const [session, setSession] = useState<Session | null | undefined>(undefined)
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
 
   useEffect(() => {
-    const supabase = getSupabase()
+    const supabase = getSupabase();
     if (!supabase) {
-      setSession(null)
-      return
+      setSession(null);
+      return;
     }
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) =>
-      setSession(next),
-    )
-    return () => sub.subscription.unsubscribe()
-  }, [])
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
-  return session
+  return session;
 }

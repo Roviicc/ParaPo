@@ -1,7 +1,7 @@
-import { nameVariants, type VariantRow } from '@/features/routes/model/routes'
-import type { StopRow } from '@/features/routes/model/stops'
-import { saveVariant, type SaveInput } from './routes-write'
-import { syncHintuanLinks } from './stops-write'
+import { nameVariants, type VariantRow } from '@/features/routes/model/routes';
+import type { StopRow } from '@/features/routes/model/stops';
+import { saveVariant, type SaveInput } from './routes-write';
+import { syncHintuanLinks } from './stops-write';
 
 /**
  * A direction saved, then every hintuan's route list brought up to date
@@ -17,16 +17,16 @@ export async function saveRouteAndLinks(
   stops: StopRow[],
   onWritten: (written: { routeId: string; variantId: string }) => void,
 ): Promise<VariantRow> {
-  const saved = await saveVariant(input)
-  onWritten({ routeId: saved.route_id, variantId: saved.id })
-  const named = nameVariants([saved], stops)[0]
+  const saved = await saveVariant(input);
+  onWritten({ routeId: saved.route_id, variantId: saved.id });
+  const named = nameVariants([saved], stops)[0];
   try {
-    await syncHintuanLinks(named)
+    await syncHintuanLinks(named);
   } catch (err) {
     throw new Error(
       `The line is saved, but its hintuan links are not: ${err instanceof Error ? err.message : String(err)}. ` +
         'Press Save again to retry.',
-    )
+    );
   }
-  return named
+  return named;
 }

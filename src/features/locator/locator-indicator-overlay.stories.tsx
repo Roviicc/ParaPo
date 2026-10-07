@@ -1,6 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
-import { BEAM_DRAWN_DEG, LocatorIndicatorOverlay } from './locator-indicator-overlay'
-import type { Face, Mood } from './locator-mood'
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { BEAM_DRAWN_DEG, LocatorIndicatorOverlay } from './locator-indicator-overlay';
+import type { Face, Mood } from './locator-mood';
 
 const meta = {
   title: 'Features/Locator/LocatorIndicatorOverlay',
@@ -12,56 +12,58 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof LocatorIndicatorOverlay>
+} satisfies Meta<typeof LocatorIndicatorOverlay>;
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 /** As the owner drew it (3870:5247): a 240 circle with its hairline, the beam pointing south. */
-export const AsDrawn: Story = { args: { haloPx: 240, beamDeg: BEAM_DRAWN_DEG } }
+export const AsDrawn: Story = { args: { haloPx: 240, beamDeg: BEAM_DRAWN_DEG } };
 
 /** Facing up the screen. */
-export const FacingUp: Story = { args: { haloPx: 240, beamDeg: 0 } }
+export const FacingUp: Story = { args: { haloPx: 240, beamDeg: 0 } };
 
 /** No heading yet — no compass, and the fixes have shown none: no beam. */
-export const NoHeading: Story = { args: { haloPx: 240, beamDeg: null } }
+export const NoHeading: Story = { args: { haloPx: 240, beamDeg: null } };
 
 /** A good fix zoomed out: the circle would hide under the dot, so it is gone. */
-export const TightFix: Story = { args: { haloPx: 12, beamDeg: 300 } }
+export const TightFix: Story = { args: { haloPx: 12, beamDeg: 300 } };
 
 /** Zoomed out to the city: the dot and beam at their smallest, as Google Maps' (indicatorScale). */
-export const ZoomedOut: Story = { args: { haloPx: 0, beamDeg: 30, scale: 0.54 } }
+export const ZoomedOut: Story = { args: { haloPx: 0, beamDeg: 30, scale: 0.54 } };
 
 /*
  * Its moods and faces (locatorMood.ts, the owner's ask of 2026-10-01): every
  * face it can wear, side by side, for the owner to look over; each a story too.
  */
-const face = (mood: Mood, f: Face): Story => ({ args: { haloPx: 0, beamDeg: null, mood, face: f } })
+const face = (mood: Mood, f: Face): Story => ({
+  args: { haloPx: 0, beamDeg: null, mood, face: f },
+});
 
 /** Neutral, mostly: the wandering glance, as drawn. */
-export const NeutralGlance = face('neutral', 'glance')
+export const NeutralGlance = face('neutral', 'glance');
 /** Neutral: a curious look up, one eye wider. */
-export const NeutralCurious = face('neutral', 'curious')
+export const NeutralCurious = face('neutral', 'curious');
 /** Neutral: a wink. */
-export const NeutralWink = face('neutral', 'wink')
+export const NeutralWink = face('neutral', 'wink');
 /** Neutral: wide-eyed. */
-export const NeutralSurprised = face('neutral', 'surprised')
+export const NeutralSurprised = face('neutral', 'surprised');
 /** Neutral, a minute standing still: dozing. */
-export const NeutralSleepy = face('neutral', 'sleepy')
+export const NeutralSleepy = face('neutral', 'sleepy');
 /** Happy: smiling eyes. */
-export const HappySmile = face('happy', 'smile')
+export const HappySmile = face('happy', 'smile');
 /** Happy: smiling, hopping. */
-export const HappyHop = face('happy', 'hop')
+export const HappyHop = face('happy', 'hop');
 /** Happy: squeezed > <. */
-export const HappySquee = face('happy', 'squee')
+export const HappySquee = face('happy', 'squee');
 /** Happy: a smile and a wink. */
-export const HappyWinkSmile = face('happy', 'wink-smile')
+export const HappyWinkSmile = face('happy', 'wink-smile');
 /** Cross, at a run of taps: scowling eyes, sloping down to the middle, a shake. */
-export const AngryGlare = face('angry', 'glare')
+export const AngryGlare = face('angry', 'glare');
 /** A tap on the button, glad: squashed, up with smiling eyes, landing with a wobble. */
-export const TapBoing = face('happy', 'boing')
+export const TapBoing = face('happy', 'boing');
 /** A tap on the button, now and then cross: puffed up, scowling, shaking it off. */
-export const TapHuff = face('angry', 'huff')
+export const TapHuff = face('angry', 'huff');
 
 const ALL: [Mood, Face][] = [
   ['neutral', 'glance'],
@@ -76,7 +78,7 @@ const ALL: [Mood, Face][] = [
   ['angry', 'glare'],
   ['happy', 'boing'],
   ['angry', 'huff'],
-]
+];
 
 /** Every face at once, three times the size, named. */
 export const AllFaces: Story = {
@@ -95,7 +97,7 @@ export const AllFaces: Story = {
       ))}
     </div>
   ),
-}
+};
 
 /*
  * Its gaze at what was just picked (dotGaze.ts, the owner's ask of
@@ -105,20 +107,20 @@ export const AllFaces: Story = {
  */
 const gazing = (gazeDeg: number, mood: Mood = 'neutral', f: Face = 'glance'): Story => ({
   args: { haloPx: 0, beamDeg: null, mood, face: f, gazeDeg },
-})
+});
 
 /** At a route to the east. */
-export const GazesEast = gazing(90)
+export const GazesEast = gazing(90);
 /** At a route to the west. */
-export const GazesWest = gazing(270)
+export const GazesWest = gazing(270);
 /** At a hintuan to the north. */
-export const GazesNorth = gazing(0)
+export const GazesNorth = gazing(0);
 /** At a hintuan to the south-west. */
-export const GazesSouthWest = gazing(225)
+export const GazesSouthWest = gazing(225);
 /** Glad, and gazing: smiling eyes, turned to the route. */
-export const GazesWhileHappy = gazing(90, 'happy', 'smile')
+export const GazesWhileHappy = gazing(90, 'happy', 'smile');
 /** Cross, and gazing: scowling eyes, turned to the route. */
-export const GazesWhileCross = gazing(270, 'angry', 'glare')
+export const GazesWhileCross = gazing(270, 'angry', 'glare');
 
 const WAYS: [string, number | null][] = [
   ['north-west', 315],
@@ -130,7 +132,7 @@ const WAYS: [string, number | null][] = [
   ['south-west', 225],
   ['south', 180],
   ['south-east', 135],
-]
+];
 
 /** Every way it gazes, three times the size, around the wandering eyes it goes back to. */
 export const AllGazes: Story = {
@@ -147,7 +149,7 @@ export const AllGazes: Story = {
       ))}
     </div>
   ),
-}
+};
 
 /**
  * Every face gazing one way: a face changes every few seconds, so on a phone
@@ -162,7 +164,13 @@ const facesGazing = (gazeDeg: number): Story => ({
       {ALL.map(([m, f]) => (
         <div key={f} className="flex flex-col items-center gap-8">
           <div className="grid size-24 place-items-center" style={{ scale: 3 }}>
-            <LocatorIndicatorOverlay haloPx={0} beamDeg={null} mood={m} face={f} gazeDeg={gazeDeg} />
+            <LocatorIndicatorOverlay
+              haloPx={0}
+              beamDeg={null}
+              mood={m}
+              face={f}
+              gazeDeg={gazeDeg}
+            />
           </div>
           <span className="text-xs text-content-tertiary">
             {m} · {f}
@@ -171,9 +179,9 @@ const facesGazing = (gazeDeg: number): Story => ({
       ))}
     </div>
   ),
-})
+});
 
 /** Every face, gazing east. */
-export const AllFacesGazing = facesGazing(90)
+export const AllFacesGazing = facesGazing(90);
 /** Every face, gazing north. */
-export const AllFacesGazingNorth = facesGazing(0)
+export const AllFacesGazingNorth = facesGazing(0);

@@ -1,20 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { Marker, type MapLibreMap } from 'maplibre-gl'
-import { CARD_SURFACE, CARD_TEXT } from '../cards/livery-card'
-import { TimelineDot } from '../cards/trip-timeline'
-import { haversine } from '@/shared/utils/geo'
-import type { Livery } from '../model/liveries'
-import { isLineMode, servedBy, type VariantSummary } from '../model/routes'
-import { stopLabel, type StopSummary } from '../model/stops'
-import { tapsOnItsButton } from './marker-tap'
-import './hintuan-pin.css'
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Marker, type MapLibreMap } from 'maplibre-gl';
+import { CARD_SURFACE, CARD_TEXT } from '../cards/livery-card';
+import { TimelineDot } from '../cards/trip-timeline';
+import { haversine } from '@/shared/utils/geo';
+import type { Livery } from '../model/liveries';
+import { isLineMode, servedBy, type VariantSummary } from '../model/routes';
+import { stopLabel, type StopSummary } from '../model/stops';
+import { tapsOnItsButton } from './marker-tap';
+import './hintuan-pin.css';
 
 /** The scale bar's width (MapView's ScaleControl, MapLibre's default maxWidth). */
-const SCALE_PX = 100
+const SCALE_PX = 100;
 
 /** How much ground the scale bar's width may span with the names still on: under 3 km. */
-const NAMES_UNTIL_M = 3000
+const NAMES_UNTIL_M = 3000;
 
 /**
  * Whether the names show: until the scale bar reads 3 km — the owner's
@@ -25,8 +25,11 @@ const NAMES_UNTIL_M = 3000
  * Further out, the dots alone, so the pills never pile up.
  */
 function namesShow(map: MapLibreMap): boolean {
-  const y = map.getContainer().clientHeight / 2
-  return haversine(map.unproject([0, y]).toArray(), map.unproject([SCALE_PX, y]).toArray()) < NAMES_UNTIL_M
+  const y = map.getContainer().clientHeight / 2;
+  return (
+    haversine(map.unproject([0, y]).toArray(), map.unproject([SCALE_PX, y]).toArray()) <
+    NAMES_UNTIL_M
+  );
 }
 
 /**
@@ -54,37 +57,37 @@ export function StationLabels({
   pickedId,
   onPick,
 }: {
-  map: MapLibreMap
-  selected: VariantSummary
-  stops: readonly StopSummary[]
-  livery: Livery
+  map: MapLibreMap;
+  selected: VariantSummary;
+  stops: readonly StopSummary[];
+  livery: Livery;
   /** The picked hintuan, which its HintuanPin names. */
-  pickedId?: string | null
+  pickedId?: string | null;
   /** Called with the tapped station's id. */
-  onPick?: (stopId: string) => void
+  onPick?: (stopId: string) => void;
 }) {
-  const [named, setNamed] = useState(() => namesShow(map))
+  const [named, setNamed] = useState(() => namesShow(map));
   useEffect(() => {
-    const on = () => setNamed(namesShow(map))
+    const on = () => setNamed(namesShow(map));
     // On every move, as the bar itself: its metres change with the latitude too.
-    map.on('move', on)
+    map.on('move', on);
     return () => {
-      map.off('move', on)
-    }
-  }, [map])
+      map.off('move', on);
+    };
+  }, [map]);
 
-  const route = selected.route
-  if (!isLineMode(route?.mode)) return null
+  const route = selected.route;
+  if (!isLineMode(route?.mode)) return null;
   // A line's stations, a train's or the ferry's (servedBy): both directions stop at each.
-  const ends = new Set([route.head_stop_id, route.tail_stop_id, pickedId])
-  const stations = stops.filter((s) => servedBy(s, route) && !ends.has(s.id))
+  const ends = new Set([route.head_stop_id, route.tail_stop_id, pickedId]);
+  const stations = stops.filter((s) => servedBy(s, route) && !ends.has(s.id));
   return (
     <>
       {stations.map((s) => (
         <StationLabel key={s.id} map={map} stop={s} livery={livery} named={named} onPick={onPick} />
       ))}
     </>
-  )
+  );
 }
 
 function StationLabel({
@@ -94,34 +97,36 @@ function StationLabel({
   named,
   onPick,
 }: {
-  map: MapLibreMap
-  stop: StopSummary
-  livery: Livery
-  named: boolean
-  onPick?: (stopId: string) => void
+  map: MapLibreMap;
+  stop: StopSummary;
+  livery: Livery;
+  named: boolean;
+  onPick?: (stopId: string) => void;
 }) {
   const [el] = useState(() => {
-    const div = document.createElement('div')
-    div.className = 'hintuan-pin station-label'
-    div.dataset.testid = 'station-label'
-    return div
-  })
+    const div = document.createElement('div');
+    div.className = 'hintuan-pin station-label';
+    div.dataset.testid = 'station-label';
+    return div;
+  });
   useEffect(() => {
-    const m = new Marker({ element: el, anchor: 'center' }).setLngLat(stop.point.coordinates).addTo(map)
+    const m = new Marker({ element: el, anchor: 'center' })
+      .setLngLat(stop.point.coordinates)
+      .addTo(map);
     return () => {
-      m.remove()
-    }
-  }, [map, el, stop.point.coordinates])
+      m.remove();
+    };
+  }, [map, el, stop.point.coordinates]);
   // Read as the tap comes: a fresh function each render binds nothing anew (HintuanPin).
-  const pick = useRef(onPick)
-  pick.current = onPick
-  useEffect(() => tapsOnItsButton(el, () => pick.current?.(stop.id)), [el, stop.id])
+  const pick = useRef(onPick);
+  pick.current = onPick;
+  useEffect(() => tapsOnItsButton(el, () => pick.current?.(stop.id)), [el, stop.id]);
 
   // Further out, a smaller dot (hintuanPin.css), so the stations read as beads, not a wall.
-  el.toggleAttribute('data-far', !named)
-  const label = stopLabel(stop)
+  el.toggleAttribute('data-far', !named);
+  const label = stopLabel(stop);
   // The dot and its name are one tap (the owner's ask, 2026-10-02): one button around both.
-  const Tap = onPick ? 'button' : 'div'
+  const Tap = onPick ? 'button' : 'div';
   return createPortal(
     <Tap
       {...(onPick ? { type: 'button' as const, 'aria-label': label } : {})}
@@ -129,10 +134,15 @@ function StationLabel({
     >
       <TimelineDot rail={CARD_SURFACE[livery]} />
       {named && (
-        <span className="hintuan-pin-title absolute left-full top-1/2 ml-2.5 flex max-w-56">
+        <span className="hintuan-pin-title absolute top-1/2 left-full ml-2.5 flex max-w-56">
           <span
             data-testid="station-label-title"
-            className={'max-w-full truncate rounded-full px-2 py-1 text-xs/4 font-medium shadow-selected-hintuan-route-title ' + CARD_SURFACE[livery] + ' ' + CARD_TEXT[livery]}
+            className={
+              'max-w-full truncate rounded-full px-2 py-1 text-xs/4 font-medium shadow-selected-hintuan-route-title ' +
+              CARD_SURFACE[livery] +
+              ' ' +
+              CARD_TEXT[livery]
+            }
           >
             {label}
           </span>
@@ -140,5 +150,5 @@ function StationLabel({
       )}
     </Tap>,
     el,
-  )
+  );
 }

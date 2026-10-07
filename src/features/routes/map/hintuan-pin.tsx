@@ -1,24 +1,24 @@
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { Marker, type MapLibreMap } from 'maplibre-gl'
-import { CARD_SURFACE, CARD_TEXT, TIMELINE_SURFACE } from '../cards/livery-card'
-import { TimelineDot } from '../cards/trip-timeline'
-import type { LngLat } from '@/shared/utils/geo'
-import type { Livery } from '../model/liveries'
-import { tapsOnItsButton } from './marker-tap'
-import './hintuan-pin.css'
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Marker, type MapLibreMap } from 'maplibre-gl';
+import { CARD_SURFACE, CARD_TEXT, TIMELINE_SURFACE } from '../cards/livery-card';
+import { TimelineDot } from '../cards/trip-timeline';
+import type { LngLat } from '@/shared/utils/geo';
+import type { Livery } from '../model/liveries';
+import { tapsOnItsButton } from './marker-tap';
+import './hintuan-pin.css';
 
 type Props = {
-  map: MapLibreMap
+  map: MapLibreMap;
   /** Where the picked hintuan is (useRideTo's `pinAt`). */
-  at: LngLat
+  at: LngLat;
   /** The hintuan's name, written beside the circle; none, and the circle stands alone. */
-  label?: string | null
+  label?: string | null;
   /** The trip's colour: the circle is ringed in its rail's. */
-  livery: Livery
+  livery: Livery;
   /** Given, the name is a button: the public map's lets the pick go. */
-  onPick?: () => void
-}
+  onPick?: () => void;
+};
 
 /**
  * The picked hintuan on the map: a circle that pops up where it is, the
@@ -48,36 +48,36 @@ type Props = {
  */
 export function HintuanPin({ map, at, label, livery, onPick }: Props) {
   const [el] = useState(() => {
-    const div = document.createElement('div')
-    div.className = 'hintuan-pin'
-    div.dataset.testid = 'hintuan-pin'
-    return div
-  })
-  const marker = useRef<Marker | null>(null)
+    const div = document.createElement('div');
+    div.className = 'hintuan-pin';
+    div.dataset.testid = 'hintuan-pin';
+    return div;
+  });
+  const marker = useRef<Marker | null>(null);
 
   useEffect(() => {
-    const m = new Marker({ element: el, anchor: 'center' }).setLngLat(at).addTo(map)
-    marker.current = m
+    const m = new Marker({ element: el, anchor: 'center' }).setLngLat(at).addTo(map);
+    marker.current = m;
     return () => {
-      m.remove()
-      marker.current = null
-    }
+      m.remove();
+      marker.current = null;
+    };
     // Made once per map; where it is moves it below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, el])
+  }, [map, el]);
 
   // The line's point for a pick can land a moment after the pick itself.
   useEffect(() => {
-    marker.current?.setLngLat(at)
-  }, [at])
+    marker.current?.setLngLat(at);
+  }, [at]);
 
   // Read as the tap comes: a fresh function each render binds nothing anew.
-  const pick = useRef(onPick)
-  pick.current = onPick
-  useEffect(() => tapsOnItsButton(el, () => pick.current?.()), [el])
+  const pick = useRef(onPick);
+  pick.current = onPick;
+  useEffect(() => tapsOnItsButton(el, () => pick.current?.()), [el]);
 
-  el.dataset.livery = livery
-  const Title = onPick ? 'button' : 'div'
+  el.dataset.livery = livery;
+  const Title = onPick ? 'button' : 'div';
   // Popped, and untucked from a rail it has none of, by hintuanPin.css.
   return createPortal(
     <>
@@ -87,7 +87,7 @@ export function HintuanPin({ map, at, label, livery, onPick }: Props) {
           // Says what the tap does since the owner's ask of 2026-10-03: it
           // lets the pick go, no longer opening the routes there.
           {...(onPick ? { type: 'button' as const, 'aria-label': `End, ${label}: let it go` } : {})}
-          className="hintuan-pin-title absolute left-full top-1/2 ml-2.5 flex max-w-56 flex-col items-center"
+          className="hintuan-pin-title absolute top-1/2 left-full ml-2.5 flex max-w-56 flex-col items-center"
         >
           {/* Over the name, as over a ride's own end (EndTitles): the ride now ends here. */}
           <span
@@ -111,5 +111,5 @@ export function HintuanPin({ map, at, label, livery, onPick }: Props) {
       )}
     </>,
     el,
-  )
+  );
 }

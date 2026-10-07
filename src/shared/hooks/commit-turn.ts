@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect } from 'react';
 
 /*
  * A child's effect run where a hook of its parent's stood in the commit.
@@ -15,25 +15,25 @@ import { useEffect } from 'react'
  */
 
 /** Run `go` at the parent's turn in this commit, or now if that has passed. */
-export type Turn = (go: () => void) => void
+export type Turn = (go: () => void) => void;
 
 /**
  * One render's turn: `run` holds what it is handed until `done`, then runs
  * it in the order it came; once done, it runs whatever comes at once.
  */
 export function turnFor(): { run: Turn; done: () => void } {
-  let waiting: (() => void)[] | null = []
+  let waiting: (() => void)[] | null = [];
   return {
     run: (go) => {
-      if (waiting) waiting.push(go)
-      else go()
+      if (waiting) waiting.push(go);
+      else go();
     },
     done: () => {
-      const now = waiting ?? []
-      waiting = null
-      for (const go of now) go()
+      const now = waiting ?? [];
+      waiting = null;
+      for (const go of now) go();
     },
-  }
+  };
 }
 
 /**
@@ -41,9 +41,9 @@ export function turnFor(): { run: Turn; done: () => void } {
  * render, done by an effect that runs after each, after every child's.
  */
 export function useTurn(): Turn {
-  const turn = turnFor()
+  const turn = turnFor();
   useEffect(() => {
-    turn.done()
-  })
-  return turn.run
+    turn.done();
+  });
+  return turn.run;
 }

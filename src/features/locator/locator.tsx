@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react'
-import { slide } from '@/shared/ui/sheet-gesture'
-import { LocatorButton } from './locator-button'
-import type { Locator as State } from './use-locator'
+import { useEffect, useState } from 'react';
+import { slide } from '@/shared/ui/sheet-gesture';
+import { LocatorButton } from './locator-button';
+import type { Locator as State } from './use-locator';
 
 type Props = {
-  locator: State
+  locator: State;
   /** A card is open: the button sits on its sheet rather than at the map's foot. */
-  docked: boolean
-}
+  docked: boolean;
+};
 
 /** What each look says it will do, for a screen reader. */
 const LABEL = {
@@ -15,7 +15,7 @@ const LABEL = {
   TrackOwnLocation: 'Show where I am',
   TrackedLocation: 'Turn the map the way I face',
   TracksTheMapBasedOnCompassFacing: 'Put north up',
-} as const
+} as const;
 
 /**
  * The LocatorButton where the owner put it (ScreenLocationBehavior,
@@ -31,29 +31,32 @@ const LABEL = {
  * was, to try again once the browser's setting is changed.
  */
 export function Locator({ locator, docked }: Props) {
-  const { status, noFix, mode, heading, compass, tap } = locator
-  const [note, setNote] = useState<string | null>(null)
+  const { status, noFix, mode, heading, compass, tap } = locator;
+  const [note, setNote] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status === 'denied') setNote('Location is off for this site. Allow it in your browser settings, then try again.')
-    else if (status === 'unavailable') setNote('This browser cannot give a location.')
-    else if (noFix) setNote('No fix yet. Try again outdoors, or check that location is on.')
-    else setNote(null)
-  }, [status, noFix])
+    if (status === 'denied')
+      setNote('Location is off for this site. Allow it in your browser settings, then try again.');
+    else if (status === 'unavailable') setNote('This browser cannot give a location.');
+    else if (noFix) setNote('No fix yet. Try again outdoors, or check that location is on.');
+    else setNote(null);
+  }, [status, noFix]);
   useEffect(() => {
-    if (!note) return
-    const t = window.setTimeout(() => setNote(null), 5000)
-    return () => window.clearTimeout(t)
-  }, [note])
+    if (!note) return;
+    const t = window.setTimeout(() => setNote(null), 5000);
+    return () => window.clearTimeout(t);
+  }, [note]);
 
   // Never above Middle's top; the map's foot, short of a phone's home bar, with no card.
-  const y = docked ? `max(var(--dock-y, 100%), ${slide('middle')})` : 'calc(100% - env(safe-area-inset-bottom))'
+  const y = docked
+    ? `max(var(--dock-y, 100%), ${slide('middle')})`
+    : 'calc(100% - env(safe-area-inset-bottom))';
   return (
     <div
       data-testid="locator-dock"
       className={
         'pointer-events-none absolute inset-0 z-[5] ' +
-        'transition-[translate] duration-sheet ease-enter motion-reduce:transition-none in-data-dock-dragging:transition-none ' +
+        'transition-[translate] duration-sheet ease-enter in-data-dock-dragging:transition-none motion-reduce:transition-none ' +
         '@float:translate-none!'
       }
       style={{ translate: `0 ${y}` }}
@@ -80,5 +83,5 @@ export function Locator({ locator, docked }: Props) {
         />
       </div>
     </div>
-  )
+  );
 }

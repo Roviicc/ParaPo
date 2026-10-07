@@ -11,7 +11,7 @@
 // regression-gestures, extend, group and studio-phone. takeHeldReload: phone.
 
 /** The dev server's address: PARAPO_BASE, or http://localhost:5173. */
-export const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '')
+export const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace(/\/$/, '');
 
 /**
  * A suite's count. `check` prints PASS or FAIL and its detail, `skip` prints
@@ -21,46 +21,54 @@ export const BASE = (process.env.PARAPO_BASE ?? 'http://localhost:5173').replace
  * snap-test print theirs.
  */
 export const harness = ({ bracketed = false } = {}) => {
-  const results = []
+  const results = [];
   const check = (name, ok, detail = '') => {
-    results.push(ok)
-    console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? (bracketed ? '  [' + detail + ']' : '  ' + detail) : ''}`)
-  }
+    results.push(ok);
+    console.log(
+      `${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? (bracketed ? '  [' + detail + ']' : '  ' + detail) : ''}`,
+    );
+  };
   const skip = (name, reason) =>
-    console.log(bracketed ? `SKIP  ${name}${reason ? '  [' + reason + ']' : ''}` : `SKIP  ${name}  ${reason}`)
+    console.log(
+      bracketed ? `SKIP  ${name}${reason ? '  [' + reason + ']' : ''}` : `SKIP  ${name}  ${reason}`,
+    );
   /** The last line, after a blank one unless `blankLine` is false (extend-test and group-test print none). */
   const tally = ({ blankLine = true } = {}) => {
-    const failed = results.filter((r) => !r).length
-    console.log(`${blankLine ? '\n' : ''}${results.length - failed} passed, ${failed} failed`)
-    process.exit(failed ? 1 : 0)
-  }
-  return { check, skip, tally }
-}
+    const failed = results.filter((r) => !r).length;
+    console.log(`${blankLine ? '\n' : ''}${results.length - failed} passed, ${failed} failed`);
+    process.exit(failed ? 1 : 0);
+  };
+  return { check, skip, tally };
+};
 
 // PARAPO_NODE_FETCH=1: serve every https request through Node fetch. Needed only
 // where the browser cannot reach the internet but Node can (sandboxed CI).
 // `seen`, when given, is handed each request first: hotspot-test and
 // regression-gestures count the router's requests with it.
 export const nodeFetch = async (p, seen) => {
-  if (!process.env.PARAPO_NODE_FETCH) return
+  if (!process.env.PARAPO_NODE_FETCH) return;
   await p.route(/^https:\/\//, async (route) => {
-    const req = route.request()
-    seen?.(req)
+    const req = route.request();
+    seen?.(req);
     try {
-      const h = { ...req.headers() }
-      delete h['accept-encoding']
-      const r = await fetch(req.url(), { method: req.method(), headers: h, body: ['GET', 'HEAD'].includes(req.method()) ? undefined : req.postDataBuffer() })
-      const body = Buffer.from(await r.arrayBuffer())
-      const hh = {}
+      const h = { ...req.headers() };
+      delete h['accept-encoding'];
+      const r = await fetch(req.url(), {
+        method: req.method(),
+        headers: h,
+        body: ['GET', 'HEAD'].includes(req.method()) ? undefined : req.postDataBuffer(),
+      });
+      const body = Buffer.from(await r.arrayBuffer());
+      const hh = {};
       r.headers.forEach((v, k) => {
-        if (!['content-encoding', 'content-length', 'transfer-encoding'].includes(k)) hh[k] = v
-      })
-      await route.fulfill({ status: r.status, headers: hh, body })
+        if (!['content-encoding', 'content-length', 'transfer-encoding'].includes(k)) hh[k] = v;
+      });
+      await route.fulfill({ status: r.status, headers: hh, body });
     } catch {
-      await route.abort()
+      await route.abort();
     }
-  })
-}
+  });
+};
 
 /**
  * No basemap tiles: the style is a bare one, a grey background and nothing
@@ -74,10 +82,14 @@ export const bareStyle = (page, grey = '#eeeeee') =>
       ? route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': grey } }] }),
+          body: JSON.stringify({
+            version: 8,
+            sources: {},
+            layers: [{ id: 'bg', type: 'background', paint: { 'background-color': grey } }],
+          }),
         })
       : route.fulfill({ status: 404, body: '' }),
-  )
+  );
 
 // The features of one of our GeoJSON sources once the page has some, asked
 // every 100 ms from here for up to `ms`; [] when none came in time. Not
@@ -87,13 +99,13 @@ export const bareStyle = (page, grey = '#eeeeee') =>
 // on an empty map. Seen on the first CI run, 2026-09-25. It reads the page's
 // window.__src, which each suite's init script defines.
 export const waitForSource = async (page, id, ms = 20000) => {
-  const until = Date.now() + ms
+  const until = Date.now() + ms;
   for (;;) {
-    const fs = await page.evaluate(async (id) => (await window.__src(id))?.features ?? [], id)
-    if (fs.length > 0 || Date.now() > until) return fs
-    await page.waitForTimeout(100)
+    const fs = await page.evaluate(async (id) => (await window.__src(id))?.features ?? [], id);
+    if (fs.length > 0 || Date.now() > until) return fs;
+    await page.waitForTimeout(100);
   }
-}
+};
 
 /**
  * The dev server's HMR socket, as `clientCode` — what `${base}/@vite/client`
@@ -102,16 +114,17 @@ export const waitForSource = async (page, id, ms = 20000) => {
  * answers that path with the app's page).
  */
 export const hmrSocketUrl = (base, clientCode) => {
-  if (typeof clientCode !== 'string' || !/new WebSocket\([^)]*"vite-hmr"/.test(clientCode)) return null
-  const url = new URL('/', base)
-  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+  if (typeof clientCode !== 'string' || !/new WebSocket\([^)]*"vite-hmr"/.test(clientCode))
+    return null;
+  const url = new URL('/', base);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   // server.hmr.port, when a config gives the socket a port of its own.
-  const port = /const hmrPort = (\d+)/.exec(clientCode)?.[1]
-  if (port) url.port = port
-  const token = /const wsToken = "([^"]*)"/.exec(clientCode)?.[1]
-  if (token) url.searchParams.set('token', token)
-  return url.href
-}
+  const port = /const hmrPort = (\d+)/.exec(clientCode)?.[1];
+  if (port) url.port = port;
+  const token = /const wsToken = "([^"]*)"/.exec(clientCode)?.[1];
+  if (token) url.searchParams.set('token', token);
+  return url.href;
+};
 
 /**
  * Takes what the dev server holds for the next page to connect, before a
@@ -133,55 +146,55 @@ export const hmrSocketUrl = (base, clientCode) => {
 export const takeHeldReload = async (base = BASE, ms = 3000) => {
   const code = await fetch(`${base}/@vite/client`)
     .then((r) => (r.ok ? r.text() : null))
-    .catch(() => null)
-  const socket = hmrSocketUrl(base, code)
-  if (!socket) return { socket: false }
+    .catch(() => null);
+  const socket = hmrSocketUrl(base, code);
+  if (!socket) return { socket: false };
   return new Promise((resolve) => {
-    let ws
-    let connected = false
-    let held = null
-    let timer
-    let ended = false
+    let ws;
+    let connected = false;
+    let held = null;
+    let timer;
+    let ended = false;
     const end = () => {
-      if (ended) return
-      ended = true
-      clearTimeout(timer)
-      resolve(connected ? { socket: true, held } : { socket: false })
-    }
+      if (ended) return;
+      ended = true;
+      clearTimeout(timer);
+      resolve(connected ? { socket: true, held } : { socket: false });
+    };
     // Closed before it resolves: the server counts a socket still closing as
     // a page connected, and sends it what it would otherwise hold.
     const done = () => {
-      clearTimeout(timer)
-      if (!ws || ws.readyState === WebSocket.CLOSED) return end()
-      ws.onclose = end
-      timer = setTimeout(end, 1000)
+      clearTimeout(timer);
+      if (!ws || ws.readyState === WebSocket.CLOSED) return end();
+      ws.onclose = end;
+      timer = setTimeout(end, 1000);
       try {
-        ws.close()
+        ws.close();
       } catch {
-        end()
+        end();
       }
-    }
-    timer = setTimeout(done, ms)
+    };
+    timer = setTimeout(done, ms);
     try {
-      ws = new WebSocket(socket, 'vite-hmr')
+      ws = new WebSocket(socket, 'vite-hmr');
     } catch {
-      return end()
+      return end();
     }
-    ws.onerror = done
+    ws.onerror = done;
     ws.onmessage = (e) => {
-      let m = null
+      let m = null;
       try {
-        m = JSON.parse(String(e.data))
+        m = JSON.parse(String(e.data));
       } catch {}
       if (m?.type === 'connected') {
-        connected = true
+        connected = true;
         // What it holds goes out right behind 'connected', on the same socket.
-        clearTimeout(timer)
-        timer = setTimeout(done, 250)
+        clearTimeout(timer);
+        timer = setTimeout(done, 250);
       } else if (connected && (m?.type === 'full-reload' || m?.type === 'error')) {
-        held = m
-        done()
+        held = m;
+        done();
       }
-    }
-  })
-}
+    };
+  });
+};

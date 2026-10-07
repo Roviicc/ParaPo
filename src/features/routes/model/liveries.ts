@@ -13,13 +13,13 @@
  * round, it is the same card (the owner, 2026-09-29; `useTripLivery` in
  * commuter/TripCard.tsx, since its line wears the colour too).
  */
-export const LIVERIES = ['red', 'orange', 'yellow', 'violet', 'rose', 'fuchsia'] as const
-export type Livery = (typeof LIVERIES)[number]
+export const LIVERIES = ['red', 'orange', 'yellow', 'violet', 'rose', 'fuchsia'] as const;
+export type Livery = (typeof LIVERIES)[number];
 
 /** This visit's draws, by place. A new visit draws again. */
-const visit = new Map<string, Livery>()
+const visit = new Map<string, Livery>();
 
-const key = (place: string) => place.trim().toLowerCase()
+const key = (place: string) => place.trim().toLowerCase();
 
 /**
  * The colours for a list of cards, in order. No colour comes twice in a list
@@ -31,15 +31,19 @@ const key = (place: string) => place.trim().toLowerCase()
  * colours this round has not had, leaving those that places further down
  * keep, and keeps what it draws.
  */
-export function liveriesFor(places: readonly string[], random = Math.random, drawn = visit): Livery[] {
-  const out: Livery[] = []
-  let round = new Set<Livery>()
+export function liveriesFor(
+  places: readonly string[],
+  random = Math.random,
+  drawn = visit,
+): Livery[] {
+  const out: Livery[] = [];
+  let round = new Set<Livery>();
   places.forEach((place, i) => {
-    if (round.size === LIVERIES.length) round = new Set()
-    const before = out[i - 1]
-    const kept = drawn.get(key(place))
-    let pick: Livery
-    if (kept && !round.has(kept) && kept !== before) pick = kept
+    if (round.size === LIVERIES.length) round = new Set();
+    const before = out[i - 1];
+    const kept = drawn.get(key(place));
+    let pick: Livery;
+    if (kept && !round.has(kept) && kept !== before) pick = kept;
     else {
       // Kept further down this round: left for the places that keep them.
       const ahead = new Set(
@@ -47,15 +51,15 @@ export function liveriesFor(places: readonly string[], random = Math.random, dra
           .slice(i + 1, i + 1 + LIVERIES.length - round.size)
           .map((p) => drawn.get(key(p)))
           .filter((l): l is Livery => !!l),
-      )
-      const open = LIVERIES.filter((l) => !round.has(l) && l !== before)
-      const free = open.filter((l) => !ahead.has(l))
-      const from = free.length ? free : open.length ? open : LIVERIES.filter((l) => l !== before)
-      pick = from[Math.floor(random() * from.length)] ?? LIVERIES[0]
-      if (!kept) drawn.set(key(place), pick)
+      );
+      const open = LIVERIES.filter((l) => !round.has(l) && l !== before);
+      const free = open.filter((l) => !ahead.has(l));
+      const from = free.length ? free : open.length ? open : LIVERIES.filter((l) => l !== before);
+      pick = from[Math.floor(random() * from.length)] ?? LIVERIES[0];
+      if (!kept) drawn.set(key(place), pick);
     }
-    round.add(pick)
-    out.push(pick)
-  })
-  return out
+    round.add(pick);
+    out.push(pick);
+  });
+  return out;
 }

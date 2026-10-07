@@ -1,16 +1,16 @@
-import { departures } from '../model/departures'
-import type { VariantSummary } from '../model/routes'
+import { departures } from '../model/departures';
+import type { VariantSummary } from '../model/routes';
 
 type Props = {
   /** Every direction of every route to list, slots included. */
-  routes: readonly VariantSummary[]
+  routes: readonly VariantSummary[];
   /** Whether the routes are shown the way back rather than outbound. */
-  back: boolean
+  back: boolean;
   /** Called with the direction picked. */
-  onRoute: (v: VariantSummary) => void
+  onRoute: (v: VariantSummary) => void;
   /** The `data-testid` of each place and of each row: `<prefix>-origin`, `<prefix>-item`. */
-  testId: string
-}
+  testId: string;
+};
 
 /**
  * Routes one way round, grouped by the place they leave from — Tala, then
@@ -25,7 +25,11 @@ export function Departures({ routes, back, onRoute, testId }: Props) {
   return (
     <>
       {departures(routes, back).map((p) => (
-        <li key={p.from} data-testid={`${testId}-origin`} className="border-b border-border-primary last:border-b-0">
+        <li
+          key={p.from}
+          data-testid={`${testId}-origin`}
+          className="border-b border-border-primary last:border-b-0"
+        >
           <p className="px-4 pt-2.5 text-sm font-semibold text-content-primary">{p.from}</p>
           <ul className="pb-1">
             {p.directions.map(({ v, to, drawn }) => (
@@ -35,17 +39,23 @@ export function Departures({ routes, back, onRoute, testId }: Props) {
                   data-testid={`${testId}-item`}
                   disabled={!drawn}
                   onClick={() => drawn && onRoute(v)}
-                  className="flex w-full items-baseline gap-2 px-4 py-2 text-left hover:bg-surface-secondary
-                             disabled:cursor-default disabled:hover:bg-transparent"
+                  className="flex w-full items-baseline gap-2 px-4 py-2 text-left hover:bg-surface-secondary disabled:cursor-default disabled:hover:bg-transparent"
                 >
                   <span aria-hidden="true" className="text-neutral-400">
                     →
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className={'block truncate font-medium ' + (drawn ? 'text-content-primary' : 'text-neutral-400')}>
+                    <span
+                      className={
+                        'block truncate font-medium ' +
+                        (drawn ? 'text-content-primary' : 'text-neutral-400')
+                      }
+                    >
                       {to}
                     </span>
-                    {!drawn && <span className="block truncate text-xs text-amber-700">Not mapped yet</span>}
+                    {!drawn && (
+                      <span className="block truncate text-xs text-amber-700">Not mapped yet</span>
+                    )}
                   </span>
                 </button>
               </li>
@@ -54,5 +64,5 @@ export function Departures({ routes, back, onRoute, testId }: Props) {
         </li>
       ))}
     </>
-  )
+  );
 }

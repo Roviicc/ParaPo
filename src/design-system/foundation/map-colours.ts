@@ -23,7 +23,7 @@ export const MAP_COLOURS = {
   'Map/HotspotsCard/Terminal/border-primary': '#024a70', // sky/900
   'Map/LocatorIndicatorOverlay/surface': '#8ec5ff', // blue/300, at 15%
   'Map/LocatorIndicatorOverlay/border': '#155dfc', // blue/600, at 75%
-} as const satisfies Record<`Map/${string}`, `#${string}`>
+} as const satisfies Record<`Map/${string}`, `#${string}`>;
 
 /**
  * The opacity Figma gives a Map/… surface with its colour (the owner's
@@ -35,7 +35,7 @@ export const MAP_OPACITY = {
   'Map/OverlayCard/Terminal/surface': 0.25,
   'Map/LocatorIndicatorOverlay/surface': 0.15,
   'Map/LocatorIndicatorOverlay/border': 0.75,
-} as const satisfies Partial<Record<keyof typeof MAP_COLOURS, number>>
+} as const satisfies Partial<Record<keyof typeof MAP_COLOURS, number>>;
 
 /**
  * The RouteCards' Card/<livery>/surface, in hex, for the map: a picked
@@ -50,7 +50,7 @@ export const CARD_COLOURS = {
   'Card/violet/surface': '#7008e7', // violet/700
   'Card/rose/surface': '#c70036', // rose/700
   'Card/fuchsia/surface': '#a800b7', // fuchsia/700
-} as const satisfies Record<`Card/${string}/surface`, `#${string}`>
+} as const satisfies Record<`Card/${string}/surface`, `#${string}`>;
 
 /**
  * Everything else the map paints — the public map's and the editor's — in
@@ -73,7 +73,7 @@ export const MAP_PAINT = {
   'Paint/draw-line': '#e11d48', // rose/600: the line being drawn, its points' rims
   'Paint/draw-uturn': '#f59e0b', // amber/500: a join that turns back
   'Paint/draw-borrow': '#2563eb', // blue/600: the stretch an Extend borrows
-} as const satisfies Record<`Paint/${string}`, string>
+} as const satisfies Record<`Paint/${string}`, string>;
 
 /**
  * No colour at all: a layer drawn and not seen. The end circles' twin wears
@@ -83,4 +83,4 @@ export const MAP_PAINT = {
  * alpha is the point (an opacity of 0 would have MapLibre skip the layer,
  * and compile nothing).
  */
-export const MAP_CLEAR = 'rgba(0, 0, 0, 0)'
+export const MAP_CLEAR = 'rgba(0, 0, 0, 0)';

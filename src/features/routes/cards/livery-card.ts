@@ -1,6 +1,6 @@
-import blobInverse from './route-card-blob-inverse.svg'
-import blobPrimary from './route-card-blob-primary.svg'
-import type { Livery } from '../model/liveries'
+import blobInverse from './route-card-blob-inverse.svg';
+import blobPrimary from './route-card-blob-primary.svg';
+import type { Livery } from '../model/liveries';
 
 /**
  * How a livery paints a card — the owner's RouteCard set (Figma 3665:2265,
@@ -24,7 +24,7 @@ export const CARD_SURFACE = {
   violet: 'bg-card-violet-surface border-card-violet-border-primary',
   rose: 'bg-card-rose-surface border-card-rose-border-primary',
   fuchsia: 'bg-card-fuchsia-surface border-card-fuchsia-border-primary',
-} satisfies Record<Livery, string>
+} satisfies Record<Livery, string>;
 
 export const CARD_TEXT = {
   red: 'text-content-inverse',
@@ -33,7 +33,7 @@ export const CARD_TEXT = {
   violet: 'text-content-inverse',
   rose: 'text-content-inverse',
   fuchsia: 'text-content-inverse',
-} satisfies Record<Livery, string>
+} satisfies Record<Livery, string>;
 
 // Drawn over the card, as Figma lays it: above the Blob and the words.
 export const CARD_SHADOW = {
@@ -43,7 +43,7 @@ export const CARD_SHADOW = {
   violet: 'shadow-route-card-inverse',
   rose: 'shadow-route-card-inverse',
   fuchsia: 'shadow-route-card-inverse',
-} satisfies Record<Livery, string>
+} satisfies Record<Livery, string>;
 
 // A RouteCard's State=Selected (2026-09-29): pressed in, and nothing else
 // changes — the fill, the words, the Blob stay the Rest card's.
@@ -54,7 +54,7 @@ export const CARD_SHADOW_SELECTED = {
   violet: 'shadow-route-card-inverse-selected',
   rose: 'shadow-route-card-inverse-selected',
   fuchsia: 'shadow-route-card-inverse-selected',
-} satisfies Record<Livery, string>
+} satisfies Record<Livery, string>;
 
 // Figma's Blob, Primary and Inverse: a white glow over the card's top,
 // 539×270 around its centre, 73px above it. The files carry 128px of blur
@@ -76,12 +76,12 @@ export const CARD_BLOB = {
   violet: { src: blobInverse, className: 'blur-[2px]' },
   rose: { src: blobInverse, className: 'blur-[2px]' },
   fuchsia: { src: blobInverse, className: 'blur-[2px]' },
-} satisfies Record<Livery, { src: string; className: string }>
+} satisfies Record<Livery, { src: string; className: string }>;
 
 // Pixels, all three, like the glow inside the file: the rem scale
 // (-top-50.25) would drift from the image at a larger default text size.
 export const BLOB_PLACE =
-  'pointer-events-none absolute -top-[201px] left-1/2 -z-10 h-[525.538px] w-[795.076px] max-w-none -translate-x-1/2'
+  'pointer-events-none absolute -top-[201px] left-1/2 -z-10 h-[525.538px] w-[795.076px] max-w-none -translate-x-1/2';
 
 /** A trip's rail and its dots' rings: Figma's Card/<livery>/Timeline/surface. */
 export const TIMELINE_SURFACE = {
@@ -91,7 +91,7 @@ export const TIMELINE_SURFACE = {
   violet: 'bg-card-violet-timeline-surface',
   rose: 'bg-card-rose-timeline-surface',
   fuchsia: 'bg-card-fuchsia-timeline-surface',
-} satisfies Record<Livery, string>
+} satisfies Record<Livery, string>;
 
 /**
  * A row Pressed, while the finger is down on it: the whole row in the card's
@@ -108,7 +108,7 @@ export const ROW_PRESSED = {
   violet: 'active:bg-card-violet-timeline-surface [-webkit-tap-highlight-color:transparent]',
   rose: 'active:bg-card-rose-timeline-surface [-webkit-tap-highlight-color:transparent]',
   fuchsia: 'active:bg-card-fuchsia-timeline-surface [-webkit-tap-highlight-color:transparent]',
-} satisfies Record<Livery, string>
+} satisfies Record<Livery, string>;
 
 /**
  * A picked hintuan's pill, with the pesos to it (the owner's Timeline
@@ -124,4 +124,4 @@ export const TIMELINE_PILL = {
   violet: 'bg-content-inverse text-card-violet-surface',
   rose: 'bg-content-inverse text-card-rose-surface',
   fuchsia: 'bg-content-inverse text-card-fuchsia-surface',
-} satisfies Record<Livery, string>
+} satisfies Record<Livery, string>;

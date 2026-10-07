@@ -10,13 +10,13 @@
  * phones, after delay/tooltip.
  */
 
-type Position = 'bottom' | 'top' | 'left' | 'right'
+type Position = 'bottom' | 'top' | 'left' | 'right';
 
 type Props = {
-  position?: Position
+  position?: Position;
   /** Figma's text layer, "Tooltip": one line, never wraps. */
-  label: string
-}
+  label: string;
+};
 
 // The arrow is Figma's own path, 14.7×13, pointing up as drawn. It sticks
 // out 7px and tucks the other 6px under the pill (Figma: -8px on a 14px
@@ -28,7 +28,7 @@ const ARROW = {
   top: 'bottom-full -mb-1.5 left-1/2 -translate-x-1/2',
   left: 'right-full -mr-1.75 top-1/2 -translate-y-1/2 -rotate-90',
   right: 'left-full -ml-1.75 top-1/2 -translate-y-1/2 rotate-90',
-} satisfies Record<Position, string>
+} satisfies Record<Position, string>;
 
 export function Tooltip({ position = 'bottom', label }: Props) {
   return (
@@ -39,7 +39,9 @@ export function Tooltip({ position = 'bottom', label }: Props) {
       <svg
         aria-hidden
         viewBox="0 0 14.7047 13"
-        className={'absolute h-[13px] w-[14.7047px] text-components-tooltip-surface ' + ARROW[position]}
+        className={
+          'absolute h-[13px] w-[14.7047px] text-components-tooltip-surface ' + ARROW[position]
+        }
       >
         <path
           fill="currentColor"
@@ -48,5 +50,5 @@ export function Tooltip({ position = 'bottom', label }: Props) {
       </svg>
       {label}
     </span>
-  )
+  );
 }

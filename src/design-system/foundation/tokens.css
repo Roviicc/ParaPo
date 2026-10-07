@@ -233,7 +233,9 @@
   --color-map-route-line-arrow-inverse: var(--map-route-line-arrow-inverse);
   --color-map-route-line-hintuan-surface-default: var(--map-route-line-hintuan-surface-default);
   --color-map-overlay-card-hintuan-surface: var(--map-overlay-card-hintuan-surface);
-  --color-map-overlay-card-hintuan-surface-selected: var(--map-overlay-card-hintuan-surface-selected);
+  --color-map-overlay-card-hintuan-surface-selected: var(
+    --map-overlay-card-hintuan-surface-selected
+  );
   --color-map-overlay-card-hintuan-content: var(--map-overlay-card-hintuan-content);
   --color-map-overlay-card-terminal-surface: var(--map-overlay-card-terminal-surface);
   --color-map-overlay-card-terminal-border: var(--map-overlay-card-terminal-border);
@@ -241,7 +243,9 @@
   --color-map-hotspots-card-hintuan-surface: var(--map-hotspots-card-hintuan-surface);
   --color-map-hotspots-card-hintuan-border-primary: var(--map-hotspots-card-hintuan-border-primary);
   --color-map-hotspots-card-terminal-surface: var(--map-hotspots-card-terminal-surface);
-  --color-map-hotspots-card-terminal-border-primary: var(--map-hotspots-card-terminal-border-primary);
+  --color-map-hotspots-card-terminal-border-primary: var(
+    --map-hotspots-card-terminal-border-primary
+  );
   --color-map-locator-indicator-overlay-surface: var(--map-locator-indicator-overlay-surface);
   --color-map-locator-indicator-overlay-border: var(--map-locator-indicator-overlay-border);
 }

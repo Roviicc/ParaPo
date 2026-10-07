@@ -1,14 +1,22 @@
-import { useState, type ReactNode, type Ref } from 'react'
-import { FREE, RouteTripDetail, type Fare, type Fares } from './route-trip-detail'
-import { useFareKind } from './use-fare-kind'
-import type { SheetHeight } from '@/shared/ui/bottom-sheet'
-import { lineLength } from '@/shared/utils/geo'
-import { manilaDate, rideFare } from '../model/fares'
-import { liveriesFor, type Livery } from '../model/liveries'
-import { directionEnds, isDrawn, isFerry, isRail, LINE_NOTES, variantLine, type VariantSummary } from '../model/routes'
-import { railFares } from '../model/rail-fares'
-import { otherDirection, otherRoutesFrom } from '../model/departures'
-import type { Timeline } from '../model/timeline'
+import { useState, type ReactNode, type Ref } from 'react';
+import { FREE, RouteTripDetail, type Fare, type Fares } from './route-trip-detail';
+import { useFareKind } from './use-fare-kind';
+import type { SheetHeight } from '@/shared/ui/bottom-sheet';
+import { lineLength } from '@/shared/utils/geo';
+import { manilaDate, rideFare } from '../model/fares';
+import { liveriesFor, type Livery } from '../model/liveries';
+import {
+  directionEnds,
+  isDrawn,
+  isFerry,
+  isRail,
+  LINE_NOTES,
+  variantLine,
+  type VariantSummary,
+} from '../model/routes';
+import { railFares } from '../model/rail-fares';
+import { otherDirection, otherRoutesFrom } from '../model/departures';
+import type { Timeline } from '../model/timeline';
 
 /**
  * The trip's colour, one owner for it (the review's 6.6): decided as the trip
@@ -26,15 +34,17 @@ export function useTripLivery(
   worn: { id: string; livery: Livery } | null,
   wornBehind: boolean,
 ): Livery | null {
-  const [tripWears, setTripWears] = useState<{ routeId: string; livery: Livery } | null>(null)
-  let tripLivery = open && tripWears?.routeId === open.route_id ? tripWears.livery : null
+  const [tripWears, setTripWears] = useState<{ routeId: string; livery: Livery } | null>(null);
+  let tripLivery = open && tripWears?.routeId === open.route_id ? tripWears.livery : null;
   if (open && !tripLivery) {
-    tripLivery = (wornBehind && worn?.id === open.id ? worn.livery : undefined) ?? liveriesFor([directionEnds(open).from])[0]
-    setTripWears({ routeId: open.route_id, livery: tripLivery })
+    tripLivery =
+      (wornBehind && worn?.id === open.id ? worn.livery : undefined) ??
+      liveriesFor([directionEnds(open).from])[0];
+    setTripWears({ routeId: open.route_id, livery: tripLivery });
   } else if (!open && tripWears) {
-    setTripWears(null)
+    setTripWears(null);
   }
-  return tripLivery
+  return tripLivery;
 }
 
 /**
@@ -82,41 +92,41 @@ export function TripCard({
   signboardUrl = publishedSignboard,
   extras,
 }: {
-  variant: VariantSummary
-  variants: readonly VariantSummary[]
-  timeline: Timeline
+  variant: VariantSummary;
+  variants: readonly VariantSummary[];
+  timeline: Timeline;
   /** The colour it opened in, kept through SWITCH; its line wears it too. */
-  livery: Livery
-  onBackToList: (() => void) | null
-  onSwitch: (sibling: VariantSummary) => void
-  onClose: () => void
+  livery: Livery;
+  onBackToList: (() => void) | null;
+  onSwitch: (sibling: VariantSummary) => void;
+  onClose: () => void;
   /** The hintuan picked on the timeline (useRideTo), and how far the ride to it runs, when its line reaches it. */
-  picked: string | null
-  pickedMetres: number | undefined
-  onPick: (id: string) => void
+  picked: string | null;
+  pickedMetres: number | undefined;
+  onPick: (id: string) => void;
   /** The origin's or the destination's row: the whole ride, and that end on the map. */
-  onEnd: (end: 'from' | 'to') => void
+  onEnd: (end: 'from' | 'to') => void;
   /** The end picked from its row (useRideTo's `endPicked`), or null. */
-  endPicked: 'from' | 'to' | null
-  dockRef: Ref<HTMLDivElement>
+  endPicked: 'from' | 'to' | null;
+  dockRef: Ref<HTMLDivElement>;
   /** Its sheet's height, shared with the list or card behind it (BottomSheet). */
-  height: SheetHeight
+  height: SheetHeight;
   /** A row of "Other routes" tapped: that direction's trip in this one's place. Without it, no rows. */
-  onOtherRoute?: (variant: VariantSummary) => void
+  onOtherRoute?: (variant: VariantSummary) => void;
   /** Where a signboard's file is read: beside the published map, or the studio's bucket. */
-  signboardUrl?: (name: string) => string
+  signboardUrl?: (name: string) => string;
   /** Under the tiles, the studio's alone: its facts and its Edit, Extend and Delete. */
-  extras?: ReactNode
+  extras?: ReactNode;
 }) {
-  const { from, to } = directionEnds(variant)
-  const sibling = otherDirection(variants, variant)
-  const switchable = !!sibling && isDrawn(sibling)
+  const { from, to } = directionEnds(variant);
+  const sibling = otherDirection(variants, variant);
+  const switchable = !!sibling && isDrawn(sibling);
   // The whole ride, measured once on its full line — the index's figure, so
   // an overview drawn while the line is read never prices it: its Kilometer
   // and its Expected fare.
-  const metres = variant.metres ?? lineLength(variantLine(variant))
-  const [fareKind, setFareKind] = useFareKind()
-  const others = onOtherRoute ? otherRoutesFrom(variants, variant) : []
+  const metres = variant.metres ?? lineLength(variantLine(variant));
+  const [fareKind, setFareKind] = useFareKind();
+  const others = onOtherRoute ? otherRoutesFrom(variants, variant) : [];
   return (
     <RouteTripDetail
       livery={livery}
@@ -138,7 +148,7 @@ export function TripCard({
       switchable={switchable}
       back={variant.reversed}
       onSwitch={() => {
-        if (sibling && switchable) onSwitch(sibling)
+        if (sibling && switchable) onSwitch(sibling);
       }}
       onBackToList={onBackToList}
       onClose={onClose}
@@ -146,39 +156,45 @@ export function TripCard({
       note={LINE_NOTES[variant.route?.route_code ?? '']}
       otherRoutes={others.map((v) => ({ id: v.id, to: directionEnds(v).to }))}
       onOtherRoute={(id) => {
-        const v = others.find((o) => o.id === id)
-        if (v) onOtherRoute?.(v)
+        const v = others.find((o) => o.id === id);
+        if (v) onOtherRoute?.(v);
       }}
     >
       {extras}
     </RouteTripDetail>
-  )
+  );
 }
 
 /** A ride's pesos, regular and discounted, for the fare tile; undefined when no fare rule prices it. A train's are by its stations (railFares). */
 function faresFor(mode: Parameters<typeof rideFare>[0], metres: number): Fares | undefined {
-  const date = manilaDate()
-  const regular = rideFare(mode, metres, date)
-  const discounted = rideFare(mode, metres, date, 'discounted')
-  return regular && discounted ? { regular, discounted } : undefined
+  const date = manilaDate();
+  const regular = rideFare(mode, metres, date);
+  const discounted = rideFare(mode, metres, date, 'discounted');
+  return regular && discounted ? { regular, discounted } : undefined;
 }
 
 /** The whole ride's fare: a train's by its stations (railFares), the ferry's free, a jeep's by its metres. */
 function fareFor(variant: VariantSummary, metres: number, timeline: Timeline): Fare | undefined {
-  if (isFerry(variant.route?.mode)) return FREE
-  if (isRail(variant.route?.mode)) return railFares(variant.route.route_code, timeline.from?.label, timeline.to?.label)
-  return faresFor(variant.route?.mode, metres)
+  if (isFerry(variant.route?.mode)) return FREE;
+  if (isRail(variant.route?.mode))
+    return railFares(variant.route.route_code, timeline.from?.label, timeline.to?.label);
+  return faresFor(variant.route?.mode, metres);
 }
 
 /** The fare to the picked hintuan: a jeep's by the metres to it, a train's to that station, the ferry's free. */
-function pickedFareFor(variant: VariantSummary, pickedMetres: number | undefined, timeline: Timeline, picked: string | null): Fare | undefined {
-  if (isFerry(variant.route?.mode)) return picked ? FREE : undefined
+function pickedFareFor(
+  variant: VariantSummary,
+  pickedMetres: number | undefined,
+  timeline: Timeline,
+  picked: string | null,
+): Fare | undefined {
+  if (isFerry(variant.route?.mode)) return picked ? FREE : undefined;
   if (isRail(variant.route?.mode)) {
-    const row = picked ? timeline.between.find((r) => r.id === picked) : undefined
-    return row ? railFares(variant.route.route_code, timeline.from?.label, row.label) : undefined
+    const row = picked ? timeline.between.find((r) => r.id === picked) : undefined;
+    return row ? railFares(variant.route.route_code, timeline.from?.label, row.label) : undefined;
   }
-  return pickedMetres === undefined ? undefined : faresFor(variant.route?.mode, pickedMetres)
+  return pickedMetres === undefined ? undefined : faresFor(variant.route?.mode, pickedMetres);
 }
 
 /** A board as the publish writes it, beside the map's own files. */
-const publishedSignboard = (name: string) => `/data/signboards/${encodeURIComponent(name)}`
+const publishedSignboard = (name: string) => `/data/signboards/${encodeURIComponent(name)}`;

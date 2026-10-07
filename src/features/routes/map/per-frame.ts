@@ -5,15 +5,15 @@
  */
 
 /** The frame clock: the browser's, or a test's. */
-export type Frames = { request: (run: () => void) => number; cancel: (handle: number) => void }
+export type Frames = { request: (run: () => void) => number; cancel: (handle: number) => void };
 
 const browserFrames: Frames = {
   request: (run) => requestAnimationFrame(run),
   cancel: (handle) => cancelAnimationFrame(handle),
-}
+};
 
 /** What perFrame gives back: `add` an arrival, `clear` what is not handed on yet. */
-export type PerFrame<K, V> = { add: (key: K, value: V) => void; clear: () => void }
+export type PerFrame<K, V> = { add: (key: K, value: V) => void; clear: () => void };
 
 /**
  * Keyed arrivals, collected and handed to `apply` together at the next
@@ -28,24 +28,27 @@ export type PerFrame<K, V> = { add: (key: K, value: V) => void; clear: () => voi
  * handed on as it comes back — when the map, which draws on frames too,
  * first draws again.
  */
-export function perFrame<K, V>(apply: (batch: ReadonlyMap<K, V>) => void, frames: Frames = browserFrames): PerFrame<K, V> {
-  let pending = new Map<K, V>()
-  let frame: number | null = null
+export function perFrame<K, V>(
+  apply: (batch: ReadonlyMap<K, V>) => void,
+  frames: Frames = browserFrames,
+): PerFrame<K, V> {
+  let pending = new Map<K, V>();
+  let frame: number | null = null;
   return {
     add(key: K, value: V) {
-      pending.set(key, value)
-      if (frame !== null) return
+      pending.set(key, value);
+      if (frame !== null) return;
       frame = frames.request(() => {
-        frame = null
-        const batch = pending
-        pending = new Map()
-        apply(batch)
-      })
+        frame = null;
+        const batch = pending;
+        pending = new Map();
+        apply(batch);
+      });
     },
     clear() {
-      pending = new Map()
-      if (frame !== null) frames.cancel(frame)
-      frame = null
+      pending = new Map();
+      if (frame !== null) frames.cancel(frame);
+      frame = null;
     },
-  }
+  };
 }

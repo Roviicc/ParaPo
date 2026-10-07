@@ -2,7 +2,13 @@
 // when something outside the feature needs more; nothing outside imports its
 // inner files (.claude/CLAUDE.md, Import rules). Written with the restructure
 // of 2026-10-07.
-export { MAP_FILE_TOO_NEW, loadLine, loadStopsFromFile, loadVariantsFromFile, openingVariants } from './map-file'
-export { Notices } from './notices'
-export { registerServiceWorker, reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa'
-export { useMapAge, useOffline } from './status'
+export {
+  MAP_FILE_TOO_NEW,
+  loadLine,
+  loadStopsFromFile,
+  loadVariantsFromFile,
+  openingVariants,
+} from './map-file';
+export { Notices } from './notices';
+export { registerServiceWorker, reloadForNewerApp, reloadToUpdate, useNeedRefresh } from './pwa';
+export { useMapAge, useOffline } from './status';

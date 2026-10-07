@@ -1,6 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
-import { fn } from 'storybook/test'
-import { LocatorButton } from './locator-button'
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { fn } from 'storybook/test';
+import { LocatorButton } from './locator-button';
 
 const meta = {
   title: 'Features/Locator/LocatorButton',
@@ -13,29 +13,33 @@ const meta = {
     ),
   ],
   args: { onClick: fn(), 'aria-label': 'Show where I am' },
-} satisfies Meta<typeof LocatorButton>
+} satisfies Meta<typeof LocatorButton>;
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 /** No location yet — not asked, refused, or no fix in: a tap asks the browser for it. */
-export const LocationOff: Story = { args: { mode: 'LocationOff', 'aria-label': 'Turn on my location' } }
+export const LocationOff: Story = {
+  args: { mode: 'LocationOff', 'aria-label': 'Turn on my location' },
+};
 
 /** The camera is elsewhere: a tap brings it to the visitor. */
-export const TrackOwnLocation: Story = { args: { mode: 'TrackOwnLocation' } }
+export const TrackOwnLocation: Story = { args: { mode: 'TrackOwnLocation' } };
 
 /** The camera follows the visitor, north up: a tap turns on the compass. */
-export const TrackedLocation: Story = { args: { mode: 'TrackedLocation', 'aria-label': 'Turn the map the way I face' } }
+export const TrackedLocation: Story = {
+  args: { mode: 'TrackedLocation', 'aria-label': 'Turn the map the way I face' },
+};
 
 /** TrackedLocation with the phone facing east-north-east: its arrow turns with it. */
 export const TrackedLocationTurned: Story = {
   args: { mode: 'TrackedLocation', heading: 60, 'aria-label': 'Turn the map the way I face' },
-}
+};
 
 /** The camera tilted and turned with the phone: a tap puts north up again. */
 export const TracksTheMapBasedOnCompassFacing: Story = {
   args: { mode: 'TracksTheMapBasedOnCompassFacing', 'aria-label': 'Put north up' },
-}
+};
 
 /**
  * Pressed (InnerShadow/SpecialButtonPressed): shown only while touched, so
@@ -51,4 +55,4 @@ export const Pressed: Story = {
       <LocatorButton {...args} mode="TracksTheMapBasedOnCompassFacing" aria-label="Put north up" />
     </div>
   ),
-}
+};

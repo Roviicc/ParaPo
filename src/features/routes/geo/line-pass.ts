@@ -1,8 +1,8 @@
-import { servedBy, variantLine, type VariantSummary } from '../model/routes'
-import { stopRing, type StopSummary } from '../model/stops'
-import { bboxOf, bboxesOverlap, type BBox, type LngLat } from '@/shared/utils/geo'
-import { passBounds, passStretches } from './pass'
-import type { Ring } from './ring'
+import { servedBy, variantLine, type VariantSummary } from '../model/routes';
+import { stopRing, type StopSummary } from '../model/stops';
+import { bboxOf, bboxesOverlap, type BBox, type LngLat } from '@/shared/utils/geo';
+import { passBounds, passStretches } from './pass';
+import type { Ring } from './ring';
 
 /*
  * The orange stretches as a direction's line file carries them (the
@@ -41,29 +41,29 @@ import type { Ring } from './ring'
  * tests/unit/pass-stretches-test.mjs pins what the rule paints on a small
  * map, and fails until this is bumped.
  */
-export const PASS_RULE = 1
+export const PASS_RULE = 1;
 
 /** A hintuan's box as the stretches are worked out against it: its ring, and the ground a line must reach (passBounds). */
-export type PassBox = { stop: StopSummary; ring: Ring; bounds: BBox }
+export type PassBox = { stop: StopSummary; ring: Ring; bounds: BBox };
 
 /** One orange stretch, as the map's source takes it: its direction's id on it, for the lighting. */
 export type PassFeature = {
-  type: 'Feature'
-  properties: { id: string; route_id: string }
-  geometry: { type: 'LineString'; coordinates: LngLat[] }
-}
+  type: 'Feature';
+  properties: { id: string; route_id: string };
+  geometry: { type: 'LineString'; coordinates: LngLat[] };
+};
 
 /** What a line file carries of its orange stretches: each stretch's points, and what they were worked out against. */
-export type LinePass = { pass: LngLat[][]; passKey: string }
+export type LinePass = { pass: LngLat[][]; passKey: string };
 
 /** Every hintuan with a box: what the stretches are worked out against. */
 export function passBoxes(stops: readonly StopSummary[]): readonly PassBox[] {
   return stops
     .filter((s) => s.kind === 'hintuan' && s.area)
     .map((s) => {
-      const ring = stopRing(s)
-      return { stop: s, ring, bounds: passBounds(ring) }
-    })
+      const ring = stopRing(s);
+      return { stop: s, ring, bounds: passBounds(ring) };
+    });
 }
 
 /**
@@ -73,27 +73,33 @@ export function passBoxes(stops: readonly StopSummary[]): readonly PassBox[] {
  * and only the hintuans its route stops at: a train's track over a jeep
  * hintuan is not a stretch of its ride (servedBy).
  */
-export function boxesReached(v: VariantSummary, line: readonly LngLat[], boxes: readonly PassBox[]): PassBox[] {
-  const reach = bboxOf(line)
-  return boxes.filter((b) => bboxesOverlap(reach, b.bounds) && servedBy(b.stop, v.route))
+export function boxesReached(
+  v: VariantSummary,
+  line: readonly LngLat[],
+  boxes: readonly PassBox[],
+): PassBox[] {
+  const reach = bboxOf(line);
+  return boxes.filter((b) => bboxesOverlap(reach, b.bounds) && servedBy(b.stop, v.route));
 }
 
 /** The stretches of `line` past these boxes, box by box in their order. */
 function stretchesAlong(line: readonly LngLat[], reached: readonly PassBox[]): LngLat[][] {
-  return reached.flatMap(({ ring }) => passStretches(line, ring))
+  return reached.flatMap(({ ring }) => passStretches(line, ring));
 }
 
 const feature = (v: VariantSummary, coordinates: LngLat[]): PassFeature => ({
   type: 'Feature',
   properties: { id: v.id, route_id: v.route_id },
   geometry: { type: 'LineString', coordinates },
-})
+});
 
 /** One direction's orange stretches past these boxes, worked out afresh. */
 export function stretchesPast(v: VariantSummary, boxes: readonly PassBox[]): PassFeature[] {
-  const line = variantLine(v)
-  if (line.length < 2) return []
-  return stretchesAlong(line, boxesReached(v, line, boxes)).map((coordinates) => feature(v, coordinates))
+  const line = variantLine(v);
+  if (line.length < 2) return [];
+  return stretchesAlong(line, boxesReached(v, line, boxes)).map((coordinates) =>
+    feature(v, coordinates),
+  );
 }
 
 /**
@@ -104,12 +110,12 @@ export function stretchesPast(v: VariantSummary, boxes: readonly PassBox[]): Pas
  * numbers and Math.imul only.
  */
 export function passKey(reached: readonly PassBox[]): string {
-  let text = `${PASS_RULE}`
+  let text = `${PASS_RULE}`;
   for (const { stop, ring } of reached) {
-    text += `|${stop.id}:`
-    for (const [x, y] of ring) text += `${Math.round(x * 1e6)},${Math.round(y * 1e6)};`
+    text += `|${stop.id}:`;
+    for (const [x, y] of ring) text += `${Math.round(x * 1e6)},${Math.round(y * 1e6)};`;
   }
-  return hash53(text).toString(36)
+  return hash53(text).toString(36);
 }
 
 /**
@@ -119,23 +125,25 @@ export function passKey(reached: readonly PassBox[]): string {
  * key. A line of fewer than two points has none, and the key of no box.
  */
 export function linePass(v: VariantSummary, boxes: readonly PassBox[]): LinePass {
-  const line = variantLine(v)
-  const reached = line.length < 2 ? [] : boxesReached(v, line, boxes)
-  return { pass: stretchesAlong(line, reached), passKey: passKey(reached) }
+  const line = variantLine(v);
+  const reached = line.length < 2 ? [] : boxesReached(v, line, boxes);
+  return { pass: stretchesAlong(line, reached), passKey: passKey(reached) };
 }
 
 // The stretches each line file brought, by the very line object read from
 // it (mapFile.ts, loadLine): that object becomes the direction's `shape`
 // as it is (useSavedRoutes), so whatever is kept here is the stretches of
 // that line and no other, and goes when the line does.
-const published = new WeakMap<object, LinePass>()
+const published = new WeakMap<object, LinePass>();
 
 const isPoint = (p: unknown): p is LngLat =>
-  Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1])
+  Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]);
 
 /** True for stretches as the publish writes them: each two points or more, each point two numbers. */
 export function readablePass(pass: unknown): pass is LngLat[][] {
-  return Array.isArray(pass) && pass.every((s) => Array.isArray(s) && s.length >= 2 && s.every(isPoint))
+  return (
+    Array.isArray(pass) && pass.every((s) => Array.isArray(s) && s.length >= 2 && s.every(isPoint))
+  );
 }
 
 /**
@@ -144,7 +152,8 @@ export function readablePass(pass: unknown): pass is LngLat[][] {
  * keeps nothing, and that line's stretches are worked out as before.
  */
 export function keepLinePass(shape: object, file: { pass?: unknown; passKey?: unknown }): void {
-  if (typeof file.passKey === 'string' && readablePass(file.pass)) published.set(shape, { pass: file.pass, passKey: file.passKey })
+  if (typeof file.passKey === 'string' && readablePass(file.pass))
+    published.set(shape, { pass: file.pass, passKey: file.passKey });
 }
 
 /**
@@ -155,26 +164,29 @@ export function keepLinePass(shape: object, file: { pass?: unknown; passKey?: un
  * against the index's own boxes each time, so a line file that is newer or
  * older than the index is never painted with another map's hintuans.
  */
-export function publishedStretches(v: VariantSummary, boxes: readonly PassBox[]): PassFeature[] | null {
-  const kept = v.shape ? published.get(v.shape) : undefined
-  if (!kept) return null
-  const line = variantLine(v)
-  if (line.length < 2 || passKey(boxesReached(v, line, boxes)) !== kept.passKey) return null
-  return kept.pass.map((coordinates) => feature(v, coordinates))
+export function publishedStretches(
+  v: VariantSummary,
+  boxes: readonly PassBox[],
+): PassFeature[] | null {
+  const kept = v.shape ? published.get(v.shape) : undefined;
+  if (!kept) return null;
+  const line = variantLine(v);
+  if (line.length < 2 || passKey(boxesReached(v, line, boxes)) !== kept.passKey) return null;
+  return kept.pass.map((coordinates) => feature(v, coordinates));
 }
 
 /** cyrb53 (public domain): a 53-bit hash of a string, steady everywhere. Not for secrets; for telling two inputs apart. */
 function hash53(text: string): number {
-  let h1 = 0xdeadbeef
-  let h2 = 0x41c6ce57
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
   for (let i = 0; i < text.length; i++) {
-    const ch = text.charCodeAt(i)
-    h1 = Math.imul(h1 ^ ch, 2654435761)
-    h2 = Math.imul(h2 ^ ch, 1597334677)
+    const ch = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
   }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507)
-  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909)
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507)
-  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909)
-  return 4294967296 * (2097151 & h2) + (h1 >>> 0)
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 }

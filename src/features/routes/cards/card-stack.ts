@@ -1,7 +1,7 @@
-import type { LngLat } from '@/shared/utils/geo'
-import { sharingAnEnd } from '../model/departures'
-import { isDrawn, variantLine, type VariantSummary } from '../model/routes'
-import type { Snap } from '@/shared/ui/sheet-gesture'
+import type { LngLat } from '@/shared/utils/geo';
+import { sharingAnEnd } from '../model/departures';
+import { isDrawn, variantLine, type VariantSummary } from '../model/routes';
+import type { Snap } from '@/shared/ui/sheet-gesture';
 
 /*
  * The cards that stand in for one another over the map — the route list, a
@@ -13,7 +13,7 @@ import type { Snap } from '@/shared/ui/sheet-gesture'
 
 /** Several things under one tap — routes, hotspots or both: the route list asks which. */
 export function isChoosing(routes: readonly unknown[], stops: readonly unknown[]): boolean {
-  return routes.length + stops.length > 1
+  return routes.length + stops.length > 1;
 }
 
 /**
@@ -28,10 +28,12 @@ export function tripBack(
   variants: readonly VariantSummary[],
   behind: boolean,
 ): 'behind' | 'fan' | null {
-  if (behind) return 'behind'
-  if (!trip) return null
-  const sameWay = sharingAnEnd(variants, trip).filter((v) => v.reversed === trip.reversed && isDrawn(v))
-  return sameWay.length > 1 ? 'fan' : null
+  if (behind) return 'behind';
+  if (!trip) return null;
+  const sameWay = sharingAnEnd(variants, trip).filter(
+    (v) => v.reversed === trip.reversed && isDrawn(v),
+  );
+  return sameWay.length > 1 ? 'fan' : null;
 }
 
 /**
@@ -40,7 +42,7 @@ export function tripBack(
  * Middle, where every sheet opens.
  */
 export function sharedSnap(snap: Snap, anyOpen: boolean): Snap {
-  return anyOpen ? snap : 'middle'
+  return anyOpen ? snap : 'middle';
 }
 
 /**
@@ -50,7 +52,7 @@ export function sharedSnap(snap: Snap, anyOpen: boolean): Snap {
  * lets it go.
  */
 export function tripBehindHolds(tripOpen: boolean, placeOpen: boolean): boolean {
-  return placeOpen && !tripOpen
+  return placeOpen && !tripOpen;
 }
 
 /**
@@ -58,11 +60,11 @@ export function tripBehindHolds(tripOpen: boolean, placeOpen: boolean): boolean 
  * stays let go only while that box is still the one the card is on.
  */
 export function letGoHolds(letGoId: string | null, selectedId: string | null): boolean {
-  return letGoId !== null && letGoId === selectedId
+  return letGoId !== null && letGoId === selectedId;
 }
 
 /** What a card frames: routes whole, or a place kept in view. */
-export type Framed = { lines: readonly (readonly LngLat[])[] } | { at: LngLat } | null
+export type Framed = { lines: readonly (readonly LngLat[])[] } | { at: LngLat } | null;
 
 /**
  * What the card on show frames as the sheet settles at another height
@@ -78,9 +80,9 @@ export function framedBy(
   picked: readonly VariantSummary[] | null,
   lit: readonly VariantSummary[],
 ): Framed {
-  const card = picked && { lines: picked.map(variantLine) }
-  if (trip) return { lines: [variantLine(trip)] }
-  if (placeAt) return card ?? { at: placeAt }
-  if (choosing) return card ?? { lines: lit.map(variantLine) }
-  return null
+  const card = picked && { lines: picked.map(variantLine) };
+  if (trip) return { lines: [variantLine(trip)] };
+  if (placeAt) return card ?? { at: placeAt };
+  if (choosing) return card ?? { lines: lit.map(variantLine) };
+  return null;
 }

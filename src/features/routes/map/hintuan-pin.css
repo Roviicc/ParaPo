@@ -42,11 +42,19 @@ button.station-label-tap {
   scale: 0.6;
 }
 @keyframes hintuan-pin-pop {
-  from { transform: scale(0.4); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .hintuan-pin > span,
   .station-label-tap > span:first-child,
-  .hintuan-pin-title { animation: none; }
+  .hintuan-pin-title {
+    animation: none;
+  }
 }

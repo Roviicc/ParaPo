@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from 'react'
+import { useEffect, type RefObject } from 'react';
 
 /**
  * Focus into a card when it is shown, and back to where it was when it goes:
@@ -11,15 +11,16 @@ import { useEffect, type RefObject } from 'react'
  */
 export function useDialogFocus(ref: RefObject<HTMLElement | null>, hidden: boolean): void {
   useEffect(() => {
-    const el = ref.current
-    if (hidden || !el) return
-    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    if (!el.contains(document.activeElement)) el.focus({ preventScroll: true })
+    const el = ref.current;
+    if (hidden || !el) return;
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (!el.contains(document.activeElement)) el.focus({ preventScroll: true });
     return () => {
       // Only when the focus is still ours to give back: a tap elsewhere
       // already moved it where the visitor wanted it.
-      const now = document.activeElement
-      if ((now === null || now === document.body || el.contains(now)) && before?.isConnected) before.focus({ preventScroll: true })
-    }
-  }, [ref, hidden])
+      const now = document.activeElement;
+      if ((now === null || now === document.body || el.contains(now)) && before?.isConnected)
+        before.focus({ preventScroll: true });
+    };
+  }, [ref, hidden]);
 }

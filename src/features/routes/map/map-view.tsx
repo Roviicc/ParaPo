@@ -1,10 +1,18 @@
-import { useEffect, useRef, useState } from 'react'
-import { BasemapControl } from './basemap-control'
-import { DEFAULT_BASEMAP, initialStyle, readBasemap, type Basemap } from './basemap'
-import { diagnose, type Diagnosis } from './diagnose'
-import { OPENING_WAIT_MS, ROUTES_FRAMING, loadClock, loadingLifts, openedOn, within, type Bounds } from './framing'
-import { routesDrawn } from './saved-routes-layers'
-import { noteTile } from './tiles-asked'
+import { useEffect, useRef, useState } from 'react';
+import { BasemapControl } from './basemap-control';
+import { DEFAULT_BASEMAP, initialStyle, readBasemap, type Basemap } from './basemap';
+import { diagnose, type Diagnosis } from './diagnose';
+import {
+  OPENING_WAIT_MS,
+  ROUTES_FRAMING,
+  loadClock,
+  loadingLifts,
+  openedOn,
+  within,
+  type Bounds,
+} from './framing';
+import { routesDrawn } from './saved-routes-layers';
+import { noteTile } from './tiles-asked';
 import {
   AttributionControl,
   MapLibreMap,
@@ -12,8 +20,8 @@ import {
   ScaleControl,
   prewarm,
   setWorkerUrl,
-} from 'maplibre-gl'
-import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+} from 'maplibre-gl';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 
 /**
  * MapLibre 6 spawns its tile-parsing worker from a sibling file whose URL it
@@ -26,7 +34,7 @@ import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&ur
  * MapLibre's shared code rather than carrying one (the cheap-phone plan,
  * step 14, 2026-10-05).
  */
-setWorkerUrl(maplibreWorkerUrl)
+setWorkerUrl(maplibreWorkerUrl);
 
 /**
  * The worker is started as this module is read, not when the map is made
@@ -46,7 +54,7 @@ setWorkerUrl(maplibreWorkerUrl)
  * on an auth result passed on from / (commuter/main.tsx), it starts for
  * nothing.
  */
-prewarm()
+prewarm();
 
 /**
  * OpenFreeMap: OSM-derived vector tiles, no API key, no usage limits. Exported
@@ -59,7 +67,7 @@ prewarm()
  * pick another design from the control at the top right (shared/basemap.ts);
  * this is the one the map starts with when nothing has been chosen.
  */
-export const STYLE_URL = DEFAULT_BASEMAP.url
+export const STYLE_URL = DEFAULT_BASEMAP.url;
 
 /**
  * Passed as the event data of a camera move the app makes on the visitor's
@@ -68,7 +76,7 @@ export const STYLE_URL = DEFAULT_BASEMAP.url
  * from its own moves. "Where am I" lets go on it: it once undid those moves with the next
  * fix (the review's 3c).
  */
-export const APP_MOVE = { appMove: true } as const
+export const APP_MOVE = { appMove: true } as const;
 
 /**
  * The OpenFreeMap styles ship no `attribution` on their sources, so MapLibre's
@@ -81,7 +89,7 @@ const ATTRIBUTION = [
   '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a> contributors',
   '<a href="https://openfreemap.org" target="_blank" rel="noreferrer">OpenFreeMap</a>',
   '<a href="http://project-osrm.org/" target="_blank" rel="noreferrer">OSRM</a>',
-].join(' · ')
+].join(' · ');
 
 /**
  * A coarse pointer means a finger: pinch already zooms, so the zoom buttons
@@ -90,11 +98,11 @@ const ATTRIBUTION = [
  * requires to stay visible -- so on touch the attribution moves to the top.
  */
 export const coarse =
-  typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
+  typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
 
 /** Metro Manila. */
-const CENTER: [number, number] = [121.0244, 14.5995]
-const ZOOM = 11
+const CENTER: [number, number] = [121.0244, 14.5995];
+const ZOOM = 11;
 
 /**
  * How long to wait before assuming the style is never arriving: from the
@@ -102,35 +110,35 @@ const ZOOM = 11
  * tiles and our routes (framing.ts, loadClock; review of the owner's Q1,
  * 2026-10-05).
  */
-const LOAD_TIMEOUT_MS = 12_000
+const LOAD_TIMEOUT_MS = 12_000;
 
 type Props = {
   /**
    * Fires once the map can take sources and layers: at its 'load', or with
    * `openOn` as soon as its style is in.
    */
-  onReady?: (map: MapLibreMap) => void
+  onReady?: (map: MapLibreMap) => void;
   /**
    * MapLibre's +, − and compass, top right, for a mouse (never a finger:
    * `coarse`). The studio keeps them; the public map has none since the
    * owner's "annoying for users" of 2026-09-29 — the wheel, a double click
    * and the keys zoom it. Read once, as the map is made.
    */
-  zoomButtons?: boolean
+  zoomButtons?: boolean;
   /**
    * How far the map may be panned, [[west, south], [east, north]]. The public
    * map is held to Greater Manila (METRO_MANILA) so a stray pan never fetches
    * tiles of the world; the studio is not, for a route that runs out of it.
    * Read once, as the map is made.
    */
-  maxBounds?: [[number, number], [number, number]]
+  maxBounds?: [[number, number], [number, number]];
   /**
    * The credits start folded to their ⓘ. MapLibre opens them until the first
    * drag, and on a phone the studio's open credits covered its account pill
    * and the top of the map; ⓘ still opens them, as the licence asks. Read
    * once, as the map is made.
    */
-  foldCredits?: boolean
+  foldCredits?: boolean;
   /**
    * The public map's (the owner's Q1, 2026-10-04): the routes' framing to
    * open on, from the map file in by then, the copy kept from an earlier
@@ -148,8 +156,8 @@ type Props = {
    * for 'load', and so does "Loading map…", as always. Read once, as the
    * map is made.
    */
-  openOn?: () => Promise<Bounds | null>
-}
+  openOn?: () => Promise<Bounds | null>;
+};
 
 /**
  * Metro Manila with its jeepney hinterland — Bulacan's south, Rizal's
@@ -159,33 +167,39 @@ type Props = {
 export const METRO_MANILA: [[number, number], [number, number]] = [
   [120.6, 14.1],
   [121.5, 15.05],
-]
+];
 
-export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = false, openOn }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const onReadyRef = useRef(onReady)
-  onReadyRef.current = onReady
+export function MapView({
+  onReady,
+  zoomButtons = true,
+  maxBounds,
+  foldCredits = false,
+  openOn,
+}: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
 
   // A blank map with no explanation is the worst possible failure mode, so
   // surface whatever went wrong rather than rendering nothing.
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null);
   // The map's 'load', which "Loading map…" waited for until 2026-10-06: the
   // 12 s clock below reads it, through its setter.
-  const [, setLoaded] = useState(false)
+  const [, setLoaded] = useState(false);
   // "Loading map…" gone (loadingLifts): at 'load', or on the public map at
   // its first frame with the routes drawn if that comes first.
-  const [lifted, setLifted] = useState(false)
-  const [diag, setDiag] = useState<Diagnosis | null>(null)
-  const [trace, setTrace] = useState<string[]>([])
-  const [dom, setDom] = useState<string | null>(null)
-  const eventsRef = useRef<string[]>([])
+  const [lifted, setLifted] = useState(false);
+  const [diag, setDiag] = useState<Diagnosis | null>(null);
+  const [trace, setTrace] = useState<string[]>([]);
+  const [dom, setDom] = useState<string | null>(null);
+  const eventsRef = useRef<string[]>([]);
   // The design chosen on this device, read once; the map is built with it so
   // a remembered choice never flashes gray first.
-  const [basemap] = useState<Basemap>(readBasemap)
-  const [ready, setReady] = useState<MapLibreMap | null>(null)
+  const [basemap] = useState<Basemap>(readBasemap);
+  const [ready, setReady] = useState<MapLibreMap | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return
+    if (!containerRef.current) return;
 
     // React StrictMode mounts, unmounts and remounts effects in development.
     // Constructing a MapLibre map and immediately calling remove() on it tears
@@ -194,10 +208,10 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
     //
     // Deferring construction by a tick means StrictMode's throwaway cleanup
     // cancels before any map exists, so only the surviving mount builds one.
-    let cancelled = false
-    let map: MapLibreMap | null = null
-    let stopClock = () => {}
-    let stopLift = () => {}
+    let cancelled = false;
+    let map: MapLibreMap | null = null;
+    let stopClock = () => {};
+    let stopLift = () => {};
 
     const startId = window.setTimeout(async () => {
       // A URL for the plain designs; for "Gray, detailed" the style is fetched
@@ -207,8 +221,8 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
       const [style, framing] = await Promise.all([
         initialStyle(basemap),
         openOn ? within(openOn(), OPENING_WAIT_MS, null) : null,
-      ])
-      if (cancelled || !containerRef.current) return
+      ]);
+      if (cancelled || !containerRef.current) return;
 
       try {
         map = new MapLibreMap({
@@ -238,13 +252,11 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
           // service worker can keep a first visit's (tilesAsked.ts). The
           // studio has no worker and notes nothing.
           ...(openOn ? { transformRequest: noteTile } : {}),
-        })
+        });
       } catch (err) {
-        setError(
-          `MapLibre could not start: ${err instanceof Error ? err.message : String(err)}.`,
-        )
-        void diagnose(basemap.url).then(setDiag)
-        return
+        setError(`MapLibre could not start: ${err instanceof Error ? err.message : String(err)}.`);
+        void diagnose(basemap.url).then(setDiag);
+        return;
       }
 
       // The map from its making, for the builds that hand it out (see 'load'
@@ -253,7 +265,8 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
       // (the cheap-phone plan, Step 0, 2026-10-04). So do the suites, for
       // the camera it was made at and the first lines it draws, before its
       // 'load' on the public map (the owner's Q1, 2026-10-04).
-      if (import.meta.env.DEV || import.meta.env.VITE_EXPOSE_MAP === '1') (window as unknown as { __mapEarly?: MapLibreMap }).__mapEarly = map
+      if (import.meta.env.DEV || import.meta.env.VITE_EXPOSE_MAP === '1')
+        (window as unknown as { __mapEarly?: MapLibreMap }).__mapEarly = map;
 
       // The public map (the owner's Q1, 2026-10-04): what it opened framed
       // on, and the visitor's gestures from now on, for the routes' own fit
@@ -263,9 +276,9 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
       // ('load'): the first 'style.load' only, the one of this style, never
       // a basemap switch's. Registered here, before anything can load.
       if (openOn) {
-        openedOn(map, framing)
-        const made = map
-        made.once('style.load', () => onReadyRef.current?.(made))
+        openedOn(map, framing);
+        const made = map;
+        made.once('style.load', () => onReadyRef.current?.(made));
       }
 
       // "Loading map…" goes at the map's 'load'; on the public map at the
@@ -274,39 +287,51 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
       // Q1 they are drawn seconds before 'load', which waits for every
       // basemap tile in view too. Only the text: the design button, the
       // clock and the failure banner still go by 'load' (below).
-      stopLift = loadingLifts(map, openOn ? routesDrawn : null, () => setLifted(true))
+      stopLift = loadingLifts(map, openOn ? routesDrawn : null, () => setLifted(true));
 
       // Record how far MapLibre gets, so a silent failure at least says
       // which stage it died in.
-      const t0 = performance.now()
+      const t0 = performance.now();
       const LIFECYCLE = [
-        'styledataloading', 'styledata', 'sourcedataloading', 'sourcedata',
-        'dataloading', 'data', 'render', 'idle', 'load', 'error',
+        'styledataloading',
+        'styledata',
+        'sourcedataloading',
+        'sourcedata',
+        'dataloading',
+        'data',
+        'render',
+        'idle',
+        'load',
+        'error',
         'webglcontextlost',
-      ] as const
+      ] as const;
       for (const evt of LIFECYCLE) {
         map.on(evt, () => {
-          const stamp = `${evt}@${Math.round(performance.now() - t0)}ms`
+          const stamp = `${evt}@${Math.round(performance.now() - t0)}ms`;
           if (!eventsRef.current.some((e) => e.startsWith(evt + '@'))) {
-            eventsRef.current.push(stamp)
+            eventsRef.current.push(stamp);
           }
-        })
+        });
       }
 
-      if (zoomButtons && !coarse) map.addControl(new NavigationControl(), 'top-right')
-      map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-left')
+      if (zoomButtons && !coarse) map.addControl(new NavigationControl(), 'top-right');
+      map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-left');
       map.addControl(
         new AttributionControl({ compact: true, customAttribution: ATTRIBUTION }),
         coarse ? 'top-right' : 'bottom-right',
-      )
+      );
       // What MapLibre itself does to them on the first drag.
-      if (foldCredits) map.getContainer().querySelector('.maplibregl-compact')?.classList.remove('maplibregl-compact-show')
+      if (foldCredits)
+        map
+          .getContainer()
+          .querySelector('.maplibregl-compact')
+          ?.classList.remove('maplibregl-compact-show');
 
-      let isLoaded = false
+      let isLoaded = false;
       map.on('load', () => {
-        isLoaded = true
-        setLoaded(true)
-        setError(null)
+        isLoaded = true;
+        setLoaded(true);
+        setError(null);
         // Dev builds expose the map so the headless suites (tests/e2e/) can read real
         // screen positions from the drawn geometry instead of guessing. So does
         // the production build scripts/research/phone-speed.mjs makes for itself
@@ -317,64 +342,65 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
         // it is read here and nowhere else, for the timer and the suites to
         // see what a tap compiles (the cheap-phone plan, Step 0, 2026-10-04).
         if (import.meta.env.DEV || import.meta.env.VITE_EXPOSE_MAP === '1') {
-          const shown = map!
-          const w = window as unknown as { __map?: MapLibreMap; __programs?: () => string[] }
-          w.__map = shown
-          w.__programs = () => Object.keys((shown as unknown as { painter: { cache: object } }).painter.cache)
+          const shown = map!;
+          const w = window as unknown as { __map?: MapLibreMap; __programs?: () => string[] };
+          w.__map = shown;
+          w.__programs = () =>
+            Object.keys((shown as unknown as { painter: { cache: object } }).painter.cache);
         }
-        setReady(map)
+        setReady(map);
         // The public map's was handed over at its style's load (above).
-        if (!openOn) onReadyRef.current?.(map!)
-      })
+        if (!openOn) onReadyRef.current?.(map!);
+      });
 
       map.on('error', (e) => {
-        const message = e.error?.message ?? 'unknown map error'
+        const message = e.error?.message ?? 'unknown map error';
         // Once the map is up, an error is a tile, glyph or sprite that did not
         // arrive — offline, a place never viewed before. The map is drawn and
         // working; that is not "failed to load", so only the console hears it.
         if (isLoaded) {
-          console.warn('[map]', message)
-          return
+          console.warn('[map]', message);
+          return;
         }
-        console.error('[map]', message, e)
-        setError(message)
-        void diagnose(basemap.url).then(setDiag)
-      })
+        console.error('[map]', message, e);
+        setError(message);
+        void diagnose(basemap.url).then(setDiag);
+      });
 
       // From the map's making; on the public map (`openOn`) again from its
       // style's load, when its routes go on, if it has not run by then.
       stopClock = loadClock(map, !!openOn, LOAD_TIMEOUT_MS, () => {
         setLoaded((isLoaded) => {
           if (!isLoaded) {
-            setError(`The map did not finish loading within ${LOAD_TIMEOUT_MS / 1000}s.`)
-            void diagnose(basemap.url).then(setDiag)
-            setTrace([...eventsRef.current])
-            const el = containerRef.current
-            const canvas = el?.querySelector('canvas')
+            setError(`The map did not finish loading within ${LOAD_TIMEOUT_MS / 1000}s.`);
+            void diagnose(basemap.url).then(setDiag);
+            setTrace([...eventsRef.current]);
+            const el = containerRef.current;
+            const canvas = el?.querySelector('canvas');
             setDom(
               el
                 ? `container ${el.clientWidth}×${el.clientHeight}px, ` +
-                  (canvas
-                    ? `canvas ${canvas.width}×${canvas.height} (css ${canvas.clientWidth}×${canvas.clientHeight})`
-                    : 'NO canvas element')
+                    (canvas
+                      ? `canvas ${canvas.width}×${canvas.height} (css ${canvas.clientWidth}×${canvas.clientHeight})`
+                      : 'NO canvas element')
                 : 'container missing',
-            )
+            );
           }
-          return isLoaded
-        })
-      })
-    }, 0)
+          return isLoaded;
+        });
+      });
+    }, 0);
 
     return () => {
-      cancelled = true
-      window.clearTimeout(startId)
-      stopClock()
-      stopLift()
-      setReady(null)
-      map?.remove()
-    }
+      cancelled = true;
+      window.clearTimeout(startId);
+      stopClock();
+      stopLift();
+      setReady(null);
+      map?.remove();
+    };
     // `basemap`, `zoomButtons` and `openOn` are read once at mount and never change afterwards.
-  }, [])
+  }, []);
 
   return (
     <>
@@ -408,8 +434,7 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
       )}
 
       {error && (
-        <div className="absolute inset-x-0 top-0 z-30 m-4 rounded-lg bg-red-50 p-4
-                        text-sm text-red-900 shadow ring-1 ring-red-200">
+        <div className="absolute inset-x-0 top-0 z-30 m-4 rounded-lg bg-red-50 p-4 text-sm text-red-900 shadow ring-1 ring-red-200">
           <p className="font-medium">The map failed to load.</p>
           <p className="mt-1 break-words">{error}</p>
           {diag && (
@@ -417,7 +442,7 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
               <dt className="font-medium">WebGL</dt>
               <dd>{diag.webgl}</dd>
               <dt className="font-medium">Renderer</dt>
-              <dd className="break-words">{diag.renderer ?? "(hidden)"}</dd>
+              <dd className="break-words">{diag.renderer ?? '(hidden)'}</dd>
               <dt className="font-medium">Style fetch</dt>
               <dd className="break-words">{diag.styleFetch}</dd>
               <dt className="font-medium">DOM</dt>
@@ -432,5 +457,5 @@ export function MapView({ onReady, zoomButtons = true, maxBounds, foldCredits = 
         </div>
       )}
     </>
-  )
+  );
 }

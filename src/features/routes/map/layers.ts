@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import type { MapLibreMap } from 'maplibre-gl'
+import { useEffect, useState } from 'react';
+import type { MapLibreMap } from 'maplibre-gl';
 
 /**
  * The layer ids one file paints and another places its own layers against.
@@ -24,7 +24,7 @@ export const LAYERS = {
   drawCasing: 'draw-line-casing',
   drawSnapped: 'draw-line-snapped',
   drawFreehand: 'draw-line-freehand',
-} as const
+} as const;
 
 /**
  * How far past its edges each tile of the chevrons' and the end circles'
@@ -71,7 +71,7 @@ export const LAYERS = {
  * was cut. map-sources-test holds each source to its buffer, and every
  * layer drawn from these two to it, at every zoom.
  */
-export const TILE_BUFFER = 32
+export const TILE_BUFFER = 32;
 
 /**
  * The id of the first layer of `type` in the map's drawing order, or
@@ -86,7 +86,7 @@ export function firstLayerOfType(
   map: Pick<MapLibreMap, 'getLayersOrder' | 'getLayer'>,
   type: string,
 ): string | undefined {
-  return map.getLayersOrder().find((id) => map.getLayer(id)?.type === type)
+  return map.getLayersOrder().find((id) => map.getLayer(id)?.type === type);
 }
 
 /**
@@ -106,10 +106,10 @@ export function applyHidden(
   hidden: string | null | undefined,
   apply: (id: string) => void,
 ): void {
-  const next = hidden ?? null
-  if (applied.current === null && next === null) return
-  applied.current = next
-  apply(next ?? '')
+  const next = hidden ?? null;
+  if (applied.current === null && next === null) return;
+  applied.current = next;
+  apply(next ?? '');
 }
 
 /**
@@ -120,10 +120,14 @@ export function applyHidden(
  * which no longer lays it all out a second time. Anything loaded since is a
  * new array, and laid out as before.
  */
-export function layOutOnce<T>(laidOut: { current: T | null }, next: T, layOut: (next: T) => void): void {
-  if (laidOut.current === next) return
-  laidOut.current = next
-  layOut(next)
+export function layOutOnce<T>(
+  laidOut: { current: T | null },
+  next: T,
+  layOut: (next: T) => void,
+): void {
+  if (laidOut.current === next) return;
+  laidOut.current = next;
+  layOut(next);
 }
 
 /**
@@ -134,15 +138,15 @@ export function layOutOnce<T>(laidOut: { current: T | null }, next: T, layOut: (
  * this in its dependencies it waits for the layer and runs when it arrives.
  */
 export function useLayerReady(map: MapLibreMap | null, id: string): boolean {
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState(false);
   useEffect(() => {
-    if (!map) return
-    const check = () => setReady(!!map.getLayer(id))
-    check()
-    map.on('styledata', check)
+    if (!map) return;
+    const check = () => setReady(!!map.getLayer(id));
+    check();
+    map.on('styledata', check);
     return () => {
-      map.off('styledata', check)
-    }
-  }, [map, id])
-  return ready
+      map.off('styledata', check);
+    };
+  }, [map, id]);
+  return ready;
 }

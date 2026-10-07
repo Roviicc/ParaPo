@@ -1,4 +1,4 @@
-import { isDrawn, type VariantSummary } from '../model/routes'
+import { isDrawn, type VariantSummary } from '../model/routes';
 
 /*
  * What the saved directions show and light, worked out from what the sheet
@@ -22,8 +22,8 @@ export function showingOf<T extends VariantSummary>(
   variants: readonly T[],
   cardShows: readonly string[] | null,
 ): T[] {
-  if (cardShows) return variants.filter((v) => cardShows.includes(v.id) && isDrawn(v))
-  return candidates.filter((v) => v.reversed === back && isDrawn(v))
+  if (cardShows) return variants.filter((v) => cardShows.includes(v.id) && isDrawn(v));
+  return candidates.filter((v) => v.reversed === back && isDrawn(v));
 }
 
 /**
@@ -40,7 +40,7 @@ export function litOf<T extends VariantSummary>(
     ? variants.filter((v) => v.id === selectedId && isDrawn(v))
     : highlightIds
       ? variants.filter((v) => highlightIds.includes(v.id) && isDrawn(v))
-      : showing
+      : showing;
 }
 
 /**
@@ -48,8 +48,12 @@ export function litOf<T extends VariantSummary>(
  * card picked, everything shown, so the taps of 2026-09-25 (routeTaps.ts)
  * keep to the way round the list shows.
  */
-export function shownOf(selectedId: string | null, lit: readonly string[], showing: readonly VariantSummary[]): readonly string[] {
-  return selectedId || showing.length === 0 ? lit : showing.map((v) => v.id)
+export function shownOf(
+  selectedId: string | null,
+  lit: readonly string[],
+  showing: readonly VariantSummary[],
+): readonly string[] {
+  return selectedId || showing.length === 0 ? lit : showing.map((v) => v.id);
 }
 
 /**
@@ -66,6 +70,6 @@ export function shownOf(selectedId: string | null, lit: readonly string[], showi
  * makes a new array, as its chevrons must then follow the new line.
  */
 export function steady<A extends readonly unknown[]>(was: A, next: A): A {
-  if (was === next) return was
-  return was.length === next.length && was.every((x, i) => x === next[i]) ? was : next
+  if (was === next) return was;
+  return was.length === next.length && was.every((x, i) => x === next[i]) ? was : next;
 }

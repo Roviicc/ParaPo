@@ -1,7 +1,14 @@
-import type { ReactNode } from 'react'
-import { hasFareRule, manilaDate, peso, pesoRange, ruleOn, fareFor } from '@/features/routes/model/fares'
-import { lineLength } from '@/shared/utils/geo'
-import { MODES, variantLine, type VariantSummary } from '@/features/routes/model/routes'
+import type { ReactNode } from 'react';
+import {
+  hasFareRule,
+  manilaDate,
+  peso,
+  pesoRange,
+  ruleOn,
+  fareFor,
+} from '@/features/routes/model/fares';
+import { lineLength } from '@/shared/utils/geo';
+import { MODES, variantLine, type VariantSummary } from '@/features/routes/model/routes';
 
 /**
  * What only the editor sees of a direction, under the trip card the public
@@ -14,12 +21,12 @@ import { MODES, variantLine, type VariantSummary } from '@/features/routes/model
  * Edit, Extend and Delete, when the direction is the editor's own.
  */
 export function RouteFacts({ variant, actions }: { variant: VariantSummary; actions?: ReactNode }) {
-  const r = variant.route
-  const mode = MODES.find((m) => m.value === r?.mode)?.label ?? r?.mode ?? ''
-  const today = hasFareRule(r?.mode) ? ruleOn(manilaDate()) : null
+  const r = variant.route;
+  const mode = MODES.find((m) => m.value === r?.mode)?.label ?? r?.mode ?? '';
+  const today = hasFareRule(r?.mode) ? ruleOn(manilaDate()) : null;
   // The whole ride's, as the trip card's Expected fare prices it.
-  const whole = today && fareFor(variant.metres ?? lineLength(variantLine(variant)), today.rule)
-  const verified = variant.confidence === 'verified'
+  const whole = today && fareFor(variant.metres ?? lineLength(variantLine(variant)), today.rule);
+  const verified = variant.confidence === 'verified';
 
   return (
     <div data-testid="route-facts" className="flex w-full flex-col gap-3 px-3 pb-4">
@@ -48,25 +55,33 @@ export function RouteFacts({ variant, actions }: { variant: VariantSummary; acti
             <dt className="text-content-tertiary">Fare</dt>
             <dd data-testid="facts-fare" className="text-xs text-content-quaternary">
               {whole && (
-                <p>Students, seniors, PWDs {pesoRange(whole.low.discounted, whole.high.discounted)}</p>
+                <p>
+                  Students, seniors, PWDs {pesoRange(whole.low.discounted, whole.high.discounted)}
+                </p>
               )}
               {today && (
                 <p>
-                  {peso(today.rule.minimum)} first {today.rule.minimumKm} km, then {peso(today.rule.perKm)} per km
+                  {peso(today.rule.minimum)} first {today.rule.minimumKm} km, then{' '}
+                  {peso(today.rule.perKm)} per km
                 </p>
               )}
               {today?.previous && (
                 <p className="text-amber-700">
-                  Some jeeps still charge the old {peso(today.previous.minimum)} until they post the new fare guide.
+                  Some jeeps still charge the old {peso(today.previous.minimum)} until they post the
+                  new fare guide.
                 </p>
               )}
               {r?.fare_note && <p>{r.fare_note}</p>}
-              {today && <p className="text-neutral-400">Estimate · {today.rule.source} · length of this line</p>}
+              {today && (
+                <p className="text-neutral-400">
+                  Estimate · {today.rule.source} · length of this line
+                </p>
+              )}
             </dd>
           </>
         )}
       </dl>
       {actions && <div className="flex gap-2">{actions}</div>}
     </div>
-  )
+  );
 }

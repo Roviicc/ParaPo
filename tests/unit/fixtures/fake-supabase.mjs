@@ -5,30 +5,84 @@
 // `count` for a head count). Only the builder calls the studio uses are
 // here; anything else fails loudly. Since 2026-10-03.
 export function fakeSupabase(answer) {
-  const log = []
+  const log = [];
   const from = (table) => {
-    const q = { table, op: 'select', payload: undefined, filters: [], select: undefined, options: undefined }
+    const q = {
+      table,
+      op: 'select',
+      payload: undefined,
+      filters: [],
+      select: undefined,
+      options: undefined,
+    };
     const builder = {
-      insert(payload) { q.op = 'insert'; q.payload = payload; return builder },
-      update(payload) { q.op = 'update'; q.payload = payload; return builder },
-      upsert(payload) { q.op = 'upsert'; q.payload = payload; return builder },
-      delete() { q.op = 'delete'; return builder },
-      select(columns, options) { q.select = columns ?? '*'; q.options = options; return builder },
-      eq(col, val) { q.filters.push(['eq', col, val]); return builder },
-      neq(col, val) { q.filters.push(['neq', col, val]); return builder },
-      in(col, val) { q.filters.push(['in', col, val]); return builder },
-      is(col, val) { q.filters.push(['is', col, val]); return builder },
-      not(col, op, val) { q.filters.push(['not', col, op, val]); return builder },
-      order() { return builder },
-      range() { return builder },
-      single() { q.single = true; return builder },
-      maybeSingle() { q.maybeSingle = true; return builder },
-      then(resolve, reject) {
-        log.push(q)
-        return Promise.resolve().then(() => answer(q)).then((r) => ({ data: null, error: null, ...r })).then(resolve, reject)
+      insert(payload) {
+        q.op = 'insert';
+        q.payload = payload;
+        return builder;
       },
-    }
-    return builder
-  }
-  return { client: { from }, log }
+      update(payload) {
+        q.op = 'update';
+        q.payload = payload;
+        return builder;
+      },
+      upsert(payload) {
+        q.op = 'upsert';
+        q.payload = payload;
+        return builder;
+      },
+      delete() {
+        q.op = 'delete';
+        return builder;
+      },
+      select(columns, options) {
+        q.select = columns ?? '*';
+        q.options = options;
+        return builder;
+      },
+      eq(col, val) {
+        q.filters.push(['eq', col, val]);
+        return builder;
+      },
+      neq(col, val) {
+        q.filters.push(['neq', col, val]);
+        return builder;
+      },
+      in(col, val) {
+        q.filters.push(['in', col, val]);
+        return builder;
+      },
+      is(col, val) {
+        q.filters.push(['is', col, val]);
+        return builder;
+      },
+      not(col, op, val) {
+        q.filters.push(['not', col, op, val]);
+        return builder;
+      },
+      order() {
+        return builder;
+      },
+      range() {
+        return builder;
+      },
+      single() {
+        q.single = true;
+        return builder;
+      },
+      maybeSingle() {
+        q.maybeSingle = true;
+        return builder;
+      },
+      then(resolve, reject) {
+        log.push(q);
+        return Promise.resolve()
+          .then(() => answer(q))
+          .then((r) => ({ data: null, error: null, ...r }))
+          .then(resolve, reject);
+      },
+    };
+    return builder;
+  };
+  return { client: { from }, log };
 }

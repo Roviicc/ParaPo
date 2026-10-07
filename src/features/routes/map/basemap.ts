@@ -4,8 +4,8 @@ import type {
   MapLibreMap,
   StyleSpecification,
   SymbolLayerSpecification,
-} from 'maplibre-gl'
-import { MAP_PAINT } from '@/design-system/foundation/map-colours'
+} from 'maplibre-gl';
+import { MAP_PAINT } from '@/design-system/foundation/map-colours';
 
 /**
  * The basemap designs a viewer can choose between. All of them are OpenFreeMap
@@ -17,40 +17,40 @@ import { MAP_PAINT } from '@/design-system/foundation/map-colours'
  * from data the tiles already carry (see `detailStyle`). Liberty is the
  * colourful OSM look; Dark is for night.
  */
-export type BasemapId = 'positron' | 'positron-detailed' | 'liberty' | 'dark'
-export type Basemap = { id: BasemapId; label: string; url: string; detailed?: true }
+export type BasemapId = 'positron' | 'positron-detailed' | 'liberty' | 'dark';
+export type Basemap = { id: BasemapId; label: string; url: string; detailed?: true };
 
-const POSITRON = 'https://tiles.openfreemap.org/styles/positron'
+const POSITRON = 'https://tiles.openfreemap.org/styles/positron';
 
 export const BASEMAPS: readonly Basemap[] = [
   { id: 'positron', label: 'Gray', url: POSITRON },
   { id: 'positron-detailed', label: 'Gray, detailed', url: POSITRON, detailed: true },
   { id: 'liberty', label: 'Colour', url: 'https://tiles.openfreemap.org/styles/liberty' },
   { id: 'dark', label: 'Dark', url: 'https://tiles.openfreemap.org/styles/dark' },
-]
+];
 
-export const DEFAULT_BASEMAP = BASEMAPS[0]
+export const DEFAULT_BASEMAP = BASEMAPS[0];
 
 /**
  * Remembered on the device only, and only once a viewer has chosen: a visitor
  * who never touches the control leaves the browser's storage empty, which the
  * visitor test asserts and the no-tracking promise relies on.
  */
-const STORAGE_KEY = 'parapo.basemap.v1'
+const STORAGE_KEY = 'parapo.basemap.v1';
 
 export function readBasemap(): Basemap {
   try {
-    const id = localStorage.getItem(STORAGE_KEY)
-    return BASEMAPS.find((b) => b.id === id) ?? DEFAULT_BASEMAP
+    const id = localStorage.getItem(STORAGE_KEY);
+    return BASEMAPS.find((b) => b.id === id) ?? DEFAULT_BASEMAP;
   } catch {
-    return DEFAULT_BASEMAP
+    return DEFAULT_BASEMAP;
   }
 }
 
 export function rememberBasemap(b: Basemap): void {
   try {
-    if (b.id === DEFAULT_BASEMAP.id) localStorage.removeItem(STORAGE_KEY)
-    else localStorage.setItem(STORAGE_KEY, b.id)
+    if (b.id === DEFAULT_BASEMAP.id) localStorage.removeItem(STORAGE_KEY);
+    else localStorage.setItem(STORAGE_KEY, b.id);
   } catch {
     // Private mode or blocked storage: the choice lasts for this page only.
   }
@@ -75,14 +75,14 @@ export function rememberBasemap(b: Basemap): void {
  * `tapTargets` queries our two hit layers by name and nothing else.
  */
 
-const SOURCE = 'openmaptiles'
-const FONT = ['Noto Sans Italic']
-const NAME: ExpressionSpecification = ['get', 'name']
+const SOURCE = 'openmaptiles';
+const FONT = ['Noto Sans Italic'];
+const NAME: ExpressionSpecification = ['get', 'name'];
 /** The 11 px icons in OpenFreeMap's sprite are named `<class>_11`: small and quiet. */
-const ICON: ExpressionSpecification = ['concat', ['get', 'class'], '_11']
+const ICON: ExpressionSpecification = ['concat', ['get', 'class'], '_11'];
 
-const TRANSIT_COLOUR = MAP_PAINT['Paint/basemap-transit']
-const LANDMARK_COLOUR = MAP_PAINT['Paint/basemap-landmark']
+const TRANSIT_COLOUR = MAP_PAINT['Paint/basemap-transit'];
+const LANDMARK_COLOUR = MAP_PAINT['Paint/basemap-landmark'];
 
 const label = (
   id: string,
@@ -114,7 +114,7 @@ const label = (
     'text-halo-width': 1.2,
     'text-halo-blur': 0.4,
   },
-})
+});
 
 const DETAIL_LAYERS: readonly LayerSpecification[] = [
   // Terminals and rail stations from z13: few, and the thing this map is for.
@@ -152,10 +152,13 @@ const DETAIL_LAYERS: readonly LayerSpecification[] = [
     ['match', ['get', 'class'], ['school', 'place_of_worship', 'fuel', 'park'], true, false],
     LANDMARK_COLOUR,
   ),
-]
+];
 
 /** Positron paints buildings rgb(234,234,229) on a rgb(245,245,241) ground — a whisper. A shade darker reads as a block. */
-const BUILDING_PAINT = { 'fill-color': MAP_PAINT['Paint/basemap-building'], 'fill-outline-color': MAP_PAINT['Paint/basemap-building-edge'] }
+const BUILDING_PAINT = {
+  'fill-color': MAP_PAINT['Paint/basemap-building'],
+  'fill-outline-color': MAP_PAINT['Paint/basemap-building-edge'],
+};
 
 /** Positron plus the detail layers and firmer buildings. Pure: the input is left alone. */
 function detailStyle(style: StyleSpecification): StyleSpecification {
@@ -163,11 +166,13 @@ function detailStyle(style: StyleSpecification): StyleSpecification {
     ...style,
     layers: [
       ...style.layers.map((l) =>
-        l.id === 'building' && l.type === 'fill' ? { ...l, paint: { ...l.paint, ...BUILDING_PAINT } } : l,
+        l.id === 'building' && l.type === 'fill'
+          ? { ...l, paint: { ...l.paint, ...BUILDING_PAINT } }
+          : l,
       ),
       ...DETAIL_LAYERS,
     ],
-  }
+  };
 }
 
 /**
@@ -178,13 +183,13 @@ function detailStyle(style: StyleSpecification): StyleSpecification {
  * goes in instead, and MapLibre's own error path reports what it can.
  */
 export async function initialStyle(b: Basemap): Promise<StyleSpecification | string> {
-  if (!b.detailed) return b.url
+  if (!b.detailed) return b.url;
   try {
-    const r = await fetch(b.url)
-    if (!r.ok) return b.url
-    return detailStyle((await r.json()) as StyleSpecification)
+    const r = await fetch(b.url);
+    if (!r.ok) return b.url;
+    return detailStyle((await r.json()) as StyleSpecification);
   } catch {
-    return b.url
+    return b.url;
   }
 }
 
@@ -202,25 +207,33 @@ export async function initialStyle(b: Basemap): Promise<StyleSpecification | str
  * The route and hotspot hooks never notice.
  */
 function styleTransform(b: Basemap) {
-  return (previous: StyleSpecification | undefined, next: StyleSpecification): StyleSpecification => {
-    const styled = b.detailed ? detailStyle(next) : next
-    if (!previous) return styled
+  return (
+    previous: StyleSpecification | undefined,
+    next: StyleSpecification,
+  ): StyleSpecification => {
+    const styled = b.detailed ? detailStyle(next) : next;
+    if (!previous) return styled;
     const ours = Object.fromEntries(
       Object.entries(previous.sources).filter(([, s]) => s.type === 'geojson'),
-    )
-    const ourLayers = previous.layers.filter((l) => 'source' in l && l.source in ours)
+    );
+    const ourLayers = previous.layers.filter((l) => 'source' in l && l.source in ours);
     // Our lines and fills go under the new style's labels — a road painted
     // blue still shows its name — and our own symbols (labels, arrows) on top.
-    const firstLabel = styled.layers.findIndex((l) => l.type === 'symbol')
-    const cut = firstLabel < 0 ? styled.layers.length : firstLabel
-    const ourMarks = ourLayers.filter((l) => l.type !== 'symbol')
-    const ourSymbols = ourLayers.filter((l) => l.type === 'symbol')
+    const firstLabel = styled.layers.findIndex((l) => l.type === 'symbol');
+    const cut = firstLabel < 0 ? styled.layers.length : firstLabel;
+    const ourMarks = ourLayers.filter((l) => l.type !== 'symbol');
+    const ourSymbols = ourLayers.filter((l) => l.type === 'symbol');
     return {
       ...styled,
       sources: { ...styled.sources, ...ours },
-      layers: [...styled.layers.slice(0, cut), ...ourMarks, ...styled.layers.slice(cut), ...ourSymbols],
-    }
-  }
+      layers: [
+        ...styled.layers.slice(0, cut),
+        ...ourMarks,
+        ...styled.layers.slice(cut),
+        ...ourSymbols,
+      ],
+    };
+  };
 }
 
 /**
@@ -230,5 +243,5 @@ function styleTransform(b: Basemap) {
  * plan, step 1, 2026-10-04).
  */
 export function applyBasemap(map: MapLibreMap, b: Basemap): void {
-  map.setStyle(b.url, { transformStyle: styleTransform(b) })
+  map.setStyle(b.url, { transformStyle: styleTransform(b) });
 }

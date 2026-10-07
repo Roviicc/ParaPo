@@ -1,5 +1,5 @@
-import type { MapLibreMap, MapMouseEvent } from 'maplibre-gl'
-import { LAYERS } from './layers'
+import type { MapLibreMap, MapMouseEvent } from 'maplibre-gl';
+import { LAYERS } from './layers';
 
 /**
  * How big a tap is, and what it lands on. A finger covers far more of the map
@@ -8,11 +8,11 @@ import { LAYERS } from './layers'
  */
 
 /** Half-width in px of the box queried around a tap: a finger vs a mouse. */
-const TAP_HALF_PX = { coarse: 20, fine: 5 } as const
+const TAP_HALF_PX = { coarse: 20, fine: 5 } as const;
 
 /** The hit layers the two hooks draw (layers.ts), under the names the hooks have used. */
-export const ROUTES_HIT_LAYER = LAYERS.routesHit
-export const STOPS_FILL_LAYER = LAYERS.stopsFill
+export const ROUTES_HIT_LAYER = LAYERS.routesHit;
+export const STOPS_FILL_LAYER = LAYERS.stopsFill;
 
 /**
  * Whether the tap that raised `event` came from a finger. The event itself
@@ -21,11 +21,11 @@ export const STOPS_FILL_LAYER = LAYERS.stopsFill
  * trackpad. Without an event, fall back to the device's primary pointer.
  */
 export function coarsePointer(event?: Event): boolean {
-  const type = (event as { pointerType?: string } | undefined)?.pointerType
-  if (type === 'touch' || type === 'pen') return true
-  if (type === 'mouse') return false
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
-  return window.matchMedia('(pointer: coarse)').matches
+  const type = (event as { pointerType?: string } | undefined)?.pointerType;
+  if (type === 'touch' || type === 'pen') return true;
+  if (type === 'mouse') return false;
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia('(pointer: coarse)').matches;
 }
 
 /** The box around a screen point to query hit layers with, sized for the pointer. */
@@ -33,11 +33,11 @@ export function tapBox(
   p: { x: number; y: number },
   event?: Event,
 ): [[number, number], [number, number]] {
-  const half = coarsePointer(event) ? TAP_HALF_PX.coarse : TAP_HALF_PX.fine
+  const half = coarsePointer(event) ? TAP_HALF_PX.coarse : TAP_HALF_PX.fine;
   return [
     [p.x - half, p.y - half],
     [p.x + half, p.y + half],
-  ]
+  ];
 }
 
 /**
@@ -66,27 +66,27 @@ export function bindHover(
   const query =
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? window.matchMedia('(any-hover: hover)')
-      : null
-  let bound = false
+      : null;
+  let bound = false;
   const bind = () => {
-    if (bound || (query && !query.matches)) return
-    bound = true
-    query?.removeEventListener('change', bind)
-    map.on('mouseenter', layer, enter)
-    map.on('mouseleave', layer, leave)
-  }
-  bind()
-  if (!bound) query?.addEventListener('change', bind)
+    if (bound || (query && !query.matches)) return;
+    bound = true;
+    query?.removeEventListener('change', bind);
+    map.on('mouseenter', layer, enter);
+    map.on('mouseleave', layer, leave);
+  };
+  bind();
+  if (!bound) query?.addEventListener('change', bind);
   return () => {
-    query?.removeEventListener('change', bind)
-    if (!bound) return
-    bound = false
-    map.off('mouseenter', layer, enter)
-    map.off('mouseleave', layer, leave)
-  }
+    query?.removeEventListener('change', bind);
+    if (!bound) return;
+    bound = false;
+    map.off('mouseenter', layer, enter);
+    map.off('mouseleave', layer, leave);
+  };
 }
 
-type IdFeature = { properties?: { id?: unknown; route_id?: unknown } }
+type IdFeature = { properties?: { id?: unknown; route_id?: unknown } };
 
 /**
  * The ids a query hit, topmost first and each one once. A line crosses its
@@ -94,16 +94,16 @@ type IdFeature = { properties?: { id?: unknown; route_id?: unknown } }
  * back several times.
  */
 function idsInOrder(features: IdFeature[], key: 'id' | 'route_id' = 'id'): string[] {
-  const seen = new Set<string>()
+  const seen = new Set<string>();
   for (const f of features) {
-    const id = f.properties?.[key]
-    if (typeof id === 'string') seen.add(id)
+    const id = f.properties?.[key];
+    if (typeof id === 'string') seen.add(id);
   }
-  return [...seen]
+  return [...seen];
 }
 
 /** What one tap landed on: every direction, every route those belong to, and every hotspot in its box. */
-export type TapTargets = { routeIds: string[]; routeKeys: string[]; stopIds: string[] }
+export type TapTargets = { routeIds: string[]; routeKeys: string[]; stopIds: string[] };
 
 /**
  * Each tap's answer, kept for the other hook (the cheap-phone plan, step 7,
@@ -117,7 +117,10 @@ export type TapTargets = { routeIds: string[]; routeKeys: string[]; stopIds: str
  * the same point too, or it is asked afresh. The answer is shared: read it,
  * never change it.
  */
-const answered = new WeakMap<object, { map: MapLibreMap; x: number; y: number; targets: TapTargets }>()
+const answered = new WeakMap<
+  object,
+  { map: MapLibreMap; x: number; y: number; targets: TapTargets }
+>();
 
 /**
  * One tap, one kind of thing (the owner's ask, 2026-09-30: "can we only
@@ -130,25 +133,34 @@ const answered = new WeakMap<object, { map: MapLibreMap; x: number; y: number; t
  * routes, not directions, because a route's two directions share most of
  * their road and are one thing to choose between.
  */
-export function tapTargets(map: MapLibreMap, point: { x: number; y: number }, event?: Event): TapTargets {
-  const key: object = event ?? point
-  const kept = answered.get(key)
-  if (kept && kept.map === map && kept.x === point.x && kept.y === point.y) return kept.targets
-  const targets = queryTargets(map, point, event)
-  answered.set(key, { map, x: point.x, y: point.y, targets })
-  return targets
+export function tapTargets(
+  map: MapLibreMap,
+  point: { x: number; y: number },
+  event?: Event,
+): TapTargets {
+  const key: object = event ?? point;
+  const kept = answered.get(key);
+  if (kept && kept.map === map && kept.x === point.x && kept.y === point.y) return kept.targets;
+  const targets = queryTargets(map, point, event);
+  answered.set(key, { map, x: point.x, y: point.y, targets });
+  return targets;
 }
 
 /** What a tap landed on, asked of the map: tapTargets, unkept. */
-function queryTargets(map: MapLibreMap, point: { x: number; y: number }, event?: Event): TapTargets {
-  const box = tapBox(point, event)
+function queryTargets(
+  map: MapLibreMap,
+  point: { x: number; y: number },
+  event?: Event,
+): TapTargets {
+  const box = tapBox(point, event);
   const features = (layer: string, where: typeof box | [number, number] = box) =>
-    map.getLayer(layer) ? map.queryRenderedFeatures(where, { layers: [layer] }) : []
-  const inside = idsInOrder(features(STOPS_FILL_LAYER, [point.x, point.y]))
-  if (inside.length > 0) return { routeIds: [], routeKeys: [], stopIds: inside }
-  const routes = features(ROUTES_HIT_LAYER)
-  if (routes.length > 0) return { routeIds: idsInOrder(routes), routeKeys: idsInOrder(routes, 'route_id'), stopIds: [] }
-  return { routeIds: [], routeKeys: [], stopIds: idsInOrder(features(STOPS_FILL_LAYER)) }
+    map.getLayer(layer) ? map.queryRenderedFeatures(where, { layers: [layer] }) : [];
+  const inside = idsInOrder(features(STOPS_FILL_LAYER, [point.x, point.y]));
+  if (inside.length > 0) return { routeIds: [], routeKeys: [], stopIds: inside };
+  const routes = features(ROUTES_HIT_LAYER);
+  if (routes.length > 0)
+    return { routeIds: idsInOrder(routes), routeKeys: idsInOrder(routes, 'route_id'), stopIds: [] };
+  return { routeIds: [], routeKeys: [], stopIds: idsInOrder(features(STOPS_FILL_LAYER)) };
 }
 
 /**
@@ -161,13 +173,13 @@ export type TapOutcome =
   | { kind: 'none' }
   | { kind: 'route'; routeIds: string[] }
   | { kind: 'stop'; stopId: string }
-  | { kind: 'several'; routeIds: string[]; routeKeys: string[]; stopIds: string[] }
+  | { kind: 'several'; routeIds: string[]; routeKeys: string[]; stopIds: string[] };
 
 export function resolveTap(t: TapTargets): TapOutcome {
-  const routes = t.routeKeys.length
-  const stops = t.stopIds.length
-  if (routes + stops === 0) return { kind: 'none' }
-  if (routes === 1 && stops === 0) return { kind: 'route', routeIds: t.routeIds }
-  if (stops === 1 && routes === 0) return { kind: 'stop', stopId: t.stopIds[0]! }
-  return { kind: 'several', routeIds: t.routeIds, routeKeys: t.routeKeys, stopIds: t.stopIds }
+  const routes = t.routeKeys.length;
+  const stops = t.stopIds.length;
+  if (routes + stops === 0) return { kind: 'none' };
+  if (routes === 1 && stops === 0) return { kind: 'route', routeIds: t.routeIds };
+  if (stops === 1 && routes === 0) return { kind: 'stop', stopId: t.stopIds[0]! };
+  return { kind: 'several', routeIds: t.routeIds, routeKeys: t.routeKeys, stopIds: t.stopIds };
 }

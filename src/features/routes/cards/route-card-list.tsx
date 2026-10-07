@@ -1,35 +1,35 @@
-import type { Livery } from '../model/liveries'
-import { RouteCardHeader } from './route-card-header'
-import { RouteCardStack, type PickedPlace } from './route-card-stack'
-import { BottomSheet, type SheetHeight } from '@/shared/ui/bottom-sheet'
-import { drawnDepartures } from '../model/departures'
-import type { VariantSummary } from '../model/routes'
-import { hotspotCount } from '../model/places'
-import { stopLabel, type StopSummary } from '../model/stops'
+import type { Livery } from '../model/liveries';
+import { RouteCardHeader } from './route-card-header';
+import { RouteCardStack, type PickedPlace } from './route-card-stack';
+import { BottomSheet, type SheetHeight } from '@/shared/ui/bottom-sheet';
+import { drawnDepartures } from '../model/departures';
+import type { VariantSummary } from '../model/routes';
+import { hotspotCount } from '../model/places';
+import { stopLabel, type StopSummary } from '../model/stops';
 
 type Props = {
   /** Every direction of every route under the tap, slots included, as the hooks hand them over. */
-  routes: readonly VariantSummary[]
+  routes: readonly VariantSummary[];
   /** The hotspots under the tap, listed first. */
-  stops?: readonly StopSummary[]
+  stops?: readonly StopSummary[];
   /** Whether the way back is showing rather than the way there. */
-  back: boolean
+  back: boolean;
   /** SWITCH: show them all the other way round. */
-  onFlip: () => void
+  onFlip: () => void;
   /** The place whose card is Selected, by name; null when none is. */
-  selected: string | null
+  selected: string | null;
   /** A card was picked — the map lights its directions alone — or let go (null): everything listed lit again. */
-  onSelect: (place: PickedPlace | null) => void
+  onSelect: (place: PickedPlace | null) => void;
   /** Called with the direction a row opens, and the colour its card wore: its trip wears the same. */
-  onRoute: (v: VariantSummary, livery: Livery) => void
+  onRoute: (v: VariantSummary, livery: Livery) => void;
   /** A hotspot's row: open its card. */
-  onStop: (s: StopSummary) => void
-  onClose: () => void
+  onStop: (s: StopSummary) => void;
+  onClose: () => void;
   /** Kept but not shown, while a trip picked from it is on top: ‹ comes back to it as it was left, every card at rest. */
-  hidden?: boolean
+  hidden?: boolean;
   /** Its height, shared with the trip opened from it (BottomSheet). */
-  height?: SheetHeight
-}
+  height?: SheetHeight;
+};
 
 /**
  * Everything under a tap that hit more than one thing — the owner's
@@ -59,14 +59,26 @@ type Props = {
  *
  * It sits where BottomSheet puts it, as the trip card does.
  */
-export function RouteCardList({ routes, stops = [], back, onFlip, selected, onSelect, onRoute, onStop, onClose, hidden, height }: Props) {
-  const places = drawnDepartures(routes, back)
-  const switchable = drawnDepartures(routes, !back).length > 0
-  const hotspots = hotspotCount(stops)
+export function RouteCardList({
+  routes,
+  stops = [],
+  back,
+  onFlip,
+  selected,
+  onSelect,
+  onRoute,
+  onStop,
+  onClose,
+  hidden,
+  height,
+}: Props) {
+  const places = drawnDepartures(routes, back);
+  const switchable = drawnDepartures(routes, !back).length > 0;
+  const hotspots = hotspotCount(stops);
   const count =
     places.length === 0 && hotspots > 0
       ? `${hotspots} ${hotspots === 1 ? 'Hotspot' : 'Hotspots'}`
-      : `${places.length} ${places.length === 1 ? 'Route' : 'Routes'}`
+      : `${places.length} ${places.length === 1 ? 'Route' : 'Routes'}`;
 
   return (
     <BottomSheet
@@ -76,7 +88,13 @@ export function RouteCardList({ routes, stops = [], back, onFlip, selected, onSe
       hidden={hidden}
       height={height}
       header={
-        <RouteCardHeader routeCount={count} onSwitch={onFlip} switchable={switchable} back={back} onClose={onClose} />
+        <RouteCardHeader
+          routeCount={count}
+          onSwitch={onFlip}
+          switchable={switchable}
+          back={back}
+          onClose={onClose}
+        />
       }
     >
       {stops.length > 0 && (
@@ -90,7 +108,9 @@ export function RouteCardList({ routes, stops = [], back, onFlip, selected, onSe
                 onClick={() => onStop(s)}
                 className="block w-full px-4 py-2.5 text-left hover:bg-surface-secondary"
               >
-                <span className="block truncate font-medium text-content-primary">{stopLabel(s)}</span>
+                <span className="block truncate font-medium text-content-primary">
+                  {stopLabel(s)}
+                </span>
                 <span className="block truncate text-xs text-content-quaternary">
                   {s.kind === 'terminal' ? 'Terminal' : 'Hintuan'}
                   {stopLabel(s) !== s.name && ` · ${s.name}`}
@@ -100,7 +120,14 @@ export function RouteCardList({ routes, stops = [], back, onFlip, selected, onSe
           ))}
         </ul>
       )}
-      <RouteCardStack routes={routes} back={back} selected={selected} onSelect={onSelect} onRoute={onRoute} testId="chooser" />
+      <RouteCardStack
+        routes={routes}
+        back={back}
+        selected={selected}
+        onSelect={onSelect}
+        onRoute={onRoute}
+        testId="chooser"
+      />
     </BottomSheet>
-  )
+  );
 }

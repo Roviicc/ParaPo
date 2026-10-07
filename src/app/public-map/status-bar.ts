@@ -1,6 +1,6 @@
-import { useEffect } from 'react'
-import type { MapLibreMap } from 'maplibre-gl'
-import { firstLayerOfType } from '@/features/routes/map/layers'
+import { useEffect } from 'react';
+import type { MapLibreMap } from 'maplibre-gl';
+import { firstLayerOfType } from '@/features/routes/map/layers';
 
 /**
  * The phone's status bar in the map's own colour (the owner's ask,
@@ -13,22 +13,22 @@ import { firstLayerOfType } from '@/features/routes/map/layers'
  */
 export function useStatusBarColour(map: MapLibreMap | null): void {
   useEffect(() => {
-    if (!map) return
-    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
-    if (!meta) return
-    const brand = meta.content
+    if (!map) return;
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (!meta) return;
+    const brand = meta.content;
     const background = backgroundColour(map, (colour) => {
-      meta.content = colour
-    })
-    background.paint()
-    map.on('style.load', background.find)
-    map.on('styledata', background.paint)
+      meta.content = colour;
+    });
+    background.paint();
+    map.on('style.load', background.find);
+    map.on('styledata', background.paint);
     return () => {
-      map.off('style.load', background.find)
-      map.off('styledata', background.paint)
-      meta.content = brand
-    }
-  }, [map])
+      map.off('style.load', background.find);
+      map.off('styledata', background.paint);
+      meta.content = brand;
+    };
+  }, [map]);
 }
 
 /**
@@ -47,14 +47,14 @@ export function backgroundColour(
   map: Pick<MapLibreMap, 'getLayersOrder' | 'getLayer' | 'getPaintProperty'>,
   set: (colour: string) => void,
 ) {
-  let id: string | undefined
+  let id: string | undefined;
   const find = () => {
-    id = firstLayerOfType(map, 'background')
-  }
+    id = firstLayerOfType(map, 'background');
+  };
   const paint = () => {
-    if (id === undefined || map.getLayer(id)?.type !== 'background') find()
-    const colour = id && map.getPaintProperty(id, 'background-color')
-    if (typeof colour === 'string') set(colour)
-  }
-  return { find, paint }
+    if (id === undefined || map.getLayer(id)?.type !== 'background') find();
+    const colour = id && map.getPaintProperty(id, 'background-color');
+    if (typeof colour === 'string') set(colour);
+  };
+  return { find, paint };
 }

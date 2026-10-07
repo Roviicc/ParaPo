@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef, ReactNode } from 'react'
+import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 /**
  * PalimosPoDesignSystem's Button, from the owner's Figma set of 2026-09-28
@@ -17,7 +17,7 @@ import type { ComponentPropsWithoutRef, ReactNode } from 'react'
  * until the owner draws one.
  */
 
-type Size = 'base' | 'small'
+type Size = 'base' | 'small';
 
 /**
  * Small exists only for Special in the set — the types keep code from
@@ -25,8 +25,7 @@ type Size = 'base' | 'small'
  * compile error until the owner designs it.
  */
 type VariantAndSize =
-  | { variant: 'special'; size?: Size }
-  | { variant: 'primary' | 'error'; size?: 'base' }
+  { variant: 'special'; size?: Size } | { variant: 'primary' | 'error'; size?: 'base' };
 
 type Props = Omit<
   ComponentPropsWithoutRef<'button'>,
@@ -34,11 +33,11 @@ type Props = Omit<
 > &
   VariantAndSize & {
     /** Figma's ✏️ Label: the button is its text; icons decorate it. */
-    label: string
+    label: string;
     /** Figma's 🎈 First/Last Icon slots: a square SVG drawing in currentColor. */
-    firstIcon?: ReactNode
-    lastIcon?: ReactNode
-  }
+    firstIcon?: ReactNode;
+    lastIcon?: ReactNode;
+  };
 
 const VARIANT = {
   special:
@@ -53,20 +52,28 @@ const VARIANT = {
     'bg-error-surface font-sn-pro font-medium text-content-inverse shadow-primary-button-rest ' +
     'enabled:hover:shadow-primary-button-hover ' +
     'enabled:active:bg-error-surface-secondary enabled:active:shadow-primary-button-pressed',
-} satisfies Record<Props['variant'], string>
+} satisfies Record<Props['variant'], string>;
 
 // The weight is each voice's own (VARIANT): Small is only Special's, bold.
 const SIZE = {
   base: 'gap-1 px-4 py-2 text-base/6',
   small: 'gap-1 px-3 py-1.5 text-sm/5',
-} satisfies Record<Size, string>
+} satisfies Record<Size, string>;
 
 const ICON = {
   base: 'size-5',
   small: 'size-4',
-} satisfies Record<Size, string>
+} satisfies Record<Size, string>;
 
-export function Button({ variant, size = 'base', label, firstIcon, lastIcon, type = 'button', ...rest }: Props) {
+export function Button({
+  variant,
+  size = 'base',
+  label,
+  firstIcon,
+  lastIcon,
+  type = 'button',
+  ...rest
+}: Props) {
   return (
     <button
       {...rest}
@@ -91,5 +98,5 @@ export function Button({ variant, size = 'base', label, firstIcon, lastIcon, typ
         </span>
       )}
     </button>
-  )
+  );
 }

@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { MapLibreMap } from 'maplibre-gl'
-import { loadOnce } from './load-once'
-import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes'
-import type { Livery } from '../model/liveries'
-import { ROUTES_LINE, useSavedRoutesLayers } from './saved-routes-layers'
-import { litOf, shownOf, showingOf, steady } from './routes-shown'
-import { useRouteTaps } from './route-taps'
-import { perFrame, type PerFrame } from './per-frame'
-import { ROUTES_FRAMING, framesRoutes, routesBounds } from './framing'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { MapLibreMap } from 'maplibre-gl';
+import { loadOnce } from './load-once';
+import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes';
+import type { Livery } from '../model/liveries';
+import { ROUTES_LINE, useSavedRoutesLayers } from './saved-routes-layers';
+import { litOf, shownOf, showingOf, steady } from './routes-shown';
+import { useRouteTaps } from './route-taps';
+import { perFrame, type PerFrame } from './per-frame';
+import { ROUTES_FRAMING, framesRoutes, routesBounds } from './framing';
 
 /**
  * The RouteCard picked in a list of them — the route list's, or a hotspot's
@@ -19,9 +19,14 @@ import { ROUTES_FRAMING, framesRoutes, routesBounds } from './framing'
  * From this zoom a pixel is a couple of metres, and an overview's corners
  * show: the directions on screen get their full lines, as a lit one does.
  */
-const FULL_LINES_FROM = 15
+const FULL_LINES_FROM = 15;
 
-export type Highlight = { where: 'list' | 'hotspot'; from: string; ids: readonly string[]; livery: Livery }
+export type Highlight = {
+  where: 'list' | 'hotspot';
+  from: string;
+  ids: readonly string[];
+  livery: Livery;
+};
 
 /**
  * Every saved route direction, drawn for everyone. This is the public half of
@@ -49,67 +54,67 @@ export function useSavedRoutes<T extends VariantSummary>(
   map: MapLibreMap | null,
   load: () => Promise<T[]>,
   opts: {
-    drawing?: boolean
-    hiddenVariantId?: string | null
-    loadLine?: (id: string) => Promise<LineStringGeoJSON | null>
+    drawing?: boolean;
+    hiddenVariantId?: string | null;
+    loadLine?: (id: string) => Promise<LineStringGeoJSON | null>;
   } = {},
 ) {
   // The rows as loaded, and the full lines read since, by direction.
-  const [rows, setRows] = useState<T[]>([])
-  const [lines, setLines] = useState<ReadonlyMap<string, LineStringGeoJSON>>(() => new Map())
+  const [rows, setRows] = useState<T[]>([]);
+  const [lines, setLines] = useState<ReadonlyMap<string, LineStringGeoJSON>>(() => new Map());
   // A direction with its line is one object for as long as its row and its
   // line are the ones it was made from: a line arriving for another
   // direction must not make the chosen one new (its ride-to would glide the
   // camera back to the picked hintuan).
-  const withLine = useRef(new Map<string, { row: T; line: LineStringGeoJSON; v: T }>())
+  const withLine = useRef(new Map<string, { row: T; line: LineStringGeoJSON; v: T }>());
   const variants = useMemo(
     () =>
       lines.size === 0
         ? rows
         : rows.map((v) => {
-            const line = lines.get(v.id)
-            if (!line) return v
-            const was = withLine.current.get(v.id)
-            if (was && was.row === v && was.line === line) return was.v
-            const next = { ...v, shape: line }
-            withLine.current.set(v.id, { row: v, line, v: next })
-            return next
+            const line = lines.get(v.id);
+            if (!line) return v;
+            const was = withLine.current.get(v.id);
+            if (was && was.row === v && was.line === line) return was.v;
+            const next = { ...v, shape: line };
+            withLine.current.set(v.id, { row: v, line, v: next });
+            return next;
           }),
     [rows, lines],
-  )
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   /**
    * The directions under a tap that landed on several things (routes, hotspots
    * or both), for a chooser. Empty otherwise. The stops hook keeps the
    * hotspot half of the same tap.
    */
-  const [candidates, setCandidates] = useState<T[]>([])
+  const [candidates, setCandidates] = useState<T[]>([]);
   /**
    * Which way round the sheet shows the routes under a tap: outbound, or the
    * way back. One way at a time; ⇄ flips all of them together. The owner's
    * ask of 2026-09-25.
    */
-  const [back, setBack] = useState(false)
+  const [back, setBack] = useState(false);
   /**
    * The Selected RouteCard, whose directions alone are lit while no trip is
    * open; with none picked, a list lights every direction it shows (the
    * owner, 2026-09-29, after seeing a list light nothing). SWITCH, a new
    * list, a map tap, opening a trip and closing let it go.
    */
-  const [highlight, setHighlight] = useState<Highlight | null>(null)
+  const [highlight, setHighlight] = useState<Highlight | null>(null);
   /**
    * What a hotspot's RouteCards show, the way round its ⇄ has them: lit as a
    * list's are, till one of its cards is picked (the owner, 2026-09-29: "on
    * hintuan it should light its routes"). The card says what it shows, and
    * null once it closes.
    */
-  const [cardShows, setCardShows] = useState<readonly string[] | null>(null)
+  const [cardShows, setCardShows] = useState<readonly string[] | null>(null);
   const flip = useCallback(() => {
-    setBack((b) => !b)
-    setHighlight(null)
-  }, [])
+    setBack((b) => !b);
+    setHighlight(null);
+  }, []);
 
   /**
    * Choosing one direction answers the question the chooser was asking, so
@@ -120,10 +125,10 @@ export function useSavedRoutes<T extends VariantSummary>(
    * card at rest (the owner, 2026-09-29: "back to normal").
    */
   const select = useCallback((id: string | null, opts: { keepList?: boolean } = {}) => {
-    setSelectedId(id)
-    setHighlight(null)
-    if (!opts.keepList) setCandidates([])
-  }, [])
+    setSelectedId(id);
+    setHighlight(null);
+    if (!opts.keepList) setCandidates([]);
+  }, []);
 
   /**
    * Lists `directions` as a tap where they all run would, the way round
@@ -132,29 +137,29 @@ export function useSavedRoutes<T extends VariantSummary>(
    * the owner's ask of 2026-09-29; CommuterApp says which).
    */
   const openList = useCallback((directions: readonly T[], way: boolean) => {
-    setSelectedId(null)
-    setCandidates([...directions])
-    setBack(way)
-    setHighlight(null)
-  }, [])
+    setSelectedId(null);
+    setCandidates([...directions]);
+    setBack(way);
+    setHighlight(null);
+  }, []);
 
   // The full lines asked for, and those whose read failed.
-  const requestedRef = useRef(new Set<string>())
-  const failedRef = useRef(new Set<string>())
-  const drawingRef = useRef(opts.drawing ?? false)
-  drawingRef.current = opts.drawing ?? false
+  const requestedRef = useRef(new Set<string>());
+  const failedRef = useRef(new Set<string>());
+  const drawingRef = useRef(opts.drawing ?? false);
+  drawingRef.current = opts.drawing ?? false;
   // A chooser left open when drawing starts would come back, stale, after it.
   useEffect(() => {
-    if (!opts.drawing) return
-    setCandidates([])
-    setHighlight(null)
-  }, [opts.drawing])
+    if (!opts.drawing) return;
+    setCandidates([]);
+    setHighlight(null);
+  }, [opts.drawing]);
 
   // The click handler is bound once; this is how it reads today's variants.
-  const byId = useRef(new Map<string, T>())
+  const byId = useRef(new Map<string, T>());
   useEffect(() => {
-    byId.current = new Map(variants.map((v) => [v.id, v]))
-  }, [variants])
+    byId.current = new Map(variants.map((v) => [v.id, v]));
+  }, [variants]);
 
   // The full lines as they come in, handed on together once a frame
   // (perFrame): a list's six lines were six renders of the whole app, each
@@ -162,98 +167,104 @@ export function useSavedRoutes<T extends VariantSummary>(
   // cheap-phone plan, step 16 (e), 2026-10-04). Made once: setLines never
   // changes. A reload drops what has not been handed on, as setting no
   // lines did to what had.
-  const arrivals = useRef<PerFrame<string, LineStringGeoJSON> | null>(null)
+  const arrivals = useRef<PerFrame<string, LineStringGeoJSON> | null>(null);
   arrivals.current ??= perFrame((batch) =>
     setLines((m) => {
-      const next = new Map(m)
-      for (const [id, line] of batch) next.set(id, line)
-      return next
+      const next = new Map(m);
+      for (const [id, line] of batch) next.set(id, line);
+      return next;
     }),
-  )
-  useEffect(() => () => arrivals.current?.clear(), [])
+  );
+  useEffect(() => () => arrivals.current?.clear(), []);
 
   const reload = useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const next = await load()
-      setRows(next)
-      setLines(new Map())
-      arrivals.current?.clear()
-      requestedRef.current.clear()
-      failedRef.current.clear()
-      setError(null)
+      const next = await load();
+      setRows(next);
+      setLines(new Map());
+      arrivals.current?.clear();
+      requestedRef.current.clear();
+      failedRef.current.clear();
+      setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [load])
+  }, [load]);
 
   // Once for each loader, however many times React runs the effect: twice
   // as a page mounts in development (loadOnce.ts).
-  const loadedBy = useRef<typeof load | null>(null)
+  const loadedBy = useRef<typeof load | null>(null);
   useEffect(() => {
-    loadOnce(loadedBy, load, () => void reload())
-  }, [load, reload])
+    loadOnce(loadedBy, load, () => void reload());
+  }, [load, reload]);
 
   // What is shown and what is lit (routesShown.ts).
-  const showing = useMemo(() => showingOf(candidates, back, variants, cardShows), [candidates, back, variants, cardShows])
+  const showing = useMemo(
+    () => showingOf(candidates, back, variants, cardShows),
+    [candidates, back, variants, cardShows],
+  );
   // Each kept one array while it holds the same (steady): an unrelated
   // line's arrival lights nothing new, and the chevrons flow on.
   const litNow = useMemo(
     () => litOf(selectedId, highlight?.ids ?? null, variants, showing),
     [selectedId, variants, highlight, showing],
-  )
-  const litKept = useRef(litNow)
-  const litVariants = (litKept.current = steady(litKept.current, litNow))
-  const litIdsNow = useMemo(() => litVariants.map((v) => v.id), [litVariants])
-  const litIdsKept = useRef(litIdsNow)
-  const lit = (litIdsKept.current = steady(litIdsKept.current, litIdsNow))
+  );
+  const litKept = useRef(litNow);
+  const litVariants = (litKept.current = steady(litKept.current, litNow));
+  const litIdsNow = useMemo(() => litVariants.map((v) => v.id), [litVariants]);
+  const litIdsKept = useRef(litIdsNow);
+  const lit = (litIdsKept.current = steady(litIdsKept.current, litIdsNow));
 
   // ----------------------------------------------------------------- layers
 
-  useSavedRoutesLayers(map, rows, lines, opts.hiddenVariantId, lit)
+  useSavedRoutesLayers(map, rows, lines, opts.hiddenVariantId, lit);
 
   // Open on the routes, not on a fixed centre. Once, on first load, and never
   // while drawing: a draft already has a view the user chose. The public map
   // opens framed on them itself, from its making (MapView's `openOn`, the
   // owner's Q1, 2026-10-04): there only if what came frames otherwise, and
   // never once the visitor has moved the map (framesRoutes).
-  const fittedRef = useRef(false)
+  const fittedRef = useRef(false);
   useEffect(() => {
-    if (!map || fittedRef.current || drawingRef.current) return
-    const bounds = routesBounds(variants)
-    if (!bounds) return
-    fittedRef.current = true
-    if (framesRoutes(map, bounds)) map.fitBounds(bounds, { ...ROUTES_FRAMING, duration: 0 })
-  }, [map, variants])
+    if (!map || fittedRef.current || drawingRef.current) return;
+    const bounds = routesBounds(variants);
+    if (!bounds) return;
+    fittedRef.current = true;
+    if (framesRoutes(map, bounds)) map.fitBounds(bounds, { ...ROUTES_FRAMING, duration: 0 });
+  }, [map, variants]);
 
   // Reading a direction's full line, once. One that failed (offline, never
   // stored) is asked again when it lights, not at every look at the screen.
-  const loadLine = opts.loadLine
+  const loadLine = opts.loadLine;
   // Only a drawn direction has a line to read. A slot (a return not drawn
   // yet) opened by a trip link (?r=, since taken out) asked for
   // /data/lines/<id>.json, which is not there; the host answers a missing
   // file with the page, 200, and that was kept as the line (review of
   // 2026-10-03, finding 10).
-  const drawn = useMemo(() => new Set(rows.filter((v) => variantLine(v).length > 1).map((v) => v.id)), [rows])
+  const drawn = useMemo(
+    () => new Set(rows.filter((v) => variantLine(v).length > 1).map((v) => v.id)),
+    [rows],
+  );
   const request = useCallback(
     (id: string) => {
-      if (!loadLine || requestedRef.current.has(id) || !drawn.has(id)) return
-      requestedRef.current.add(id)
-      failedRef.current.delete(id)
+      if (!loadLine || requestedRef.current.has(id) || !drawn.has(id)) return;
+      requestedRef.current.add(id);
+      failedRef.current.delete(id);
       loadLine(id).then(
         (line) => {
-          if (line) arrivals.current?.add(id, line)
+          if (line) arrivals.current?.add(id, line);
         },
         () => {
-          requestedRef.current.delete(id)
-          failedRef.current.add(id)
+          requestedRef.current.delete(id);
+          failedRef.current.add(id);
         },
-      )
+      );
     },
     [loadLine, drawn],
-  )
+  );
 
   // What is lit, and the chosen direction, get their full lines: asked
   // whenever what is lit is worked out again (litNow), as when `lit` itself
@@ -261,47 +272,52 @@ export function useSavedRoutes<T extends VariantSummary>(
   // failed is asked for again as before: as it lights, and as any other
   // line arrives.
   useEffect(() => {
-    for (const id of selectedId ? [...lit, selectedId] : lit) request(id)
+    for (const id of selectedId ? [...lit, selectedId] : lit) request(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [request, litNow, selectedId])
+  }, [request, litNow, selectedId]);
 
   // So do the directions on screen at street zoom, where an overview's
   // corners would show: a resting line on a street is drawn as it was drawn
   // (the owner's look of 2026-09-25). Looked at whenever the map settles.
   useEffect(() => {
-    if (!map || !loadLine) return
+    if (!map || !loadLine) return;
     const readInView = () => {
-      if (map.getZoom() < FULL_LINES_FROM || !map.getLayer(ROUTES_LINE)) return
+      if (map.getZoom() < FULL_LINES_FROM || !map.getLayer(ROUTES_LINE)) return;
       for (const f of map.queryRenderedFeatures({ layers: [ROUTES_LINE] })) {
-        const id = String(f.properties?.id ?? '')
-        if (id && !failedRef.current.has(id)) request(id)
+        const id = String(f.properties?.id ?? '');
+        if (id && !failedRef.current.has(id)) request(id);
       }
-    }
-    readInView()
-    map.on('idle', readInView)
+    };
+    readInView();
+    map.on('idle', readInView);
     return () => {
-      map.off('idle', readInView)
-    }
-  }, [map, loadLine, request])
-  const fullIds = useMemo(() => new Set(lines.keys()), [lines])
+      map.off('idle', readInView);
+    };
+  }, [map, loadLine, request]);
+  const fullIds = useMemo(() => new Set(lines.keys()), [lines]);
 
   // The click handler is bound once; this is how it reads what a tap where
   // directions overlap keeps to (routesShown.ts).
-  const shown = useMemo(() => shownOf(selectedId, lit, showing), [selectedId, lit, showing])
-  const shownRef = useRef<readonly string[]>([])
+  const shown = useMemo(() => shownOf(selectedId, lit, showing), [selectedId, lit, showing]);
+  const shownRef = useRef<readonly string[]>([]);
   useEffect(() => {
-    shownRef.current = shown
-  }, [shown])
+    shownRef.current = shown;
+  }, [shown]);
 
   // ----------------------------------------------------------------- events
 
   useRouteTaps(
     map,
     { drawing: drawingRef, byId, shown: shownRef },
-    { highlight: setHighlight, selectedId: setSelectedId, candidates: setCandidates, back: setBack },
-  )
+    {
+      highlight: setHighlight,
+      selectedId: setSelectedId,
+      candidates: setCandidates,
+      back: setBack,
+    },
+  );
 
-  const selected = variants.find((v) => v.id === selectedId) ?? null
+  const selected = variants.find((v) => v.id === selectedId) ?? null;
 
   return {
     variants,
@@ -321,5 +337,5 @@ export function useSavedRoutes<T extends VariantSummary>(
     showCard: setCardShows,
     lit,
     litVariants,
-  }
+  };
 }

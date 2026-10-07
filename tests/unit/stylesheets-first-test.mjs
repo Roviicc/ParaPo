@@ -5,9 +5,9 @@
 // pages.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/stylesheets-first-test.mjs
-import { test } from 'node:test'
-import assert from 'node:assert/strict'
-import config, { stylesheetsBeforeScripts } from '../../vite.config.ts'
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import config, { stylesheetsBeforeScripts } from '../../vite.config.ts';
 
 // The root page's head as Vite writes it, with index.html's early map-file script.
 const vite = `<html>
@@ -23,7 +23,7 @@ const vite = `<html>
     <link rel="stylesheet" crossorigin href="/assets/commuter-f.css">
   <link rel="manifest" href="/manifest.webmanifest"></head>
   <body><div id="root"></div></body>
-</html>`
+</html>`;
 
 const moved = `<html>
   <head>
@@ -38,31 +38,35 @@ const moved = `<html>
     <link rel="modulepreload" crossorigin href="/assets/shared-d.js">
   <link rel="manifest" href="/manifest.webmanifest"></head>
   <body><div id="root"></div></body>
-</html>`
+</html>`;
 
 test('the stylesheets go just before the module script, in their order, after the early script; nothing else moves', () => {
-  assert.equal(stylesheetsBeforeScripts(vite), moved)
-  assert.equal(stylesheetsBeforeScripts(moved), moved, 'once is enough')
+  assert.equal(stylesheetsBeforeScripts(vite), moved);
+  assert.equal(stylesheetsBeforeScripts(moved), moved, 'once is enough');
   // The studio's page: no early script.
-  const studio = vite.replace(/\n    <script>.*<\/script>/, '').replace(/\n    <link rel="stylesheet"[^>]*commuter-f\.css">/, '')
-  const studioMoved = moved.replace(/\n    <script>.*<\/script>/, '').replace(/\n    <link rel="stylesheet"[^>]*commuter-f\.css">/, '')
-  assert.notEqual(studio, vite)
-  assert.equal(stylesheetsBeforeScripts(studio), studioMoved)
-})
+  const studio = vite
+    .replace(/\n    <script>.*<\/script>/, '')
+    .replace(/\n    <link rel="stylesheet"[^>]*commuter-f\.css">/, '');
+  const studioMoved = moved
+    .replace(/\n    <script>.*<\/script>/, '')
+    .replace(/\n    <link rel="stylesheet"[^>]*commuter-f\.css">/, '');
+  assert.notEqual(studio, vite);
+  assert.equal(stylesheetsBeforeScripts(studio), studioMoved);
+});
 
 test('a page with no stylesheet after its module script, or no module script, or a stylesheet in its body, is left alone', () => {
-  const noSheets = vite.replace(/\n    <link rel="stylesheet"[^>]*>/g, '')
-  assert.equal(stylesheetsBeforeScripts(noSheets), noSheets)
-  const noScript = vite.replace(/\n    <script type="module"[^>]*><\/script>/, '')
-  assert.equal(stylesheetsBeforeScripts(noScript), noScript)
-  const inBody = noSheets.replace('<body>', '<body><link rel="stylesheet" href="/late.css">')
-  assert.equal(stylesheetsBeforeScripts(inBody), inBody)
-})
+  const noSheets = vite.replace(/\n    <link rel="stylesheet"[^>]*>/g, '');
+  assert.equal(stylesheetsBeforeScripts(noSheets), noSheets);
+  const noScript = vite.replace(/\n    <script type="module"[^>]*><\/script>/, '');
+  assert.equal(stylesheetsBeforeScripts(noScript), noScript);
+  const inBody = noSheets.replace('<body>', '<body><link rel="stylesheet" href="/late.css">');
+  assert.equal(stylesheetsBeforeScripts(inBody), inBody);
+});
 
 test('the plugin runs in a build only, after Vite has written the tags, on both pages', () => {
-  const plugin = config.plugins.flat().find((p) => p?.name === 'parapo:stylesheets-first')
-  assert.ok(plugin)
-  assert.equal(plugin.apply, 'build')
-  assert.equal(plugin.transformIndexHtml.order, 'post')
-  assert.equal(plugin.transformIndexHtml.handler, stylesheetsBeforeScripts)
-})
+  const plugin = config.plugins.flat().find((p) => p?.name === 'parapo:stylesheets-first');
+  assert.ok(plugin);
+  assert.equal(plugin.apply, 'build');
+  assert.equal(plugin.transformIndexHtml.order, 'post');
+  assert.equal(plugin.transformIndexHtml.handler, stylesheetsBeforeScripts);
+});

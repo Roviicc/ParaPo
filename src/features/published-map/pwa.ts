@@ -1,8 +1,8 @@
-import { useSyncExternalStore } from 'react'
-import { registerSW } from 'virtual:pwa-register'
-import { MAP_FILE_URL } from './map-file'
-import { STYLE_URL } from '@/features/routes/map/map-view'
-import { takeTilesAsked } from '@/features/routes/map/tiles-asked'
+import { useSyncExternalStore } from 'react';
+import { registerSW } from 'virtual:pwa-register';
+import { MAP_FILE_URL } from './map-file';
+import { STYLE_URL } from '@/features/routes/map/map-view';
+import { takeTilesAsked } from '@/features/routes/map/tiles-asked';
 
 /**
  * The service worker, registered from the public page only. The studio never
@@ -14,29 +14,29 @@ import { takeTilesAsked } from '@/features/routes/map/tiles-asked'
  * virtual module is a no-op, so the headless checks never meet a worker.
  */
 
-let needRefresh = false
-let applyUpdate: (() => Promise<void>) | null = null
-let registration: ServiceWorkerRegistration | undefined
-const listeners = new Set<() => void>()
+let needRefresh = false;
+let applyUpdate: (() => Promise<void>) | null = null;
+let registration: ServiceWorkerRegistration | undefined;
+const listeners = new Set<() => void>();
 
 export function registerServiceWorker(): void {
-  if (!('serviceWorker' in navigator)) return
+  if (!('serviceWorker' in navigator)) return;
   // A page nobody controls yet is a first visit: see warmCaches. Read before
   // registering, so a worker that claims the page meanwhile cannot hide it.
-  const firstVisit = !navigator.serviceWorker.controller
+  const firstVisit = !navigator.serviceWorker.controller;
   applyUpdate = registerSW({
     onNeedRefresh() {
-      needRefresh = true
-      for (const l of listeners) l()
+      needRefresh = true;
+      for (const l of listeners) l();
     },
     onRegisteredSW(_url, r) {
-      registration = r
+      registration = r;
       // The browser re-checks the worker on a navigation, but an installed app
       // can stay open for days; ask once an hour as well.
-      if (r) window.setInterval(() => void r.update(), 60 * 60 * 1000)
-      if (firstVisit) void warmCaches()
+      if (r) window.setInterval(() => void r.update(), 60 * 60 * 1000);
+      if (firstVisit) void warmCaches();
     },
-  })
+  });
 }
 
 /**
@@ -56,31 +56,40 @@ async function warmCaches(): Promise<void> {
   if (!navigator.serviceWorker.controller) {
     await new Promise<void>((resolve) =>
       navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true }),
-    )
+    );
   }
-  const quiet = (url: string) => fetch(url).catch(() => undefined)
-  const [, style] = await Promise.all([quiet(MAP_FILE_URL), quiet(STYLE_URL), ...takeTilesAsked().map(quiet)])
-  const json = (await style?.json().catch(() => null)) as
-    | { sprite?: string; sources?: Record<string, { url?: string }> }
-    | null
-  if (!json) return
-  const urls: string[] = []
-  for (const s of Object.values(json.sources ?? {})) if (s.url) urls.push(s.url)
+  const quiet = (url: string) => fetch(url).catch(() => undefined);
+  const [, style] = await Promise.all([
+    quiet(MAP_FILE_URL),
+    quiet(STYLE_URL),
+    ...takeTilesAsked().map(quiet),
+  ]);
+  const json = (await style?.json().catch(() => null)) as {
+    sprite?: string;
+    sources?: Record<string, { url?: string }>;
+  } | null;
+  if (!json) return;
+  const urls: string[] = [];
+  for (const s of Object.values(json.sources ?? {})) if (s.url) urls.push(s.url);
   if (json.sprite) {
-    const scale = window.devicePixelRatio > 1 ? '@2x' : ''
-    urls.push(`${json.sprite}${scale}.json`, `${json.sprite}${scale}.png`)
+    const scale = window.devicePixelRatio > 1 ? '@2x' : '';
+    urls.push(`${json.sprite}${scale}.json`, `${json.sprite}${scale}.png`);
   }
-  await Promise.all(urls.map(quiet))
+  await Promise.all(urls.map(quiet));
 }
 
 const subscribe = (l: () => void) => {
-  listeners.add(l)
-  return () => listeners.delete(l)
-}
+  listeners.add(l);
+  return () => listeners.delete(l);
+};
 
 /** True once a newer version is waiting. */
 export function useNeedRefresh(): boolean {
-  return useSyncExternalStore(subscribe, () => needRefresh, () => false)
+  return useSyncExternalStore(
+    subscribe,
+    () => needRefresh,
+    () => false,
+  );
 }
 
 /**
@@ -89,8 +98,10 @@ export function useNeedRefresh(): boolean {
  * controlled when it registered, which a first visit is not.
  */
 export function reloadToUpdate(): void {
-  navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true })
-  void applyUpdate?.()
+  navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), {
+    once: true,
+  });
+  void applyUpdate?.();
 }
 
 /**
@@ -102,19 +113,19 @@ export function reloadToUpdate(): void {
  * install what it finds, and swapped in if it did. Reload either way.
  */
 export async function reloadForNewerApp(): Promise<void> {
-  if (needRefresh) return reloadToUpdate()
+  if (needRefresh) return reloadToUpdate();
   if (registration) {
-    await registration.update().catch(() => undefined)
+    await registration.update().catch(() => undefined);
     if (registration.installing || registration.waiting) {
       await new Promise<void>((resolve) => {
         const stop = subscribe(() => {
-          stop()
-          resolve()
-        })
-        window.setTimeout(resolve, 10_000)
-      })
-      if (needRefresh) return reloadToUpdate()
+          stop();
+          resolve();
+        });
+        window.setTimeout(resolve, 10_000);
+      });
+      if (needRefresh) return reloadToUpdate();
     }
   }
-  window.location.reload()
+  window.location.reload();
 }

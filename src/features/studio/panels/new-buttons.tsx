@@ -1,4 +1,4 @@
-import type { HotspotKind } from '../drawing/use-drawing'
+import type { HotspotKind } from '../drawing/use-drawing';
 
 /**
  * The studio's two ways to start, at the bottom right: + New Route, and +
@@ -14,18 +14,15 @@ export function NewButtons({
   onNewRoute,
   onNewHotspot,
 }: {
-  ready: boolean
+  ready: boolean;
   /** Whether the hotspot menu is open. */
-  menu: boolean
-  setMenu: (open: boolean | ((open: boolean) => boolean)) => void
-  onNewRoute: () => void
-  onNewHotspot: (kind: HotspotKind) => void
+  menu: boolean;
+  setMenu: (open: boolean | ((open: boolean) => boolean)) => void;
+  onNewRoute: () => void;
+  onNewHotspot: (kind: HotspotKind) => void;
 }) {
   return (
-    <div
-      className="absolute bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-[calc(1.5rem+env(safe-area-inset-right))]
-                 z-10 flex flex-col items-end gap-2"
-    >
+    <div className="absolute right-[calc(1.5rem+env(safe-area-inset-right))] bottom-[calc(1.5rem+env(safe-area-inset-bottom))] z-10 flex flex-col items-end gap-2">
       {menu && (
         <div
           role="menu"
@@ -35,8 +32,8 @@ export function NewButtons({
             type="button"
             role="menuitem"
             onClick={() => {
-              setMenu(false)
-              onNewHotspot('terminal')
+              setMenu(false);
+              onNewHotspot('terminal');
             }}
             className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-neutral-50 pointer-coarse:min-h-11"
           >
@@ -50,8 +47,8 @@ export function NewButtons({
             type="button"
             role="menuitem"
             onClick={() => {
-              setMenu(false)
-              onNewHotspot('hintuan')
+              setMenu(false);
+              onNewHotspot('hintuan');
             }}
             className="flex w-full items-center gap-2 border-t border-neutral-100 px-4 py-2.5 text-left hover:bg-neutral-50 pointer-coarse:min-h-11"
           >
@@ -68,8 +65,7 @@ export function NewButtons({
         disabled={!ready}
         onClick={onNewRoute}
         title="Draw a route"
-        className="rounded-full bg-white px-5 py-3 text-sm font-medium text-neutral-800
-                   shadow-lg ring-1 ring-black/10 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-full bg-white px-5 py-3 text-sm font-medium text-neutral-800 shadow-lg ring-1 ring-black/10 disabled:cursor-not-allowed disabled:opacity-50"
       >
         + New Route
       </button>
@@ -79,11 +75,10 @@ export function NewButtons({
         onClick={() => setMenu((open) => !open)}
         aria-expanded={menu}
         title="Trace a terminal or hintuan"
-        className="rounded-full bg-white px-5 py-3 text-sm font-medium text-neutral-800
-                   shadow-lg ring-1 ring-black/10 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-full bg-white px-5 py-3 text-sm font-medium text-neutral-800 shadow-lg ring-1 ring-black/10 disabled:cursor-not-allowed disabled:opacity-50"
       >
         + New hotspot
       </button>
     </div>
-  )
+  );
 }

@@ -1,28 +1,28 @@
-import { useEffect, useRef } from 'react'
-import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl'
-import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes'
-import { ROUTES_HIT_LAYER } from './tap'
-import { LAYERS, applyHidden, firstLayerOfType, layOutOnce } from './layers'
-import { MAP_COLOURS, MAP_PAINT } from '@/design-system/foundation/map-colours'
-import { CASING_EXTRA, litWidth, roadWidth } from './line-style'
-import { useLayerSwitch, type LayerSwitch } from './layer-switch'
+import { useEffect, useRef } from 'react';
+import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl';
+import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes';
+import { ROUTES_HIT_LAYER } from './tap';
+import { LAYERS, applyHidden, firstLayerOfType, layOutOnce } from './layers';
+import { MAP_COLOURS, MAP_PAINT } from '@/design-system/foundation/map-colours';
+import { CASING_EXTRA, litWidth, roadWidth } from './line-style';
+import { useLayerSwitch, type LayerSwitch } from './layer-switch';
 
 /*
  * The saved directions on the map: their source, their five layers, and
  * what lights them. Split from useSavedRoutes.ts, 2026-09-29.
  */
 
-const SRC = 'saved-routes'
-const CASING = LAYERS.routesCasing
+const SRC = 'saved-routes';
+const CASING = LAYERS.routesCasing;
 /** The resting lines, every direction: what the map shows of a direction on screen. */
-export const ROUTES_LINE = 'saved-routes-line'
-const LINE = ROUTES_LINE
+export const ROUTES_LINE = 'saved-routes-line';
+const LINE = ROUTES_LINE;
 /** The lit directions, drawn again on top: thick, in the selected blue, or on the public map in a picked card's or an open trip's colour. */
-const SELECTED_CASING = 'saved-routes-selected-casing'
-const SELECTED = 'saved-routes-selected'
+const SELECTED_CASING = 'saved-routes-selected-casing';
+const SELECTED = 'saved-routes-selected';
 /** The two that draw the lit directions only, switched off while none is (layerSwitch.ts). */
-const LIT_LAYERS = [SELECTED_CASING, SELECTED] as const
-const HIT = ROUTES_HIT_LAYER
+const LIT_LAYERS = [SELECTED_CASING, SELECTED] as const;
+const HIT = ROUTES_HIT_LAYER;
 
 /**
  * Two looks, the owner's of 2026-09-29, and no opacity: every direction
@@ -46,14 +46,14 @@ const HIT = ROUTES_HIT_LAYER
  * worker — for 1,000 directions, a second and a half of stall a tap
  * (measured 2026-09-25, future-proofing step 5).
  */
-const isLit = ['boolean', ['feature-state', 'lit'], false]
+const isLit = ['boolean', ['feature-state', 'lit'], false];
 
 /**
  * The opacity of a layer that draws the lit directions only: 1 for them, 0
  * for the rest — a switch, never a shade.
  */
 export function litOpacity() {
-  return ['case', isLit, 1, 0] as never
+  return ['case', isLit, 1, 0] as never;
 }
 
 /**
@@ -73,15 +73,17 @@ export function useLighting(
   ready = true,
   switched?: LayerSwitch,
 ) {
-  const was = useRef(new Set<string>())
+  const was = useRef(new Set<string>());
   useEffect(() => {
-    if (!map || !ready || !map.getSource(source)) return
-    const now = new Set(lit)
-    for (const id of was.current) if (!now.has(id)) map.setFeatureState({ source, id }, { lit: false })
-    for (const id of now) if (!was.current.has(id)) map.setFeatureState({ source, id }, { lit: true })
-    was.current = now
-    switched?.set(map, now.size > 0)
-  }, [map, source, lit, ready, switched])
+    if (!map || !ready || !map.getSource(source)) return;
+    const now = new Set(lit);
+    for (const id of was.current)
+      if (!now.has(id)) map.setFeatureState({ source, id }, { lit: false });
+    for (const id of now)
+      if (!was.current.has(id)) map.setFeatureState({ source, id }, { lit: true });
+    was.current = now;
+    switched?.set(map, now.size > 0);
+  }, [map, source, lit, ready, switched]);
 }
 
 /**
@@ -92,9 +94,9 @@ export function useLighting(
  */
 export function useLitLineColour(map: MapLibreMap | null, colour: string) {
   useEffect(() => {
-    if (!map || !map.getLayer(SELECTED)) return
-    map.setPaintProperty(SELECTED, 'line-color', colour)
-  }, [map, colour])
+    if (!map || !map.getLayer(SELECTED)) return;
+    map.setPaintProperty(SELECTED, 'line-color', colour);
+  }, [map, colour]);
 }
 
 /**
@@ -117,7 +119,7 @@ export function routesData(rows: readonly VariantSummary[]) {
         },
         geometry: { type: 'LineString' as const, coordinates: line },
       })),
-  }
+  };
 }
 
 /**
@@ -130,13 +132,13 @@ export function unpatched(
   sent: Map<string, LineStringGeoJSON>,
   lines: ReadonlyMap<string, LineStringGeoJSON>,
 ): { id: string; newGeometry: LineStringGeoJSON }[] {
-  const update: { id: string; newGeometry: LineStringGeoJSON }[] = []
+  const update: { id: string; newGeometry: LineStringGeoJSON }[] = [];
   for (const [id, line] of lines) {
-    if (sent.get(id) === line) continue
-    sent.set(id, line)
-    update.push({ id, newGeometry: line })
+    if (sent.get(id) === line) continue;
+    sent.set(id, line);
+    update.push({ id, newGeometry: line });
   }
-  return update
+  return update;
 }
 
 /**
@@ -152,14 +154,14 @@ export function addSavedRoutes(
   // Under the basemap's labels, so a road painted blue still shows its
   // name. The draft's layers, when there are any, sit above the labels and
   // so above these too.
-  const before = firstLayerOfType(map, 'symbol')
+  const before = firstLayerOfType(map, 'symbol');
 
   // `promoteId`: the feature state a tap sets is keyed on the direction's id.
   map.addSource(SRC, {
     type: 'geojson',
     promoteId: 'id',
     data: routesData(rows),
-  })
+  });
   map.addLayer(
     {
       id: CASING,
@@ -169,17 +171,20 @@ export function addSavedRoutes(
       paint: { 'line-color': MAP_PAINT['Paint/casing'], 'line-width': roadWidth(CASING_EXTRA) },
     },
     before,
-  )
+  );
   map.addLayer(
     {
       id: LINE,
       type: 'line',
       source: SRC,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': MAP_COLOURS['Map/RouteLine/surface-default'], 'line-width': roadWidth(0) },
+      paint: {
+        'line-color': MAP_COLOURS['Map/RouteLine/surface-default'],
+        'line-width': roadWidth(0),
+      },
     },
     before,
-  )
+  );
   // The lit directions — the one chosen, the Selected card's, or else
   // everything a list or a hotspot's card shows — drawn once more above the
   // rest, in the selected blue (or a card's, useLitLineColour): over a
@@ -202,7 +207,7 @@ export function addSavedRoutes(
       },
     },
     before,
-  )
+  );
   map.addLayer(
     {
       id: SELECTED,
@@ -222,17 +227,21 @@ export function addSavedRoutes(
       },
     },
     before,
-  )
+  );
   map.addLayer(
     {
       id: HIT,
       type: 'line',
       source: SRC,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': MAP_PAINT['Paint/hit'], 'line-width': roadWidth(14), 'line-opacity': 0 },
+      paint: {
+        'line-color': MAP_PAINT['Paint/hit'],
+        'line-width': roadWidth(14),
+        'line-opacity': 0,
+      },
     },
     before,
-  )
+  );
 }
 
 /**
@@ -256,7 +265,12 @@ export function addSavedRoutes(
 export function routesDrawn(
   map: Pick<MapLibreMap, 'getSource' | 'getLayer' | 'isSourceLoaded' | 'querySourceFeatures'>,
 ): boolean {
-  return !!(map.getSource(SRC) && map.getLayer(LINE) && map.isSourceLoaded(SRC) && map.querySourceFeatures(SRC).length > 0)
+  return !!(
+    map.getSource(SRC) &&
+    map.getLayer(LINE) &&
+    map.isSourceLoaded(SRC) &&
+    map.querySourceFeatures(SRC).length > 0
+  );
 }
 
 /**
@@ -275,34 +289,34 @@ export function useSavedRoutesLayers(
   // in since, each by the very array or object handed on: what was sent
   // is not sent again (the cheap-phone plan, step 10 (c) and (e),
   // 2026-10-04).
-  const laidOut = useRef<readonly VariantSummary[] | null>(null)
-  const patched = useRef(new Map<string, LineStringGeoJSON>())
+  const laidOut = useRef<readonly VariantSummary[] | null>(null);
+  const patched = useRef(new Map<string, LineStringGeoJSON>());
 
   // Added with the rows already in, when they are (the public map's file
   // usually comes in before the basemap's style): laid out in the one
   // worker round trip that adds the source, not an empty one and then
   // the rows. Later rows are the next effect's.
   useEffect(() => {
-    if (!map || map.getSource(SRC)) return
-    addSavedRoutes(map, rows)
-    laidOut.current = rows
-    patched.current = new Map()
+    if (!map || map.getSource(SRC)) return;
+    addSavedRoutes(map, rows);
+    laidOut.current = rows;
+    patched.current = new Map();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map])
+  }, [map]);
 
   // The source is laid out from the rows as loaded — on the public map, the
   // overviews — and a full line read later is patched into it alone
   // (updateData), not the whole source laid out again. New rows lay it all
   // out again, the full lines with it: those are patched in afresh.
   useEffect(() => {
-    if (!map) return
-    const src = map.getSource(SRC) as GeoJSONSource | undefined
-    if (!src) return
+    if (!map) return;
+    const src = map.getSource(SRC) as GeoJSONSource | undefined;
+    if (!src) return;
     layOutOnce(laidOut, rows, (next) => {
-      patched.current = new Map()
-      src.setData(routesData(next))
-    })
-  }, [map, rows])
+      patched.current = new Map();
+      src.setData(routesData(next));
+    });
+  }, [map, rows]);
 
   // Only the lines not patched in yet: each arrival sent every line read so
   // far again, and MapLibre laid out again each tile within any of their
@@ -319,38 +333,39 @@ export function useSavedRoutesLayers(
   // nothing did, and it stayed drawn as its overview (review of step 10 (e),
   // 2026-10-05).
   useEffect(() => {
-    if (!map) return
+    if (!map) return;
     const send = () => {
-      const src = map.getSource(SRC) as GeoJSONSource | undefined
-      if (!src || lines.size === 0) return
-      const update = unpatched(patched.current, lines)
-      if (update.length > 0) void src.updateData({ update })
-    }
+      const src = map.getSource(SRC) as GeoJSONSource | undefined;
+      if (!src || lines.size === 0) return;
+      const update = unpatched(patched.current, lines);
+      if (update.length > 0) void src.updateData({ update });
+    };
     const afresh = () => {
-      patched.current = new Map()
-      send()
-    }
-    send()
-    map.on('style.load', afresh)
+      patched.current = new Map();
+      send();
+    };
+    send();
+    map.on('style.load', afresh);
     return () => {
-      map.off('style.load', afresh)
-    }
-  }, [map, rows, lines])
+      map.off('style.load', afresh);
+    };
+  }, [map, rows, lines]);
 
   // The direction being edited is drawn by the editor; hide the saved copy.
   // Set only once there is one, and once more to show it again
   // (applyHidden): the public map never hides one, and sets no filter.
-  const hiddenNow = useRef<string | null>(null)
+  const hiddenNow = useRef<string | null>(null);
   useEffect(() => {
-    if (!map || !map.getLayer(LINE)) return
+    if (!map || !map.getLayer(LINE)) return;
     applyHidden(hiddenNow, hiddenVariantId, (hidden) => {
-      const filter = ['!=', ['get', 'id'], hidden] as const
-      for (const id of [CASING, LINE, SELECTED_CASING, SELECTED, HIT]) map.setFilter(id, filter as never)
-    })
-  }, [map, hiddenVariantId])
+      const filter = ['!=', ['get', 'id'], hidden] as const;
+      for (const id of [CASING, LINE, SELECTED_CASING, SELECTED, HIT])
+        map.setFilter(id, filter as never);
+    });
+  }, [map, hiddenVariantId]);
 
   // The lit copy and its casing, off while nothing is lit, from the start;
   // their GL program compiled by a twin while the map is idle (layerSwitch.ts).
-  const litSwitch = useLayerSwitch(map, LIT_LAYERS, map !== null)
-  useLighting(map, SRC, lit, true, litSwitch)
+  const litSwitch = useLayerSwitch(map, LIT_LAYERS, map !== null);
+  useLighting(map, SRC, lit, true, litSwitch);
 }

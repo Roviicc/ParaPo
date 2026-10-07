@@ -1,14 +1,14 @@
-import { variantLine, type VariantSummary } from '../model/routes'
+import { variantLine, type VariantSummary } from '../model/routes';
 
 /** [[west, south], [east, north]]. */
-export type Bounds = [[number, number], [number, number]]
+export type Bounds = [[number, number], [number, number]];
 
 /**
  * How the map frames the routes as it opens: every route in, 100 px clear
  * of the edges, no closer than zoom 13 (useSavedRoutes' fit, since the map
  * first opened on the routes rather than on a fixed centre).
  */
-export const ROUTES_FRAMING = { padding: 100, maxZoom: 13 } as const
+export const ROUTES_FRAMING = { padding: 100, maxZoom: 13 } as const;
 
 /**
  * The box round every point of `variants`' lines, as the opening's framing
@@ -16,21 +16,29 @@ export const ROUTES_FRAMING = { padding: 100, maxZoom: 13 } as const
  * fewer than two points.
  */
 export function routesBounds(variants: readonly VariantSummary[]): Bounds | null {
-  const coords = variants.flatMap(variantLine)
-  if (coords.length < 2) return null
-  let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity]
+  const coords = variants.flatMap(variantLine);
+  if (coords.length < 2) return null;
+  let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity];
   for (const [x, y] of coords) {
-    if (x < w) w = x
-    if (x > e) e = x
-    if (y < s) s = y
-    if (y > n) n = y
+    if (x < w) w = x;
+    if (x > e) e = x;
+    if (y < s) s = y;
+    if (y > n) n = y;
   }
-  return [[w, s], [e, n]]
+  return [
+    [w, s],
+    [e, n],
+  ];
 }
 
 /** Whether two boxes are the same box, corner for corner. */
 export const sameBounds = (a: Bounds | null, b: Bounds | null): boolean =>
-  !!a && !!b && a[0][0] === b[0][0] && a[0][1] === b[0][1] && a[1][0] === b[1][0] && a[1][1] === b[1][1]
+  !!a &&
+  !!b &&
+  a[0][0] === b[0][0] &&
+  a[0][1] === b[0][1] &&
+  a[1][0] === b[1][0] &&
+  a[1][1] === b[1][1];
 
 /**
  * How long MapView waits for the framing to open on before it makes the map
@@ -42,23 +50,23 @@ export const sameBounds = (a: Bounds | null, b: Bounds | null): boolean =>
  * file held up, a store that never answers. The map's own 12 s timer says
  * what fails after.
  */
-export const OPENING_WAIT_MS = 1000
+export const OPENING_WAIT_MS = 1000;
 
 /** What `p` brings, or `none` if it fails or has not come within `ms`. */
 export function within<T>(p: Promise<T>, ms: number, none: T): Promise<T> {
   return new Promise((done) => {
-    const timer = setTimeout(() => done(none), ms)
+    const timer = setTimeout(() => done(none), ms);
     p.then(
       (value) => {
-        clearTimeout(timer)
-        done(value)
+        clearTimeout(timer);
+        done(value);
       },
       () => {
-        clearTimeout(timer)
-        done(none)
+        clearTimeout(timer);
+        done(none);
       },
-    )
-  })
+    );
+  });
 }
 
 /**
@@ -75,14 +83,24 @@ export function within<T>(p: Promise<T>, ms: number, none: T): Promise<T> {
  *   input (box_zoom.ts, fitScreenCoordinates), so it is noted as the box
  *   is drawn, and no fit moves the map under it.
  */
-const GESTURES = ['dragstart', 'zoomstart', 'rotatestart', 'pitchstart', 'movestart', 'boxzoomstart'] as const
+const GESTURES = [
+  'dragstart',
+  'zoomstart',
+  'rotatestart',
+  'pitchstart',
+  'movestart',
+  'boxzoomstart',
+] as const;
 
-type Listener = (e: { originalEvent?: unknown }) => void
-type Watched = { on(type: string, listener: Listener): unknown; off(type: string, listener: Listener): unknown }
+type Listener = (e: { originalEvent?: unknown }) => void;
+type Watched = {
+  on(type: string, listener: Listener): unknown;
+  off(type: string, listener: Listener): unknown;
+};
 
 /** What a map made with MapView's `openOn` opened framed on, and whether the visitor has moved it since. */
-type Opening = { on: Bounds | null; moved: boolean }
-const openings = new WeakMap<object, Opening>()
+type Opening = { on: Bounds | null; moved: boolean };
+const openings = new WeakMap<object, Opening>();
 
 /**
  * The public map's opening (the owner's Q1, 2026-10-04): MapView makes the
@@ -94,14 +112,14 @@ const openings = new WeakMap<object, Opening>()
  * (framesRoutes). The studio's map is never recorded here.
  */
 export function openedOn(map: Watched, on: Bounds | null): void {
-  const opening: Opening = { on, moved: false }
-  openings.set(map, opening)
+  const opening: Opening = { on, moved: false };
+  openings.set(map, opening);
   const gesture: Listener = (e) => {
-    if (!e.originalEvent) return
-    opening.moved = true
-    for (const type of GESTURES) map.off(type, gesture)
-  }
-  for (const type of GESTURES) map.on(type, gesture)
+    if (!e.originalEvent) return;
+    opening.moved = true;
+    for (const type of GESTURES) map.off(type, gesture);
+  };
+  for (const type of GESTURES) map.on(type, gesture);
 }
 
 /**
@@ -114,12 +132,12 @@ export function openedOn(map: Watched, on: Bounds | null): void {
  * the framing of what came puts it, or where the visitor took it.
  */
 export function framesRoutes(map: object, bounds: Bounds): boolean {
-  const opening = openings.get(map)
-  if (!opening) return true
-  return !opening.moved && !sameBounds(opening.on, bounds)
+  const opening = openings.get(map);
+  if (!opening) return true;
+  return !opening.moved && !sameBounds(opening.on, bounds);
 }
 
-type Styled = { once(type: string, listener: () => void): unknown }
+type Styled = { once(type: string, listener: () => void): unknown };
 
 /**
  * MapView's "did not finish loading" clock (LOAD_TIMEOUT_MS): `timedOut`
@@ -142,23 +160,31 @@ type Styled = { once(type: string, listener: () => void): unknown }
  * the time its style took. The studio's map (no `fromStyle`; its routes go
  * on at 'load') keeps the one clock from its making.
  */
-export function loadClock(map: Styled, fromStyle: boolean, ms: number, timedOut: () => void): () => void {
-  let ran = false
+export function loadClock(
+  map: Styled,
+  fromStyle: boolean,
+  ms: number,
+  timedOut: () => void,
+): () => void {
+  let ran = false;
   const run = () => {
-    ran = true
-    timedOut()
-  }
-  let timer = setTimeout(run, ms)
+    ran = true;
+    timedOut();
+  };
+  let timer = setTimeout(run, ms);
   if (fromStyle)
     map.once('style.load', () => {
-      if (ran) return
-      clearTimeout(timer)
-      timer = setTimeout(run, ms)
-    })
-  return () => clearTimeout(timer)
+      if (ran) return;
+      clearTimeout(timer);
+      timer = setTimeout(run, ms);
+    });
+  return () => clearTimeout(timer);
 }
 
-type Rendered = { on(type: string, listener: () => void): unknown; off(type: string, listener: () => void): unknown }
+type Rendered = {
+  on(type: string, listener: () => void): unknown;
+  off(type: string, listener: () => void): unknown;
+};
 
 /**
  * When MapView's "Loading map…" goes: `lift` runs once, and the function
@@ -183,25 +209,29 @@ type Rendered = { on(type: string, listener: () => void): unknown; off(type: str
  * 'load' and asks for the next: should it throw, the frame counts as one
  * without the routes, and the text waits for 'load' as before.
  */
-export function loadingLifts<M extends Rendered>(map: M, drawn: ((map: M) => boolean) | null, lift: () => void): () => void {
+export function loadingLifts<M extends Rendered>(
+  map: M,
+  drawn: ((map: M) => boolean) | null,
+  lift: () => void,
+): () => void {
   const stop = () => {
-    map.off('render', look)
-    map.off('load', go)
-  }
+    map.off('render', look);
+    map.off('load', go);
+  };
   const go = () => {
-    stop()
-    lift()
-  }
+    stop();
+    lift();
+  };
   const look = () => {
-    let yes = false
+    let yes = false;
     try {
-      yes = !!drawn?.(map)
+      yes = !!drawn?.(map);
     } catch {
       // A frame without the routes, then: 'load' still lifts it.
     }
-    if (yes) go()
-  }
-  map.on('load', go)
-  if (drawn) map.on('render', look)
-  return stop
+    if (yes) go();
+  };
+  map.on('load', go);
+  if (drawn) map.on('render', look);
+  return stop;
 }

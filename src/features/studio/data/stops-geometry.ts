@@ -1,6 +1,6 @@
-import { entryDistance, type Ring } from '@/features/routes/geo/ring'
-import { passIndex } from '@/features/routes/geo/pass'
-import { servedBy, variantLine, type VariantRow } from '@/features/routes/model/routes'
+import { entryDistance, type Ring } from '@/features/routes/geo/ring';
+import { passIndex } from '@/features/routes/geo/pass';
+import { servedBy, variantLine, type VariantRow } from '@/features/routes/model/routes';
 
 // Pure functions, kept apart from the writes (stopsWrite.ts), which need the
 // Supabase client a test cannot load: so they can be unit-tested, and so the
@@ -19,17 +19,17 @@ export function linksThrough(
   variants: VariantRow[],
   line: string | null,
 ): { variantId: string; sequence: number }[] {
-  const out: { variantId: string; sequence: number }[] = []
+  const out: { variantId: string; sequence: number }[] = [];
   for (const v of variants) {
-    if (!servedBy({ line }, v.route)) continue
-    const idx = passIndex(variantLine(v), ring)
-    if (idx >= 0) out.push({ variantId: v.id, sequence: idx })
+    if (!servedBy({ line }, v.route)) continue;
+    const idx = passIndex(variantLine(v), ring);
+    if (idx >= 0) out.push({ variantId: v.id, sequence: idx });
   }
-  return out
+  return out;
 }
 
 /** How far into a route "starts here" still holds, in metres. */
-const STARTS_WITHIN_M = 100
+const STARTS_WITHIN_M = 100;
 
 /**
  * Directions that begin at this outline — the pre-ticked suggestion for a
@@ -43,8 +43,8 @@ const STARTS_WITHIN_M = 100
 export function variantsStartingIn(ring: Ring, variants: VariantRow[]): string[] {
   return variants
     .filter((v) => {
-      const d = entryDistance(variantLine(v), ring)
-      return d >= 0 && d <= STARTS_WITHIN_M
+      const d = entryDistance(variantLine(v), ring);
+      return d >= 0 && d <= STARTS_WITHIN_M;
     })
-    .map((v) => v.id)
+    .map((v) => v.id);
 }

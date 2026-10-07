@@ -1,5 +1,5 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
-import { loadMapFile, mapFileIsStale } from './map-file'
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { loadMapFile, mapFileIsStale } from './map-file';
 
 /**
  * How the public map knows its own state: whether there is a network, and
@@ -11,16 +11,16 @@ import { loadMapFile, mapFileIsStale } from './map-file'
 export function useOffline(): boolean {
   return useSyncExternalStore(
     (notify) => {
-      window.addEventListener('online', notify)
-      window.addEventListener('offline', notify)
+      window.addEventListener('online', notify);
+      window.addEventListener('offline', notify);
       return () => {
-        window.removeEventListener('online', notify)
-        window.removeEventListener('offline', notify)
-      }
+        window.removeEventListener('online', notify);
+        window.removeEventListener('offline', notify);
+      };
     },
     () => !navigator.onLine,
     () => false,
-  )
+  );
 }
 
 /**
@@ -30,19 +30,24 @@ export function useOffline(): boolean {
  * and a "Try again" that worked left the notice saying "Offline" with no date.
  */
 export function useMapAge(loaded: unknown): MapAge {
-  const [age, setAge] = useState<MapAge>({ publishedAt: null, stale: false })
+  const [age, setAge] = useState<MapAge>({ publishedAt: null, stale: false });
   useEffect(() => {
-    let live = true
-    loadMapFile().then((f) => live && setAge((was) => sameAge(was, { publishedAt: f.published_at, stale: mapFileIsStale() })), () => {})
+    let live = true;
+    loadMapFile().then(
+      (f) =>
+        live &&
+        setAge((was) => sameAge(was, { publishedAt: f.published_at, stale: mapFileIsStale() })),
+      () => {},
+    );
     return () => {
-      live = false
-    }
-  }, [loaded])
-  return age
+      live = false;
+    };
+  }, [loaded]);
+  return age;
 }
 
 /** When the map on screen was published, and whether it is a stored copy. */
-export type MapAge = { publishedAt: string | null; stale: boolean }
+export type MapAge = { publishedAt: string | null; stale: boolean };
 
 /**
  * `now`, or `was` when it says the same. The public map hands useMapAge its
@@ -53,12 +58,12 @@ export type MapAge = { publishedAt: string | null; stale: boolean }
  * load that changes the date or the copy is shown as before.
  */
 export function sameAge(was: MapAge, now: MapAge): MapAge {
-  return was.publishedAt === now.publishedAt && was.stale === now.stale ? was : now
+  return was.publishedAt === now.publishedAt && was.stale === now.stale ? was : now;
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 /** "14 Sep", in the phone's own time zone; spelled by hand so every browser agrees. */
 export function shortDate(iso: string): string {
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? '' : `${d.getDate()} ${MONTHS[d.getMonth()]}`
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : `${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }

@@ -1,6 +1,6 @@
-import { ChangePassword } from './change-password'
-import { ResetPassword } from './reset-password'
-import { SignIn } from './sign-in'
+import { ChangePassword } from './change-password';
+import { ResetPassword } from './reset-password';
+import { SignIn } from './sign-in';
 
 /**
  * The account's dialogs over the workshop: sign-in, from the pill's Sign in
@@ -17,13 +17,13 @@ export function AuthDialogs({
   changingPasswordFor,
   onPasswordDone,
 }: {
-  signingIn: boolean
-  onSignInDismiss: () => void
-  resetting: boolean
-  onResetDone: () => void
+  signingIn: boolean;
+  onSignInDismiss: () => void;
+  resetting: boolean;
+  onResetDone: () => void;
   /** The signed-in email while its password is being changed; null otherwise. */
-  changingPasswordFor: string | null
-  onPasswordDone: () => void
+  changingPasswordFor: string | null;
+  onPasswordDone: () => void;
 }) {
   return (
     <>
@@ -31,7 +31,9 @@ export function AuthDialogs({
 
       {resetting && <ResetPassword onDone={onResetDone} />}
 
-      {changingPasswordFor && <ChangePassword email={changingPasswordFor} onDone={onPasswordDone} />}
+      {changingPasswordFor && (
+        <ChangePassword email={changingPasswordFor} onDone={onPasswordDone} />
+      )}
     </>
-  )
+  );
 }

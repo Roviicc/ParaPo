@@ -1,9 +1,9 @@
-import { useMemo } from 'react'
-import type { Drawing } from '../drawing/use-drawing'
-import { travelLine } from '@/features/routes/model/ride'
-import { variantLine, type VariantRow } from '@/features/routes/model/routes'
-import { placeKey } from '@/features/routes/model/places'
-import { stopLabel, type StopRow } from '@/features/routes/model/stops'
+import { useMemo } from 'react';
+import type { Drawing } from '../drawing/use-drawing';
+import { travelLine } from '@/features/routes/model/ride';
+import { variantLine, type VariantRow } from '@/features/routes/model/routes';
+import { placeKey } from '@/features/routes/model/places';
+import { stopLabel, type StopRow } from '@/features/routes/model/stops';
 
 /**
  * What a drawing will be saved into, read off what it was started from: the
@@ -15,31 +15,30 @@ export function useSaveTarget(draw: Drawing, variants: VariantRow[], stops: Stop
   // What the save panel is saving into.
   const editing = draw.target.variantId
     ? (variants.find((v) => v.id === draw.target.variantId) ?? null)
-    : null
+    : null;
   const parentRoute =
     !editing && draw.target.routeId
       ? (variants.find((v) => v.route_id === draw.target.routeId)?.route ?? null)
-      : null
+      : null;
   // The direction this line is for: the route's slot with no line yet. Fixed
   // here rather than read off the drawing, so a return trip started from the
   // wrong end cannot land on top of the direction that already exists.
   const slotReversed = parentRoute
-    ? (variants.find((v) => v.route_id === parentRoute.id && v.shape === null)?.reversed ??
-      null)
-    : null
+    ? (variants.find((v) => v.route_id === parentRoute.id && v.shape === null)?.reversed ?? null)
+    : null;
 
   // While extending: the places the chosen direction runs between, in travel
   // order, and whether its stored line runs the other way round.
   const extendEnds = useMemo(() => {
-    const v = draw.picking?.variant
-    if (!v) return null
-    const head = stops.find((s) => s.id === v.route.head_stop_id)
-    const tail = stops.find((s) => s.id === v.route.tail_stop_id)
-    if (!head || !tail) return null
-    const [from, to] = v.reversed ? [tail, head] : [head, tail]
-    const travel = travelLine(v, stops)
-    return { from: stopLabel(from), to: stopLabel(to), backwards: travel[0] !== variantLine(v)[0] }
-  }, [draw.picking?.variant, stops])
+    const v = draw.picking?.variant;
+    if (!v) return null;
+    const head = stops.find((s) => s.id === v.route.head_stop_id);
+    const tail = stops.find((s) => s.id === v.route.tail_stop_id);
+    if (!head || !tail) return null;
+    const [from, to] = v.reversed ? [tail, head] : [head, tail];
+    const travel = travelLine(v, stops);
+    return { from: stopLabel(from), to: stopLabel(to), backwards: travel[0] !== variantLine(v)[0] };
+  }, [draw.picking?.variant, stops]);
 
   // Where the line being drawn is going, when that is known: the far end of
   // the direction being edited, or of the route's slot a return trip fills.
@@ -51,13 +50,13 @@ export function useSaveTarget(draw: Drawing, variants: VariantRow[], stops: Stop
       ? slotReversed
         ? parentRoute.head_stop_id
         : parentRoute.tail_stop_id
-      : null
+      : null;
   const placeOfStop = (id: string | null) => {
-    const s = id ? stops.find((x) => x.id === id) : undefined
-    return s ? placeKey(s) : null
-  }
+    const s = id ? stops.find((x) => x.id === id) : undefined;
+    return s ? placeKey(s) : null;
+  };
 
-  return { editing, parentRoute, slotReversed, extendEnds, destinationStopId, placeOfStop }
+  return { editing, parentRoute, slotReversed, extendEnds, destinationStopId, placeOfStop };
 }
 
-export type SaveTarget = ReturnType<typeof useSaveTarget>
+export type SaveTarget = ReturnType<typeof useSaveTarget>;

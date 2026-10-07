@@ -1,23 +1,23 @@
-import type { ComponentPropsWithoutRef } from 'react'
+import type { ComponentPropsWithoutRef } from 'react';
 
 /** Its three looks: at rest, on, and on and doing it (filled). */
-export type MapControlLook = 'plain' | 'on' | 'filled'
+export type MapControlLook = 'plain' | 'on' | 'filled';
 
 const LOOK = {
   plain: 'bg-surface text-content-secondary hover:bg-surface-secondary',
   on: 'bg-surface text-blue-600 hover:bg-blue-50',
   filled: 'bg-blue-600 text-content-inverse hover:bg-blue-700',
-} satisfies Record<MapControlLook, string>
+} satisfies Record<MapControlLook, string>;
 
 type Props = Omit<
   ComponentPropsWithoutRef<'button'>,
   'className' | 'style' | 'dangerouslySetInnerHTML' | 'type' | 'aria-label' | 'title'
 > & {
-  look?: MapControlLook
+  look?: MapControlLook;
   /** An icon-only button: its name for a screen reader, and its tooltip. */
-  'aria-label': string
-  title: string
-}
+  'aria-label': string;
+  title: string;
+};
 
 /**
  * The 29 px rounded square MapLibre's own controls are, for the two the app
@@ -32,9 +32,12 @@ export function MapControlButton({ look = 'plain', children, ...rest }: Props) {
     <button
       type="button"
       {...rest}
-      className={'grid h-[29px] w-[29px] place-items-center rounded shadow-[0_0_0_2px_rgba(0,0,0,0.1)] ' + LOOK[look]}
+      className={
+        'grid h-[29px] w-[29px] place-items-center rounded shadow-[0_0_0_2px_rgba(0,0,0,0.1)] ' +
+        LOOK[look]
+      }
     >
       {children}
     </button>
-  )
+  );
 }

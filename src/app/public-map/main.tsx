@@ -1,9 +1,9 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import 'maplibre-gl/dist/maplibre-gl.css'
-import '@/styles/global.css'
-import CommuterApp from './public-map-app.tsx'
-import { registerServiceWorker } from '@/features/published-map'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import '@/styles/global.css';
+import CommuterApp from './public-map-app.tsx';
+import { registerServiceWorker } from '@/features/published-map';
 
 /**
  * Where to send an auth result that arrived here, or null.
@@ -19,28 +19,28 @@ import { registerServiceWorker } from '@/features/published-map'
  * the implicit flow, which never sends `code`.
  */
 function studioAddressForAuthResult(): string | null {
-  const { pathname, search, hash } = window.location
+  const { pathname, search, hash } = window.location;
   // Never forward the studio to itself, should this page ever be served there.
-  if (pathname.startsWith('/studio')) return null
+  if (pathname.startsWith('/studio')) return null;
   const carriesAuth = (p: URLSearchParams) =>
-    p.get('type') === 'recovery' || p.has('error_code') || p.has('error_description')
-  const query = new URLSearchParams(search)
-  const fragment = new URLSearchParams(hash.replace(/^#/, ''))
-  return carriesAuth(query) || carriesAuth(fragment) ? `/studio/${search}${hash}` : null
+    p.get('type') === 'recovery' || p.has('error_code') || p.has('error_description');
+  const query = new URLSearchParams(search);
+  const fragment = new URLSearchParams(hash.replace(/^#/, ''));
+  return carriesAuth(query) || carriesAuth(fragment) ? `/studio/${search}${hash}` : null;
 }
 
-const forwardTo = studioAddressForAuthResult()
+const forwardTo = studioAddressForAuthResult();
 
 if (forwardTo) {
-  window.location.replace(forwardTo)
+  window.location.replace(forwardTo);
 } else {
   // No Supabase client here: visitors read the published map file
   // (src/commuter/mapFile.ts) and never talk to the database. That keeps
   // supabase-js out of this page's bundle, which scripts/checks/check-build.mjs proves.
-  registerServiceWorker()
+  registerServiceWorker();
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <CommuterApp />
     </StrictMode>,
-  )
+  );
 }

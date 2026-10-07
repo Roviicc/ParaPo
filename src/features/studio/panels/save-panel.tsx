@@ -1,44 +1,50 @@
-import { useMemo, useState } from 'react'
-import type { Drawing } from '../drawing/use-drawing'
-import { haversine, type LngLat } from '@/shared/utils/geo'
-import { isLineMode, MODES, type RouteRow, type TransportMode, type VariantRow } from '@/features/routes/model/routes'
-import { stopLabel, type StopRow } from '@/features/routes/model/stops'
-import { StopTimeline, passesThrough } from '@/features/routes/cards/stop-timeline'
-import { ENDS_TAKEN } from '../data/routes-write'
-import { saveRouteAndLinks } from '../data/save-route'
-import { SaveNotices } from './save-notices'
-import { boxFor, groupPlaces, nearestStop } from './places'
-import { useSaveFacts } from './use-save-facts'
-import { FIELD_TEXT, FOOTER, OVERLAY, PANEL } from './sheet'
+import { useMemo, useState } from 'react';
+import type { Drawing } from '../drawing/use-drawing';
+import { haversine, type LngLat } from '@/shared/utils/geo';
+import {
+  isLineMode,
+  MODES,
+  type RouteRow,
+  type TransportMode,
+  type VariantRow,
+} from '@/features/routes/model/routes';
+import { stopLabel, type StopRow } from '@/features/routes/model/stops';
+import { StopTimeline, passesThrough } from '@/features/routes/cards/stop-timeline';
+import { ENDS_TAKEN } from '../data/routes-write';
+import { saveRouteAndLinks } from '../data/save-route';
+import { SaveNotices } from './save-notices';
+import { boxFor, groupPlaces, nearestStop } from './places';
+import { useSaveFacts } from './use-save-facts';
+import { FIELD_TEXT, FOOTER, OVERLAY, PANEL } from './sheet';
 
 type Props = {
-  draw: Drawing
+  draw: Drawing;
   /** The direction being edited, when this is an edit rather than a new save. */
-  existing: VariantRow | null
+  existing: VariantRow | null;
   /** The parent route, when adding another direction to a route that exists. */
-  route: RouteRow | null
+  route: RouteRow | null;
   /**
    * Which way round the route's empty slot runs, when there is one: the
    * direction this line is being drawn *for*. Null when there is no slot to
    * fill. Not inferred from the line — a return trip drawn from the wrong end
    * must not overwrite the direction that is already there.
    */
-  slotReversed?: boolean | null
+  slotReversed?: boolean | null;
   /** Every hotspot, for the two end pickers and for generating the name. */
-  stops: StopRow[]
+  stops: StopRow[];
   /**
    * Every saved direction: for what an Extend borrowed from, for noticing
    * that the chosen ends already make a route whose empty slot this fills,
    * and, in Edit route, for refusing ends another route already has.
    */
-  variants?: VariantRow[]
-  onSaved: (v: VariantRow) => void
-  onCancel: () => void
-}
+  variants?: VariantRow[];
+  onSaved: (v: VariantRow) => void;
+  onCancel: () => void;
+};
 
 const field =
   `mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 ${FIELD_TEXT} outline-none ` +
-  'focus:border-neutral-900 disabled:bg-neutral-100 disabled:text-neutral-500'
+  'focus:border-neutral-900 disabled:bg-neutral-100 disabled:text-neutral-500';
 
 /**
  * The one form in the app. Appears once, at ✓ Done.
@@ -58,93 +64,123 @@ export function SavePanel({
   onSaved,
   onCancel,
 }: Props) {
-  const parent = existing?.route ?? route
-  const line = draw.controlPoints
-  const places = useMemo(() => groupPlaces(stops), [stops])
-  const placeOf = (id: string) => places.find((p) => p.boxes.some((s) => s.id === id))
-  const lineStart = line[0]
-  const lineEnd = line[line.length - 1]
+  const parent = existing?.route ?? route;
+  const line = draw.controlPoints;
+  const places = useMemo(() => groupPlaces(stops), [stops]);
+  const placeOf = (id: string) => places.find((p) => p.boxes.some((s) => s.id === id));
+  const lineStart = line[0];
+  const lineEnd = line[line.length - 1];
   // Where a picked end's box is looked for: at the end of the line nearer
   // the route's head, and the tail at the other — whichever way it was
   // drawn; a new route's line starts at its head.
-  const headNow = existing ? stops.find((s) => s.id === existing.route.head_stop_id) : undefined
+  const headNow = existing ? stops.find((s) => s.id === existing.route.head_stop_id) : undefined;
   const startsAtHead =
-    !headNow || !lineStart || !lineEnd || haversine(lineStart, headNow.point.coordinates) <= haversine(lineEnd, headNow.point.coordinates)
-  const [nearHead, nearTail] = startsAtHead ? [lineStart, lineEnd] : [lineEnd, lineStart]
+    !headNow ||
+    !lineStart ||
+    !lineEnd ||
+    haversine(lineStart, headNow.point.coordinates) <=
+      haversine(lineEnd, headNow.point.coordinates);
+  const [nearHead, nearTail] = startsAtHead ? [lineStart, lineEnd] : [lineEnd, lineStart];
 
-  const [signboard, setSignboard] = useState(parent?.signboard ?? '')
-  const [mode, setMode] = useState<TransportMode>(parent?.mode ?? 'jeepney')
-  const [fareNote, setFareNote] = useState(parent?.fare_note ?? '')
-  const [via, setVia] = useState(parent?.via ?? '')
+  const [signboard, setSignboard] = useState(parent?.signboard ?? '');
+  const [mode, setMode] = useState<TransportMode>(parent?.mode ?? 'jeepney');
+  const [fareNote, setFareNote] = useState(parent?.fare_note ?? '');
+  const [via, setVia] = useState(parent?.via ?? '');
   // The ends are the route's: a return trip takes them as they are, and Edit
   // route starts from them; a new route's are guessed from where the line
   // actually starts and finishes — the nearest box, then that box's place,
   // then the place's own box — and corrected by hand when the guess is wrong.
   const guess = (to: LngLat | undefined) => {
-    const place = placeOf(nearestStop(stops, to))
-    return place ? boxFor(place, to) : ''
-  }
+    const place = placeOf(nearestStop(stops, to));
+    return place ? boxFor(place, to) : '';
+  };
   // The guess reads the line's own order: it starts at the head. A return trip
   // starts at the tail, so when the guessed pair is already a route the other
   // way round, that route is the one meant — the head is where its jeeps wait.
   const [firstGuess] = useState(() => {
-    const [h, t] = [guess(lineStart), guess(lineEnd)]
-    const swapped = variants.some((v) => v.route.head_stop_id === t && v.route.tail_stop_id === h)
-    return swapped ? [t, h] : [h, t]
-  })
-  const [headId, setHeadId] = useState(parent?.head_stop_id ?? firstGuess[0])
-  const [tailId, setTailId] = useState(parent?.tail_stop_id ?? firstGuess[1])
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+    const [h, t] = [guess(lineStart), guess(lineEnd)];
+    const swapped = variants.some((v) => v.route.head_stop_id === t && v.route.tail_stop_id === h);
+    return swapped ? [t, h] : [h, t];
+  });
+  const [headId, setHeadId] = useState(parent?.head_stop_id ?? firstGuess[0]);
+  const [tailId, setTailId] = useState(parent?.tail_stop_id ?? firstGuess[1]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   // The direction as a save wrote it, when the link sync after it failed.
   // Saves are two steps, not one transaction (PLAN.md's known risk #3): a
   // second press inserted the route again, met its own row and was refused as
   // "already drawn" (review finding 13). Now it updates the row it wrote.
-  const [written, setWritten] = useState<{ routeId: string; variantId: string } | null>(null)
+  const [written, setWritten] = useState<{ routeId: string; variantId: string } | null>(null);
 
   // A return trip fills its route's slot and leaves the route as it is; Edit
   // route may change the route's facts, for both its directions. A new
   // route's are fixed once a save has written it: the retry finishes that
   // row and would ignore a changed end.
-  const routeLocked = !existing && (!!parent || !!written)
-  const head = stops.find((s) => s.id === headId)
-  const tail = stops.find((s) => s.id === tailId)
-  const headPlace = head ? placeOf(head.id) : undefined
-  const tailPlace = tail ? placeOf(tail.id) : undefined
+  const routeLocked = !existing && (!!parent || !!written);
+  const head = stops.find((s) => s.id === headId);
+  const tail = stops.find((s) => s.id === tailId);
+  const headPlace = head ? placeOf(head.id) : undefined;
+  const tailPlace = tail ? placeOf(tail.id) : undefined;
 
   const pickPlace = (key: string, to: LngLat | undefined) => {
-    const place = places.find((p) => p.key === key)
-    return place ? boxFor(place, to) : ''
-  }
+    const place = places.find((p) => p.key === key);
+    return place ? boxFor(place, to) : '';
+  };
 
   // What this line is, as the panel and the save see it.
-  const facts = useSaveFacts({ draw, existing, parent, slotReversed, stops, variants, head, tail, headId, tailId, via, mode })
-  const { reversed, wrongWayRound, sameEnds, endsTaken, turnedRound, borrowParent, borrowPart, borrowedM, name, direction, preview } =
-    facts
+  const facts = useSaveFacts({
+    draw,
+    existing,
+    parent,
+    slotReversed,
+    stops,
+    variants,
+    head,
+    tail,
+    headId,
+    tailId,
+    via,
+    mode,
+  });
+  const {
+    reversed,
+    wrongWayRound,
+    sameEnds,
+    endsTaken,
+    turnedRound,
+    borrowParent,
+    borrowPart,
+    borrowedM,
+    name,
+    direction,
+    preview,
+  } = facts;
 
   async function submit(e: React.FormEvent) {
-    e.preventDefault()
+    e.preventDefault();
     if (!headId || !tailId) {
-      setError('Pick the place at each end. The route is named after them.')
-      return
+      setError('Pick the place at each end. The route is named after them.');
+      return;
     }
     if (headPlace && headPlace === tailPlace) {
-      setError('The two ends have to be different places.')
-      return
+      setError('The two ends have to be different places.');
+      return;
     }
     if (endsTaken) {
-      setError(ENDS_TAKEN)
-      return
+      setError(ENDS_TAKEN);
+      return;
     }
     if (turnedRound) {
-      setError('Head and tail swapped would turn the route round, which Edit route cannot do: its directions keep their way round. Change one end at a time.')
-      return
+      setError(
+        'Head and tail swapped would turn the route round, which Edit route cannot do: its directions keep their way round. Change one end at a time.',
+      );
+      return;
     }
-    setBusy(true)
-    setError(null)
+    setBusy(true);
+    setError(null);
     try {
       // The borrow on the parent's full line, read now if it has not come.
-      const borrowed = await facts.borrowedForSave()
+      const borrowed = await facts.borrowedForSave();
       const named = await saveRouteAndLinks(
         {
           routeId: written?.routeId ?? parent?.id ?? null,
@@ -166,34 +202,42 @@ export function SavePanel({
         },
         stops,
         setWritten,
-      )
-      onSaved(named)
+      );
+      onSaved(named);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-      setBusy(false)
+      setError(err instanceof Error ? err.message : String(err));
+      setBusy(false);
     }
   }
 
   return (
     <div className={OVERLAY}>
-      <form
-        onSubmit={submit}
-        className={PANEL}
-      >
+      <form onSubmit={submit} className={PANEL}>
         <h2 className="text-base font-medium text-neutral-900">
           {existing ? 'Update this direction' : route ? 'Draw the return trip' : 'Save this route'}
         </h2>
         <p className="mt-1 text-xs text-neutral-500">
           {draw.controlPoints.length} points · {(draw.metres / 1000).toFixed(2)} km
           {routeLocked && ' · the ends belong to the route, so both directions share them'}
-          {existing && " · the ends, via, signboard, mode and fare note are the route's: a change here is a change to both directions"}
+          {existing &&
+            " · the ends, via, signboard, mode and fare note are the route's: a change here is a change to both directions"}
         </p>
         <SaveNotices
           segments={draw.segments}
           uTurns={draw.uTurns}
           stopsCount={stops.length}
-          wrongWay={wrongWayRound && head && tail ? { direction, startsAt: stopLabel(reversed ? head : tail), from: stopLabel(reversed ? tail : head) } : null}
-          borrowed={borrowParent && borrowedM > 0 ? { metres: borrowedM, parent: borrowParent } : null}
+          wrongWay={
+            wrongWayRound && head && tail
+              ? {
+                  direction,
+                  startsAt: stopLabel(reversed ? head : tail),
+                  from: stopLabel(reversed ? tail : head),
+                }
+              : null
+          }
+          borrowed={
+            borrowParent && borrowedM > 0 ? { metres: borrowedM, parent: borrowParent } : null
+          }
           sameEnds={sameEnds}
           direction={direction}
         />
@@ -284,7 +328,8 @@ export function SavePanel({
         <hr className="my-4 border-neutral-200" />
 
         <label className="block text-xs font-medium text-neutral-700">
-          Signboard <span className="text-neutral-400">(what is painted on the jeep — optional)</span>
+          Signboard{' '}
+          <span className="text-neutral-400">(what is painted on the jeep — optional)</span>
           <input
             disabled={routeLocked}
             value={signboard}
@@ -348,5 +393,5 @@ export function SavePanel({
         </div>
       </form>
     </div>
-  )
+  );
 }

@@ -1,23 +1,49 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { Session } from '@supabase/supabase-js'
-import type { MapLibreMap } from 'maplibre-gl'
-import { HotspotCard } from '@/features/routes/cards/hotspot-card'
-import { APP_MOVE, MapView } from '@/features/routes/map/map-view'
-import { RouteCardList } from '@/features/routes/cards/route-card-list'
-import { TripCard } from '@/features/routes/cards/trip-card'
-import { useCardStack } from '@/features/routes/cards/use-card-stack'
-import { useCardCamera } from '@/features/routes/cards/use-card-camera'
-import { HintuanPin } from '@/features/routes/map/hintuan-pin'
-import { StationLabels } from '@/features/routes/map/station-labels'
-import { EndTitles } from '@/features/routes/map/end-titles'
-import { lineOf, listVariants, loadStopsFromSupabase, getSupabase, supabaseConfigError, CardActions, RouteFacts, SignboardEditor, signboardUrl, AuthDialogs, AccountPill, NewButtons, DrawToolbar, HotspotPanel, SavePanel, SignIn, Toast, deleteVariant, deleteStop, skipSignInForTests, useDrawing, useFollow, useSaveTarget, usePasswordRecovery, useSession } from '@/features/studio'
-import { isDrawn, variantLine, type VariantRow } from '@/features/routes/model/routes'
-import { routeTimeline } from '@/features/routes/model/ride'
-import { hotspotCount } from '@/features/routes/model/places'
-import { stopLabel, stopRing, type StopRow } from '@/features/routes/model/stops'
-import { useLitRides } from '@/features/routes/map/use-lit-rides'
-import { useSavedRoutes } from '@/features/routes/map/use-saved-routes'
-import { useSavedStops } from '@/features/routes/map/use-saved-stops'
+import { useEffect, useMemo, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import type { MapLibreMap } from 'maplibre-gl';
+import { HotspotCard } from '@/features/routes/cards/hotspot-card';
+import { APP_MOVE, MapView } from '@/features/routes/map/map-view';
+import { RouteCardList } from '@/features/routes/cards/route-card-list';
+import { TripCard } from '@/features/routes/cards/trip-card';
+import { useCardStack } from '@/features/routes/cards/use-card-stack';
+import { useCardCamera } from '@/features/routes/cards/use-card-camera';
+import { HintuanPin } from '@/features/routes/map/hintuan-pin';
+import { StationLabels } from '@/features/routes/map/station-labels';
+import { EndTitles } from '@/features/routes/map/end-titles';
+import {
+  lineOf,
+  listVariants,
+  loadStopsFromSupabase,
+  getSupabase,
+  supabaseConfigError,
+  CardActions,
+  RouteFacts,
+  SignboardEditor,
+  signboardUrl,
+  AuthDialogs,
+  AccountPill,
+  NewButtons,
+  DrawToolbar,
+  HotspotPanel,
+  SavePanel,
+  SignIn,
+  Toast,
+  deleteVariant,
+  deleteStop,
+  skipSignInForTests,
+  useDrawing,
+  useFollow,
+  useSaveTarget,
+  usePasswordRecovery,
+  useSession,
+} from '@/features/studio';
+import { isDrawn, variantLine, type VariantRow } from '@/features/routes/model/routes';
+import { routeTimeline } from '@/features/routes/model/ride';
+import { hotspotCount } from '@/features/routes/model/places';
+import { stopLabel, stopRing, type StopRow } from '@/features/routes/model/stops';
+import { useLitRides } from '@/features/routes/map/use-lit-rides';
+import { useSavedRoutes } from '@/features/routes/map/use-saved-routes';
+import { useSavedStops } from '@/features/routes/map/use-saved-stops';
 
 /**
  * The editor at /studio/. Signed out, the page is only its front door: the
@@ -30,14 +56,14 @@ import { useSavedStops } from '@/features/routes/map/use-saved-stops'
  * sign-in again. Swapping it for the door would throw that work away.
  */
 export default function StudioApp() {
-  const session = useSession()
+  const session = useSession();
   // Read on the very first render, before supabase-js consumes the reset link.
-  const recovery = usePasswordRecovery()
-  const [admitted, setAdmitted] = useState(false)
+  const recovery = usePasswordRecovery();
+  const [admitted, setAdmitted] = useState(false);
 
   useEffect(() => {
-    if (session) setAdmitted(true)
-  }, [session])
+    if (session) setAdmitted(true);
+  }, [session]);
 
   // Still restoring a saved session: show nothing rather than flash the door.
   if (session === undefined && !admitted) {
@@ -45,7 +71,7 @@ export default function StudioApp() {
       <div className="grid h-full place-items-center bg-neutral-100">
         <p className="text-sm text-neutral-500">Loading…</p>
       </div>
-    )
+    );
   }
 
   if (!session && !admitted && !skipSignInForTests()) {
@@ -56,10 +82,10 @@ export default function StudioApp() {
           notice={recovery.error ? `Reset link problem: ${recovery.error}` : null}
         />
       </div>
-    )
+    );
   }
 
-  return <Workshop session={session ?? null} recovery={recovery} />
+  return <Workshop session={session ?? null} recovery={recovery} />;
 }
 
 /** The map and every editing tool, for a signed-in editor or a test session. */
@@ -67,40 +93,44 @@ function Workshop({
   session,
   recovery,
 }: {
-  session: Session | null
-  recovery: ReturnType<typeof usePasswordRecovery>
+  session: Session | null;
+  recovery: ReturnType<typeof usePasswordRecovery>;
 }) {
-  const [map, setMap] = useState<MapLibreMap | null>(null)
-  const [signingIn, setSigningIn] = useState(false)
-  const [changingPassword, setChangingPassword] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [hotspotMenu, setHotspotMenu] = useState(false)
+  const [map, setMap] = useState<MapLibreMap | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [hotspotMenu, setHotspotMenu] = useState(false);
   // One toast at a time, the newest: a save's, or a problem.
   const [toast, setToast] = useState<
-    { kind: 'route'; v: VariantRow } | { kind: 'stop'; s: StopRow } | { kind: 'notice'; text: string } | null
-  >(null)
-  const setNotice = (text: string | null) => setToast(text === null ? null : { kind: 'notice', text })
-  const justSaved = toast?.kind === 'route' ? toast.v : null
+    | { kind: 'route'; v: VariantRow }
+    | { kind: 'stop'; s: StopRow }
+    | { kind: 'notice'; text: string }
+    | null
+  >(null);
+  const setNotice = (text: string | null) =>
+    setToast(text === null ? null : { kind: 'notice', text });
+  const justSaved = toast?.kind === 'route' ? toast.v : null;
 
   // A right-click on a saved line while drawing: decided below, once the
   // saved lines and hotspots are loaded (onFollow).
-  const draw = useDrawing(map, { onFollow: (ids, at, offered) => onFollow(ids, at, offered) })
+  const draw = useDrawing(map, { onFollow: (ids, at, offered) => onFollow(ids, at, offered) });
   // The list rows, each with its overview (0009): a direction's full line is
   // read when it is lit or chosen, its drawing when it is opened (below).
   const saved = useSavedRoutes(map, listVariants, {
     drawing: draw.drawing,
     hiddenVariantId: draw.target.variantId,
     loadLine: lineOf,
-  })
+  });
   const stops = useSavedStops(map, loadStopsFromSupabase, {
     drawing: draw.drawing,
     hiddenStopId: draw.area?.stopId ?? null,
     // While a trip is open, the map lights only the trip, as on the public map.
     muted: !!saved.selected,
-  })
+  });
   // The route list, a hotspot's card and the trip opened from either, as on
   // the public map (useCardStack).
-  const cards = useCardStack(map, saved, stops)
+  const cards = useCardStack(map, saved, stops);
   // The camera with the cards, as on the public map (useCardCamera), the
   // owner's ask of 2026-09-30: "most of the interaction of public map should
   // be in studio". A hintuan picked on the trip card, the camera gliding
@@ -109,78 +139,97 @@ function Workshop({
   // a RouteCard picked, SWITCH and the sheet settled at another height, each
   // framed beside the card; and the camera from before a hotspot's RouteCard
   // was picked, back as it is let go.
-  const { root, tripDock, ride, clearOfOpen, switchTrip, flipList, pickOnPlaceCard, openTrip, backFromTrip } = useCardCamera(map, saved, stops, cards)
+  const {
+    root,
+    tripDock,
+    ride,
+    clearOfOpen,
+    switchTrip,
+    flipList,
+    pickOnPlaceCard,
+    openTrip,
+    backFromTrip,
+  } = useCardCamera(map, saved, stops, cards);
 
   // What the lit routes wear on the map, as on the public map (useLitRides);
   // none of the orange over the direction being redrawn.
-  const rides = useLitRides(map, saved, stops.stops, draw.target.variantId, ride.ridden)
+  const rides = useLitRides(map, saved, stops.stops, draw.target.variantId, ride.ridden);
 
   // The pill counts routes, not directions: a route is two rows, one of them
   // perhaps an empty slot, and five routes once read "10 routes" (finding 7).
-  const routeCount = useMemo(() => new Set(saved.variants.map((v) => v.route_id)).size, [saved.variants])
+  const routeCount = useMemo(
+    () => new Set(saved.variants.map((v) => v.route_id)).size,
+    [saved.variants],
+  );
 
-  const signedIn = !!session
-  const userId = session?.user.id ?? null
+  const signedIn = !!session;
+  const userId = session?.user.id ?? null;
 
   // Signed in from the dialog Done opened: the dialog hides itself on the
   // session, so its flag is cleared here — left set, it kept the drawing keys
   // (Ctrl+Z, Enter, F) off for the rest of the visit (finding 9).
   useEffect(() => {
-    if (signedIn) setSigningIn(false)
-  }, [signedIn])
+    if (signedIn) setSigningIn(false);
+  }, [signedIn]);
 
   // Back from a valid reset link: the link gave us a session, now set the password.
-  const resetting = recovery.recovering && signedIn
+  const resetting = recovery.recovering && signedIn;
 
   // A rejected reset link (expired, already used) is just a notice; the user
   // is plainly signed out and can ask for another.
   useEffect(() => {
-    if (recovery.error) setNotice(`Reset link problem: ${recovery.error}`)
-  }, [recovery.error])
+    if (recovery.error) setNotice(`Reset link problem: ${recovery.error}`);
+  }, [recovery.error]);
 
   // What the save panel saves into, and where the drawing is headed.
-  const target = useSaveTarget(draw, saved.variants, stops.stops)
-  const { editing, parentRoute, slotReversed, extendEnds } = target
+  const target = useSaveTarget(draw, saved.variants, stops.stops);
+  const { editing, parentRoute, slotReversed, extendEnds } = target;
   // A right-click on saved lines while drawing, and opening a direction's drawing.
-  const { onFollow, opening } = useFollow({ draw, variants: saved.variants, stops: stops.stops, target, setNotice })
+  const { onFollow, opening } = useFollow({
+    draw,
+    variants: saved.variants,
+    stops: stops.stops,
+    target,
+    setNotice,
+  });
 
   const onDone = () => {
-    if (!signedIn) setSigningIn(true)
-    else setSaving(true)
-  }
+    if (!signedIn) setSigningIn(true);
+    else setSaving(true);
+  };
 
   // The hotspot being edited, when the area trace came from a saved one.
   const editingStop = draw.area?.stopId
     ? (stops.stops.find((s) => s.id === draw.area?.stopId) ?? null)
-    : null
+    : null;
 
   const onSaved = (v: VariantRow) => {
-    setSaving(false)
-    draw.cancel()
-    void saved.reload()
+    setSaving(false);
+    draw.cancel();
+    void saved.reload();
     // A moved line may have entered or left a hintuan; its links were re-synced.
-    void stops.reload()
-    setToast({ kind: 'route', v })
-  }
+    void stops.reload();
+    setToast({ kind: 'route', v });
+  };
 
   const onSavedStop = (s: StopRow) => {
-    setSaving(false)
-    draw.cancel()
-    void stops.reload()
+    setSaving(false);
+    draw.cancel();
+    void stops.reload();
     // The directions too: their names are generated from the hotspots at
     // their ends when they load, so a renamed end left every card, the list
     // and the pill on the old name until the next route save (finding 8).
-    void saved.reload()
-    setToast({ kind: 'stop', s })
-  }
+    void saved.reload();
+    setToast({ kind: 'stop', s });
+  };
 
   const onDeleteStop = async (s: StopRow) => {
     // As Done does: with the session gone the delete went out on the
     // publishable key, matched no row, came back 2xx, and the box was still
     // there after the reload, with nothing said (review of 2026-10-03).
     if (!signedIn) {
-      setSigningIn(true)
-      return
+      setSigningIn(true);
+      return;
     }
     // A route's end cannot go while the route names it: the database refuses
     // (0006's foreign keys), and its refusal was the notice (finding 15).
@@ -190,49 +239,51 @@ function Workshop({
           .filter((v) => v.route.head_stop_id === s.id || v.route.tail_stop_id === s.id)
           .map((v) => v.route.name),
       ),
-    ]
+    ];
     if (ending.length > 0) {
       setNotice(
         `"${stopLabel(s)}" is where ${ending.join(', ')} ${ending.length === 1 ? 'ends' : 'end'}. ` +
           `Delete ${ending.length === 1 ? 'that route' : 'those routes'} first.`,
-      )
-      return
+      );
+      return;
     }
-    if (!window.confirm(`Delete ${s.kind} "${stopLabel(s)}"?`)) return
+    if (!window.confirm(`Delete ${s.kind} "${stopLabel(s)}"?`)) return;
     try {
-      await deleteStop(s)
-      stops.select(null)
-      await stops.reload()
+      await deleteStop(s);
+      stops.select(null);
+      await stops.reload();
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : String(e))
+      setNotice(e instanceof Error ? e.message : String(e));
     }
-  }
+  };
 
-  const { choice, choosing, closeAll, tripLivery, look, inCardColour, height } = cards
+  const { choice, choosing, closeAll, tripLivery, look, inCardColour, height } = cards;
 
   // "Draw the return trip" only while the route still has a way undrawn: after
   // an edit of a route drawn both ways it once started a drawing whose save
   // replaced the other direction's line (review finding 2). The direction
   // just saved is drawn whatever the list says until its reload lands.
   const slotLeft = justSaved
-    ? saved.variants.some((v) => v.route_id === justSaved.route_id && v.id !== justSaved.id && v.shape === null)
-    : false
+    ? saved.variants.some(
+        (v) => v.route_id === justSaved.route_id && v.id !== justSaved.id && v.shape === null,
+      )
+    : false;
 
   const onDelete = async (v: VariantRow) => {
     // Signed out, the delete would match nothing and say nothing (onDeleteStop).
     if (!signedIn) {
-      setSigningIn(true)
-      return
+      setSigningIn(true);
+      return;
     }
-    if (!window.confirm(`Delete "${v.route?.name}" — ${v.direction_name}?`)) return
+    if (!window.confirm(`Delete "${v.route?.name}" — ${v.direction_name}?`)) return;
     try {
-      await deleteVariant(v)
-      saved.select(null)
-      await saved.reload()
+      await deleteVariant(v);
+      saved.select(null);
+      await saved.reload();
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : String(e))
+      setNotice(e instanceof Error ? e.message : String(e));
     }
-  }
+  };
 
   return (
     <div ref={root} className="@container relative h-full w-full overflow-clip">
@@ -240,23 +291,35 @@ function Workshop({
 
       {/* A config or load problem is a banner, never a blank page. */}
       {(supabaseConfigError || saved.error || stops.error) && (
-        <div
-          className="absolute left-1/2 top-[calc(1rem+env(safe-area-inset-top))] z-20 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-lg bg-amber-50
-                     px-4 py-2 text-xs text-amber-900 shadow ring-1 ring-amber-200"
-        >
+        <div className="absolute top-[calc(1rem+env(safe-area-inset-top))] left-1/2 z-20 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-lg bg-amber-50 px-4 py-2 text-xs text-amber-900 shadow ring-1 ring-amber-200">
           {supabaseConfigError ?? `Couldn't load saved routes: ${saved.error ?? stops.error}`}
         </div>
       )}
 
       {/* Each lit ride's ends, named over their circles. */}
-      {map && !draw.drawing && <EndTitles map={map} rides={rides} look={look} badged={inCardColour} />}
+      {map && !draw.drawing && (
+        <EndTitles map={map} rides={rides} look={look} badged={inCardColour} />
+      )}
       {/* A selected train line's stations, named along it (RouteLineLabel). */}
       {map && !draw.drawing && saved.selected && tripLivery && (
-        <StationLabels map={map} selected={saved.selected} stops={stops.stops} livery={tripLivery} pickedId={ride.pickedId} onPick={ride.pick} />
+        <StationLabels
+          map={map}
+          selected={saved.selected}
+          stops={stops.stops}
+          livery={tripLivery}
+          pickedId={ride.pickedId}
+          onPick={ride.pick}
+        />
       )}
       {/* Keyed on the pick: another hintuan pops a fresh circle. */}
       {map && !draw.drawing && ride.pinAt && tripLivery && (
-        <HintuanPin key={ride.pickedId} map={map} at={ride.pinAt} label={ride.pickedLabel} livery={tripLivery} />
+        <HintuanPin
+          key={ride.pickedId}
+          map={map}
+          at={ride.pinAt}
+          label={ride.pickedLabel}
+          livery={tripLivery}
+        />
       )}
 
       {/*
@@ -269,7 +332,11 @@ function Workshop({
           key={saved.selected.route_id}
           variant={saved.selected}
           variants={saved.variants}
-          timeline={routeTimeline(saved.selected, stops.stops, stops.stopsAlong(saved.selected.id, variantLine(saved.selected)))}
+          timeline={routeTimeline(
+            saved.selected,
+            stops.stops,
+            stops.stopsAlong(saved.selected.id, variantLine(saved.selected)),
+          )}
           livery={tripLivery}
           onBackToList={backFromTrip}
           onSwitch={switchTrip}
@@ -292,21 +359,21 @@ function Workshop({
                     <CardActions
                       editLabel="Edit route"
                       onEdit={() => {
-                        const v = saved.selected
-                        if (!v) return
-                        closeAll()
-                        void opening(v, draw.load)
+                        const v = saved.selected;
+                        if (!v) return;
+                        closeAll();
+                        void opening(v, draw.load);
                       }}
                       onDelete={() => {
-                        if (saved.selected) void onDelete(saved.selected)
+                        if (saved.selected) void onDelete(saved.selected);
                       }}
                       onExtend={
                         isDrawn(saved.selected)
                           ? () => {
-                              const v = saved.selected
-                              if (!v) return
-                              closeAll()
-                              void opening(v, draw.startExtend)
+                              const v = saved.selected;
+                              if (!v) return;
+                              closeAll();
+                              void opening(v, draw.startExtend);
                             }
                           : undefined
                       }
@@ -345,8 +412,8 @@ function Workshop({
           // Another box: the map goes there, the box clear of the card on
           // show, as on the public map.
           onPickSibling={(id) => {
-            saved.highlightCard(null)
-            stops.show(id, clearOfOpen)
+            saved.highlightCard(null);
+            stops.show(id, clearOfOpen);
           }}
           actions={
             userId !== null &&
@@ -354,19 +421,20 @@ function Workshop({
               <CardActions
                 editLabel={stops.selected.kind === 'terminal' ? 'Edit terminal' : 'Edit hintuan'}
                 onEdit={() => {
-                  const s = stops.selected
-                  if (!s) return
-                  closeAll()
+                  const s = stops.selected;
+                  if (!s) return;
+                  closeAll();
                   // A RouteCard picked on the way here, on this card or in
                   // the list, took in its routes whole and left the box a
                   // few pixels across: the outline opens on the box, in
                   // close enough to take its corners. Already that close,
                   // the map stays where it is.
-                  if (map && map.getZoom() < 16) map.flyTo({ center: s.point.coordinates, zoom: 16 }, APP_MOVE)
-                  draw.loadArea(s.kind, s.id, stopRing(s))
+                  if (map && map.getZoom() < 16)
+                    map.flyTo({ center: s.point.coordinates, zoom: 16 }, APP_MOVE);
+                  draw.loadArea(s.kind, s.id, stopRing(s));
                 }}
                 onDelete={() => {
-                  if (stops.selected) void onDeleteStop(stops.selected)
+                  if (stops.selected) void onDeleteStop(stops.selected);
                 }}
               />
             )
@@ -409,7 +477,8 @@ function Workshop({
 
       {toast?.kind === 'stop' && !draw.drawing && (
         <Toast onDismiss={() => setToast(null)}>
-          Saved {toast.s.kind === 'terminal' ? 'terminal' : 'hintuan'} <strong>{stopLabel(toast.s)}</strong>
+          Saved {toast.s.kind === 'terminal' ? 'terminal' : 'hintuan'}{' '}
+          <strong>{stopLabel(toast.s)}</strong>
         </Toast>
       )}
 
@@ -422,9 +491,9 @@ function Workshop({
               <button
                 type="button"
                 onClick={() => {
-                  const routeId = toast.v.route_id
-                  setToast(null)
-                  draw.start(routeId)
+                  const routeId = toast.v.route_id;
+                  setToast(null);
+                  draw.start(routeId);
                 }}
                 className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900 pointer-coarse:min-h-11 pointer-coarse:px-4 pointer-coarse:text-sm"
               >
@@ -503,5 +572,5 @@ function Workshop({
         />
       )}
     </div>
-  )
+  );
 }

@@ -1,7 +1,7 @@
-import type { Segment, StreetRun } from '@/shared/utils/geo'
+import type { Segment, StreetRun } from '@/shared/utils/geo';
 
 /** Streets followed for less than this are left out of the street list. */
-const MIN_STREET_M = 25
+const MIN_STREET_M = 25;
 
 /**
  * The streets a whole route follows, for the save panel: named runs of at
@@ -10,32 +10,38 @@ const MIN_STREET_M = 25
  * before they were, until routed again); `straight` counts freehand segments,
  * which follow no street. Runs that are not `{ name, metres }` are skipped.
  */
-export function routeStreets(segments: Segment[]): { names: string[]; missing: number; straight: number } {
-  const runs: StreetRun[] = []
-  let missing = 0
-  let straight = 0
+export function routeStreets(segments: Segment[]): {
+  names: string[];
+  missing: number;
+  straight: number;
+} {
+  const runs: StreetRun[] = [];
+  let missing = 0;
+  let straight = 0;
   for (const s of segments) {
-    if (!s) continue
+    if (!s) continue;
     if (s.snap !== 'snapped') {
-      straight++
-      continue
+      straight++;
+      continue;
     }
     if (!Array.isArray(s.streets)) {
-      missing++
-      continue
+      missing++;
+      continue;
     }
     for (const r of s.streets as unknown[]) {
-      if (!r || typeof r !== 'object') continue
-      const { name, metres } = r as Partial<StreetRun>
-      if (typeof name !== 'string' || typeof metres !== 'number' || !Number.isFinite(metres)) continue
-      const last = runs[runs.length - 1]
-      if (last && last.name === name) last.metres += metres
-      else runs.push({ name, metres })
+      if (!r || typeof r !== 'object') continue;
+      const { name, metres } = r as Partial<StreetRun>;
+      if (typeof name !== 'string' || typeof metres !== 'number' || !Number.isFinite(metres))
+        continue;
+      const last = runs[runs.length - 1];
+      if (last && last.name === name) last.metres += metres;
+      else runs.push({ name, metres });
     }
   }
-  const names: string[] = []
+  const names: string[] = [];
   for (const r of runs) {
-    if (r.name && r.metres >= MIN_STREET_M && names[names.length - 1] !== r.name) names.push(r.name)
+    if (r.name && r.metres >= MIN_STREET_M && names[names.length - 1] !== r.name)
+      names.push(r.name);
   }
-  return { names, missing, straight }
+  return { names, missing, straight };
 }

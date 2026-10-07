@@ -1,5 +1,5 @@
-import type { StopKind } from '../model/stops'
-import { MAP_COLOURS, MAP_OPACITY } from '@/design-system/foundation/map-colours'
+import type { StopKind } from '../model/stops';
+import { MAP_COLOURS, MAP_OPACITY } from '@/design-system/foundation/map-colours';
 
 /**
  * Colours the editor and the public map both paint with. They live apart from
@@ -11,16 +11,16 @@ import { MAP_COLOURS, MAP_OPACITY } from '@/design-system/foundation/map-colours
 export const HOTSPOT_COLOUR: Record<StopKind, string> = {
   terminal: MAP_COLOURS['Map/OverlayCard/Terminal/surface'],
   hintuan: MAP_COLOURS['Map/OverlayCard/Hintuan/surface'],
-}
+};
 
 /** A box at rest: its fill's opacity. */
 export const HOTSPOT_OPACITY: Record<StopKind, number> = {
   terminal: MAP_OPACITY['Map/OverlayCard/Terminal/surface'],
   hintuan: MAP_OPACITY['Map/OverlayCard/Hintuan/surface'],
-}
+};
 
 /** A box's edge, its name, and its Selected stripes. */
 export const HOTSPOT_CONTENT: Record<StopKind, string> = {
   terminal: MAP_COLOURS['Map/OverlayCard/Terminal/content'],
   hintuan: MAP_COLOURS['Map/OverlayCard/Hintuan/content'],
-}
+};

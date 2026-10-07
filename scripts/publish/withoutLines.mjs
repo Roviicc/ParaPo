@@ -1,9 +1,14 @@
-import { FERRY_LINES, FERRY_MODES, LINE_MODES, LINES } from '../../src/features/routes/model/routes.ts'
+import {
+  FERRY_LINES,
+  FERRY_MODES,
+  LINE_MODES,
+  LINES,
+} from '../../src/features/routes/model/routes.ts';
 
 /** Shape 3's leave-out: the ferry (0012), which an app reading shape 3 would take for a jeep. */
-export const FERRY = { modes: FERRY_MODES, lines: FERRY_LINES }
+export const FERRY = { modes: FERRY_MODES, lines: FERRY_LINES };
 /** Shapes 1 and 2's: every line, the trains (0011) and the ferry. */
-export const EVERY_LINE = { modes: LINE_MODES, lines: LINES }
+export const EVERY_LINE = { modes: LINE_MODES, lines: LINES };
 
 /**
  * The map with some lines left out: every direction of their modes, every
@@ -19,12 +24,14 @@ export const EVERY_LINE = { modes: LINE_MODES, lines: LINES }
  * `ids` are what was left out.
  */
 export function withoutLines({ variants, stops, links }, { modes, lines }) {
-  const variantIds = new Set(variants.filter((v) => modes.includes(v.route?.mode)).map((v) => v.id))
-  const stopIds = new Set(stops.filter((s) => s.line && lines.includes(s.line)).map((s) => s.id))
+  const variantIds = new Set(
+    variants.filter((v) => modes.includes(v.route?.mode)).map((v) => v.id),
+  );
+  const stopIds = new Set(stops.filter((s) => s.line && lines.includes(s.line)).map((s) => s.id));
   return {
     variants: variants.filter((v) => !variantIds.has(v.id)),
     stops: stops.filter((s) => !stopIds.has(s.id)),
     links: links.filter((l) => !variantIds.has(l.route_variant_id) && !stopIds.has(l.stop_id)),
     ids: { variants: variantIds, stops: stopIds },
-  }
+  };
 }

@@ -7,5 +7,5 @@
 // such a relative import; everything else goes to Node untouched. A module
 // that reads `import.meta.env` gets an empty one, as a build without a
 // .env would.
-import { register } from 'node:module'
-register('./ts-resolve-hook.mjs', import.meta.url)
+import { register } from 'node:module';
+register('./ts-resolve-hook.mjs', import.meta.url);

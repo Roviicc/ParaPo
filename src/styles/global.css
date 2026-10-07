@@ -1,9 +1,9 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 /* PalimosPoDesignSystem: the tokens, mirrored from the Figma variables. */
-@import "../design-system/foundation/tokens.css";
-@import "../design-system/foundation/fonts.css";
+@import '../design-system/foundation/tokens.css';
+@import '../design-system/foundation/fonts.css';
 /* Stories are Storybook-only: their classes stay out of the site's CSS. .storybook/preview.css adds them back. */
-@source not "../**/*.stories.tsx";
+@source not '../**/*.stories.tsx';
 
 /*
  * The card layout switches on the width of the MAP, not of the window: both

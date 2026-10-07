@@ -1,18 +1,27 @@
-import { useState } from 'react'
-import type { Livery } from '../model/liveries'
-import { BLOB_PLACE, CARD_BLOB, CARD_SHADOW, CARD_SURFACE, CARD_TEXT, ROW_PRESSED, TIMELINE_PILL, TIMELINE_SURFACE } from './livery-card'
-import { ChevronDownIcon, CircleArrowRightIcon } from '@/shared/ui/route-icons'
+import { useState } from 'react';
+import type { Livery } from '../model/liveries';
+import {
+  BLOB_PLACE,
+  CARD_BLOB,
+  CARD_SHADOW,
+  CARD_SURFACE,
+  CARD_TEXT,
+  ROW_PRESSED,
+  TIMELINE_PILL,
+  TIMELINE_SURFACE,
+} from './livery-card';
+import { ChevronDownIcon, CircleArrowRightIcon } from '@/shared/ui/route-icons';
 
 export type TripTimelineProps = {
-  livery: Livery
+  livery: Livery;
   /** Figma's Route on TimelineTop: the place the trip leaves from. */
-  routeOrigin: string
+  routeOrigin: string;
   /** Figma's TimelineHintuan rows: every hintuan on the way, in the order the jeep reaches them. */
-  hintuans: readonly { id: string; label: string }[]
+  hintuans: readonly { id: string; label: string }[];
   /** The hintuan picked, by its row's id — Figma's Timeline State=Selected — or null. */
-  picked: string | null
+  picked: string | null;
   /** A hintuan's row was tapped: pick it, or, picked, let it go. */
-  onPick: (id: string) => void
+  onPick: (id: string) => void;
   /**
    * The pesos of the ride to the picked hintuan, for its pill: the fare the
    * tile under the card shows, Regular or Discounted (the owner, 2026-09-30:
@@ -20,19 +29,19 @@ export type TripTimelineProps = {
    * said "Calculated Fare" for the day before). Omitted when unpriced, and
    * no pill.
    */
-  pickedPesos?: string
+  pickedPesos?: string;
   /** The origin's row (`from`) or the destination's (`to`) was tapped: the whole ride again, and that end shown. */
-  onEnd: (end: 'from' | 'to') => void
+  onEnd: (end: 'from' | 'to') => void;
   /**
    * The origin (`from`) or the destination (`to`), picked from its row: its
    * dot the Selected one, as a picked hintuan's; or null. One pick at a
    * time: the caller keeps this and `picked` apart (useRideTo does), since
    * both at once would draw two picked dots.
    */
-  endPicked: 'from' | 'to' | null
+  endPicked: 'from' | 'to' | null;
   /** Figma's Route on TimelineBottomEndRoute: the place the trip goes to. */
-  routeDirection: string
-}
+  routeDirection: string;
+};
 
 /**
  * A trip's card, RouteTripDetail's (split from it, 2026-09-29): in the
@@ -92,7 +101,7 @@ export function TripTimeline({
   endPicked,
   routeDirection,
 }: TripTimelineProps) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(false);
   // Whether the fold has ever been opened on this card: until then its rows
   // are their bare <li>s, the hidden insides left out (the cheap-phone
   // plan, step 11, 2026-10-04). A trip with 10 to 25 hintuans drew all of
@@ -100,12 +109,12 @@ export function TripTimeline({
   // Opened once, they stay drawn as long as the card is up, so they close
   // in view and open again as they always did. Set with `open` itself, in
   // the same render, so the first opening moves as every other.
-  const [everOpened, setEverOpened] = useState(false)
-  const folds = hintuans.length > 1
-  const drawn = !folds || open || everOpened
-  const rail = TIMELINE_SURFACE[livery]
+  const [everOpened, setEverOpened] = useState(false);
+  const folds = hintuans.length > 1;
+  const drawn = !folds || open || everOpened;
+  const rail = TIMELINE_SURFACE[livery];
   // Every row's Pressed: the rail's colour, while the finger is down.
-  const pressed = ROW_PRESSED[livery]
+  const pressed = ROW_PRESSED[livery];
 
   return (
     <div
@@ -118,7 +127,12 @@ export function TripTimeline({
         CARD_TEXT[livery]
       }
     >
-      <img src={CARD_BLOB[livery].src} alt="" aria-hidden className={BLOB_PLACE + ' ' + CARD_BLOB[livery].className} />
+      <img
+        src={CARD_BLOB[livery].src}
+        alt=""
+        aria-hidden
+        className={BLOB_PLACE + ' ' + CARD_BLOB[livery].className}
+      />
       {/* The fold row keeps its place among the children whether open or not,
           so a keyboard's focus stays on it while the hintuans come and go. */}
       <ol className="flex w-full flex-col">
@@ -151,9 +165,9 @@ export function TripTimeline({
             open={open}
             count={hintuans.length}
             onToggle={() => {
-              setOpen((o) => !o)
+              setOpen((o) => !o);
               // The first tap opens it (it starts folded): from then on, drawn.
-              setEverOpened(true)
+              setEverOpened(true);
             }}
           />
         )}
@@ -176,9 +190,12 @@ export function TripTimeline({
           {hintuans[0]?.label}
         </span>
       )}
-      <span aria-hidden className={'pointer-events-none absolute inset-0 rounded-[inherit] ' + CARD_SHADOW[livery]} />
+      <span
+        aria-hidden
+        className={'pointer-events-none absolute inset-0 rounded-[inherit] ' + CARD_SHADOW[livery]}
+      />
     </div>
-  )
+  );
 }
 
 /**
@@ -202,7 +219,7 @@ export function TimelineDot({ rail, selected = false }: { rail: string; selected
     <span className={'-mb-0.5 flex shrink-0 rounded-full p-1.5 ' + rail}>
       <span className="size-3 rounded-full bg-content-inverse" />
     </span>
-  )
+  );
 }
 
 /**
@@ -211,7 +228,7 @@ export function TimelineDot({ rail, selected = false }: { rail: string; selected
  * theirs (the owner's RouteTripDetail, 3778:3183, 2026-10-01), so a row
  * Pressed fills to the card's edge, the rail starting under that padding.
  */
-const STICK = 'flex w-6 shrink-0 flex-col items-center self-stretch'
+const STICK = 'flex w-6 shrink-0 flex-col items-center self-stretch';
 
 /**
  * Figma's TimelineTop: the dot the rail leaves from, and the origin in SN Pro
@@ -225,29 +242,32 @@ function TimelineTop({
   selected,
   onTap,
 }: {
-  rail: string
+  rail: string;
   /** ROW_PRESSED's classes for the card's livery. */
-  pressed: string
-  routeOrigin: string
-  selected: boolean
-  onTap: () => void
+  pressed: string;
+  routeOrigin: string;
+  selected: boolean;
+  onTap: () => void;
 }) {
   return (
     <li data-testid="trip-origin" data-state={selected ? 'selected' : 'rest'}>
-      <button type="button" aria-pressed={selected} onClick={onTap} className={'flex w-full items-center pt-4 pl-4 text-left ' + pressed}>
+      <button
+        type="button"
+        aria-pressed={selected}
+        onClick={onTap}
+        className={'flex w-full items-center pt-4 pl-4 text-left ' + pressed}
+      >
         <span aria-hidden className={STICK}>
           <TimelineDot rail={rail} selected={selected} />
           <span className={'min-h-px w-2 flex-1 ' + rail} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col justify-center pb-2.5 pl-3">
           {/* At a sheet's Low, one line of it (sheetGesture's LOW_PX); from Middle up, all of it. */}
-          <span className="text-2xl/8 font-black sheet-low:line-clamp-1">
-            {routeOrigin}
-          </span>
+          <span className="text-2xl/8 font-black sheet-low:line-clamp-1">{routeOrigin}</span>
         </span>
       </button>
     </li>
-  )
+  );
 }
 
 /**
@@ -259,8 +279,8 @@ function TimelineTop({
  * (2026-10-04), and it keeps these classes, so the first opening runs the
  * same transition from the same 0fr.
  */
-const ROW_SHOWN = 'visible grid-rows-[1fr] duration-gentle ease-enter'
-const ROW_FOLDED = 'invisible grid-rows-[0fr] duration-base ease-exit'
+const ROW_SHOWN = 'visible grid-rows-[1fr] duration-gentle ease-enter';
+const ROW_FOLDED = 'invisible grid-rows-[0fr] duration-base ease-exit';
 
 /**
  * Figma's TimelineHintuan: a hintuan on the way, its dot on the rail; the
@@ -279,20 +299,20 @@ function TimelineHintuan({
   pill,
   onPick,
 }: {
-  id: string
-  rail: string
+  id: string;
+  rail: string;
   /** ROW_PRESSED's classes for the card's livery. */
-  pressed: string
-  label: string
-  shown: boolean
+  pressed: string;
+  label: string;
+  shown: boolean;
   /** Whether its inside is drawn: shown, or folded after it has been opened (TripTimeline's everOpened). */
-  drawn: boolean
-  selected: boolean
+  drawn: boolean;
+  selected: boolean;
   /** The ride's pesos to here, for the pill; picked and priced only. */
-  pesos?: string
+  pesos?: string;
   /** TIMELINE_PILL's classes for the card's livery. */
-  pill: string
-  onPick: (id: string) => void
+  pill: string;
+  onPick: (id: string) => void;
 }) {
   return (
     <li
@@ -320,11 +340,20 @@ function TimelineHintuan({
               <span className={'min-h-px w-2 flex-1 ' + rail} />
             </span>
             <span className="flex min-w-0 flex-1 items-center gap-2 py-2.5 pl-3">
-              <span className={'min-w-0 flex-1 text-base/6 ' + (selected ? 'font-black' : 'font-medium')}>{label}</span>
+              <span
+                className={
+                  'min-w-0 flex-1 text-base/6 ' + (selected ? 'font-black' : 'font-medium')
+                }
+              >
+                {label}
+              </span>
               {pesos && (
                 <span
                   data-testid="trip-hintuan-fare"
-                  className={'shrink-0 rounded-full px-1.5 py-0.5 text-sm/5 font-medium whitespace-nowrap ' + pill}
+                  className={
+                    'shrink-0 rounded-full px-1.5 py-0.5 text-sm/5 font-medium whitespace-nowrap ' +
+                    pill
+                  }
                 >
                   {pesos}
                 </span>
@@ -334,7 +363,7 @@ function TimelineHintuan({
         </div>
       )}
     </li>
-  )
+  );
 }
 
 /** Figma's TimelineDisclosure: the hintuans folded into one row, or, opened, the row that folds them. */
@@ -345,12 +374,12 @@ function TimelineDisclosure({
   count,
   onToggle,
 }: {
-  rail: string
+  rail: string;
   /** ROW_PRESSED's classes for the card's livery. */
-  pressed: string
-  open: boolean
-  count: number
-  onToggle: () => void
+  pressed: string;
+  open: boolean;
+  count: number;
+  onToggle: () => void;
 }) {
   return (
     <li>
@@ -369,7 +398,7 @@ function TimelineDisclosure({
           <span
             aria-hidden
             className={
-              'size-5 shrink-0 transition-transform duration-quick ease-move motion-reduce:transition-none *:size-full ' +
+              'size-5 shrink-0 transition-transform duration-quick ease-move *:size-full motion-reduce:transition-none ' +
               (open ? 'rotate-180' : 'rotate-0')
             }
           >
@@ -379,7 +408,7 @@ function TimelineDisclosure({
         </span>
       </button>
     </li>
-  )
+  );
 }
 
 /**
@@ -394,16 +423,21 @@ function TimelineBottomEndRoute({
   selected,
   onTap,
 }: {
-  rail: string
+  rail: string;
   /** ROW_PRESSED's classes for the card's livery. */
-  pressed: string
-  routeDirection: string
-  selected: boolean
-  onTap: () => void
+  pressed: string;
+  routeDirection: string;
+  selected: boolean;
+  onTap: () => void;
 }) {
   return (
     <li data-testid="trip-destination" data-state={selected ? 'selected' : 'rest'}>
-      <button type="button" aria-pressed={selected} onClick={onTap} className={'flex w-full items-center pb-4 pl-4 text-left ' + pressed}>
+      <button
+        type="button"
+        aria-pressed={selected}
+        onClick={onTap}
+        className={'flex w-full items-center pb-4 pl-4 text-left ' + pressed}
+      >
         <span aria-hidden className={STICK}>
           <span className={'-mb-0.5 h-5 w-2 shrink-0 ' + rail} />
           <TimelineDot rail={rail} selected={selected} />
@@ -417,5 +451,5 @@ function TimelineBottomEndRoute({
         </span>
       </button>
     </li>
-  )
+  );
 }

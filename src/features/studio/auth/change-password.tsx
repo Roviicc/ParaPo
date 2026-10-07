@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { getSupabase, supabaseConfigError } from '../data/supabase'
-import { coarse } from '@/features/routes/map/map-view'
-import { FIELD_TEXT } from '../panels/sheet'
+import { useState } from 'react';
+import { getSupabase, supabaseConfigError } from '../data/supabase';
+import { coarse } from '@/features/routes/map/map-view';
+import { FIELD_TEXT } from '../panels/sheet';
 
 /**
  * Change password for a signed-in user. No email involved.
@@ -12,51 +12,51 @@ import { FIELD_TEXT } from '../panels/sheet'
  * is harmless.
  */
 export function ChangePassword({ email, onDone }: { email: string; onDone: () => void }) {
-  const [current, setCurrent] = useState('')
-  const [next, setNext] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   async function submit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
+    e.preventDefault();
+    setError(null);
 
     if (next !== confirm) {
-      setError('The two new passwords do not match.')
-      return
+      setError('The two new passwords do not match.');
+      return;
     }
     if (next === current) {
-      setError('The new password is the same as the current one.')
-      return
+      setError('The new password is the same as the current one.');
+      return;
     }
-    const supabase = getSupabase()
+    const supabase = getSupabase();
     if (!supabase) {
-      setError(supabaseConfigError)
-      return
+      setError(supabaseConfigError);
+      return;
     }
 
-    setBusy(true)
+    setBusy(true);
 
-    const check = await supabase.auth.signInWithPassword({ email, password: current })
+    const check = await supabase.auth.signInWithPassword({ email, password: current });
     if (check.error) {
       setError(
         check.error.message === 'Invalid login credentials'
           ? 'That is not your current password.'
           : check.error.message,
-      )
-      setBusy(false)
-      return
+      );
+      setBusy(false);
+      return;
     }
 
-    const { error } = await supabase.auth.updateUser({ password: next })
+    const { error } = await supabase.auth.updateUser({ password: next });
     if (error) {
-      setError(error.message)
-      setBusy(false)
-      return
+      setError(error.message);
+      setBusy(false);
+      return;
     }
-    setSaved(true)
+    setSaved(true);
   }
 
   return (
@@ -90,8 +90,7 @@ export function ChangePassword({ email, onDone }: { email: string; onDone: () =>
               value={current}
               onChange={(e) => setCurrent(e.target.value)}
               placeholder="Current password"
-              className={`mt-4 w-full rounded-lg border border-neutral-300 px-3 py-2.5
-                         ${FIELD_TEXT} outline-none focus:border-neutral-900`}
+              className={`mt-4 w-full rounded-lg border border-neutral-300 px-3 py-2.5 ${FIELD_TEXT} outline-none focus:border-neutral-900`}
             />
             <input
               type="password"
@@ -101,8 +100,7 @@ export function ChangePassword({ email, onDone }: { email: string; onDone: () =>
               value={next}
               onChange={(e) => setNext(e.target.value)}
               placeholder="New password"
-              className={`mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5
-                         ${FIELD_TEXT} outline-none focus:border-neutral-900`}
+              className={`mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5 ${FIELD_TEXT} outline-none focus:border-neutral-900`}
             />
             <input
               type="password"
@@ -112,10 +110,11 @@ export function ChangePassword({ email, onDone }: { email: string; onDone: () =>
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               placeholder="Confirm new password"
-              className={`mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5
-                         ${FIELD_TEXT} outline-none focus:border-neutral-900`}
+              className={`mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5 ${FIELD_TEXT} outline-none focus:border-neutral-900`}
             />
-            <p className="mt-2 text-xs text-neutral-500">At least 12 characters, with upper- and lowercase letters, a number and a symbol.</p>
+            <p className="mt-2 text-xs text-neutral-500">
+              At least 12 characters, with upper- and lowercase letters, a number and a symbol.
+            </p>
 
             {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
@@ -123,16 +122,14 @@ export function ChangePassword({ email, onDone }: { email: string; onDone: () =>
               <button
                 type="button"
                 onClick={onDone}
-                className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium text-neutral-600
-                           ring-1 ring-neutral-300"
+                className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium text-neutral-600 ring-1 ring-neutral-300"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={busy}
-                className="flex-1 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium
-                           text-white disabled:opacity-50"
+                className="flex-1 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
               >
                 {busy ? 'Saving…' : 'Save password'}
               </button>
@@ -141,5 +138,5 @@ export function ChangePassword({ email, onDone }: { email: string; onDone: () =>
         )}
       </div>
     </div>
-  )
+  );
 }

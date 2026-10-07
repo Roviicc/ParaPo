@@ -12,7 +12,7 @@
  */
 export function skipSignInForTests(): boolean {
   if (import.meta.env.DEV) {
-    return new URLSearchParams(window.location.search).has('e2e')
+    return new URLSearchParams(window.location.search).has('e2e');
   }
-  return false
+  return false;
 }

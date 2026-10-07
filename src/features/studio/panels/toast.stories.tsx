@@ -1,6 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
-import { fn } from 'storybook/test'
-import { Toast } from './toast'
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { fn } from 'storybook/test';
+import { Toast } from './toast';
 
 const meta = {
   title: 'Features/Studio/Toast',
@@ -13,10 +13,10 @@ const meta = {
     ),
   ],
   args: { onDismiss: fn() },
-} satisfies Meta<typeof Toast>
+} satisfies Meta<typeof Toast>;
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 /** What a save did: a hotspot saved. */
 export const Plain: Story = {
@@ -27,7 +27,7 @@ export const Plain: Story = {
       </>
     ),
   },
-}
+};
 
 /** A direction saved, its route with a slot left: the return trip offered. */
 export const PlainWithAction: Story = {
@@ -38,12 +38,17 @@ export const PlainWithAction: Story = {
       </>
     ),
     action: (
-      <button type="button" className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900">
+      <button
+        type="button"
+        className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900"
+      >
         Draw the return trip
       </button>
     ),
   },
-}
+};
 
 /** What went wrong: red, and announced as a problem. */
-export const Alert: Story = { args: { tone: 'alert', children: 'Could not load the saved routes.' } }
+export const Alert: Story = {
+  args: { tone: 'alert', children: 'Could not load the saved routes.' },
+};

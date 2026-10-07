@@ -1,47 +1,47 @@
-import { useEffect, useMemo, useState } from 'react'
-import { bboxOf, bboxesOverlap, OVERVIEW_M } from '@/shared/utils/geo'
-import { variantLine, type VariantRow } from '@/features/routes/model/routes'
-import { PASS_WITHIN_M } from '@/features/routes/geo/pass'
-import { ringCrossesItself } from '@/features/routes/geo/ring'
-import { parseAliases, stopLabel, type StopRow } from '@/features/routes/model/stops'
-import { linesOf } from '../data/live'
-import { saveStop } from '../data/stops-write'
-import { linksThrough, variantsStartingIn } from '../data/stops-geometry'
-import type { Drawing } from '../drawing/use-drawing'
-import { terminalAlreadyAt } from './places'
-import { coarse } from '@/features/routes/map/map-view'
-import { FIELD_TEXT, FOOTER, OVERLAY, PANEL } from './sheet'
+import { useEffect, useMemo, useState } from 'react';
+import { bboxOf, bboxesOverlap, OVERVIEW_M } from '@/shared/utils/geo';
+import { variantLine, type VariantRow } from '@/features/routes/model/routes';
+import { PASS_WITHIN_M } from '@/features/routes/geo/pass';
+import { ringCrossesItself } from '@/features/routes/geo/ring';
+import { parseAliases, stopLabel, type StopRow } from '@/features/routes/model/stops';
+import { linesOf } from '../data/live';
+import { saveStop } from '../data/stops-write';
+import { linksThrough, variantsStartingIn } from '../data/stops-geometry';
+import type { Drawing } from '../drawing/use-drawing';
+import { terminalAlreadyAt } from './places';
+import { coarse } from '@/features/routes/map/map-view';
+import { FIELD_TEXT, FOOTER, OVERLAY, PANEL } from './sheet';
 
 type Props = {
-  draw: Drawing
+  draw: Drawing;
   /** The hotspot being edited, or null for a new one. */
-  existing: StopRow | null
+  existing: StopRow | null;
   /** For an existing terminal: the directions currently linked to it. */
-  existingLinks: string[]
+  existingLinks: string[];
   /** Every saved direction — the terminal checklist and the hintuan preview. */
-  variants: VariantRow[]
+  variants: VariantRow[];
   /** Every saved hotspot, so the informal-name box can offer the names already in use. */
-  stops?: StopRow[]
-  onSaved: (s: StopRow) => void
-  onCancel: () => void
+  stops?: StopRow[];
+  onSaved: (s: StopRow) => void;
+  onCancel: () => void;
   /** Hears the row a save wrote, the moment it is in, to keep it beyond this panel. */
-  onWritten?: (stopId: string) => void
-}
+  onWritten?: (stopId: string) => void;
+};
 
 const field =
   `mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 ${FIELD_TEXT} outline-none ` +
-  'focus:border-neutral-900'
+  'focus:border-neutral-900';
 
 /** Directions grouped under their route's generated name, for both lists. */
 function groupBySignboard(variants: VariantRow[]) {
-  const groups = new Map<string, { signboard: string; directions: VariantRow[] }>()
+  const groups = new Map<string, { signboard: string; directions: VariantRow[] }>();
   for (const v of variants) {
-    const key = v.route_id
-    const g = groups.get(key) ?? { signboard: v.route?.name ?? '(unnamed)', directions: [] }
-    g.directions.push(v)
-    groups.set(key, g)
+    const key = v.route_id;
+    const g = groups.get(key) ?? { signboard: v.route?.name ?? '(unnamed)', directions: [] };
+    g.directions.push(v);
+    groups.set(key, g);
   }
-  return [...groups.values()].sort((a, b) => a.signboard.localeCompare(b.signboard))
+  return [...groups.values()].sort((a, b) => a.signboard.localeCompare(b.signboard));
 }
 
 /**
@@ -62,115 +62,123 @@ export function HotspotPanel({
   onCancel,
   onWritten,
 }: Props) {
-  const area = draw.area
-  const kind = area?.kind ?? 'hintuan'
-  const ring = draw.controlPoints
+  const area = draw.area;
+  const kind = area?.kind ?? 'hintuan';
+  const ring = draw.controlPoints;
 
-  const [name, setName] = useState(existing?.name ?? '')
-  const [informal, setInformal] = useState(existing?.informal ?? '')
+  const [name, setName] = useState(existing?.name ?? '');
+  const [informal, setInformal] = useState(existing?.informal ?? '');
   // Also called and Note are off the form for now; a box that has them keeps them.
-  const [aliasText] = useState(existing?.aliases?.join(', ') ?? '')
-  const [note] = useState(existing?.note ?? '')
+  const [aliasText] = useState(existing?.aliases?.join(', ') ?? '');
+  const [note] = useState(existing?.note ?? '');
 
   // The informal names already in use, offered as suggestions so a second box
   // for the same place joins the group instead of starting "SM  Fairview".
   const knownInformal = useMemo(() => {
-    const seen = new Map<string, string>()
+    const seen = new Map<string, string>();
     for (const s of stops) {
-      if (s.id === existing?.id) continue
-      const label = stopLabel(s)
-      seen.set(label.toLowerCase(), label)
+      if (s.id === existing?.id) continue;
+      const label = stopLabel(s);
+      seen.set(label.toLowerCase(), label);
     }
-    return [...seen.values()].sort((a, b) => a.localeCompare(b))
-  }, [stops, existing?.id])
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+    return [...seen.values()].sort((a, b) => a.localeCompare(b));
+  }, [stops, existing?.id]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   // The row as a save wrote it, when its links failed after: the retry
   // updates it rather than inserting the box again (SavePanel's `written`).
   // The studio keeps it in the outline itself (onWritten, adoptStop), so ✕
   // and a reload keep it too (review of 2026-10-03); here otherwise, as in
   // the stories.
-  const [writtenId, setOwnWritten] = useState<string | null>(null)
+  const [writtenId, setOwnWritten] = useState<string | null>(null);
   const setWrittenId = (id: string) => {
-    setOwnWritten(id)
-    onWritten?.(id)
-  }
-  const stopId = writtenId ?? existing?.id ?? area?.stopId ?? null
+    setOwnWritten(id);
+    onWritten?.(id);
+  };
+  const stopId = writtenId ?? existing?.id ?? area?.stopId ?? null;
 
   // The list holds overviews (0009); a link's sequence is an index into the
   // full line, so the directions the outline can reach are read in full
   // before anything is worked out on them, and Save waits for them.
-  const [lined, setLined] = useState<VariantRow[] | null>(null)
+  const [lined, setLined] = useState<VariantRow[] | null>(null);
   useEffect(() => {
-    let live = true
+    let live = true;
     // Reach: the starts-here distance, the pass rule and the overview's own slack.
-    const reach = bboxOf(ring, 100 + PASS_WITHIN_M + OVERVIEW_M)
+    const reach = bboxOf(ring, 100 + PASS_WITHIN_M + OVERVIEW_M);
     const near = variants.filter((v) => {
-      const line = variantLine(v)
-      return line.length > 1 && bboxesOverlap(bboxOf(line), reach)
-    })
+      const line = variantLine(v);
+      return line.length > 1 && bboxesOverlap(bboxOf(line), reach);
+    });
     linesOf(near).then(
       (full) => {
-        if (!live) return
-        const byId = new Map(full.map((v) => [v.id, v]))
-        setLined(variants.map((v) => byId.get(v.id) ?? v))
+        if (!live) return;
+        const byId = new Map(full.map((v) => [v.id, v]));
+        setLined(variants.map((v) => byId.get(v.id) ?? v));
       },
-      (e: unknown) => live && setError(`Couldn't read the lines near this outline: ${e instanceof Error ? e.message : String(e)}`),
-    )
+      (e: unknown) =>
+        live &&
+        setError(
+          `Couldn't read the lines near this outline: ${e instanceof Error ? e.message : String(e)}`,
+        ),
+    );
     return () => {
-      live = false
-    }
-  }, [ring, variants])
-  const lines = lined ?? variants
+      live = false;
+    };
+  }, [ring, variants]);
+  const lines = lined ?? variants;
 
-  const station = existing?.line ?? null
-  const through = useMemo(() => linksThrough(ring, lines, station), [ring, lines, station])
-  const throughIds = useMemo(() => new Set(through.map((l) => l.variantId)), [through])
+  const station = existing?.line ?? null;
+  const through = useMemo(() => linksThrough(ring, lines, station), [ring, lines, station]);
+  const throughIds = useMemo(() => new Set(through.map((l) => l.variantId)), [through]);
 
   // A terminal's checklist is pre-ticked from the full lines, once they are
   // in; a box the owner ticks or unticks before then keeps the owner's
   // choice over the pre-tick.
-  const [startTicks, setStartTicks] = useState<Set<string> | null>(() => (existing ? new Set(existingLinks) : null))
+  const [startTicks, setStartTicks] = useState<Set<string> | null>(() =>
+    existing ? new Set(existingLinks) : null,
+  );
   useEffect(() => {
-    if (lined && startTicks === null) setStartTicks(new Set(variantsStartingIn(ring, lined)))
-  }, [lined, startTicks, ring])
-  const [chosen, setChosen] = useState<ReadonlyMap<string, boolean>>(() => new Map())
+    if (lined && startTicks === null) setStartTicks(new Set(variantsStartingIn(ring, lined)));
+  }, [lined, startTicks, ring]);
+  const [chosen, setChosen] = useState<ReadonlyMap<string, boolean>>(() => new Map());
   const ticked = useMemo(() => {
-    const t = new Set(startTicks ?? [])
+    const t = new Set(startTicks ?? []);
     for (const [id, on] of chosen) {
-      if (on) t.add(id)
-      else t.delete(id)
+      if (on) t.add(id);
+      else t.delete(id);
     }
-    return t
-  }, [startTicks, chosen])
+    return t;
+  }, [startTicks, chosen]);
 
-  const groups = useMemo(() => groupBySignboard(lines), [lines])
+  const groups = useMemo(() => groupBySignboard(lines), [lines]);
   const hintuanGroups = useMemo(
     () => groupBySignboard(lines.filter((v) => throughIds.has(v.id))),
     [lines, throughIds],
-  )
+  );
 
   function toggle(id: string) {
-    setChosen((m) => new Map(m).set(id, !ticked.has(id)))
+    setChosen((m) => new Map(m).set(id, !ticked.has(id)));
   }
 
   async function submit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
+    e.preventDefault();
+    setError(null);
     if (ringCrossesItself(ring)) {
-      setError('Two sides of this outline cross each other. Move a corner so the outline goes round the box once, then save.')
-      return
+      setError(
+        'Two sides of this outline cross each other. Move a corner so the outline goes round the box once, then save.',
+      );
+      return;
     }
     if (kind === 'terminal') {
-      const other = terminalAlreadyAt(stops, { id: stopId, name, informal })
+      const other = terminalAlreadyAt(stops, { id: stopId, name, informal });
       if (other) {
         setError(
           `${stopLabel(other)} already has a terminal ("${other.name}"). A place has one terminal; draw this one as a hintuan under the same name.`,
-        )
-        return
+        );
+        return;
       }
     }
-    setBusy(true)
+    setBusy(true);
     try {
       const saved = await saveStop(
         {
@@ -185,23 +193,20 @@ export function HotspotPanel({
           variants: lines,
         },
         setWrittenId,
-      )
-      onSaved(saved)
+      );
+      onSaved(saved);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-      setBusy(false)
+      setError(err instanceof Error ? err.message : String(err));
+      setBusy(false);
     }
   }
 
-  const label = kind === 'terminal' ? 'Terminal' : 'Hintuan'
-  const swatch = kind === 'terminal' ? 'bg-sky-500' : 'bg-orange-500'
+  const label = kind === 'terminal' ? 'Terminal' : 'Hintuan';
+  const swatch = kind === 'terminal' ? 'bg-sky-500' : 'bg-orange-500';
 
   return (
     <div className={OVERLAY}>
-      <form
-        onSubmit={submit}
-        className={PANEL}
-      >
+      <form onSubmit={submit} className={PANEL}>
         <h2 className="flex items-center gap-2 text-base font-medium text-neutral-900">
           <span className={`inline-block h-3 w-3 rounded-sm ${swatch}`} />
           {existing ? `Update this ${label.toLowerCase()}` : `Save this ${label.toLowerCase()}`}
@@ -235,7 +240,8 @@ export function HotspotPanel({
             ))}
           </datalist>
           <span className="mt-1 block text-[11px] font-normal text-neutral-400">
-            Boxes that share a stop name are one stop, whatever is written on each. Route names read it
+            Boxes that share a stop name are one stop, whatever is written on each. Route names read
+            it
             {kind === 'terminal' ? '; a stop has one terminal.' : '.'}
           </span>
         </label>
@@ -283,8 +289,8 @@ export function HotspotPanel({
             </p>
             {hintuanGroups.length === 0 ? (
               <p className="mt-2 text-sm text-neutral-500">
-                No saved route passes under this outline yet. It will pick up routes drawn
-                through it later.
+                No saved route passes under this outline yet. It will pick up routes drawn through
+                it later.
               </p>
             ) : (
               <ul className="mt-2 max-h-56 space-y-1.5 overflow-y-auto pr-1 text-sm">
@@ -322,5 +328,5 @@ export function HotspotPanel({
         </div>
       </form>
     </div>
-  )
+  );
 }

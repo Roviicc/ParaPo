@@ -1,26 +1,26 @@
-import { Button } from '@/design-system/primitives/button'
-import { IconButton } from '@/design-system/primitives/icon-button'
-import { ChevronLeftIcon, CloseIcon, JeepIcon } from '@/shared/ui/route-icons'
+import { Button } from '@/design-system/primitives/button';
+import { IconButton } from '@/design-system/primitives/icon-button';
+import { ChevronLeftIcon, CloseIcon, JeepIcon } from '@/shared/ui/route-icons';
 
 /**
  * The word on SWITCH: the way that is showing — Papunta, there; Pabalik, the
  * way back (the owner's ask, 2026-10-01: "instead of switch on the word").
  * A tap turns it round, and the word with it.
  */
-export const wayWord = (back: boolean) => (back ? 'Pabalik' : 'Papunta')
+export const wayWord = (back: boolean) => (back ? 'Pabalik' : 'Papunta');
 
 type Props = {
   /** SWITCH: the other way round — every route in the list, or the trip's own. */
-  onSwitch: () => void
+  onSwitch: () => void;
   /** False when the other way round has nothing drawn to show; SWITCH then rests disabled. */
-  switchable: boolean
+  switchable: boolean;
   /**
    * Whether the way back is what is showing: SWITCH reads Pabalik and is
    * pressed then (wayWord). Its name is the word on it, so "tap Papunta"
    * finds it by voice too.
    */
-  back: boolean
-  onClose: () => void
+  back: boolean;
+  onClose: () => void;
 } & (
   | {
       /**
@@ -28,8 +28,8 @@ type Props = {
        * Routes`, `1 Route` — or, with no route under the tap, its hotspots',
        * `2 Hotspots` (the owner, 2026-09-29).
        */
-      routeCount: string
-      onBackToList?: never
+      routeCount: string;
+      onBackToList?: never;
     }
   | {
       /**
@@ -39,10 +39,10 @@ type Props = {
        * (no other route sharing an end has a direction drawn the trip's way
        * round) — then nothing stands in its place.
        */
-      onBackToList: (() => void) | null
-      routeCount?: never
+      onBackToList: (() => void) | null;
+      routeCount?: never;
     }
-)
+);
 
 /**
  * The top of the route list and of a trip — the owner's RouteCardHeader
@@ -59,7 +59,14 @@ type Props = {
  * The tooltips hang below their buttons: above, they would leave the card
  * at the top of the screen.
  */
-export function RouteCardHeader({ routeCount, onBackToList, onSwitch, switchable, back, onClose }: Props) {
+export function RouteCardHeader({
+  routeCount,
+  onBackToList,
+  onSwitch,
+  switchable,
+  back,
+  onClose,
+}: Props) {
   // 12 below, over the list and over a trip alike: the card follows it
   // straight away (3742:1049 and 3778:3183, the owner's of 2026-10-01; 16
   // over the list and 8 over a trip before).
@@ -74,7 +81,14 @@ export function RouteCardHeader({ routeCount, onBackToList, onSwitch, switchable
         </div>
       ) : (
         <div className="flex min-w-0 flex-1 items-center">
-          {onBackToList && <IconButton icon={<ChevronLeftIcon />} label="Back" tooltip="top" onClick={onBackToList} />}
+          {onBackToList && (
+            <IconButton
+              icon={<ChevronLeftIcon />}
+              label="Back"
+              tooltip="top"
+              onClick={onBackToList}
+            />
+          )}
         </div>
       )}
       <div className="flex shrink-0 items-center gap-3">
@@ -89,5 +103,5 @@ export function RouteCardHeader({ routeCount, onBackToList, onSwitch, switchable
         <IconButton icon={<CloseIcon />} label="Close" tooltip="top" onClick={onClose} />
       </div>
     </div>
-  )
+  );
 }

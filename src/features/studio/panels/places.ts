@@ -1,6 +1,6 @@
-import { haversine, type LngLat } from '@/shared/utils/geo'
-import { placeKey } from '@/features/routes/model/places'
-import { normaliseName, stopLabel, type StopRow } from '@/features/routes/model/stops'
+import { haversine, type LngLat } from '@/shared/utils/geo';
+import { placeKey } from '@/features/routes/model/places';
+import { normaliseName, stopLabel, type StopRow } from '@/features/routes/model/stops';
 
 /**
  * The places a route can end at, for the save panel's two pickers: pure, so
@@ -10,17 +10,17 @@ import { normaliseName, stopLabel, type StopRow } from '@/features/routes/model/
 
 /** The hotspot nearest a point, by centroid. Only a starting guess for the picker. */
 export function nearestStop(stops: StopRow[], to: LngLat | undefined): string {
-  if (!to || stops.length === 0) return ''
-  let best = stops[0]
-  let bestD = haversine(best.point.coordinates, to)
+  if (!to || stops.length === 0) return '';
+  let best = stops[0];
+  let bestD = haversine(best.point.coordinates, to);
   for (const s of stops.slice(1)) {
-    const d = haversine(s.point.coordinates, to)
+    const d = haversine(s.point.coordinates, to);
     if (d < bestD) {
-      best = s
-      bestD = d
+      best = s;
+      bestD = d;
     }
   }
-  return best.id
+  return best.id;
 }
 
 /**
@@ -30,26 +30,26 @@ export function nearestStop(stops: StopRow[], to: LngLat | undefined): string {
  * Case-folded, because "SM fairview" typed once must not become a second
  * place in the list. The row a route actually references is `boxFor`.
  */
-export type Place = { key: string; label: string; boxes: StopRow[]; terminal: StopRow | null }
+export type Place = { key: string; label: string; boxes: StopRow[]; terminal: StopRow | null };
 
 /** Every place, the ones with a terminal first, then by name. */
 export function groupPlaces(stops: StopRow[]): Place[] {
-  const byKey = new Map<string, Place>()
+  const byKey = new Map<string, Place>();
   for (const s of stops) {
-    const key = placeKey(s)
-    const place = byKey.get(key) ?? { key, label: stopLabel(s), boxes: [], terminal: null }
-    place.boxes.push(s)
+    const key = placeKey(s);
+    const place = byKey.get(key) ?? { key, label: stopLabel(s), boxes: [], terminal: null };
+    place.boxes.push(s);
     // The terminal's spelling names the place; it is the one box per place
     // the database holds to a single row (H4).
     if (s.kind === 'terminal' && !place.terminal) {
-      place.terminal = s
-      place.label = stopLabel(s)
+      place.terminal = s;
+      place.label = stopLabel(s);
     }
-    byKey.set(key, place)
+    byKey.set(key, place);
   }
   return [...byKey.values()].sort(
     (a, b) => Number(!!b.terminal) - Number(!!a.terminal) || a.label.localeCompare(b.label),
-  )
+  );
 }
 
 /**
@@ -58,7 +58,7 @@ export function groupPlaces(stops: StopRow[]): Place[] {
  * line — the one the jeep actually stops at.
  */
 export function boxFor(place: Place, to: LngLat | undefined): string {
-  return place.terminal?.id ?? nearestStop(place.boxes, to)
+  return place.terminal?.id ?? nearestStop(place.boxes, to);
 }
 
 /**
@@ -74,7 +74,10 @@ export function terminalAlreadyAt(
   stops: StopRow[],
   box: { id: string | null; name: string; informal: string },
 ): StopRow | null {
-  const key = placeKey({ name: normaliseName(box.name), informal: normaliseName(box.informal) || null })
-  if (!key) return null
-  return stops.find((s) => s.kind === 'terminal' && s.id !== box.id && placeKey(s) === key) ?? null
+  const key = placeKey({
+    name: normaliseName(box.name),
+    informal: normaliseName(box.informal) || null,
+  });
+  if (!key) return null;
+  return stops.find((s) => s.kind === 'terminal' && s.id !== box.id && placeKey(s) === key) ?? null;
 }

@@ -1,4 +1,4 @@
-import type { Drawing } from './use-drawing'
+import type { Drawing } from './use-drawing';
 
 /**
  * What a finger has instead of a right-click and a shift-click: the bar of a
@@ -7,9 +7,9 @@ import type { Drawing } from './use-drawing'
  * useDrawEvents.ts); a mouse keeps its clicks and never sees them.
  */
 
-const BAR = 'rounded-2xl bg-white p-1.5 text-sm shadow-lg ring-1 ring-black/10'
+const BAR = 'rounded-2xl bg-white p-1.5 text-sm shadow-lg ring-1 ring-black/10';
 const BUTTON =
-  'min-h-11 rounded-xl px-3 text-sm text-neutral-800 ring-1 ring-neutral-200 hover:bg-neutral-50 disabled:opacity-40'
+  'min-h-11 rounded-xl px-3 text-sm text-neutral-800 ring-1 ring-neutral-200 hover:bg-neutral-50 disabled:opacity-40';
 
 /**
  * The selected point's actions: Delete, and for a route each stretch beside it
@@ -17,19 +17,19 @@ const BUTTON =
  * least three corners, so its third-from-last cannot be deleted here.
  */
 export function PointBar({ draw }: { draw: Drawing }) {
-  const i = draw.selected
-  if (i === null) return null
-  const n = draw.controlPoints.length
-  const area = draw.area
-  const noun = area ? 'Corner' : 'Point'
-  const canDelete = !area || n > 3
+  const i = draw.selected;
+  if (i === null) return null;
+  const n = draw.controlPoints.length;
+  const area = draw.area;
+  const noun = area ? 'Corner' : 'Point';
+  const canDelete = !area || n > 3;
   // The stretch into this point is gap i - 1, the one out of it gap i.
   const stretches = area
     ? []
     : [
         { gap: i - 1, label: `Stretch from point ${i}` },
         { gap: i, label: `Stretch to point ${i + 2}` },
-      ].filter((s) => s.gap >= 0 && s.gap < n - 1)
+      ].filter((s) => s.gap >= 0 && s.gap < n - 1);
 
   return (
     <div data-testid="point-bar" className={BAR + ' w-80 max-w-full'}>
@@ -38,7 +38,11 @@ export function PointBar({ draw }: { draw: Drawing }) {
           {noun} {i + 1} of {n}
         </span>
         {canDelete ? (
-          <button type="button" onClick={draw.deleteSelected} className={BUTTON + ' text-red-600 ring-red-200'}>
+          <button
+            type="button"
+            onClick={draw.deleteSelected}
+            className={BUTTON + ' text-red-600 ring-red-200'}
+          >
             Delete
           </button>
         ) : (
@@ -54,12 +58,17 @@ export function PointBar({ draw }: { draw: Drawing }) {
         </button>
       </div>
       {stretches.map(({ gap, label }) => {
-        const straight = draw.segments[gap]?.snap === 'freehand'
+        const straight = draw.segments[gap]?.snap === 'freehand';
         return (
-          <div key={gap} className="mt-1 flex items-center gap-2 border-t border-neutral-100 pl-2 pt-1">
+          <div
+            key={gap}
+            className="mt-1 flex items-center gap-2 border-t border-neutral-100 pt-1 pl-2"
+          >
             <span className="flex-1 text-neutral-600">
               {label}
-              <span className="block text-xs text-neutral-400">{straight ? 'straight' : 'follows the streets'}</span>
+              <span className="block text-xs text-neutral-400">
+                {straight ? 'straight' : 'follows the streets'}
+              </span>
             </span>
             <button
               type="button"
@@ -70,15 +79,15 @@ export function PointBar({ draw }: { draw: Drawing }) {
               {straight ? 'Follow streets' : 'Go straight'}
             </button>
           </div>
-        )
+        );
       })}
     </div>
-  )
+  );
 }
 
 /** For a few seconds after the point bar's Delete: the point back where it was. */
 export function PutBack({ draw }: { draw: Drawing }) {
-  if (!draw.canPutBack) return null
+  if (!draw.canPutBack) return null;
   return (
     <div className={BAR + ' flex items-center gap-2 pl-3'}>
       <span className="text-neutral-600">{draw.area ? 'Corner' : 'Point'} deleted</span>
@@ -86,12 +95,12 @@ export function PutBack({ draw }: { draw: Drawing }) {
         Put back
       </button>
     </div>
-  )
+  );
 }
 
 /** A finger tap added a point on a saved line: follow that line to its end instead. */
 export function FollowChip({ draw }: { draw: Drawing }) {
-  if (!draw.followOffer) return null
+  if (!draw.followOffer) return null;
   return (
     <button
       type="button"
@@ -101,5 +110,5 @@ export function FollowChip({ draw }: { draw: Drawing }) {
     >
       Follow this line to its end ›
     </button>
-  )
+  );
 }

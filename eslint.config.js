@@ -24,7 +24,9 @@ const asWarnings = (configs) =>
           rules: Object.fromEntries(
             Object.entries(config.rules).map(([rule, setting]) => [
               rule,
-              Array.isArray(setting) ? [downgrade(setting[0]), ...setting.slice(1)] : downgrade(setting),
+              Array.isArray(setting)
+                ? [downgrade(setting[0]), ...setting.slice(1)]
+                : downgrade(setting),
             ]),
           ),
         }
@@ -57,7 +59,9 @@ export default defineConfig([
       'import-x/extensions': ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'],
       'import-x/parsers': { '@typescript-eslint/parser': ['.ts', '.tsx', '.mts', '.cts'] },
       'import-x/resolver-next': [
-        createNodeResolver({ extensions: ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'] }),
+        createNodeResolver({
+          extensions: ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'],
+        }),
       ],
     },
     rules: {
@@ -92,12 +96,19 @@ export default defineConfig([
               // routes has no index.ts: Node runs the publish, the data check and the
               // unit tests against source files, and a barrel over routes would load
               // its map view (JSX, MapLibre) into them. Its concern folders are the API.
-              group: ['@/features/*/*', '!@/features/*/index', '!@/features/routes/*', '!@/features/routes/*/*'],
-              message: 'Import a feature through its index.ts, never its inner files (routes: through its concern folders).',
+              group: [
+                '@/features/*/*',
+                '!@/features/*/index',
+                '!@/features/routes/*',
+                '!@/features/routes/*/*',
+              ],
+              message:
+                'Import a feature through its index.ts, never its inner files (routes: through its concern folders).',
             },
             {
               group: ['@/app/*', '@/pages/*'],
-              message: 'Nothing imports from app/ or pages/; imports flow app → pages → features → shared.',
+              message:
+                'Nothing imports from app/ or pages/; imports flow app → pages → features → shared.',
             },
           ],
         },
@@ -137,7 +148,12 @@ export default defineConfig([
 
   {
     // Storybook metas and config files are the only allowed default exports.
-    files: ['src/**/*.stories.tsx', '.storybook/**/*.{ts,tsx}', 'vite.config.ts', 'eslint.config.js'],
+    files: [
+      'src/**/*.stories.tsx',
+      '.storybook/**/*.{ts,tsx}',
+      'vite.config.ts',
+      'eslint.config.js',
+    ],
     rules: {
       'import-x/no-default-export': 'off',
     },

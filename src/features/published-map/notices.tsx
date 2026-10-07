@@ -1,6 +1,6 @@
-import { Button } from '@/design-system/primitives/button'
-import { MAP_FILE_TOO_NEW } from './map-file'
-import { shortDate } from './status'
+import { Button } from '@/design-system/primitives/button';
+import { MAP_FILE_TOO_NEW } from './map-file';
+import { shortDate } from './status';
 
 /**
  * What the public map says about itself, over the map: a load that failed
@@ -18,26 +18,21 @@ export function Notices({
   needRefresh,
   onUpdate,
 }: {
-  loadFailed: boolean
-  tooNew: boolean
-  onTryAgain: () => void
+  loadFailed: boolean;
+  tooNew: boolean;
+  onTryAgain: () => void;
   /** The too-new map's Reload: the newer app, through the worker (pwa.ts). */
-  onReloadNewer: () => void
-  offline: boolean
-  age: { publishedAt: string | null; stale: boolean }
-  needRefresh: boolean
+  onReloadNewer: () => void;
+  offline: boolean;
+  age: { publishedAt: string | null; stale: boolean };
+  needRefresh: boolean;
   /** The new version's "Update Para Po!". */
-  onUpdate: () => void
+  onUpdate: () => void;
 }) {
   return (
     <>
       {loadFailed && (
-        <div
-          className="absolute bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-20 flex
-                     w-max max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-3 rounded-lg
-                     bg-amber-50 px-4 py-2 text-xs text-amber-900 shadow ring-1 ring-amber-200
-                     @wide:bottom-auto @wide:top-[calc(1rem+env(safe-area-inset-top))] @wide:max-w-xl"
-        >
+        <div className="absolute bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-20 flex w-max max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-3 rounded-lg bg-amber-50 px-4 py-2 text-xs text-amber-900 shadow ring-1 ring-amber-200 @wide:top-[calc(1rem+env(safe-area-inset-top))] @wide:bottom-auto @wide:max-w-xl">
           {tooNew ? (
             // The file is a shape this installed app does not know. Loading
             // it again cannot help; the newer app can, fetched through the
@@ -77,10 +72,7 @@ export function Notices({
       {(offline || age.stale) && (
         <div
           data-testid="offline"
-          className="absolute bottom-[calc(2.5rem+env(safe-area-inset-bottom))]
-                     left-[calc(1rem+env(safe-area-inset-left))] z-10 rounded-full bg-neutral-800/90
-                     px-3 py-1.5 text-xs text-content-inverse shadow backdrop-blur
-                     @wide:bottom-auto @wide:top-[calc(1rem+env(safe-area-inset-top))]"
+          className="absolute bottom-[calc(2.5rem+env(safe-area-inset-bottom))] left-[calc(1rem+env(safe-area-inset-left))] z-10 rounded-full bg-neutral-800/90 px-3 py-1.5 text-xs text-content-inverse shadow backdrop-blur @wide:top-[calc(1rem+env(safe-area-inset-top))] @wide:bottom-auto"
         >
           {offline ? 'Offline' : 'Not refreshed'}
           {age.publishedAt && <> · map as of {shortDate(age.publishedAt)}</>}
@@ -94,9 +86,14 @@ export function Notices({
       */}
       {needRefresh && (
         <div className="pointer-events-none absolute top-[calc(1.5rem+env(safe-area-inset-top))] left-1/2 z-20 -translate-x-1/2 *:pointer-events-auto">
-          <Button variant="primary" label="Update Para Po!" data-testid="update" onClick={onUpdate} />
+          <Button
+            variant="primary"
+            label="Update Para Po!"
+            data-testid="update"
+            onClick={onUpdate}
+          />
         </div>
       )}
     </>
-  )
+  );
 }

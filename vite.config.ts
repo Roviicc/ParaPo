@@ -1,11 +1,11 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { defineConfig, type Plugin } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import { VitePWA } from 'vite-plugin-pwa'
-import { mapFileConstants } from './scripts/node/map-file-constants.ts'
+import { existsSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { defineConfig, type Plugin } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import { VitePWA } from 'vite-plugin-pwa';
+import { mapFileConstants } from './scripts/node/map-file-constants.ts';
 
 // The map file's address and the early request's name, read from map-file.ts's
 // text rather than imported: Vite bundles this config before any alias exists,
@@ -13,7 +13,7 @@ import { mapFileConstants } from './scripts/node/map-file-constants.ts'
 // restructure). The same reader guards the build in check-build.mjs.
 const { MAP_FILE_URL, EARLY_MAP_FILE } = mapFileConstants(
   readFileSync(new URL('./src/features/published-map/map-file.ts', import.meta.url), 'utf8'),
-)
+);
 
 /**
  * Writes .vite/modules.json: every output chunk and the source modules inside
@@ -27,19 +27,19 @@ function chunkModules(): Plugin {
     name: 'parapo:chunk-modules',
     apply: 'build',
     generateBundle(_options, bundle) {
-      const modules: Record<string, string[]> = {}
+      const modules: Record<string, string[]> = {};
       for (const output of Object.values(bundle)) {
         if (output.type === 'chunk') {
-          modules[output.fileName] = output.moduleIds.map((id) => id.replaceAll('\\', '/'))
+          modules[output.fileName] = output.moduleIds.map((id) => id.replaceAll('\\', '/'));
         }
       }
       this.emitFile({
         type: 'asset',
         fileName: '.vite/modules.json',
         source: JSON.stringify(modules, null, 1),
-      })
+      });
     },
-  }
+  };
 }
 
 /**
@@ -57,11 +57,11 @@ function studioWithoutManifest(): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler(html, ctx) {
-        if (!ctx.filename.replaceAll('\\', '/').endsWith('/studio/index.html')) return html
-        return html.replace(/<link rel="manifest"[^>]*>/g, '')
+        if (!ctx.filename.replaceAll('\\', '/').endsWith('/studio/index.html')) return html;
+        return html.replace(/<link rel="manifest"[^>]*>/g, '');
       },
     },
-  }
+  };
 }
 
 /**
@@ -81,15 +81,21 @@ function studioWithoutManifest(): Plugin {
  * module scripts waited for them anyway.
  */
 export function stylesheetsBeforeScripts(html: string): string {
-  const head = html.indexOf('</head>')
-  const script = html.search(/<script type="module"[^>]*\ssrc=/)
-  if (head < 0 || script < 0 || script > head) return html
-  const sheets = html.slice(script, head).match(/<link rel="stylesheet"[^>]*>/g)
-  if (!sheets) return html
-  let rest = html.slice(script, head)
-  for (const sheet of sheets) rest = rest.replace(new RegExp(`\\n?[ \\t]*${sheet.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}`), '')
-  const indent = /[ \t]*$/.exec(html.slice(0, script))![0]
-  return html.slice(0, script) + sheets.map((s) => `${s}\n${indent}`).join('') + rest + html.slice(head)
+  const head = html.indexOf('</head>');
+  const script = html.search(/<script type="module"[^>]*\ssrc=/);
+  if (head < 0 || script < 0 || script > head) return html;
+  const sheets = html.slice(script, head).match(/<link rel="stylesheet"[^>]*>/g);
+  if (!sheets) return html;
+  let rest = html.slice(script, head);
+  for (const sheet of sheets)
+    rest = rest.replace(
+      new RegExp(`\\n?[ \\t]*${sheet.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}`),
+      '',
+    );
+  const indent = /[ \t]*$/.exec(html.slice(0, script))![0];
+  return (
+    html.slice(0, script) + sheets.map((s) => `${s}\n${indent}`).join('') + rest + html.slice(head)
+  );
 }
 function stylesheetsFirst(): Plugin {
   return {
@@ -97,7 +103,7 @@ function stylesheetsFirst(): Plugin {
     apply: 'build',
     enforce: 'post',
     transformIndexHtml: { order: 'post', handler: stylesheetsBeforeScripts },
-  }
+  };
 }
 
 /**
@@ -107,15 +113,15 @@ function stylesheetsFirst(): Plugin {
  * whatever the folder, as it was, the timer's build was cut down by dist/'s
  * chunk names, and its own page's two chunks were left out of its precache.
  */
-let outDir = 'dist'
+let outDir = 'dist';
 function readOutDir(): Plugin {
   return {
     name: 'parapo:out-dir',
     apply: 'build',
     configResolved(config) {
-      outDir = resolve(config.root, config.build.outDir)
+      outDir = resolve(config.root, config.build.outDir);
     },
-  }
+  };
 }
 
 /**
@@ -137,7 +143,7 @@ function mapFileEarly(): Plugin {
     `(function(){if(!window.fetch)return;` +
     `var q=fetch(${JSON.stringify(MAP_FILE_URL)},{cache:'no-cache',priority:'low'})` +
     `.then(function(r){return{res:r,body:r.ok?r.clone().json().catch(function(){}):null}});` +
-    `q.catch(function(){});window.${EARLY_MAP_FILE}=q})()`
+    `q.catch(function(){});window.${EARLY_MAP_FILE}=q})()`;
   return {
     name: 'parapo:map-file-early',
     transformIndexHtml: {
@@ -145,11 +151,11 @@ function mapFileEarly(): Plugin {
       // added to the <head> after what is there by then.
       order: 'pre',
       handler(html, ctx) {
-        if (ctx.path !== '/index.html') return html
-        return { html, tags: [{ tag: 'script', children: script, injectTo: 'head' }] }
+        if (ctx.path !== '/index.html') return html;
+        return { html, tags: [{ tag: 'script', children: script, injectTo: 'head' }] };
       },
     },
-  }
+  };
 }
 
 /**
@@ -169,32 +175,32 @@ function mapFileEarly(): Plugin {
  * worker imports nothing but MapLibre's shared code and Vite's preload
  * helper: our shared chunk, with React, in the worker would stop the map.
  */
-export const MAPLIBRE_WORKER_URL = 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+export const MAPLIBRE_WORKER_URL = 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 export function maplibreWorkerWithThePage(): Plugin {
-  const resolved = '\0parapo:maplibre-worker-url'
+  const resolved = '\0parapo:maplibre-worker-url';
   return {
     name: 'parapo:maplibre-worker',
     apply: 'build',
     // Ahead of Vite's worker plugin, which would build it on its own.
     enforce: 'pre',
     resolveId(source) {
-      return source === MAPLIBRE_WORKER_URL ? resolved : null
+      return source === MAPLIBRE_WORKER_URL ? resolved : null;
     },
     async load(id) {
-      if (id !== resolved) return null
-      const worker = await this.resolve('maplibre-gl/dist/maplibre-gl-worker.mjs')
-      if (!worker) throw new Error('maplibre-gl/dist/maplibre-gl-worker.mjs is missing')
-      const ref = this.emitFile({ type: 'chunk', id: worker.id, name: 'maplibre-gl-worker' })
+      if (id !== resolved) return null;
+      const worker = await this.resolve('maplibre-gl/dist/maplibre-gl-worker.mjs');
+      if (!worker) throw new Error('maplibre-gl/dist/maplibre-gl-worker.mjs is missing');
+      const ref = this.emitFile({ type: 'chunk', id: worker.id, name: 'maplibre-gl-worker' });
       // `new URL('maplibre-gl-worker-<hash>.js', import.meta.url).href` in
       // the chunk that reads it, beside it in assets/.
-      return `export default import.meta.ROLLUP_FILE_URL_${ref}`
+      return `export default import.meta.ROLLUP_FILE_URL_${ref}`;
     },
-  }
+  };
 }
 
 /** Brand colours, measured from the logo: the wordmark's maroon and a warm off-white behind the pin. */
-const THEME_COLOUR = '#8a595a'
-const BACKGROUND_COLOUR = '#f5f1ee'
+const THEME_COLOUR = '#8a595a';
+const BACKGROUND_COLOUR = '#f5f1ee';
 
 // The `urlPattern` functions below are copied into the worker as text, so they
 // must not reach for anything outside themselves: the OpenFreeMap origin is
@@ -233,7 +239,12 @@ export default defineConfig({
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          {
+            src: 'icons/icon-512-maskable.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
         ],
       },
       workbox: {
@@ -243,35 +254,50 @@ export default defineConfig({
         // chunk (the editor, the Supabase client) is never stored on a phone.
         // The fonts too, since they were subset to Latin (2026-09-29, 109 kB
         // for all six): offline, the text keeps its face.
-        globPatterns: ['index.html', 'manifest.webmanifest', 'assets/*.{js,css,woff2}', 'icons/icon-*.png'],
+        globPatterns: [
+          'index.html',
+          'manifest.webmanifest',
+          'assets/*.{js,css,woff2}',
+          'icons/icon-*.png',
+        ],
         manifestTransforms: [
           (entries) => {
             // Written by Vite with the bundle; the worker is generated after.
-            const manifestPath = join(outDir, '.vite', 'manifest.json')
+            const manifestPath = join(outDir, '.vite', 'manifest.json');
             if (!existsSync(manifestPath)) {
-              throw new Error(`${manifestPath} is missing: the precache cannot be limited to the public page`)
+              throw new Error(
+                `${manifestPath} is missing: the precache cannot be limited to the public page`,
+              );
             }
             const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<
               string,
-              { file: string; css?: string[]; assets?: string[]; imports?: string[]; dynamicImports?: string[] }
-            >
-            const keep = new Set<string>()
+              {
+                file: string;
+                css?: string[];
+                assets?: string[];
+                imports?: string[];
+                dynamicImports?: string[];
+              }
+            >;
+            const keep = new Set<string>();
             const visit = (key: string) => {
-              const chunk = manifest[key]
-              if (!chunk || keep.has(chunk.file)) return
-              keep.add(chunk.file)
-              for (const css of chunk.css ?? []) keep.add(css)
-              for (const asset of chunk.assets ?? []) keep.add(asset)
-              for (const k of [...(chunk.imports ?? []), ...(chunk.dynamicImports ?? [])]) visit(k)
-            }
-            visit('index.html')
+              const chunk = manifest[key];
+              if (!chunk || keep.has(chunk.file)) return;
+              keep.add(chunk.file);
+              for (const css of chunk.css ?? []) keep.add(css);
+              for (const asset of chunk.assets ?? []) keep.add(asset);
+              for (const k of [...(chunk.imports ?? []), ...(chunk.dynamicImports ?? [])]) visit(k);
+            };
+            visit('index.html');
             // MapLibre's tile worker is a chunk of its own (maplibreWorkerWithThePage,
             // 2026-10-05) that no page imports, so the walk from index.html never
             // reaches it; without it the map draws nothing. What it imports, the
             // page imports too.
             const wanted = (url: string) =>
-              !url.startsWith('assets/') || keep.has(url) || /^assets\/maplibre-gl-worker-/.test(url)
-            return { manifest: entries.filter((e) => wanted(e.url)), warnings: [] }
+              !url.startsWith('assets/') ||
+              keep.has(url) ||
+              /^assets\/maplibre-gl-worker-/.test(url);
+            return { manifest: entries.filter((e) => wanted(e.url)), warnings: [] };
           },
         ],
         // The map has exactly one address, `/` (with any query), and only that is
@@ -296,7 +322,9 @@ export default defineConfig({
             // worker; an older copy left in this store is the offline map
             // until the new one is fetched, map-file.ts's STORED_OLD.)
             urlPattern: ({ url, request }) =>
-              request.method === 'GET' && url.origin === self.location.origin && url.pathname === '/data/index.v4.json',
+              request.method === 'GET' &&
+              url.origin === self.location.origin &&
+              url.pathname === '/data/index.v4.json',
             handler: 'NetworkFirst',
             options: {
               cacheName: 'map-file',
@@ -313,21 +341,23 @@ export default defineConfig({
                   // and a 200 alone kept that page as the map (review of
                   // 2026-10-03). Inline: the worker is written from this.
                   cacheWillUpdate: async ({ response }) =>
-                    (response.headers.get('content-type') ?? '').startsWith('application/json') ? response : null,
+                    (response.headers.get('content-type') ?? '').startsWith('application/json')
+                      ? response
+                      : null,
                 },
                 {
                   // Stamp what comes from the store, so the page can say
                   // "Not refreshed" honestly even while the phone believes it
                   // is online (a slow network answered after the timeout).
                   cachedResponseWillBeUsed: async ({ cachedResponse }) => {
-                    if (!cachedResponse) return null
-                    const headers = new Headers(cachedResponse.headers)
-                    headers.set('x-parapo-served-from', 'cache')
+                    if (!cachedResponse) return null;
+                    const headers = new Headers(cachedResponse.headers);
+                    headers.set('x-parapo-served-from', 'cache');
                     return new Response(cachedResponse.body, {
                       status: cachedResponse.status,
                       statusText: cachedResponse.statusText,
                       headers,
-                    })
+                    });
                   },
                 },
               ],
@@ -339,7 +369,9 @@ export default defineConfig({
             // line seen stays, so offline keeps what was ridden. A line is
             // 1 kB or so over the wire; the cap is the whole map, twice.
             urlPattern: ({ url, request }) =>
-              request.method === 'GET' && url.origin === self.location.origin && url.pathname.startsWith('/data/lines/'),
+              request.method === 'GET' &&
+              url.origin === self.location.origin &&
+              url.pathname.startsWith('/data/lines/'),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'map-lines',
@@ -351,9 +383,14 @@ export default defineConfig({
                   // Only JSON: a line not there is the map's page, 200 (above).
                   // A page an older worker kept is passed over, not served.
                   cacheWillUpdate: async ({ response }) =>
-                    (response.headers.get('content-type') ?? '').startsWith('application/json') ? response : null,
+                    (response.headers.get('content-type') ?? '').startsWith('application/json')
+                      ? response
+                      : null,
                   cachedResponseWillBeUsed: async ({ cachedResponse }) =>
-                    cachedResponse && (cachedResponse.headers.get('content-type') ?? '').startsWith('application/json')
+                    cachedResponse &&
+                    (cachedResponse.headers.get('content-type') ?? '').startsWith(
+                      'application/json',
+                    )
                       ? cachedResponse
                       : null,
                 },
@@ -365,7 +402,9 @@ export default defineConfig({
             // board's name is a new uuid whenever it changes — so a board
             // ridden with stays offline. A few kB each.
             urlPattern: ({ url, request }) =>
-              request.method === 'GET' && url.origin === self.location.origin && url.pathname.startsWith('/data/signboards/'),
+              request.method === 'GET' &&
+              url.origin === self.location.origin &&
+              url.pathname.startsWith('/data/signboards/'),
             handler: 'CacheFirst',
             options: {
               cacheName: 'signboards',
@@ -378,9 +417,12 @@ export default defineConfig({
                   // good. A page an older worker kept so is passed over, and
                   // the board asked of the network again.
                   cacheWillUpdate: async ({ response }) =>
-                    (response.headers.get('content-type') ?? '').startsWith('image/svg+xml') ? response : null,
+                    (response.headers.get('content-type') ?? '').startsWith('image/svg+xml')
+                      ? response
+                      : null,
                   cachedResponseWillBeUsed: async ({ cachedResponse }) =>
-                    cachedResponse && (cachedResponse.headers.get('content-type') ?? '').startsWith('image/svg+xml')
+                    cachedResponse &&
+                    (cachedResponse.headers.get('content-type') ?? '').startsWith('image/svg+xml')
                       ? cachedResponse
                       : null,
                 },
@@ -398,7 +440,11 @@ export default defineConfig({
             options: {
               cacheName: 'basemap-meta',
               cacheableResponse: { statuses: [200] },
-              expiration: { maxEntries: 500, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true },
+              expiration: {
+                maxEntries: 500,
+                maxAgeSeconds: 30 * 24 * 60 * 60,
+                purgeOnQuotaError: true,
+              },
             },
           },
           {
@@ -414,7 +460,11 @@ export default defineConfig({
             options: {
               cacheName: 'basemap-tiles',
               cacheableResponse: { statuses: [200] },
-              expiration: { maxEntries: 1000, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true },
+              expiration: {
+                maxEntries: 1000,
+                maxAgeSeconds: 30 * 24 * 60 * 60,
+                purgeOnQuotaError: true,
+              },
             },
           },
           // Everything else — non-GET, Supabase, OSRM — never meets a cache.
@@ -487,10 +537,22 @@ export default defineConfig({
       output: {
         codeSplitting: {
           groups: [
-            { name: 'maplibre-gl-shared', test: /[\\/]node_modules[\\/]maplibre-gl[\\/]dist[\\/]maplibre-gl-shared\.mjs$/, priority: 3 },
+            {
+              name: 'maplibre-gl-shared',
+              test: /[\\/]node_modules[\\/]maplibre-gl[\\/]dist[\\/]maplibre-gl-shared\.mjs$/,
+              priority: 3,
+            },
             { name: 'vite-preload', test: /^\0vite\/preload-helper\.js$/, priority: 3 },
-            { name: 'maplibre', test: /[\\/]node_modules[\\/]maplibre-gl[\\/]dist[\\/]maplibre-gl\.mjs$/, priority: 2 },
-            { name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/, priority: 1 },
+            {
+              name: 'maplibre',
+              test: /[\\/]node_modules[\\/]maplibre-gl[\\/]dist[\\/]maplibre-gl\.mjs$/,
+              priority: 2,
+            },
+            {
+              name: 'react',
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+              priority: 1,
+            },
             { name: 'shared', minShareCount: 2 },
           ],
         },
@@ -512,4 +574,4 @@ export default defineConfig({
     // MapView also sets the worker URL explicitly; this stays as a belt.
     exclude: ['maplibre-gl'],
   },
-})
+});

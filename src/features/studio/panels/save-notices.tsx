@@ -1,6 +1,6 @@
-import type { Drawing } from '../drawing/use-drawing'
-import { routeStreets } from '../drawing/streets'
-import type { VariantRow } from '@/features/routes/model/routes'
+import type { Drawing } from '../drawing/use-drawing';
+import { routeStreets } from '../drawing/streets';
+import type { VariantRow } from '@/features/routes/model/routes';
 
 /**
  * What the save panel says about the line before it is saved: the streets it
@@ -20,17 +20,17 @@ export function SaveNotices({
   direction,
 }: {
   /** The drawing's stretches, for the streets they run along. */
-  segments: Drawing['segments']
+  segments: Drawing['segments'];
   /** The U-turns ringed on the map. */
-  uTurns: Drawing['uTurns']
-  stopsCount: number
+  uTurns: Drawing['uTurns'];
+  stopsCount: number;
   /** The slot's direction, the end the line starts nearer, and the end it should. */
-  wrongWay: { direction: string; startsAt: string; from: string } | null
-  borrowed: { metres: number; parent: VariantRow } | null
-  sameEnds: { name: string; drawn: boolean } | null
-  direction: string
+  wrongWay: { direction: string; startsAt: string; from: string } | null;
+  borrowed: { metres: number; parent: VariantRow } | null;
+  sameEnds: { name: string; drawn: boolean } | null;
+  direction: string;
 }) {
-  const streets = routeStreets(segments)
+  const streets = routeStreets(segments);
   return (
     <>
       {/* For a jeepney the street list says more than the two terminals do. */}
@@ -47,8 +47,9 @@ export function SaveNotices({
       )}
       {streets.missing > 0 && (
         <p className="mt-1 text-[11px] text-neutral-400">
-          No street names yet for {streets.missing === 1 ? 'one stretch' : `${streets.missing} stretches`}{' '}
-          routed before they were recorded. Moving a point re-routes its stretches and fills them in.
+          No street names yet for{' '}
+          {streets.missing === 1 ? 'one stretch' : `${streets.missing} stretches`} routed before
+          they were recorded. Moving a point re-routes its stretches and fills them in.
         </p>
       )}
       {uTurns.length > 0 && (
@@ -57,9 +58,9 @@ export function SaveNotices({
           className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800"
         >
           This route turns back on itself at{' '}
-          {uTurns.length === 1 ? 'one point' : `${uTurns.length} points`}, ringed in amber
-          on the map. Save anyway if the jeep really turns there; otherwise go back and drag the
-          point to the corner.
+          {uTurns.length === 1 ? 'one point' : `${uTurns.length} points`}, ringed in amber on the
+          map. Save anyway if the jeep really turns there; otherwise go back and drag the point to
+          the corner.
         </p>
       )}
       {wrongWay && (
@@ -68,17 +69,19 @@ export function SaveNotices({
           className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800"
         >
           This is the slot for <strong>{wrongWay.direction}</strong>, but the line starts nearer{' '}
-          {wrongWay.startsAt}. If you drew it from the wrong end, go back and
-          redraw it starting at {wrongWay.from}; if the jeep really leaves
-          from there, save anyway.
+          {wrongWay.startsAt}. If you drew it from the wrong end, go back and redraw it starting at{' '}
+          {wrongWay.from}; if the jeep really leaves from there, save anyway.
         </p>
       )}
 
       {borrowed && (
-        <p data-testid="save-borrowed" className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900">
-          Shares {(borrowed.metres / 1000).toFixed(2)} km with <strong>{borrowed.parent.direction_name}</strong>{' '}
-          ({borrowed.parent.route.name}), copied from it. If that line is changed later, this one can
-          follow.
+        <p
+          data-testid="save-borrowed"
+          className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900"
+        >
+          Shares {(borrowed.metres / 1000).toFixed(2)} km with{' '}
+          <strong>{borrowed.parent.direction_name}</strong> ({borrowed.parent.route.name}), copied
+          from it. If that line is changed later, this one can follow.
         </p>
       )}
 
@@ -97,9 +100,9 @@ export function SaveNotices({
             </>
           ) : (
             <>
-              <strong>{sameEnds.name}</strong> already exists, and {direction || 'this direction'} is
-              still undrawn: this line fills it. The route's signboard, mode and fare stay as they
-              are.
+              <strong>{sameEnds.name}</strong> already exists, and {direction || 'this direction'}{' '}
+              is still undrawn: this line fills it. The route's signboard, mode and fare stay as
+              they are.
             </>
           )}
         </p>
@@ -112,5 +115,5 @@ export function SaveNotices({
         </p>
       )}
     </>
-  )
+  );
 }

@@ -4,17 +4,17 @@
 
 /** Whether a point is inside a ring: plain point-in-polygon, by ray casting. */
 export const pointInPolygon = ([x, y], ring) => {
-  let inside = false
+  let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i]
-    const [xj, yj] = ring[j]
-    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
   }
-  return inside
-}
+  return inside;
+};
 
 /** The mean of a ring's points, its closing point counted too. */
 export const centroidOf = (ring) => [
   ring.reduce((a, c) => a + c[0], 0) / ring.length,
   ring.reduce((a, c) => a + c[1], 0) / ring.length,
-]
+];

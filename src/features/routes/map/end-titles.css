@@ -19,9 +19,17 @@
   animation: end-title-pop var(--transition-duration-base) var(--ease-enter) both;
 }
 @keyframes end-title-pop {
-  from { transform: scale(0.4); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .end-title > * { animation: none; }
+  .end-title > * {
+    animation: none;
+  }
 }

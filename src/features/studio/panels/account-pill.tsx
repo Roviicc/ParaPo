@@ -12,24 +12,25 @@ export function AccountPill({
   onPassword,
   onSignOut,
 }: {
-  routes: number
-  hotspots: number
+  routes: number;
+  hotspots: number;
   /** Signed in as; null when signed out. */
-  email: string | null
-  onSignIn: () => void
-  onPassword: () => void
-  onSignOut: () => void
+  email: string | null;
+  onSignIn: () => void;
+  onPassword: () => void;
+  onSignOut: () => void;
 }) {
   return (
-    <div
-      className="absolute left-[calc(1rem+env(safe-area-inset-left))] top-[calc(1rem+env(safe-area-inset-top))] z-10
-                 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-xs text-neutral-600 shadow
-                 ring-1 ring-black/5 backdrop-blur pointer-coarse:gap-1 pointer-coarse:py-0"
-    >
+    <div className="absolute top-[calc(1rem+env(safe-area-inset-top))] left-[calc(1rem+env(safe-area-inset-left))] z-10 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-xs text-neutral-600 shadow ring-1 ring-black/5 backdrop-blur pointer-coarse:gap-1 pointer-coarse:py-0">
       {routes > 0 && (
         <span className="text-neutral-500 max-sm:hidden">
           {routes} {routes === 1 ? 'route' : 'routes'}
-          {hotspots > 0 && <> · {hotspots} {hotspots === 1 ? 'hotspot' : 'hotspots'}</>}{' '}
+          {hotspots > 0 && (
+            <>
+              {' '}
+              · {hotspots} {hotspots === 1 ? 'hotspot' : 'hotspots'}
+            </>
+          )}{' '}
           ·
         </span>
       )}
@@ -61,5 +62,5 @@ export function AccountPill({
         </button>
       )}
     </div>
-  )
+  );
 }

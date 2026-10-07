@@ -1,6 +1,6 @@
-import type { LineStringGeoJSON, VariantSummary } from '@/features/routes/model/routes'
-import type { StopLink, StopSummary } from '@/features/routes/model/stops'
-import { keepLinePass } from '@/features/routes/geo/line-pass'
+import type { LineStringGeoJSON, VariantSummary } from '@/features/routes/model/routes';
+import type { StopLink, StopSummary } from '@/features/routes/model/stops';
+import { keepLinePass } from '@/features/routes/geo/line-pass';
 
 /**
  * The published map, as the public map reads it (since 2026-09-29, stage 7 of
@@ -15,26 +15,26 @@ import { keepLinePass } from '@/features/routes/geo/line-pass'
  */
 export type MapFile = {
   /** The shape of this file, `MAP_FILE_SCHEMA` when written. See `MAP_FILE_SCHEMA`. */
-  schema?: number
+  schema?: number;
   /** When this content was published. The offline notice reads it. */
-  published_at: string
+  published_at: string;
   /** The data's licence, `ODbL-1.0`. Carried in the file so every copy has it. */
-  license?: string
+  license?: string;
   /** The credit a reuser has to keep. */
-  attribution?: string
+  attribution?: string;
   /** Each with its overview as `shape`: the full line is `loadLine`'s. */
-  variants: VariantSummary[]
-  stops: StopSummary[]
-  links: StopLink[]
-}
+  variants: VariantSummary[];
+  stops: StopSummary[];
+  links: StopLink[];
+};
 
 /** A direction as the index carries it: its overview under its own name. */
-type IndexVariant = Omit<VariantSummary, 'shape'> & { overview?: LineStringGeoJSON | null }
+type IndexVariant = Omit<VariantSummary, 'shape'> & { overview?: LineStringGeoJSON | null };
 
 /** No hash in the name, so it keeps revalidating headers; never make it immutable. */
-export const MAP_FILE_URL = '/data/index.v4.json'
+export const MAP_FILE_URL = '/data/index.v4.json';
 /** A direction's full line: `${LINES_URL}${id}.json`. The worker keeps every one seen. */
-const LINES_URL = '/data/lines/'
+const LINES_URL = '/data/lines/';
 
 /**
  * The shape of the map file this app reads: the numbers a reader must know
@@ -67,17 +67,17 @@ const LINES_URL = '/data/lines/'
  *     after the next ships. The line files under `/data/lines/` are the
  *     same for all.
  */
-export const MAP_FILE_SCHEMA = 4
+export const MAP_FILE_SCHEMA = 4;
 
 /** The load error for a file of a shape this app does not know. The banner reads it. */
-export const MAP_FILE_TOO_NEW = 'This map was published for a newer version of the app.'
+export const MAP_FILE_TOO_NEW = 'This map was published for a newer version of the app.';
 
 /**
  * Set by the service worker (vite.config.ts, the map-file rule) on a copy it
  * served from its store because the network was slow or gone. Absent on an
  * answer from the network, and on every page with no worker.
  */
-const SERVED_FROM_HEADER = 'x-parapo-served-from'
+const SERVED_FROM_HEADER = 'x-parapo-served-from';
 
 /**
  * The older indexes, newest first: shape 3, without the ferry, and shape 2,
@@ -90,14 +90,14 @@ const SERVED_FROM_HEADER = 'x-parapo-served-from'
 const STORED_OLD = [
   { url: '/data/index.v3.json', schema: 3 },
   { url: '/data/index.json', schema: 2 },
-] as const
+] as const;
 /** The worker's store for the map file (vite.config.ts, the map-file rule). */
-const MAP_FILE_CACHE = 'map-file'
+const MAP_FILE_CACHE = 'map-file';
 
-let inFlight: Promise<MapFile> | null = null
-let stale = false
+let inFlight: Promise<MapFile> | null = null;
+let stale = false;
 /** How the last load ended, once it has: its map, or null for a failure; null while it is on its way (openingVariants). */
-let settled: { file: MapFile | null } | null = null
+let settled: { file: MapFile | null } | null = null;
 
 /**
  * Where index.html's own script leaves its request for this file (the
@@ -110,10 +110,10 @@ let settled: { file: MapFile | null } | null = null
  * a body that is not); it asks with `no-cache`, as loadMapFile does, and at
  * low priority, so the app's own script keeps the link first.
  */
-export const EARLY_MAP_FILE = '__parapoMapFile'
+export const EARLY_MAP_FILE = '__parapoMapFile';
 
 /** What index.html's script leaves under EARLY_MAP_FILE. */
-export type EarlyMapFile = Promise<{ res: Response; body: Promise<unknown> | null }>
+export type EarlyMapFile = Promise<{ res: Response; body: Promise<unknown> | null }>;
 
 /**
  * index.html's request, taken once: the first load reads it, and a load
@@ -121,11 +121,11 @@ export type EarlyMapFile = Promise<{ res: Response; body: Promise<unknown> | nul
  * Null on a page without one (the studio's, a test's).
  */
 function takeEarly(): EarlyMapFile | null {
-  const page = globalThis as { [EARLY_MAP_FILE]?: EarlyMapFile }
-  const early = page[EARLY_MAP_FILE]
-  if (!early) return null
-  delete page[EARLY_MAP_FILE]
-  return typeof early.then === 'function' ? early : null
+  const page = globalThis as { [EARLY_MAP_FILE]?: EarlyMapFile };
+  const early = page[EARLY_MAP_FILE];
+  if (!early) return null;
+  delete page[EARLY_MAP_FILE];
+  return typeof early.then === 'function' ? early : null;
 }
 
 /**
@@ -135,9 +135,10 @@ function takeEarly(): EarlyMapFile | null {
  * page always did, so what follows is today's either way.
  */
 function ask(): Promise<{ res: Response; json: () => Promise<unknown> }> {
-  const own = () => fetch(MAP_FILE_URL, { cache: 'no-cache' }).then((res) => ({ res, json: () => res.json() }))
-  const early = takeEarly()
-  if (!early) return own()
+  const own = () =>
+    fetch(MAP_FILE_URL, { cache: 'no-cache' }).then((res) => ({ res, json: () => res.json() }));
+  const early = takeEarly();
+  if (!early) return own();
   return early.then(
     ({ res, body }) => ({
       res,
@@ -146,16 +147,16 @@ function ask(): Promise<{ res: Response; json: () => Promise<unknown> }> {
       json: () =>
         body
           ? body.then((raw) => {
-              if (raw === undefined) throw new SyntaxError(`${MAP_FILE_URL} is not JSON`)
-              return raw
+              if (raw === undefined) throw new SyntaxError(`${MAP_FILE_URL} is not JSON`);
+              return raw;
             })
           : res.json(),
     }),
     own,
-  )
+  );
 }
 
-type RawFile = Partial<Omit<MapFile, 'variants'>> & { variants?: IndexVariant[] }
+type RawFile = Partial<Omit<MapFile, 'variants'>> & { variants?: IndexVariant[] };
 
 /** A file read off `url` as a map of shape `schema`, its overviews as the lines the map draws first. */
 function asMap(file: RawFile, url: string, schema: number): MapFile {
@@ -165,15 +166,17 @@ function asMap(file: RawFile, url: string, schema: number): MapFile {
     !Array.isArray(file.stops) ||
     !Array.isArray(file.links)
   ) {
-    throw new Error(`${url} is not a published map`)
+    throw new Error(`${url} is not a published map`);
   }
   // Checked after the shape: a file that is not a map at all is that
   // error, whatever number it carries.
-  if ((file.schema ?? 1) > MAP_FILE_SCHEMA) throw new Error(MAP_FILE_TOO_NEW)
-  if (file.schema !== schema) throw new Error(`${url} is shape ${file.schema ?? 1}, not the index`)
+  if ((file.schema ?? 1) > MAP_FILE_SCHEMA) throw new Error(MAP_FILE_TOO_NEW);
+  if (file.schema !== schema) throw new Error(`${url} is shape ${file.schema ?? 1}, not the index`);
   // The overview is what the map draws until the line itself is read.
-  const variants = file.variants.map(({ overview, ...v }) => ({ ...v, shape: overview ?? null }) as VariantSummary)
-  return { ...file, variants } as MapFile
+  const variants = file.variants.map(
+    ({ overview, ...v }) => ({ ...v, shape: overview ?? null }) as VariantSummary,
+  );
+  return { ...file, variants } as MapFile;
 }
 
 /**
@@ -183,24 +186,27 @@ function asMap(file: RawFile, url: string, schema: number): MapFile {
  * 2026-10-03, finding 16).
  */
 async function storedCopy(): Promise<MapFile | null> {
-  return (await storedOldCopy([{ url: MAP_FILE_URL, schema: MAP_FILE_SCHEMA }])) ?? (await storedOldCopy())
+  return (
+    (await storedOldCopy([{ url: MAP_FILE_URL, schema: MAP_FILE_SCHEMA }])) ??
+    (await storedOldCopy())
+  );
 }
 
 /** The newest older copy the worker kept, if any (STORED_OLD). */
 async function storedOldCopy(
   candidates: readonly { url: string; schema: number }[] = STORED_OLD,
 ): Promise<MapFile | null> {
-  if (typeof caches === 'undefined') return null
+  if (typeof caches === 'undefined') return null;
   for (const { url, schema } of candidates) {
-    const res = await caches.match(url, { cacheName: MAP_FILE_CACHE }).catch(() => undefined)
-    if (!res?.ok) continue
+    const res = await caches.match(url, { cacheName: MAP_FILE_CACHE }).catch(() => undefined);
+    if (!res?.ok) continue;
     try {
-      return asMap((await res.json()) as RawFile, url, schema)
+      return asMap((await res.json()) as RawFile, url, schema);
     } catch {
-      continue
+      continue;
     }
   }
-  return null
+  return null;
 }
 
 /**
@@ -212,8 +218,8 @@ async function storedOldCopy(
  * marked stale. The first load reads the request index.html made (ask).
  */
 export function loadMapFile(): Promise<MapFile> {
-  if (inFlight) return inFlight
-  settled = null
+  if (inFlight) return inFlight;
+  settled = null;
   inFlight = ask()
     .then(
       async ({ res, json }) => {
@@ -221,43 +227,43 @@ export function loadMapFile(): Promise<MapFile> {
         // page itself, 200, which the host sends for a file it does not
         // have (wrangler.jsonc): the stored copy, marked stale.
         const kept = async (why: string) => {
-          const copy = await storedCopy()
-          if (!copy) throw new Error(`${MAP_FILE_URL}: ${why}`)
-          stale = true
-          return copy
-        }
-        if (!res.ok) return kept(`HTTP ${res.status}`)
-        let raw: RawFile
+          const copy = await storedCopy();
+          if (!copy) throw new Error(`${MAP_FILE_URL}: ${why}`);
+          stale = true;
+          return copy;
+        };
+        if (!res.ok) return kept(`HTTP ${res.status}`);
+        let raw: RawFile;
         try {
-          raw = (await json()) as RawFile
+          raw = (await json()) as RawFile;
         } catch {
-          return kept('not JSON')
+          return kept('not JSON');
         }
-        stale = res.headers.get(SERVED_FROM_HEADER) === 'cache'
+        stale = res.headers.get(SERVED_FROM_HEADER) === 'cache';
         // A file that reads but is not this app's (too new, another shape)
         // is said as it is: the banner's Reload is the answer to that.
-        return asMap(raw, MAP_FILE_URL, MAP_FILE_SCHEMA)
+        return asMap(raw, MAP_FILE_URL, MAP_FILE_SCHEMA);
       },
       async (e: unknown) => {
         // No network and nothing stored under this path: an update made offline.
-        const old = await storedOldCopy()
-        if (!old) throw e
-        stale = true
-        return old
+        const old = await storedOldCopy();
+        if (!old) throw e;
+        stale = true;
+        return old;
       },
     )
     .then(
       (file) => {
-        settled = { file }
-        return file
+        settled = { file };
+        return file;
       },
       (e: unknown) => {
-        inFlight = null
-        settled = { file: null }
-        throw e
+        inFlight = null;
+        settled = { file: null };
+        throw e;
       },
-    )
-  return inFlight
+    );
+  return inFlight;
 }
 
 /**
@@ -279,17 +285,22 @@ export function loadMapFile(): Promise<MapFile> {
  */
 export async function openingVariants(): Promise<VariantSummary[] | null> {
   // The load's end as it is now: undefined while it is on its way.
-  const ended = () => (settled ? (settled.file?.variants ?? null) : undefined)
-  const now = ended()
-  if (now !== undefined) return now
-  const copy = await storedCopy().catch(() => null)
-  const since = ended()
-  if (since !== undefined) return since
-  if (copy) return copy.variants
-  return inFlight ? inFlight.then((file) => file.variants, () => null) : null
+  const ended = () => (settled ? (settled.file?.variants ?? null) : undefined);
+  const now = ended();
+  if (now !== undefined) return now;
+  const copy = await storedCopy().catch(() => null);
+  const since = ended();
+  if (since !== undefined) return since;
+  if (copy) return copy.variants;
+  return inFlight
+    ? inFlight.then(
+        (file) => file.variants,
+        () => null,
+      )
+    : null;
 }
 
-const lines = new Map<string, Promise<LineStringGeoJSON | null>>()
+const lines = new Map<string, Promise<LineStringGeoJSON | null>>();
 
 /**
  * A direction's full line, read once a page and shared. Null for a
@@ -302,29 +313,36 @@ const lines = new Map<string, Promise<LineStringGeoJSON | null>>()
  * a file without them is read as before.
  */
 export function loadLine(id: string): Promise<LineStringGeoJSON | null> {
-  let line = lines.get(id)
+  let line = lines.get(id);
   if (!line) {
     line = fetch(`${LINES_URL}${encodeURIComponent(id)}.json`, { cache: 'no-cache' })
       .then(async (res) => {
-        if (!res.ok) throw new Error(`${LINES_URL}${id}.json: HTTP ${res.status}`)
-        const file = (await res.json()) as { id?: string; shape?: LineStringGeoJSON | null; pass?: unknown; passKey?: unknown }
-        if (file.id !== id) throw new Error(`${LINES_URL}${id}.json is not that direction's line`)
-        if (file.shape?.type !== 'LineString' || !Array.isArray(file.shape.coordinates)) return null
-        keepLinePass(file.shape, file)
-        return file.shape
+        if (!res.ok) throw new Error(`${LINES_URL}${id}.json: HTTP ${res.status}`);
+        const file = (await res.json()) as {
+          id?: string;
+          shape?: LineStringGeoJSON | null;
+          pass?: unknown;
+          passKey?: unknown;
+        };
+        if (file.id !== id) throw new Error(`${LINES_URL}${id}.json is not that direction's line`);
+        if (file.shape?.type !== 'LineString' || !Array.isArray(file.shape.coordinates))
+          return null;
+        keepLinePass(file.shape, file);
+        return file.shape;
       })
       .catch((e: unknown) => {
-        lines.delete(id)
-        throw e
-      })
-    lines.set(id, line)
+        lines.delete(id);
+        throw e;
+      });
+    lines.set(id, line);
   }
-  return line
+  return line;
 }
 
 /** True when the last load was answered from a stored copy rather than the network. Meaningful once `loadMapFile()` has resolved. */
-export const mapFileIsStale = () => stale
+export const mapFileIsStale = () => stale;
 
 /** Loaders in the shape the two hooks take. Module-level, so they never change between renders. */
-export const loadVariantsFromFile = () => loadMapFile().then((f) => f.variants)
-export const loadStopsFromFile = () => loadMapFile().then((f) => ({ stops: f.stops, links: f.links }))
+export const loadVariantsFromFile = () => loadMapFile().then((f) => f.variants);
+export const loadStopsFromFile = () =>
+  loadMapFile().then((f) => ({ stops: f.stops, links: f.links }));

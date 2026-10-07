@@ -1,9 +1,9 @@
-import { haversine, lineLength, type LngLat } from '@/shared/utils/geo'
-import { passStretches } from '../geo/pass'
-import { placeKey } from './places'
-import { stopRing, type StopSummary } from './stops'
-import { drawnFromTheEnd, timelineFor, type Timeline } from './timeline'
-import { servedBy, variantLine, type VariantSummary } from './routes'
+import { haversine, lineLength, type LngLat } from '@/shared/utils/geo';
+import { passStretches } from '../geo/pass';
+import { placeKey } from './places';
+import { stopRing, type StopSummary } from './stops';
+import { drawnFromTheEnd, timelineFor, type Timeline } from './timeline';
+import { servedBy, variantLine, type VariantSummary } from './routes';
 
 /*
  * A direction ridden: its line in the jeep's order, its timeline of
@@ -19,41 +19,41 @@ export function routeTimeline(
   stops: readonly StopSummary[],
   along: readonly StopSummary[],
 ): Timeline {
-  const head = stops.find((s) => s.id === v.route?.head_stop_id) ?? null
-  const tail = stops.find((s) => s.id === v.route?.tail_stop_id) ?? null
-  return timelineFor(head, tail, v.reversed, along, variantLine(v)[0])
+  const head = stops.find((s) => s.id === v.route?.head_stop_id) ?? null;
+  const tail = stops.find((s) => s.id === v.route?.tail_stop_id) ?? null;
+  return timelineFor(head, tail, v.reversed, along, variantLine(v)[0]);
 }
 
 /** Distance along the line of a point lying on it: the first segment that holds the point wins. */
 function distanceAlong(line: readonly LngLat[], p: LngLat): number {
-  let cum = 0
+  let cum = 0;
   for (let i = 1; i < line.length; i++) {
-    const ab = haversine(line[i - 1], line[i])
-    const ap = haversine(line[i - 1], p)
+    const ab = haversine(line[i - 1], line[i]);
+    const ap = haversine(line[i - 1], p);
     // On the segment when going a → p → b adds nothing to a → b.
-    if (ap + haversine(p, line[i]) - ab < 0.05) return cum + ap
-    cum += ab
+    if (ap + haversine(p, line[i]) - ab < 0.05) return cum + ap;
+    cum += ab;
   }
-  return cum
+  return cum;
 }
 
 /** The point `metres` along the line, and the last vertex before it. */
 function pointAt(line: readonly LngLat[], metres: number): { point: LngLat; index: number } {
-  let cum = 0
+  let cum = 0;
   for (let i = 1; i < line.length; i++) {
-    const [a, b] = [line[i - 1], line[i]]
-    const seg = haversine(a, b)
+    const [a, b] = [line[i - 1], line[i]];
+    const seg = haversine(a, b);
     if (cum + seg >= metres && seg > 0) {
-      const t = (metres - cum) / seg
-      return { point: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], index: i - 1 }
+      const t = (metres - cum) / seg;
+      return { point: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], index: i - 1 };
     }
-    cum += seg
+    cum += seg;
   }
-  return { point: line[line.length - 1], index: line.length - 2 }
+  return { point: line[line.length - 1], index: line.length - 2 };
 }
 
 /** One get-off circle of the ride-to preview: a mini stop, the middle of its orange stretch, and how far in that is. */
-export type RideDot = { stopId: string; at: LngLat; metres: number }
+export type RideDot = { stopId: string; at: LngLat; metres: number };
 
 /**
  * The ride cut short at one hintuan — what tapping a timeline row previews,
@@ -73,23 +73,30 @@ export function rideCut(
   stops: readonly StopSummary[],
   rowStopId: string,
   endStopId: string | null = null,
-): { ridden: LngLat[]; rest: LngLat[]; metres: number; at: LngLat; endStopId: string; dots: RideDot[] } | null {
-  const row = stops.find((s) => s.id === rowStopId)
-  const ride = travelLine(v, stops)
-  if (!row || ride.length < 2) return null
-  const key = placeKey(row)
-  const dots: RideDot[] = []
+): {
+  ridden: LngLat[];
+  rest: LngLat[];
+  metres: number;
+  at: LngLat;
+  endStopId: string;
+  dots: RideDot[];
+} | null {
+  const row = stops.find((s) => s.id === rowStopId);
+  const ride = travelLine(v, stops);
+  if (!row || ride.length < 2) return null;
+  const key = placeKey(row);
+  const dots: RideDot[] = [];
   for (const s of stops) {
-    if (s.kind !== 'hintuan' || placeKey(s) !== key || !s.area || !servedBy(s, v.route)) continue
-    const piece = passStretches(ride, stopRing(s))[0]
-    if (!piece) continue
-    const metres = distanceAlong(ride, piece[0]) + lineLength(piece) / 2
-    dots.push({ stopId: s.id, at: pointAt(ride, metres).point, metres })
+    if (s.kind !== 'hintuan' || placeKey(s) !== key || !s.area || !servedBy(s, v.route)) continue;
+    const piece = passStretches(ride, stopRing(s))[0];
+    if (!piece) continue;
+    const metres = distanceAlong(ride, piece[0]) + lineLength(piece) / 2;
+    dots.push({ stopId: s.id, at: pointAt(ride, metres).point, metres });
   }
-  dots.sort((a, b) => a.metres - b.metres)
-  const end = dots.find((d) => d.stopId === endStopId) ?? dots[dots.length - 1]
-  if (!end || end.metres < 1) return null
-  const { point, index } = pointAt(ride, end.metres)
+  dots.sort((a, b) => a.metres - b.metres);
+  const end = dots.find((d) => d.stopId === endStopId) ?? dots[dots.length - 1];
+  if (!end || end.metres < 1) return null;
+  const { point, index } = pointAt(ride, end.metres);
   return {
     ridden: [...ride.slice(0, index + 1), point],
     rest: [point, ...ride.slice(index + 1)],
@@ -97,7 +104,7 @@ export function rideCut(
     at: point,
     endStopId: end.stopId,
     dots,
-  }
+  };
 }
 
 /**
@@ -112,16 +119,16 @@ export function rideCut(
  * they are now.
  */
 export function travelLine(v: VariantSummary, stops: readonly StopSummary[]): readonly LngLat[] {
-  const line = variantLine(v)
-  if (line.length < 2) return line
-  const head = stops.find((s) => s.id === v.route?.head_stop_id)
-  const tail = stops.find((s) => s.id === v.route?.tail_stop_id)
-  const [from, to] = v.reversed ? [tail, head] : [head, tail]
-  if (!from || !to) return line
-  return drawnFromTheEnd(line[0], from, to) ? reversedOf(line) : line
+  const line = variantLine(v);
+  if (line.length < 2) return line;
+  const head = stops.find((s) => s.id === v.route?.head_stop_id);
+  const tail = stops.find((s) => s.id === v.route?.tail_stop_id);
+  const [from, to] = v.reversed ? [tail, head] : [head, tail];
+  if (!from || !to) return line;
+  return drawnFromTheEnd(line[0], from, to) ? reversedOf(line) : line;
 }
 
-const reversed = new WeakMap<readonly LngLat[], readonly LngLat[]>()
+const reversed = new WeakMap<readonly LngLat[], readonly LngLat[]>();
 
 /**
  * The line turned round, made once per array. Keyed on the line array
@@ -133,10 +140,10 @@ const reversed = new WeakMap<readonly LngLat[], readonly LngLat[]>()
  * every render: the chevrons, the babaan sides, the ride-to cut.
  */
 function reversedOf(line: readonly LngLat[]): readonly LngLat[] {
-  let r = reversed.get(line)
+  let r = reversed.get(line);
   if (!r) {
-    r = [...line].reverse()
-    reversed.set(line, r)
+    r = [...line].reverse();
+    reversed.set(line, r);
   }
-  return r
+  return r;
 }

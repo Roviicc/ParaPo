@@ -24,46 +24,49 @@
  * A caller's order must be total (end it with a unique column) or pages can
  * overlap or skip: rows tie on `updated_at`, not on `id`.
  */
-export const PAGE = 1000
+export const PAGE = 1000;
 
 export type Page<T> = {
-  data: T[] | null
-  count: number | null
-  error: { message: string } | null
-}
+  data: T[] | null;
+  count: number | null;
+  error: { message: string } | null;
+};
 
-export async function readAll<T>(page: (from: number, to: number) => PromiseLike<Page<T>>): Promise<T[]> {
-  const first = await page(0, PAGE - 1)
-  if (first.error) throw new Error(first.error.message)
-  const rows: T[] = first.data ?? []
-  if (rows.length === 0) return rows
-  if (first.count !== null ? rows.length >= first.count : rows.length < PAGE) return rows
+export async function readAll<T>(
+  page: (from: number, to: number) => PromiseLike<Page<T>>,
+): Promise<T[]> {
+  const first = await page(0, PAGE - 1);
+  if (first.error) throw new Error(first.error.message);
+  const rows: T[] = first.data ?? [];
+  if (rows.length === 0) return rows;
+  if (first.count !== null ? rows.length >= first.count : rows.length < PAGE) return rows;
 
   if (first.count !== null) {
     // The rest, together. The server answered `step` rows: that is its cap
     // when below PAGE, and it will answer the same again.
-    const step = rows.length
-    const asks: PromiseLike<Page<T>>[] = []
-    for (let from = step; from < first.count; from += step) asks.push(page(from, from + step - 1))
+    const step = rows.length;
+    const asks: PromiseLike<Page<T>>[] = [];
+    for (let from = step; from < first.count; from += step) asks.push(page(from, from + step - 1));
     for (const p of await Promise.all(asks)) {
-      if (p.error) throw new Error(p.error.message)
-      const got = p.data ?? []
-      rows.push(...got)
+      if (p.error) throw new Error(p.error.message);
+      const got = p.data ?? [];
+      rows.push(...got);
       // A short page, other than the last: the pages after it were asked
       // for from too far along, so they are dropped and read again below.
-      if (got.length < step) break
+      if (got.length < step) break;
     }
-    if (rows.length >= first.count) return rows
+    if (rows.length >= first.count) return rows;
   }
 
   // No count, or a page that came back short of its share (a server whose
   // cap changed under us): carry on one page at a time, from the row after
   // the last one held.
   for (;;) {
-    const { data, count, error } = await page(rows.length, rows.length + PAGE - 1)
-    if (error) throw new Error(error.message)
-    const got = data ?? []
-    rows.push(...got)
-    if (got.length === 0 || (count !== null ? rows.length >= count : got.length < PAGE)) return rows
+    const { data, count, error } = await page(rows.length, rows.length + PAGE - 1);
+    if (error) throw new Error(error.message);
+    const got = data ?? [];
+    rows.push(...got);
+    if (got.length === 0 || (count !== null ? rows.length >= count : got.length < PAGE))
+      return rows;
   }
 }

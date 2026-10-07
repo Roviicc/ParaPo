@@ -1,12 +1,12 @@
-import { useMemo } from 'react'
-import type { MapLibreMap } from 'maplibre-gl'
-import { useBabaanSides } from '../geo/babaan-sides'
-import { usePassStretches } from '../geo/pass-stretches'
-import { travelLine } from '../model/ride'
-import { directionEndStops, directionEnds, type VariantSummary } from '../model/routes'
-import type { StopSummary } from '../model/stops'
-import type { LngLat } from '@/shared/utils/geo'
-import { useDirectionArrows, type Ride } from './direction-arrows'
+import { useMemo } from 'react';
+import type { MapLibreMap } from 'maplibre-gl';
+import { useBabaanSides } from '../geo/babaan-sides';
+import { usePassStretches } from '../geo/pass-stretches';
+import { travelLine } from '../model/ride';
+import { directionEndStops, directionEnds, type VariantSummary } from '../model/routes';
+import type { StopSummary } from '../model/stops';
+import type { LngLat } from '@/shared/utils/geo';
+import { useDirectionArrows, type Ride } from './direction-arrows';
 
 /**
  * What a lit route wears on the map, in both apps: its orange stretches
@@ -18,12 +18,12 @@ import { useDirectionArrows, type Ride } from './direction-arrows'
 export function useLitRides(
   map: MapLibreMap | null,
   saved: {
-    variants: readonly VariantSummary[]
+    variants: readonly VariantSummary[];
     /** The directions whose full line has been read. */
-    fullIds: ReadonlySet<string>
-    lit: readonly string[]
-    litVariants: readonly VariantSummary[]
-    selected: VariantSummary | null
+    fullIds: ReadonlySet<string>;
+    lit: readonly string[];
+    litVariants: readonly VariantSummary[];
+    selected: VariantSummary | null;
   },
   stops: readonly StopSummary[],
   /** The direction being redrawn in the studio: no stretches over the draft. */
@@ -35,8 +35,11 @@ export function useLitRides(
   // stretch: worked out on the full lines read — a lit direction's is asked
   // for as it lights, and its orange comes with it — rather than on every
   // overview at load. Offline, a line never read has none.
-  const withLines = useMemo(() => saved.variants.filter((v) => saved.fullIds.has(v.id)), [saved.variants, saved.fullIds])
-  usePassStretches(map, withLines, stops, saved.lit, hiddenVariantId)
+  const withLines = useMemo(
+    () => saved.variants.filter((v) => saved.fullIds.has(v.id)),
+    [saved.variants, saved.fullIds],
+  );
+  usePassStretches(map, withLines, stops, saved.lit, hiddenVariantId);
 
   // Which way the jeep goes, on what is lit only — the chosen direction, the
   // Selected card's directions, or else a list's or a hotspot card's: chevrons
@@ -52,9 +55,9 @@ export function useLitRides(
         ...directionEndStops(v),
       })),
     [saved.litVariants, stops, ridden],
-  )
-  useDirectionArrows(map, rides)
+  );
+  useDirectionArrows(map, rides);
   // The chosen direction's side of each hintuan it cuts across: its right.
-  useBabaanSides(map, saved.selected, stops)
-  return rides
+  useBabaanSides(map, saved.selected, stops);
+  return rides;
 }

@@ -1,4 +1,9 @@
-import type { CircleLayerSpecification, FillLayerSpecification, LineLayerSpecification, MapLibreMap } from 'maplibre-gl'
+import type {
+  CircleLayerSpecification,
+  FillLayerSpecification,
+  LineLayerSpecification,
+  MapLibreMap,
+} from 'maplibre-gl';
 
 /**
  * The GL programs a tap would compile, compiled while the map is idle
@@ -52,26 +57,35 @@ import type { CircleLayerSpecification, FillLayerSpecification, LineLayerSpecifi
  */
 
 /** The twins' source; each twin is `warm-programs-<n>`. */
-export const WARM_SOURCE = 'warm-programs'
-const twinId = (n: number) => `${WARM_SOURCE}-${n}`
-const isTwin = (id: string) => id.startsWith(`${WARM_SOURCE}-`)
+export const WARM_SOURCE = 'warm-programs';
+const twinId = (n: number) => `${WARM_SOURCE}-${n}`;
+const isTwin = (id: string) => id.startsWith(`${WARM_SOURCE}-`);
 
 /** A layer to compile a program from: the type and paint of the layer it stands in for. */
 export type Twin =
   | Pick<CircleLayerSpecification, 'type' | 'paint'>
   | Pick<LineLayerSpecification, 'type' | 'paint'>
-  | Pick<FillLayerSpecification, 'type' | 'paint'>
+  | Pick<FillLayerSpecification, 'type' | 'paint'>;
 
 /** The speck each type of twin draws over: the one geometry it lays out. */
-const SPECK = { circle: 'Point', line: 'LineString', fill: 'Polygon' } as const
+const SPECK = { circle: 'Point', line: 'LineString', fill: 'Polygon' } as const;
 
 /** How far the speck reaches from the middle of the view, in pixels: enough that no tile simplifies it away. */
-const SPECK_PX = 16
+const SPECK_PX = 16;
 
 type WarmMap = Pick<
   MapLibreMap,
-  'getSource' | 'addSource' | 'removeSource' | 'getLayer' | 'addLayer' | 'removeLayer' | 'getLayersOrder' | 'getCenter' | 'getZoom' | 'once'
->
+  | 'getSource'
+  | 'addSource'
+  | 'removeSource'
+  | 'getLayer'
+  | 'addLayer'
+  | 'removeLayer'
+  | 'getLayersOrder'
+  | 'getCenter'
+  | 'getZoom'
+  | 'once'
+>;
 
 /**
  * A point at the middle of the view, a line across it and a box round it,
@@ -80,21 +94,38 @@ type WarmMap = Pick<
  * a twin with nothing laid out draws nothing.
  */
 export function specks(map: Pick<MapLibreMap, 'getCenter' | 'getZoom'>) {
-  const [x, y] = map.getCenter().toArray()
-  const d = (SPECK_PX * 360) / (512 * 2 ** map.getZoom())
-  const feature = (geometry: object) => ({ type: 'Feature' as const, properties: {}, geometry })
+  const [x, y] = map.getCenter().toArray();
+  const d = (SPECK_PX * 360) / (512 * 2 ** map.getZoom());
+  const feature = (geometry: object) => ({ type: 'Feature' as const, properties: {}, geometry });
   return {
     type: 'FeatureCollection' as const,
     features: [
       feature({ type: 'Point', coordinates: [x, y] }),
-      feature({ type: 'LineString', coordinates: [[x - d, y], [x + d, y]] }),
-      feature({ type: 'Polygon', coordinates: [[[x - d, y - d], [x + d, y - d], [x + d, y + d], [x - d, y + d], [x - d, y - d]]] }),
+      feature({
+        type: 'LineString',
+        coordinates: [
+          [x - d, y],
+          [x + d, y],
+        ],
+      }),
+      feature({
+        type: 'Polygon',
+        coordinates: [
+          [
+            [x - d, y - d],
+            [x + d, y - d],
+            [x + d, y + d],
+            [x - d, y + d],
+            [x - d, y - d],
+          ],
+        ],
+      }),
     ],
-  }
+  };
 }
 
 /** The warm-ups on each map so far: the latest takes the twins away. */
-const warmUps = new WeakMap<object, number>()
+const warmUps = new WeakMap<object, number>();
 
 /**
  * Draws `twins`, and takes every twin away with the map's first move after
@@ -105,37 +136,46 @@ const warmUps = new WeakMap<object, number>()
  * like every layer of ours (basemap.ts); they go by their ids all the same.
  */
 export function warmPrograms(map: WarmMap, twins: readonly Twin[]): boolean {
-  if (twins.length === 0) return false
-  if (!map.getSource(WARM_SOURCE)) map.addSource(WARM_SOURCE, { type: 'geojson', data: specks(map) })
+  if (twins.length === 0) return false;
+  if (!map.getSource(WARM_SOURCE))
+    map.addSource(WARM_SOURCE, { type: 'geojson', data: specks(map) });
   // At the bottom, over the basemap's background and under everything
   // else: unseen in any case, each paint showing nothing of a speck.
-  const bottom = map.getLayersOrder()[1]
-  let n = 0
+  const bottom = map.getLayersOrder()[1];
+  let n = 0;
   for (const twin of twins) {
-    while (map.getLayer(twinId(n))) n++
-    map.addLayer({ ...twin, id: twinId(n), source: WARM_SOURCE, filter: ['==', ['geometry-type'], SPECK[twin.type]] } as never, bottom)
+    while (map.getLayer(twinId(n))) n++;
+    map.addLayer(
+      {
+        ...twin,
+        id: twinId(n),
+        source: WARM_SOURCE,
+        filter: ['==', ['geometry-type'], SPECK[twin.type]],
+      } as never,
+      bottom,
+    );
   }
-  const warmUp = (warmUps.get(map) ?? 0) + 1
-  warmUps.set(map, warmUp)
+  const warmUp = (warmUps.get(map) ?? 0) + 1;
+  warmUps.set(map, warmUp);
   map.once('idle', () =>
     map.once('movestart', () => {
-      if (warmUps.get(map) !== warmUp) return
-      for (const id of map.getLayersOrder().filter(isTwin)) map.removeLayer(id)
-      if (map.getSource(WARM_SOURCE)) map.removeSource(WARM_SOURCE)
+      if (warmUps.get(map) !== warmUp) return;
+      for (const id of map.getLayersOrder().filter(isTwin)) map.removeLayer(id);
+      if (map.getSource(WARM_SOURCE)) map.removeSource(WARM_SOURCE);
     }),
-  )
-  return true
+  );
+  return true;
 }
 
 /** How long a warm-up waits for the browser to have a moment, at most, once the map is idle. */
-const IDLE_WAIT_MS = 2000
+const IDLE_WAIT_MS = 2000;
 
 type Idle = {
-  requestIdleCallback?: (run: () => void, options?: { timeout: number }) => number
-  cancelIdleCallback?: (handle: number) => void
-  setTimeout: (run: () => void, ms: number) => unknown
-  clearTimeout: (timer: never) => void
-}
+  requestIdleCallback?: (run: () => void, options?: { timeout: number }) => number;
+  cancelIdleCallback?: (handle: number) => void;
+  setTimeout: (run: () => void, ms: number) => unknown;
+  clearTimeout: (timer: never) => void;
+};
 
 /**
  * Runs `then` after the map's next 'idle', once the browser has a moment
@@ -149,30 +189,31 @@ export function afterIdle(
   then: () => void,
   browser: Idle = globalThis as unknown as Idle,
 ): () => void {
-  let handle: number | null = null
-  let timer: unknown = null
+  let handle: number | null = null;
+  let timer: unknown = null;
   const run = () => {
-    handle = null
-    timer = null
-    if (map.style) then()
-  }
+    handle = null;
+    timer = null;
+    if (map.style) then();
+  };
   const onIdle = () => {
-    if (typeof browser.requestIdleCallback === 'function') handle = browser.requestIdleCallback(run, { timeout: IDLE_WAIT_MS })
-    else timer = browser.setTimeout(run, 0)
-  }
-  map.once('idle', onIdle)
+    if (typeof browser.requestIdleCallback === 'function')
+      handle = browser.requestIdleCallback(run, { timeout: IDLE_WAIT_MS });
+    else timer = browser.setTimeout(run, 0);
+  };
+  map.once('idle', onIdle);
   return () => {
-    map.off('idle', onIdle)
-    if (handle !== null) browser.cancelIdleCallback?.(handle)
-    if (timer !== null) browser.clearTimeout(timer as never)
-  }
+    map.off('idle', onIdle);
+    if (handle !== null) browser.cancelIdleCallback?.(handle);
+    if (timer !== null) browser.clearTimeout(timer as never);
+  };
 }
 
 /** What a hook wants warmed, asked as the warm-up comes: its twins then, or none. */
-export type Provider = () => readonly Twin[]
+export type Provider = () => readonly Twin[];
 
 /** Each map's warm-up to come: the providers asked so far, and its cancel. */
-const batches = new WeakMap<object, { providers: Set<Provider>; cancel: () => void }>()
+const batches = new WeakMap<object, { providers: Set<Provider>; cancel: () => void }>();
 
 /**
  * Asks for `provider`'s twins at the map's next warm-up, after its next
@@ -188,35 +229,35 @@ export function warmSoon(
   provider: Provider,
   browser: Idle = globalThis as unknown as Idle,
 ): () => void {
-  let batch = batches.get(map)
+  let batch = batches.get(map);
   if (!batch) {
-    const providers = new Set<Provider>()
+    const providers = new Set<Provider>();
     // Closed at the idle, before the browser's moment it waits for.
     const close = () => {
-      if (batches.get(map)?.providers === providers) batches.delete(map)
-    }
-    map.once('idle', close)
+      if (batches.get(map)?.providers === providers) batches.delete(map);
+    };
+    map.once('idle', close);
     const later = afterIdle(
       map,
       () => {
-        const twins = [...providers].flatMap((p) => p())
-        if (twins.length > 0) warmPrograms(map, twins)
+        const twins = [...providers].flatMap((p) => p());
+        if (twins.length > 0) warmPrograms(map, twins);
       },
       browser,
-    )
+    );
     batch = {
       providers,
       cancel: () => {
-        map.off('idle', close)
-        close()
-        later()
+        map.off('idle', close);
+        close();
+        later();
       },
-    }
-    batches.set(map, batch)
+    };
+    batches.set(map, batch);
   }
-  const { providers, cancel } = batch
-  providers.add(provider)
+  const { providers, cancel } = batch;
+  providers.add(provider);
   return () => {
-    if (providers.delete(provider) && providers.size === 0) cancel()
-  }
+    if (providers.delete(provider) && providers.size === 0) cancel();
+  };
 }

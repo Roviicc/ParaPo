@@ -19,23 +19,23 @@
  * and stops the noting: from then on the page's own requests go through the
  * worker.
  */
-export const TILES_KEPT = 64
+export const TILES_KEPT = 64;
 
 export function tileNotes(kept = TILES_KEPT) {
-  const asked: string[] = []
-  let noting = true
+  const asked: string[] = [];
+  let noting = true;
   return {
     note(url: string, type?: string): undefined {
-      if (noting && type === 'Tile' && asked.length < kept && !asked.includes(url)) asked.push(url)
-      return undefined
+      if (noting && type === 'Tile' && asked.length < kept && !asked.includes(url)) asked.push(url);
+      return undefined;
     },
     take(): string[] {
-      noting = false
-      return asked.splice(0)
+      noting = false;
+      return asked.splice(0);
     },
-  }
+  };
 }
 
-const notes = tileNotes()
-export const noteTile = notes.note
-export const takeTilesAsked = notes.take
+const notes = tileNotes();
+export const noteTile = notes.note;
+export const takeTilesAsked = notes.take;

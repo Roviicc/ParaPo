@@ -1,7 +1,7 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
-import { fn } from 'storybook/test'
-import { StopTimeline } from './stop-timeline'
-import type { Timeline } from '../model/timeline'
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { fn } from 'storybook/test';
+import { StopTimeline } from './stop-timeline';
+import type { Timeline } from '../model/timeline';
 
 /** Sample rows only, shaped like a direction's timeline. Not read from anywhere. */
 const timeline: Timeline = {
@@ -15,7 +15,7 @@ const timeline: Timeline = {
     { id: 'fatima', label: 'Fatima', kind: 'hintuan' },
     { id: 'lagro', label: 'Lagro', kind: 'hintuan' },
   ],
-}
+};
 
 const meta = {
   title: 'Features/Routes/StopTimeline',
@@ -28,16 +28,16 @@ const meta = {
     ),
   ],
   args: { timeline },
-} satisfies Meta<typeof StopTimeline>
+} satisfies Meta<typeof StopTimeline>;
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 /** Rows are buttons: tapping one previews the ride up to it. */
-export const Tappable: Story = { args: { onPick: fn() } }
+export const Tappable: Story = { args: { onPick: fn() } };
 
 /** A ride cut short at Amparo: it reads as the end, the rows past it fade. */
-export const GetOffPicked: Story = { args: { onPick: fn(), pickedId: 'amparo' } }
+export const GetOffPicked: Story = { args: { onPick: fn(), pickedId: 'amparo' } };
 
 /** Without onPick the rows are plain text — the save panel's preview. */
-export const ReadOnly: Story = {}
+export const ReadOnly: Story = {};

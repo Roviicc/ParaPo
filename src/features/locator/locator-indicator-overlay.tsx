@@ -1,45 +1,46 @@
-import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
-import { createPortal } from 'react-dom'
-import { Marker, type MapLibreMap } from 'maplibre-gl'
-import { metresPerPixel } from '@/shared/utils/geo'
-import { tapsOnItsButton } from '@/features/routes/map/marker-tap'
-import './locator.css'
-import { gazeOffset, useDotGaze, type Subject } from './dot-gaze'
-import type { Face, Mood } from './locator-mood'
-import { circleRadius, indicatorScale, type Fix } from './use-locator'
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
+import { Marker, type MapLibreMap } from 'maplibre-gl';
+import { metresPerPixel } from '@/shared/utils/geo';
+import { tapsOnItsButton } from '@/features/routes/map/marker-tap';
+import './locator.css';
+import { gazeOffset, useDotGaze, type Subject } from './dot-gaze';
+import type { Face, Mood } from './locator-mood';
+import { circleRadius, indicatorScale, type Fix } from './use-locator';
 
 /** Where the beam points as drawn: due south, so it is turned by the heading less this. */
-export const BEAM_DRAWN_DEG = 180
+export const BEAM_DRAWN_DEG = 180;
 
 /** The dot's own size, 24 px in 4 px of white: an accuracy circle smaller is hidden under it, so not drawn. */
-const DOT_PX = 32
+const DOT_PX = 32;
 /** A circle past this is the whole screen anyway, and a DOM element that big costs. */
-const HALO_MAX_PX = 1600
+const HALO_MAX_PX = 1600;
 
 /**
  * The circle as drawn: the fix's metres on the ground, so it shrinks as the
  * map zooms out and is gone once the dot covers it, as Google Maps' is (the
  * owner's screenshots, 2026-10-01); never past HALO_MAX_PX. 0: none.
  */
-export const haloFor = (px: number, scale = 1) => (px < DOT_PX * scale ? 0 : Math.round(Math.min(HALO_MAX_PX, px)))
+export const haloFor = (px: number, scale = 1) =>
+  px < DOT_PX * scale ? 0 : Math.round(Math.min(HALO_MAX_PX, px));
 
 type Props = {
   /** The accuracy circle's width: the fix's 68 % radius, twice, in pixels. */
-  haloPx: number
+  haloPx: number;
   /** Which way the beam points, degrees clockwise from the overlay's up — north, on the map. Null: no beam. */
-  beamDeg: number | null
+  beamDeg: number | null;
   /** The dot and beam's size against Figma's, 1 at street level (indicatorScale). */
-  scale?: number
+  scale?: number;
   /** How the dot feels, and the face it wears for it (locatorMood); neutral's glance by default. */
-  mood?: Mood
-  face?: Face
+  mood?: Mood;
+  face?: Face;
   /** Changed by each tap on the button: the dot is drawn afresh, so its reaction plays again. */
-  beat?: number
+  beat?: number;
   /** The dot is a button, to be poked: LocatorOnMap hears the tap (markerTap.ts). */
-  pokeable?: boolean
+  pokeable?: boolean;
   /** Which way its eyes gaze, degrees clockwise from the overlay's up, at what was just picked (dotGaze.ts). Null: they wander. */
-  gazeDeg?: number | null
-}
+  gazeDeg?: number | null;
+};
 
 /**
  * The owner's LocatorIndicatorOverlay (3870:5247, 2026-10-01, its second
@@ -52,11 +53,20 @@ type Props = {
  * have. Figma's is 240 across; here the circle is the fix's metres, the beam
  * as drawn.
  */
-export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'neutral', face = 'glance', beat = 0, pokeable = false, gazeDeg = null }: Props) {
-  const gaze = gazeDeg === null ? null : gazeOffset(gazeDeg)
-  const Dot = pokeable ? 'button' : 'div'
-  const halo = haloFor(haloPx, scale)
-  const gradient = useId()
+export function LocatorIndicatorOverlay({
+  haloPx,
+  beamDeg,
+  scale = 1,
+  mood = 'neutral',
+  face = 'glance',
+  beat = 0,
+  pokeable = false,
+  gazeDeg = null,
+}: Props) {
+  const gaze = gazeDeg === null ? null : gazeOffset(gazeDeg);
+  const Dot = pokeable ? 'button' : 'div';
+  const halo = haloFor(haloPx, scale);
+  const gradient = useId();
   return (
     <div className="pointer-events-none relative size-0">
       {halo > 0 && (
@@ -79,9 +89,20 @@ export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'ne
             className="absolute top-1/2 left-1/2 size-0 text-map-locator-indicator-overlay-border"
             style={{ rotate: `${beamDeg - BEAM_DRAWN_DEG}deg` }}
           >
-            <svg viewBox="0 0 86 59" className="absolute top-0 -left-[43px] h-[59px] w-[86px]" aria-hidden>
+            <svg
+              viewBox="0 0 86 59"
+              className="absolute top-0 -left-[43px] h-[59px] w-[86px]"
+              aria-hidden
+            >
               <defs>
-                <linearGradient id={gradient} x1="43" y1="0" x2="43" y2="59" gradientUnits="userSpaceOnUse">
+                <linearGradient
+                  id={gradient}
+                  x1="43"
+                  y1="0"
+                  x2="43"
+                  y2="59"
+                  gradientUnits="userSpaceOnUse"
+                >
                   <stop stopColor="currentColor" stopOpacity="0.8" />
                   <stop offset="1" stopColor="currentColor" stopOpacity="0" />
                 </linearGradient>
@@ -97,10 +118,16 @@ export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'ne
           data-mood={mood}
           data-face={face}
           data-gaze={gazeDeg ?? undefined}
-          style={gaze ? ({ '--gaze-x': `${gaze.x}px`, '--gaze-y': `${gaze.y}px` } as CSSProperties) : undefined}
+          style={
+            gaze
+              ? ({ '--gaze-x': `${gaze.x}px`, '--gaze-y': `${gaze.y}px` } as CSSProperties)
+              : undefined
+          }
           className={
             'locator-dot absolute top-1/2 left-1/2 -translate-1/2 rounded-full bg-surface p-1 shadow-locator-dot-shadow' +
-            (pokeable ? ' pointer-events-auto cursor-pointer [-webkit-tap-highlight-color:transparent]' : '')
+            (pokeable
+              ? ' pointer-events-auto cursor-pointer [-webkit-tap-highlight-color:transparent]'
+              : '')
           }
         >
           <div className="relative size-6 overflow-clip rounded-full bg-brand-surface">
@@ -113,7 +140,7 @@ export function LocatorIndicatorOverlay({ haloPx, beamDeg, scale = 1, mood = 'ne
         </Dot>
       </div>
     </div>
-  )
+  );
 }
 
 /**
@@ -135,57 +162,77 @@ export function LocatorOnMap({
   hushedAt,
   onPoke,
 }: {
-  map: MapLibreMap
-  fix: Fix
-  heading: number | null
-  mood: Mood
-  face: Face
-  beat: number
+  map: MapLibreMap;
+  fix: Fix;
+  heading: number | null;
+  mood: Mood;
+  face: Face;
+  beat: number;
   /** What it gazes at, for a while after one is picked, and when a change is no pick (dotGaze.ts). */
-  gazeAt?: readonly Subject[]
-  hushedAt?: { readonly current: number }
+  gazeAt?: readonly Subject[];
+  hushedAt?: { readonly current: number };
   /** A tap on the dot (locatorMood's `poke`). */
-  onPoke: () => void
+  onPoke: () => void;
 }) {
   const [el] = useState(() => {
-    const div = document.createElement('div')
-    div.dataset.testid = 'locator-overlay'
-    return div
-  })
-  const [marker] = useState(() => new Marker({ element: el, anchor: 'center', pitchAlignment: 'map', rotationAlignment: 'map' }))
-  const [zoom, setZoom] = useState(() => map.getZoom())
+    const div = document.createElement('div');
+    div.dataset.testid = 'locator-overlay';
+    return div;
+  });
+  const [marker] = useState(
+    () =>
+      new Marker({
+        element: el,
+        anchor: 'center',
+        pitchAlignment: 'map',
+        rotationAlignment: 'map',
+      }),
+  );
+  const [zoom, setZoom] = useState(() => map.getZoom());
 
   useEffect(() => {
-    marker.setLngLat(fix.at).addTo(map)
-    const zoomed = () => setZoom(map.getZoom())
-    map.on('zoom', zoomed)
+    marker.setLngLat(fix.at).addTo(map);
+    const zoomed = () => setZoom(map.getZoom());
+    map.on('zoom', zoomed);
     return () => {
-      map.off('zoom', zoomed)
-      marker.remove()
-    }
+      map.off('zoom', zoomed);
+      marker.remove();
+    };
     // Added once per map; the fix moves it below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, marker])
+  }, [map, marker]);
   useEffect(() => {
-    marker.setLngLat(fix.at)
-  }, [marker, fix.at])
+    marker.setLngLat(fix.at);
+  }, [marker, fix.at]);
 
   // The dot answers a tap itself, and the map beneath never hears the tap
   // (markerTap.ts): no line opens, the camera stays. A drag that starts on
   // it still pans the map: it sits mid-screen, where a finger lands to pan.
-  const poke = useRef(onPoke)
-  poke.current = onPoke
-  useEffect(() => tapsOnItsButton(el, () => poke.current(), { dragsPass: true }), [el])
+  const poke = useRef(onPoke);
+  poke.current = onPoke;
+  useEffect(() => tapsOnItsButton(el, () => poke.current(), { dragsPass: true }), [el]);
 
-  const gazeDeg = useDotGaze(fix.at, gazeAt, hushedAt)
-  const haloPx = (2 * circleRadius(fix.accuracy)) / metresPerPixel(fix.at[1], zoom)
-  const scale = indicatorScale(zoom)
+  const gazeDeg = useDotGaze(fix.at, gazeAt, hushedAt);
+  const haloPx = (2 * circleRadius(fix.accuracy)) / metresPerPixel(fix.at[1], zoom);
+  const scale = indicatorScale(zoom);
   // For the suites (where-test): what the overlay was drawn from.
   useEffect(() => {
-    el.dataset.accuracyM = String(Math.round(fix.accuracy))
-    el.dataset.haloPx = String(haloFor(haloPx, scale))
-    el.dataset.scale = scale.toFixed(2)
-    el.dataset.heading = heading === null ? '' : String(Math.round(heading))
-  }, [el, fix.accuracy, haloPx, heading, scale])
-  return createPortal(<LocatorIndicatorOverlay haloPx={haloPx} beamDeg={heading} scale={scale} mood={mood} face={face} beat={beat} gazeDeg={gazeDeg} pokeable />, el)
+    el.dataset.accuracyM = String(Math.round(fix.accuracy));
+    el.dataset.haloPx = String(haloFor(haloPx, scale));
+    el.dataset.scale = scale.toFixed(2);
+    el.dataset.heading = heading === null ? '' : String(Math.round(heading));
+  }, [el, fix.accuracy, haloPx, heading, scale]);
+  return createPortal(
+    <LocatorIndicatorOverlay
+      haloPx={haloPx}
+      beamDeg={heading}
+      scale={scale}
+      mood={mood}
+      face={face}
+      beat={beat}
+      gazeDeg={gazeDeg}
+      pokeable
+    />,
+    el,
+  );
 }

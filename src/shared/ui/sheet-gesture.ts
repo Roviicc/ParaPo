@@ -5,7 +5,7 @@
  */
 
 /** How far a drag must travel before it counts as a pull rather than a tap. */
-export const DRAG_PX = 24
+export const DRAG_PX = 24;
 
 /**
  * Drops the `click` the browser sends after a tap on the handle. By the time
@@ -29,19 +29,19 @@ export const DRAG_PX = 24
 export function swallowTheTapsClick(x: number, y: number) {
   const stop = (e: MouseEvent) => {
     // No pointer's: Enter or Space, or a script. Left for the watch's own click.
-    if (e.detail === 0) return
-    cleanup()
+    if (e.detail === 0) return;
+    cleanup();
     // As far as a finger may travel and still tap.
-    if (Math.hypot(e.clientX - x, e.clientY - y) > DRAG_PX) return
-    e.stopPropagation()
-    e.preventDefault()
-  }
+    if (Math.hypot(e.clientX - x, e.clientY - y) > DRAG_PX) return;
+    e.stopPropagation();
+    e.preventDefault();
+  };
   const cleanup = () => {
-    document.removeEventListener('click', stop, true)
-    document.removeEventListener('pointerdown', cleanup, true)
-  }
-  document.addEventListener('click', stop, true)
-  document.addEventListener('pointerdown', cleanup, true)
+    document.removeEventListener('click', stop, true);
+    document.removeEventListener('pointerdown', cleanup, true);
+  };
+  document.addEventListener('click', stop, true);
+  document.addEventListener('pointerdown', cleanup, true);
 }
 
 /**
@@ -54,14 +54,14 @@ export function swallowTheTapsClick(x: number, y: number) {
  * it freely"): a sheet let go there stays, a number — the share of the map
  * it shows, over Middle's and under 1.
  */
-export type Snap = 'low' | 'middle' | 'max' | number
+export type Snap = 'low' | 'middle' | 'max' | number;
 
 /** What a sheet at `snap` is called on it (`data-snap`) and by a screen reader: a free height is `free`. */
-export type SnapName = 'low' | 'middle' | 'max' | 'free'
-export const snapName = (snap: Snap): SnapName => (typeof snap === 'number' ? 'free' : snap)
+export type SnapName = 'low' | 'middle' | 'max' | 'free';
+export const snapName = (snap: Snap): SnapName => (typeof snap === 'number' ? 'free' : snap);
 
 /** Covering more of the map than Middle does: Max, or a free height. */
-export const aboveMiddle = (snap: Snap) => snap === 'max' || typeof snap === 'number'
+export const aboveMiddle = (snap: Snap) => snap === 'max' || typeof snap === 'number';
 
 /**
  * Where a tap on the handle, or Enter on it, takes the sheet: round, Low →
@@ -69,7 +69,7 @@ export const aboveMiddle = (snap: Snap) => snap === 'max' || typeof snap === 'nu
  * on up to Max. Pulls go by snapFor.
  */
 export function snapAfterTap(snap: Snap): Snap {
-  return snap === 'low' ? 'middle' : snap === 'max' ? 'low' : 'max'
+  return snap === 'low' ? 'middle' : snap === 'max' ? 'low' : 'max';
 }
 
 /**
@@ -80,13 +80,13 @@ export function snapAfterTap(snap: Snap): Snap {
  * With the speed read over the last moves only, a gentle swipe settles on
  * the nearest height.
  */
-const FLICK = 1.25
+const FLICK = 1.25;
 
 /** How far back the speed at release is read: only the finger's last moves count. */
-const RECENT_MS = 100
+const RECENT_MS = 100;
 
 /** Middle shows this much of the map: 45% since the owner's ask of 2026-09-30 (55% before, as his frames had it). */
-const MIDDLE = 0.45
+const MIDDLE = 0.45;
 
 /**
  * What Low shows, the same for every card (the owner's 3817:6007,
@@ -94,45 +94,50 @@ const MIDDLE = 0.45
  * 3869:5195, 2026-10-01, 137 before): the notch, the header and the top of
  * the first card, down past its title — cut to one line there (`sheet-low:`).
  */
-export const LOW_PX = 129
+export const LOW_PX = 129;
 
 /**
  * What Max leaves of the map at the top, as Google Maps does: the status
  * bar's height, where the page runs behind it, and this strip under it, so
  * the visitor keeps their place (the owner's asks, 2026-10-02).
  */
-export const MAX_STRIP_PX = 24
-const MAX_GAP_CSS = `calc(env(safe-area-inset-top) + ${MAX_STRIP_PX}px)`
+export const MAX_STRIP_PX = 24;
+const MAX_GAP_CSS = `calc(env(safe-area-inset-top) + ${MAX_STRIP_PX}px)`;
 
 /** The status bar's height as the page reads it (BottomSheet measures it): 0 where the page stops under it. */
-let safeTop = 0
+let safeTop = 0;
 export function setSafeTop(px: number) {
-  safeTop = Math.max(0, Math.round(px))
+  safeTop = Math.max(0, Math.round(px));
 }
 
 /** What each magnet shows of a sheet `h` tall, the map's height. */
 export function heightsFor(h: number): Record<SnapName & ('low' | 'middle' | 'max'), number> {
-  return { low: LOW_PX, middle: Math.round(h * MIDDLE), max: Math.max(0, h - safeTop - MAX_STRIP_PX) }
+  return {
+    low: LOW_PX,
+    middle: Math.round(h * MIDDLE),
+    max: Math.max(0, h - safeTop - MAX_STRIP_PX),
+  };
 }
 
 /** What a sheet `h` tall shows at `snap`, a free height's included: a share of Max's. */
 export function shownAt(snap: Snap, h: number): number {
-  return typeof snap === 'number' ? Math.round(heightsFor(h).max * snap) : heightsFor(h)[snap]
+  return typeof snap === 'number' ? Math.round(heightsFor(h).max * snap) : heightsFor(h)[snap];
 }
 
 /** How far down a sheet at `snap` slides, as a CSS length: `100%` is its own height, the map's. */
 export function slide(snap: Snap): string {
-  if (snap === 'max') return MAX_GAP_CSS
+  if (snap === 'max') return MAX_GAP_CSS;
   // Below Max its bottom padding is off the screen: what shows stands clear
   // of a phone's home indicator by lifting it that much.
-  if (snap === 'middle') return `calc(${(1 - MIDDLE) * 100}% - env(safe-area-inset-bottom))`
-  if (typeof snap === 'number') return `calc(100% - ${snap} * (100% - ${MAX_GAP_CSS}) - env(safe-area-inset-bottom))`
-  return `calc(100% - ${LOW_PX}px - env(safe-area-inset-bottom))`
+  if (snap === 'middle') return `calc(${(1 - MIDDLE) * 100}% - env(safe-area-inset-bottom))`;
+  if (typeof snap === 'number')
+    return `calc(100% - ${snap} * (100% - ${MAX_GAP_CSS}) - env(safe-area-inset-bottom))`;
+  return `calc(100% - ${LOW_PX}px - env(safe-area-inset-bottom))`;
 }
 
 /** How far down a sheet slides while `shown` px of it follow a finger. Never above Max's top. */
 export function slideShowing(shown: number): string {
-  return `max(${MAX_GAP_CSS}, calc(100% - ${shown}px - env(safe-area-inset-bottom)))`
+  return `max(${MAX_GAP_CSS}, calc(100% - ${shown}px - env(safe-area-inset-bottom)))`;
 }
 
 /**
@@ -145,33 +150,33 @@ export function slideShowing(shown: number): string {
  * placement, not a flick. The touch pull at Max and the pointer drag share it.
  */
 export function follow(startY: number, t: number, from: number, h: number) {
-  const heights = heightsFor(h)
-  const max = heights.max
-  let y = startY
-  let last = t
-  const moves: { at: number; t: number }[] = [{ at: startY, t }]
-  const shown = (at: number) => Math.max(0, Math.min(max, from + startY - at))
+  const heights = heightsFor(h);
+  const max = heights.max;
+  let y = startY;
+  let last = t;
+  const moves: { at: number; t: number }[] = [{ at: startY, t }];
+  const shown = (at: number) => Math.max(0, Math.min(max, from + startY - at));
   return {
     move(at: number, now: number): number {
-      y = at
-      last = now
-      moves.push({ at, t: now })
-      while (moves.length > 2 && now - moves[1].t > RECENT_MS) moves.shift()
-      return shown(at)
+      y = at;
+      last = now;
+      moves.push({ at, t: now });
+      while (moves.length > 2 && now - moves[1].t > RECENT_MS) moves.shift();
+      return shown(at);
     },
     /** Where it lands let go at `at` (the last move's, when the release has no position). */
     release(now: number, at = y): Snap | 'close' {
-      const first = moves.find((m) => last - m.t <= RECENT_MS) ?? moves[moves.length - 1]
-      const dt = last - first.t
-      const v = now - last > 80 || dt <= 0 ? 0 : (first.at - y) / dt
-      return snapFor(shown(at), v, heights)
+      const first = moves.find((m) => last - m.t <= RECENT_MS) ?? moves[moves.length - 1];
+      const dt = last - first.t;
+      const v = now - last > 80 || dt <= 0 ? 0 : (first.at - y) / dt;
+      return snapFor(shown(at), v, heights);
     },
-  }
+  };
 }
 
 /** Let go this close under Middle's top, it is Middle still; this close under Max's top, Max. */
-const MIDDLE_PULL_PX = 32
-const MAX_PULL_PX = 64
+const MIDDLE_PULL_PX = 32;
+const MAX_PULL_PX = 64;
 
 /**
  * Where a drag lets go (the owner's asks of 2026-09-30: the sheet follows the
@@ -186,11 +191,15 @@ const MAX_PULL_PX = 64
  * go over, make it to max"). Below Middle it settles on Middle or Low, the
  * nearer, or closes when less than half of Low still shows.
  */
-export function snapFor(shown: number, velocity: number, heights: ReturnType<typeof heightsFor>): Snap | 'close' {
-  if (velocity >= FLICK) return 'max'
-  if (velocity <= -FLICK) return shown > heights.low + 1 ? 'low' : 'close'
-  if (shown >= heights.max - MAX_PULL_PX) return 'max'
-  if (shown > heights.middle + MIDDLE_PULL_PX) return shown / heights.max
-  if (shown < heights.low / 2) return 'close'
-  return Math.abs(heights.middle - shown) < Math.abs(heights.low - shown) ? 'middle' : 'low'
+export function snapFor(
+  shown: number,
+  velocity: number,
+  heights: ReturnType<typeof heightsFor>,
+): Snap | 'close' {
+  if (velocity >= FLICK) return 'max';
+  if (velocity <= -FLICK) return shown > heights.low + 1 ? 'low' : 'close';
+  if (shown >= heights.max - MAX_PULL_PX) return 'max';
+  if (shown > heights.middle + MIDDLE_PULL_PX) return shown / heights.max;
+  if (shown < heights.low / 2) return 'close';
+  return Math.abs(heights.middle - shown) < Math.abs(heights.low - shown) ? 'middle' : 'low';
 }

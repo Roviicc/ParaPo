@@ -16,8 +16,8 @@
  * reload (after a save) still reads afresh.
  */
 export function loadOnce<K>(loaded: { current: K | null }, key: K, load: () => void): boolean {
-  if (loaded.current === key) return false
-  loaded.current = key
-  load()
-  return true
+  if (loaded.current === key) return false;
+  loaded.current = key;
+  load();
+  return true;
 }

@@ -1,5 +1,5 @@
-import type { ComponentPropsWithoutRef, ReactNode } from 'react'
-import { Tooltip } from './tooltip'
+import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import { Tooltip } from './tooltip';
 
 /**
  * PalimosPoDesignSystem's IconButton, from the owner's Figma set of
@@ -17,41 +17,47 @@ import { Tooltip } from './tooltip'
  * with ease/exit.
  */
 
-type Size = 'base' | 'small'
+type Size = 'base' | 'small';
 
 /** Tooltip's Position: the side its arrow is on, so Bottom sits above the button. */
-type TooltipPosition = 'bottom' | 'top' | 'left' | 'right'
+type TooltipPosition = 'bottom' | 'top' | 'left' | 'right';
 
 // No `title` either: the owner's Tooltip replaces the browser's, and both
 // at once would show two bubbles, perhaps saying different things.
 type Props = Omit<
   ComponentPropsWithoutRef<'button'>,
-  'children' | 'className' | 'style' | 'dangerouslySetInnerHTML' | 'aria-label' | 'aria-labelledby' | 'title'
+  | 'children'
+  | 'className'
+  | 'style'
+  | 'dangerouslySetInnerHTML'
+  | 'aria-label'
+  | 'aria-labelledby'
+  | 'title'
 > & {
-  variant?: 'special'
-  size?: Size
+  variant?: 'special';
+  size?: Size;
   /** Figma's 🙏 Icon Instance: a square SVG drawing in currentColor. */
-  icon: ReactNode
+  icon: ReactNode;
   /**
    * Not in the Figma set — added with the owner's yes (2026-09-28): with no
    * words on it, this is what a screen reader says the button does, and
    * what its tooltip reads.
    */
-  label: string
+  label: string;
   /**
    * Where the tooltip points from, as the Tooltip set names it. The screen
    * picks (the owner's call): a control at the bottom of the map wants the
    * bubble above it, Bottom; one along a card's top edge wants it below, Top.
    */
-  tooltip?: TooltipPosition
-}
+  tooltip?: TooltipPosition;
+};
 
 const VARIANT = {
   special:
     'bg-surface-tertiary text-content-primary shadow-special-button-rest ' +
     'enabled:hover:shadow-special-button-hover ' +
     'enabled:active:bg-surface-quaternary enabled:active:shadow-special-button-pressed',
-} satisfies Record<NonNullable<Props['variant']>, string>
+} satisfies Record<NonNullable<Props['variant']>, string>;
 
 // Base is 40px round (8px around a 24px icon); Small 32px (6px around 20px).
 // The size is pinned as well as padded: in a flex column (the map's stack of
@@ -60,12 +66,12 @@ const VARIANT = {
 const SIZE = {
   base: 'size-10 p-2',
   small: 'size-8 p-1.5',
-} satisfies Record<Size, string>
+} satisfies Record<Size, string>;
 
 const ICON = {
   base: 'size-6',
   small: 'size-5',
-} satisfies Record<Size, string>
+} satisfies Record<Size, string>;
 
 // The bubble beside the button, its arrow's tip 4px off it (the arrow
 // sticks out 7px, so 11px from the pill), and where it rises from: 4px
@@ -75,7 +81,7 @@ const TOOLTIP = {
   top: 'top-full mt-2.75 left-1/2 -translate-x-1/2 -translate-y-1',
   left: 'left-full ml-2.75 top-1/2 -translate-y-1/2 -translate-x-1',
   right: 'right-full mr-2.75 top-1/2 -translate-y-1/2 translate-x-1',
-} satisfies Record<TooltipPosition, string>
+} satisfies Record<TooltipPosition, string>;
 
 // Shown: settled, over the enter timing. Written out whole for Tailwind.
 const SHOWN = {
@@ -83,7 +89,7 @@ const SHOWN = {
   top: 'group-hover/icon:translate-y-0',
   left: 'group-hover/icon:translate-x-0',
   right: 'group-hover/icon:translate-x-0',
-} satisfies Record<TooltipPosition, string>
+} satisfies Record<TooltipPosition, string>;
 
 export function IconButton({
   variant = 'special',
@@ -127,5 +133,5 @@ export function IconButton({
         <Tooltip position={tooltip} label={label} />
       </span>
     </span>
-  )
+  );
 }

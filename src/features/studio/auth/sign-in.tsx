@@ -1,22 +1,22 @@
-import { useState } from 'react'
-import { getSupabase, supabaseConfigError } from '../data/supabase'
-import { coarse } from '@/features/routes/map/map-view'
-import { FIELD_TEXT } from '../panels/sheet'
+import { useState } from 'react';
+import { getSupabase, supabaseConfigError } from '../data/supabase';
+import { coarse } from '@/features/routes/map/map-view';
+import { FIELD_TEXT } from '../panels/sheet';
 
-type Mode = 'signin' | 'forgot'
+type Mode = 'signin' | 'forgot';
 
 type Props = {
   /** Heading while signing in. */
-  title?: string
+  title?: string;
   /** A message to open with, such as why a reset link was refused. */
-  notice?: string | null
+  notice?: string | null;
   /**
    * Closes the panel. Without it the panel is the studio's front door: there
    * is nothing behind it to go back to, so Cancel becomes a link to the public
    * map.
    */
-  onDismiss?: () => void
-}
+  onDismiss?: () => void;
+};
 
 /**
  * Email + password sign-in: the studio's front door, and the dialog that opens
@@ -31,69 +31,69 @@ type Props = {
  * ResetPassword, not here.
  */
 export function SignIn({ title = 'Sign in to save', notice = null, onDismiss }: Props) {
-  const [mode, setMode] = useState<Mode>('signin')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [sent, setSent] = useState(false)
-  const [error, setError] = useState<string | null>(notice)
+  const [mode, setMode] = useState<Mode>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(notice);
 
   async function submit(e: React.FormEvent) {
-    e.preventDefault()
-    setBusy(true)
-    setError(null)
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
 
-    const supabase = getSupabase()
+    const supabase = getSupabase();
     if (!supabase) {
-      setError(supabaseConfigError)
-      setBusy(false)
-      return
+      setError(supabaseConfigError);
+      setBusy(false);
+      return;
     }
 
     if (mode === 'signin') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         setError(
           error.message === 'Invalid login credentials'
             ? 'That email and password do not match an account.'
             : error.message,
-        )
-        setBusy(false)
+        );
+        setBusy(false);
       }
       // On success the auth listener in useSession replaces this panel.
-      return
+      return;
     }
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       // Only the studio has the form that sets the new password.
       redirectTo: `${window.location.origin}/studio/`,
-    })
+    });
     if (error) {
-      setError(error.message)
-      setBusy(false)
-      return
+      setError(error.message);
+      setBusy(false);
+      return;
     }
-    setSent(true)
-    setBusy(false)
+    setSent(true);
+    setBusy(false);
   }
 
   function switchMode(next: Mode) {
-    setMode(next)
-    setError(null)
-    setPassword('')
+    setMode(next);
+    setError(null);
+    setPassword('');
   }
 
   // After "Check your email": a dialog closes; the front door goes back to sign-in.
   function afterSent() {
     if (onDismiss) {
-      onDismiss()
-      return
+      onDismiss();
+      return;
     }
-    setSent(false)
-    switchMode('signin')
+    setSent(false);
+    switchMode('signin');
   }
 
-  const heading = mode === 'signin' ? title : 'Reset your password'
+  const heading = mode === 'signin' ? title : 'Reset your password';
 
   const submitLabel = busy
     ? mode === 'signin'
@@ -101,7 +101,7 @@ export function SignIn({ title = 'Sign in to save', notice = null, onDismiss }: 
       : 'Sending…'
     : mode === 'signin'
       ? 'Sign in'
-      : 'Send reset link'
+      : 'Send reset link';
 
   return (
     <div className="absolute inset-0 z-20 grid place-items-center bg-black/30 p-6">
@@ -137,8 +137,7 @@ export function SignIn({ title = 'Sign in to save', notice = null, onDismiss }: 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className={`mt-4 w-full rounded-lg border border-neutral-300 px-3 py-2.5
-                         ${FIELD_TEXT} outline-none focus:border-neutral-900`}
+              className={`mt-4 w-full rounded-lg border border-neutral-300 px-3 py-2.5 ${FIELD_TEXT} outline-none focus:border-neutral-900`}
             />
 
             {mode === 'signin' && (
@@ -149,8 +148,7 @@ export function SignIn({ title = 'Sign in to save', notice = null, onDismiss }: 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                className={`mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5
-                           ${FIELD_TEXT} outline-none focus:border-neutral-900`}
+                className={`mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5 ${FIELD_TEXT} outline-none focus:border-neutral-900`}
               />
             )}
 
@@ -173,16 +171,14 @@ export function SignIn({ title = 'Sign in to save', notice = null, onDismiss }: 
                 <button
                   type="button"
                   onClick={onDismiss}
-                  className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium text-neutral-600
-                             ring-1 ring-neutral-300"
+                  className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium text-neutral-600 ring-1 ring-neutral-300"
                 >
                   Cancel
                 </button>
               ) : (
                 <a
                   href="/"
-                  className="flex-1 rounded-lg px-4 py-2.5 text-center text-sm font-medium
-                             text-neutral-600 ring-1 ring-neutral-300"
+                  className="flex-1 rounded-lg px-4 py-2.5 text-center text-sm font-medium text-neutral-600 ring-1 ring-neutral-300"
                 >
                   Public map
                 </a>
@@ -190,8 +186,7 @@ export function SignIn({ title = 'Sign in to save', notice = null, onDismiss }: 
               <button
                 type="submit"
                 disabled={busy}
-                className="flex-1 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium
-                           text-white disabled:opacity-50"
+                className="flex-1 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
               >
                 {submitLabel}
               </button>
@@ -213,5 +208,5 @@ export function SignIn({ title = 'Sign in to save', notice = null, onDismiss }: 
         )}
       </div>
     </div>
-  )
+  );
 }

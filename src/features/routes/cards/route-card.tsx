@@ -1,6 +1,13 @@
-import type { Livery } from '../model/liveries'
-import { BLOB_PLACE, CARD_BLOB, CARD_SHADOW, CARD_SHADOW_SELECTED, CARD_SURFACE, CARD_TEXT } from './livery-card'
-import { RouteEndPointBar } from './route-end-point-bar'
+import type { Livery } from '../model/liveries';
+import {
+  BLOB_PLACE,
+  CARD_BLOB,
+  CARD_SHADOW,
+  CARD_SHADOW_SELECTED,
+  CARD_SURFACE,
+  CARD_TEXT,
+} from './livery-card';
+import { RouteEndPointBar } from './route-end-point-bar';
 
 /**
  * A place and the routes that leave it, in a jeepney's livery — the owner's
@@ -27,33 +34,41 @@ import { RouteEndPointBar } from './route-end-point-bar'
 
 export type EndPoint = {
   /** Which direction the row opens. */
-  id: string
+  id: string;
   /** Figma's routeDirection: the place this direction goes to. */
-  routeDirection: string
-}
+  routeDirection: string;
+};
 
 type Props = {
-  livery: Livery
+  livery: Livery;
   /** Figma's State. */
-  state: 'rest' | 'selected'
+  state: 'rest' | 'selected';
   /** Figma's Route Origin: the place the card's routes leave from. */
-  routeOrigin: string
+  routeOrigin: string;
   /** One row per direction leaving it, in the order given. */
-  endPoints: readonly EndPoint[]
+  endPoints: readonly EndPoint[];
   /** A tap on the card outside its rows: select it, or let it go. */
-  onSelect: () => void
+  onSelect: () => void;
   /** A row was tapped: open that direction. */
-  onPick: (id: string) => void
+  onPick: (id: string) => void;
   /**
    * What the suites call the card and its parts — `<testId>-origin`, its
    * name `<testId>-select`, its rows `<testId>-item` — `chooser` in the route
    * list, `card` in a hotspot's card, the names the old rows there had.
    */
-  testId: 'chooser' | 'card'
-}
+  testId: 'chooser' | 'card';
+};
 
-export function RouteCard({ livery, state, routeOrigin, endPoints, onSelect, onPick, testId }: Props) {
-  const selected = state === 'selected'
+export function RouteCard({
+  livery,
+  state,
+  routeOrigin,
+  endPoints,
+  onSelect,
+  onPick,
+  testId,
+}: Props) {
+  const selected = state === 'selected';
   return (
     <div
       data-testid={`${testId}-origin`}
@@ -66,7 +81,12 @@ export function RouteCard({ livery, state, routeOrigin, endPoints, onSelect, onP
         CARD_TEXT[livery]
       }
     >
-      <img src={CARD_BLOB[livery].src} alt="" aria-hidden className={BLOB_PLACE + ' ' + CARD_BLOB[livery].className} />
+      <img
+        src={CARD_BLOB[livery].src}
+        alt=""
+        aria-hidden
+        className={BLOB_PLACE + ' ' + CARD_BLOB[livery].className}
+      />
       <div className="flex w-full flex-col items-start px-4 pt-2">
         {/* The name is the card's own target, stretched over all of it; the
             rows are drawn over that, so they keep their own taps. At a
@@ -99,8 +119,11 @@ export function RouteCard({ livery, state, routeOrigin, endPoints, onSelect, onP
       </ul>
       <span
         aria-hidden
-        className={'pointer-events-none absolute inset-0 ' + (selected ? CARD_SHADOW_SELECTED[livery] : CARD_SHADOW[livery])}
+        className={
+          'pointer-events-none absolute inset-0 ' +
+          (selected ? CARD_SHADOW_SELECTED[livery] : CARD_SHADOW[livery])
+        }
       />
     </div>
-  )
+  );
 }

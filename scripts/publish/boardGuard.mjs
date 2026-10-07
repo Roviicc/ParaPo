@@ -18,18 +18,18 @@
  */
 export function boardsRefusal({ named, gone, published, maxShrink }) {
   // One board gone is a file deleted by hand: a warning, and the map goes on.
-  if (gone < 2 || published === 0) return null
+  if (gone < 2 || published === 0) return null;
   if (gone === named) {
     return (
       `signboards: every one of the ${named} named is gone from the bucket. Is the bucket still public? ` +
       'Not publishing. If the removal is deliberate, run with --force.'
-    )
+    );
   }
   if (gone > named * maxShrink) {
     return (
       `signboards: ${gone} of the ${named} named are gone from the bucket, more than ${maxShrink * 100}%. ` +
       'Not publishing. If the removal is deliberate, run with --force.'
-    )
+    );
   }
-  return null
+  return null;
 }

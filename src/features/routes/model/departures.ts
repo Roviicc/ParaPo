@@ -1,4 +1,10 @@
-import { directionEndStops, directionEnds, isDrawn, type RouteSummary, type VariantSummary } from './routes'
+import {
+  directionEndStops,
+  directionEnds,
+  isDrawn,
+  type RouteSummary,
+  type VariantSummary,
+} from './routes';
 
 /*
  * Choosing among directions: a route's two, those under a tap grouped by
@@ -7,24 +13,28 @@ import { directionEndStops, directionEnds, isDrawn, type RouteSummary, type Vari
  */
 
 /** One route with its directions, for a sheet that lists routes, not directions. */
-export type RouteGroup<V extends VariantSummary> = { routeId: string; route: RouteSummary; directions: V[] }
+export type RouteGroup<V extends VariantSummary> = {
+  routeId: string;
+  route: RouteSummary;
+  directions: V[];
+};
 
 /** Directions gathered by route, in the order their routes were first met. */
 function groupByRoute<V extends VariantSummary>(variants: readonly V[]): RouteGroup<V>[] {
-  const groups = new Map<string, RouteGroup<V>>()
+  const groups = new Map<string, RouteGroup<V>>();
   for (const v of variants) {
-    const g = groups.get(v.route_id) ?? { routeId: v.route_id, route: v.route, directions: [] }
-    g.directions.push(v)
-    groups.set(v.route_id, g)
+    const g = groups.get(v.route_id) ?? { routeId: v.route_id, route: v.route, directions: [] };
+    g.directions.push(v);
+    groups.set(v.route_id, g);
   }
-  return [...groups.values()]
+  return [...groups.values()];
 }
 
 /** One place in the chooser, and the directions shown leaving it. */
 export type Departures<V extends VariantSummary> = {
-  from: string
-  directions: { v: V; to: string; drawn: boolean }[]
-}
+  from: string;
+  directions: { v: V; to: string; drawn: boolean }[];
+};
 
 /**
  * The routes under a tap one way round — outbound, or with `back` the way
@@ -33,18 +43,21 @@ export type Departures<V extends VariantSummary> = {
  * back reads SM Fairview, then Tala, and Novaliches, then Tala. The owner's
  * layout of 2026-09-25. A direction still a slot is listed, marked undrawn.
  */
-export function departures<V extends VariantSummary>(variants: readonly V[], back: boolean): Departures<V>[] {
-  const byPlace = new Map<string, Departures<V>>()
+export function departures<V extends VariantSummary>(
+  variants: readonly V[],
+  back: boolean,
+): Departures<V>[] {
+  const byPlace = new Map<string, Departures<V>>();
   for (const g of groupByRoute(variants)) {
-    const v = g.directions.find((d) => d.reversed === back)
-    if (!v) continue
-    const { from, to } = directionEnds(v)
-    const key = from.toLowerCase()
-    const place = byPlace.get(key) ?? { from, directions: [] }
-    place.directions.push({ v, to, drawn: isDrawn(v) })
-    byPlace.set(key, place)
+    const v = g.directions.find((d) => d.reversed === back);
+    if (!v) continue;
+    const { from, to } = directionEnds(v);
+    const key = from.toLowerCase();
+    const place = byPlace.get(key) ?? { from, directions: [] };
+    place.directions.push({ v, to, drawn: isDrawn(v) });
+    byPlace.set(key, place);
   }
-  return [...byPlace.values()]
+  return [...byPlace.values()];
 }
 
 /**
@@ -52,10 +65,13 @@ export function departures<V extends VariantSummary>(variants: readonly V[], bac
  * the owner's route cards list, since he dropped "not mapped yet" from them
  * (2026-09-28) — a row that opens nothing is no row.
  */
-export function drawnDepartures<V extends VariantSummary>(variants: readonly V[], back: boolean): Departures<V>[] {
+export function drawnDepartures<V extends VariantSummary>(
+  variants: readonly V[],
+  back: boolean,
+): Departures<V>[] {
   return departures(variants, back)
     .map((p) => ({ ...p, directions: p.directions.filter((d) => d.drawn) }))
-    .filter((p) => p.directions.length > 0)
+    .filter((p) => p.directions.length > 0);
 }
 
 /**
@@ -65,7 +81,12 @@ export function drawnDepartures<V extends VariantSummary>(variants: readonly V[]
  * nothing drawn, which no tap can reach.
  */
 export function directionToOpen<V extends VariantSummary>(directions: readonly V[]): V | null {
-  return directions.find((v) => !v.reversed && isDrawn(v)) ?? directions.find(isDrawn) ?? directions[0] ?? null
+  return (
+    directions.find((v) => !v.reversed && isDrawn(v)) ??
+    directions.find(isDrawn) ??
+    directions[0] ??
+    null
+  );
 }
 
 /**
@@ -74,7 +95,7 @@ export function directionToOpen<V extends VariantSummary>(directions: readonly V
  * the route has only this one.
  */
 export function otherDirection<V extends VariantSummary>(all: readonly V[], of: V): V | null {
-  return all.find((v) => v.route_id === of.route_id && v.id !== of.id) ?? null
+  return all.find((v) => v.route_id === of.route_id && v.id !== of.id) ?? null;
 }
 
 /**
@@ -87,13 +108,13 @@ export function otherDirection<V extends VariantSummary>(all: readonly V[], of: 
  * then shares none.
  */
 export function sharingAnEnd<V extends VariantSummary>(all: readonly V[], of: V): V[] {
-  const { head_stop_id: head, tail_stop_id: tail } = of.route
+  const { head_stop_id: head, tail_stop_id: tail } = of.route;
   return all.filter(
     (v) =>
       v.route_id === of.route_id ||
       (!!head && v.route.head_stop_id === head) ||
       (!!tail && v.route.tail_stop_id === tail),
-  )
+  );
 }
 
 /**
@@ -105,7 +126,9 @@ export function sharingAnEnd<V extends VariantSummary>(all: readonly V[], of: V)
  * old file's route may carry no ends; it then has none.
  */
 export function otherRoutesFrom<V extends VariantSummary>(all: readonly V[], of: V): V[] {
-  const start = directionEndStops(of).fromStop
-  if (!start) return []
-  return all.filter((v) => v.route_id !== of.route_id && isDrawn(v) && directionEndStops(v).fromStop === start)
+  const start = directionEndStops(of).fromStop;
+  if (!start) return [];
+  return all.filter(
+    (v) => v.route_id !== of.route_id && isDrawn(v) && directionEndStops(v).fromStop === start,
+  );
 }

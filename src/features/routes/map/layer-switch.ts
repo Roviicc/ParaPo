@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
-import type { LayerSpecification, MapLibreMap } from 'maplibre-gl'
-import { warmSoon, type Twin } from './warm-programs'
+import { useEffect, useRef } from 'react';
+import type { LayerSpecification, MapLibreMap } from 'maplibre-gl';
+import { warmSoon, type Twin } from './warm-programs';
 
 /*
  * The layers that draw only what is lit or marked, switched off as a whole
@@ -38,10 +38,10 @@ import { warmSoon, type Twin } from './warm-programs'
  */
 
 /** As much of a map as a switch uses: a unit check hands it a stand-in. */
-export type SwitchMap = Pick<MapLibreMap, 'getLayer' | 'getPaintProperty' | 'setPaintProperty'>
+export type SwitchMap = Pick<MapLibreMap, 'getLayer' | 'getPaintProperty' | 'setPaintProperty'>;
 
 /** A layer's property that switches it, by its type: `line-layer-opacity` or `fill-layer-opacity`. */
-const switchOf = (type: string) => `${type}-layer-opacity` as 'line-layer-opacity'
+const switchOf = (type: string) => `${type}-layer-opacity` as 'line-layer-opacity';
 
 /**
  * One switch over `layers`: on while anything they draw is lit (`set`), off
@@ -52,37 +52,37 @@ const switchOf = (type: string) => `${type}-layer-opacity` as 'line-layer-opacit
  * style made afresh after a lost GL context has it put back at its load.
  */
 export class LayerSwitch {
-  readonly layers: readonly string[]
-  on = false
+  readonly layers: readonly string[];
+  on = false;
   constructor(layers: readonly string[]) {
-    this.layers = layers
+    this.layers = layers;
   }
 
   /** What is lit or marked now: anything, or nothing. Applied only when that changes, with the feature state that changes with it. */
   set(map: SwitchMap, on: boolean): void {
-    if (on === this.on) return
-    this.on = on
-    this.apply(map)
+    if (on === this.on) return;
+    this.on = on;
+    this.apply(map);
   }
 
   /** The opacity the layers have now: 1 while anything is lit, 0 while nothing is. */
   value(): 0 | 1 {
-    return this.on ? 1 : 0
+    return this.on ? 1 : 0;
   }
 
   apply(map: SwitchMap): void {
-    const value = this.value()
+    const value = this.value();
     for (const id of this.layers) {
-      const layer = map.getLayer(id)
-      if (!layer) continue
-      const name = switchOf(layer.type)
-      if ((map.getPaintProperty(id, name) ?? 1) !== value) map.setPaintProperty(id, name, value)
+      const layer = map.getLayer(id);
+      if (!layer) continue;
+      const name = switchOf(layer.type);
+      if ((map.getPaintProperty(id, name) ?? 1) !== value) map.setPaintProperty(id, name, value);
     }
   }
 }
 
 /** As much of a map as twinsOf reads: its layers, as MapLibre serializes them. */
-type TwinMap = { getLayer: (id: string) => { serialize?: () => LayerSpecification } | undefined }
+type TwinMap = { getLayer: (id: string) => { serialize?: () => LayerSpecification } | undefined };
 
 /**
  * A twin of each of `layers` on `map`: its type and paint as they are now,
@@ -95,12 +95,15 @@ type TwinMap = { getLayer: (id: string) => { serialize?: () => LayerSpecificatio
  */
 export function twinsOf(map: TwinMap, layers: readonly string[]): Twin[] {
   return layers.flatMap((id) => {
-    const layer = map.getLayer(id)
-    const spec = (typeof layer?.serialize === 'function' ? layer.serialize() : layer) as LayerSpecification | undefined
-    if (!spec || !('paint' in spec)) return []
-    const paint = Object.fromEntries(Object.entries(spec.paint ?? {}).filter(([k]) => !/-layer-opacity(-transition)?$/.test(k)))
-    return [{ type: spec.type, paint } as Twin]
-  })
+    const layer = map.getLayer(id);
+    const spec = (typeof layer?.serialize === 'function' ? layer.serialize() : layer) as
+      LayerSpecification | undefined;
+    if (!spec || !('paint' in spec)) return [];
+    const paint = Object.fromEntries(
+      Object.entries(spec.paint ?? {}).filter(([k]) => !/-layer-opacity(-transition)?$/.test(k)),
+    );
+    return [{ type: spec.type, paint } as Twin];
+  });
 }
 
 /**
@@ -111,35 +114,39 @@ export function twinsOf(map: TwinMap, layers: readonly string[]): Twin[] {
  * `set` in the effect that sets their feature state. A basemap switch
  * needs nothing of it: the layers ride across with their paint (basemap.ts).
  */
-export function useLayerSwitch(map: MapLibreMap | null, layers: readonly string[], added: boolean): LayerSwitch {
-  const kept = useRef<LayerSwitch | null>(null)
-  kept.current ??= new LayerSwitch(layers)
-  const sw = kept.current
-  const warmed = useRef<MapLibreMap | null>(null)
+export function useLayerSwitch(
+  map: MapLibreMap | null,
+  layers: readonly string[],
+  added: boolean,
+): LayerSwitch {
+  const kept = useRef<LayerSwitch | null>(null);
+  kept.current ??= new LayerSwitch(layers);
+  const sw = kept.current;
+  const warmed = useRef<MapLibreMap | null>(null);
   useEffect(() => {
-    if (!map || !added) return
+    if (!map || !added) return;
     const twins = () => {
-      warmed.current = map
-      return twinsOf(map as unknown as TwinMap, sw.layers)
-    }
+      warmed.current = map;
+      return twinsOf(map as unknown as TwinMap, sw.layers);
+    };
     // Once a map: the programs stay with its GL context.
-    let cancel = warmed.current === map ? () => {} : warmSoon(map, twins)
+    let cancel = warmed.current === map ? () => {} : warmSoon(map, twins);
     // The programs went with the context; MapLibre makes the style afresh
     // from its own copy a frame after the context is back, these layers at
     // the opacity they had then, so a style's load is where they get the
     // switch's value.
     const restored = () => {
-      cancel()
-      cancel = warmSoon(map, twins)
-    }
-    const loaded = () => sw.apply(map)
-    map.on('webglcontextrestored', restored)
-    map.on('style.load', loaded)
+      cancel();
+      cancel = warmSoon(map, twins);
+    };
+    const loaded = () => sw.apply(map);
+    map.on('webglcontextrestored', restored);
+    map.on('style.load', loaded);
     return () => {
-      cancel()
-      map.off('webglcontextrestored', restored)
-      map.off('style.load', loaded)
-    }
-  }, [map, added, sw])
-  return sw
+      cancel();
+      map.off('webglcontextrestored', restored);
+      map.off('style.load', loaded);
+    };
+  }, [map, added, sw]);
+  return sw;
 }

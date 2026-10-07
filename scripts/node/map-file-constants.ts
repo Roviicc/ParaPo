@@ -11,15 +11,17 @@
 
 /** `export const NAME = '…'` with or without a trailing semicolon; the value. */
 function constant(source: string, name: string): string | undefined {
-  return new RegExp(`^export const ${name} = '([^']+)';?$`, 'm').exec(source)?.[1]
+  return new RegExp(`^export const ${name} = '([^']+)';?$`, 'm').exec(source)?.[1];
 }
 
 /** MAP_FILE_URL and EARLY_MAP_FILE as map-file.ts declares them, or throws naming what is missing. */
 export function mapFileConstants(source: string): { MAP_FILE_URL: string; EARLY_MAP_FILE: string } {
-  const MAP_FILE_URL = constant(source, 'MAP_FILE_URL')
-  const EARLY_MAP_FILE = constant(source, 'EARLY_MAP_FILE')
+  const MAP_FILE_URL = constant(source, 'MAP_FILE_URL');
+  const EARLY_MAP_FILE = constant(source, 'EARLY_MAP_FILE');
   if (!MAP_FILE_URL || !EARLY_MAP_FILE) {
-    throw new Error('map-file.ts must export MAP_FILE_URL and EARLY_MAP_FILE as single-quoted string constants')
+    throw new Error(
+      'map-file.ts must export MAP_FILE_URL and EARLY_MAP_FILE as single-quoted string constants',
+    );
   }
-  return { MAP_FILE_URL, EARLY_MAP_FILE }
+  return { MAP_FILE_URL, EARLY_MAP_FILE };
 }

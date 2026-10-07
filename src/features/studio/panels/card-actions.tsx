@@ -9,11 +9,11 @@ export function CardActions({
   onDelete,
   onExtend,
 }: {
-  editLabel: string
-  onEdit: () => void
-  onDelete: () => void
+  editLabel: string;
+  onEdit: () => void;
+  onDelete: () => void;
   /** A new route that borrows part of this direction's line. Drawn directions only. */
-  onExtend?: () => void
+  onExtend?: () => void;
 }) {
   return (
     <>
@@ -42,5 +42,5 @@ export function CardActions({
         Delete
       </button>
     </>
-  )
+  );
 }

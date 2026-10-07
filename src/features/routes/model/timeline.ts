@@ -1,9 +1,9 @@
-import { haversine, metresAlong, nearestOnSegment, type LngLat } from '@/shared/utils/geo'
-import { passIndex } from '../geo/pass'
-import { placeKey } from './places'
-import { servedBy, type ServedRoute } from './routes'
-import { stopLabel, stopRing, type StopKind, type StopSummary } from './stops'
-import type { Ring } from '../geo/ring'
+import { haversine, metresAlong, nearestOnSegment, type LngLat } from '@/shared/utils/geo';
+import { passIndex } from '../geo/pass';
+import { placeKey } from './places';
+import { servedBy, type ServedRoute } from './routes';
+import { stopLabel, stopRing, type StopKind, type StopSummary } from './stops';
+import type { Ring } from '../geo/ring';
 
 /*
  * A direction as a string of places: the hintuans its line passes, in order,
@@ -17,14 +17,18 @@ import type { Ring } from '../geo/ring'
  * neither are the hintuans this route does not stop at (`servedBy`): the
  * jeep hintuans under a train's track, the stations over a jeep's road.
  */
-export function hintuansAlong<S extends StopSummary>(line: readonly LngLat[], stops: readonly S[], route: ServedRoute): { stop: S; index: number }[] {
-  const along: { stop: S; index: number; at: number }[] = []
+export function hintuansAlong<S extends StopSummary>(
+  line: readonly LngLat[],
+  stops: readonly S[],
+  route: ServedRoute,
+): { stop: S; index: number }[] {
+  const along: { stop: S; index: number; at: number }[] = [];
   for (const stop of stops) {
-    if (!listedAlong(stop, route)) continue
-    const where = passedAt(line, stopRing(stop), stop)
-    if (where) along.push({ stop, ...where })
+    if (!listedAlong(stop, route)) continue;
+    const where = passedAt(line, stopRing(stop), stop);
+    if (where) along.push({ stop, ...where });
   }
-  return along.sort(inPassingOrder).map(({ stop, index }) => ({ stop, index }))
+  return along.sort(inPassingOrder).map(({ stop, index }) => ({ stop, index }));
 }
 
 /**
@@ -34,7 +38,7 @@ export function hintuansAlong<S extends StopSummary>(line: readonly LngLat[], st
  * only the boxes their line cuts (the cheap-phone plan, step 8, 2026-10-04).
  */
 export function listedAlong(stop: StopSummary, route: ServedRoute): boolean {
-  return stop.kind === 'hintuan' && !!stop.area && servedBy(stop, route)
+  return stop.kind === 'hintuan' && !!stop.area && servedBy(stop, route);
 }
 
 /**
@@ -42,17 +46,28 @@ export function listedAlong(stop: StopSummary, route: ServedRoute): boolean {
  * `index` (passIndex), and `at`, how far along that segment the stop's
  * middle is. Null when the line does not pass it.
  */
-export function passedAt(line: readonly LngLat[], ring: Ring, stop: StopSummary): { index: number; at: number } | null {
-  const index = passIndex(line, ring)
+export function passedAt(
+  line: readonly LngLat[],
+  ring: Ring,
+  stop: StopSummary,
+): { index: number; at: number } | null {
+  const index = passIndex(line, ring);
   // Two boxes met on one segment, a snapped road's 20–30 m, tied and kept
   // in the order the hotspots were read (review of 2026-10-03): the one
   // whose middle is further along that segment is reached later.
-  return index >= 0 ? { index, at: nearestOnSegment(stop.point.coordinates, line[index], line[index + 1] ?? line[index]).t } : null
+  return index >= 0
+    ? {
+        index,
+        at: nearestOnSegment(stop.point.coordinates, line[index], line[index + 1] ?? line[index]).t,
+      }
+    : null;
 }
 
 /** The order the line reaches what passedAt placed; a stable sort keeps ties as read. */
-export const inPassingOrder = (a: { index: number; at: number }, b: { index: number; at: number }): number =>
-  a.index - b.index || a.at - b.at
+export const inPassingOrder = (
+  a: { index: number; at: number },
+  b: { index: number; at: number },
+): number => a.index - b.index || a.at - b.at;
 
 /**
  * The hotspots a direction is linked to, in the order its line reaches
@@ -61,22 +76,31 @@ export const inPassingOrder = (a: { index: number; at: number }, b: { index: num
  * hintuansAlong orders the save panel's (review of 2026-10-03). `line` may
  * be the overview: a position along it is, an index into it is not.
  */
-export function orderLinked<S extends StopSummary>(linked: readonly { stop: S; sequence: number }[], line: readonly LngLat[]): S[] {
-  const keyed = linked.map((l) => ({ ...l, at: -1 }))
-  const tied = new Set<number>()
-  keyed.forEach((l, i) => keyed.forEach((m, j) => i !== j && l.sequence === m.sequence && tied.add(i)))
-  for (const i of tied) keyed[i].at = metresAlong(line, keyed[i].stop.point.coordinates)
-  return keyed.sort((a, b) => a.sequence - b.sequence || a.at - b.at).map((l) => l.stop)
+export function orderLinked<S extends StopSummary>(
+  linked: readonly { stop: S; sequence: number }[],
+  line: readonly LngLat[],
+): S[] {
+  const keyed = linked.map((l) => ({ ...l, at: -1 }));
+  const tied = new Set<number>();
+  keyed.forEach((l, i) =>
+    keyed.forEach((m, j) => i !== j && l.sequence === m.sequence && tied.add(i)),
+  );
+  for (const i of tied) keyed[i].at = metresAlong(line, keyed[i].stop.point.coordinates);
+  return keyed.sort((a, b) => a.sequence - b.sequence || a.at - b.at).map((l) => l.stop);
 }
 
 /** One row of a direction's timeline. */
-export type TimelineStop = { id: string; label: string; kind: StopKind }
+export type TimelineStop = { id: string; label: string; kind: StopKind };
 
 /**
  * A direction as a string of places: where it leaves from, the hintuans on
  * the way in order, where it is going. What a signboard is, generated.
  */
-export type Timeline = { from: TimelineStop | null; to: TimelineStop | null; between: TimelineStop[] }
+export type Timeline = {
+  from: TimelineStop | null;
+  to: TimelineStop | null;
+  between: TimelineStop[];
+};
 
 /**
  * The timeline of a direction with these ends. `along` is the hintuans in
@@ -98,13 +122,15 @@ export function timelineFor(
   lineStart?: LngLat,
 ): Timeline {
   // An end is its place, never a box: "SM Fairview", not the terminal's long name.
-  const row = (s: StopSummary): TimelineStop => ({ id: s.id, label: stopLabel(s), kind: s.kind })
-  const [from, to] = reversed ? [tail, head] : [head, tail]
-  const endPlaces = new Set([head, tail].filter((s) => !!s).map((s) => placeKey(s!)))
-  let between = along.filter((s) => s.kind === 'hintuan' && !endPlaces.has(placeKey(s)))
-  if (lineStart && from && to && drawnFromTheEnd(lineStart, from, to)) between = between.reverse()
-  const rows = between.filter((s, i) => i === 0 || placeKey(s) !== placeKey(between[i - 1])).map(row)
-  return { from: from ? row(from) : null, to: to ? row(to) : null, between: rows }
+  const row = (s: StopSummary): TimelineStop => ({ id: s.id, label: stopLabel(s), kind: s.kind });
+  const [from, to] = reversed ? [tail, head] : [head, tail];
+  const endPlaces = new Set([head, tail].filter((s) => !!s).map((s) => placeKey(s!)));
+  let between = along.filter((s) => s.kind === 'hintuan' && !endPlaces.has(placeKey(s)));
+  if (lineStart && from && to && drawnFromTheEnd(lineStart, from, to)) between = between.reverse();
+  const rows = between
+    .filter((s, i) => i === 0 || placeKey(s) !== placeKey(between[i - 1]))
+    .map(row);
+  return { from: from ? row(from) : null, to: to ? row(to) : null, between: rows };
 }
 
 /**
@@ -116,5 +142,5 @@ export function timelineFor(
  * timeline's middle, the ride-to cut and the arrows' line all turn on it.
  */
 export function drawnFromTheEnd(lineStart: LngLat, from: StopSummary, to: StopSummary): boolean {
-  return haversine(lineStart, to.point.coordinates) < haversine(lineStart, from.point.coordinates)
+  return haversine(lineStart, to.point.coordinates) < haversine(lineStart, from.point.coordinates);
 }

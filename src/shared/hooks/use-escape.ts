@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect } from 'react';
 
 /**
  * Escape does what ✕ does, as it does on any dialog — while `active`: a card
@@ -8,11 +8,11 @@ import { useEffect } from 'react'
  */
 export function useEscape(onEscape: () => void, active = true): void {
   useEffect(() => {
-    if (!active) return
+    if (!active) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onEscape()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onEscape, active])
+      if (e.key === 'Escape') onEscape();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onEscape, active]);
 }
