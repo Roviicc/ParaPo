@@ -178,8 +178,7 @@ export function useDotGaze(
     window.clearTimeout(timer.current);
     setGaze(next);
     if (next !== null) timer.current = window.setTimeout(() => setGaze(null), GAZE_MS);
-    // The keys alone say when something was picked.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the joined keys say when something was picked; the rest is read then
   }, [keys.join('\n')]);
 
   return gaze;

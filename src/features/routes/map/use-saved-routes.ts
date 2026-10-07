@@ -274,7 +274,7 @@ export function useSavedRoutes<T extends VariantSummary>(
   // line arrives.
   useEffect(() => {
     for (const id of selectedId ? [...lit, selectedId] : lit) request(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- asked again whenever what is lit is worked out (litNow), not only when the kept set changes
   }, [request, litNow, selectedId]);
 
   // So do the directions on screen at street zoom, where an overview's

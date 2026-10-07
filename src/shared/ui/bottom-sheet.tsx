@@ -264,8 +264,7 @@ export function BottomSheet({
     body.addEventListener('touchcancel', end, on);
     body.addEventListener('wheel', wheel, { ...on, passive: true });
     return () => bound.abort();
-    // Bound once; what changes is read through `now`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bound once; what changes is read through `now`
   }, []);
 
   // A drag and a tap are one gesture until it has travelled DRAG_PX. Taps on

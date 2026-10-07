@@ -303,7 +303,7 @@ export function useSavedRoutesLayers(
     addSavedRoutes(map, rows);
     laidOut.current = rows;
     patched.current = new Map();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- lays out the rows the source is made with; later rows are the next effect's
   }, [map]);
 
   // The source is laid out from the rows as loaded — on the public map, the

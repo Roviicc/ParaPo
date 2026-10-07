@@ -84,8 +84,7 @@ export function useTripOverview(
   useEffect(() => {
     if (!map || !trip) return;
     overview(map, [variantLine(trip)], dock.current, snap);
-    // Only as a trip opens (see above).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only as a trip opens (see above): its own changes move nothing
   }, [map, routeId]);
 }
 
@@ -108,8 +107,7 @@ export function useCardOverview(
     if (!map || !picked) return;
     const ids = new Set(picked.ids);
     overview(map, variants.filter((v) => ids.has(v.id)).map(variantLine), dock(), snap);
-    // Only as a card is picked (see above).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only as a card is picked (see above): the key says which
   }, [map, key]);
 }
 
@@ -140,8 +138,7 @@ export function useListOverview(
       overview(map, litRef.current.map(variantLine), dock(), snap),
     );
     return () => cancelAnimationFrame(frame);
-    // Only as the list opens on other routes (see above).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only as the list opens on other routes (see above): the key says which
   }, [map, key]);
 }
 
@@ -167,8 +164,7 @@ export function useSwitchOverview(
       overview(map, litRef.current.map(variantLine), dock(), snap),
     );
     return () => cancelAnimationFrame(frame);
-    // Only as SWITCH is pressed (see above).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only as SWITCH is pressed (see above): the count says when
   }, [map, switches]);
 }
 

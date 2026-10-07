@@ -1,9 +1,11 @@
 // ESLint, flat config. It encodes the standards in .claude/CLAUDE.md.
 //
-// Every rule reports a warning for now. The standards postdate most of the
-// tree, and the tree is being moved to them in stages; a rule flips to an
-// error in its own change once no file trips it. `npm run lint` is not part
-// of `npm run check` until then.
+// `npm run lint` is part of `npm run check` and of CI's build job, so a
+// regression fails the build rather than adding a warning nobody reads. The
+// rules the standards name are errors (the block of rules below). The
+// presets' rules are warnings until their own pass clears them (asWarnings,
+// and the list above it): the standards postdate most of the tree, and a
+// rule flips to an error in its own change once no file trips it.
 import js from '@eslint/js';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import checkFile from 'eslint-plugin-check-file';
@@ -15,7 +17,22 @@ import tseslint from 'typescript-eslint';
 /** 'error' becomes 'warn'; anything else is kept. */
 const downgrade = (level) => (level === 'error' || level === 2 ? 'warn' : level);
 
-/** The same configs with every rule at most a warning. */
+/**
+ * The same configs with every rule at most a warning. What still warns, by
+ * the pass that clears it (counts of 2026-10-07, after the pattern pass):
+ *   the hooks pass      react-hooks/refs 32, set-state-in-effect 12,
+ *                       immutability 10, exhaustive-deps 4, purity 1,
+ *                       preserve-manual-memoization 1 (the React Compiler's
+ *                       rules, each a behaviour question, not a rename)
+ *   the non-null pass   @typescript-eslint/no-non-null-assertion 21
+ *   the leftovers pass  @typescript-eslint/no-empty-function 8,
+ *                       jsx-a11y/no-autofocus 4, preserve-caught-error 2,
+ *                       @typescript-eslint/no-dynamic-delete 1,
+ *                       no-control-regex 1, no-irregular-whitespace 1,
+ *                       @typescript-eslint/no-unused-vars 1
+ * A single-line disable carries its reason (`-- why`); there is no
+ * file-wide disable.
+ */
 const asWarnings = (configs) =>
   configs.flat().map((config) =>
     config.rules
@@ -72,7 +89,10 @@ export default defineConfig([
     rules: {
       // TypeScript
       '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
-      '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'separate-type-imports' }],
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        { fixStyle: 'separate-type-imports' },
+      ],
 
       // Imports: four groups, blank lines between, alphabetical within.
       // `tsc` already proves every import resolves, so the resolver rule is off

@@ -151,7 +151,7 @@ export function useSaveFacts({
     return borrowedOn(
       parentFull?.id === borrowParent.id ? parentFull.line : variantLine(borrowParent),
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- measured again as the drawing or the parent's full line changes; borrowedOn reads nothing else that changes
   }, [borrowParent, borrowPart, draw.segments, parentFull]);
   /**
    * The borrow as a save writes it: on the parent's full line, never its

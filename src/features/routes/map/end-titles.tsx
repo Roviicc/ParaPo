@@ -150,8 +150,7 @@ function EndTitle({
       m.remove();
       marker.current = null;
     };
-    // Made once per map; where it is moves it below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- made once per map; the effect below moves it
   }, [map, el]);
 
   useEffect(() => {

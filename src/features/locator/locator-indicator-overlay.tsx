@@ -200,8 +200,7 @@ export function LocatorOnMap({
       map.off('zoom', zoomed);
       marker.remove();
     };
-    // Added once per map; the fix moves it below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- added once per map; the effect below moves it
   }, [map, marker]);
   useEffect(() => {
     marker.setLngLat(fix.at);

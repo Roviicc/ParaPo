@@ -421,7 +421,7 @@ export function useLocator(
     // render of the page, and is no reason to move the camera.
     if (cameraTurn) cameraTurn(follow);
     else follow();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cameraTurn is the render's turn, new every render, and no reason to move the camera
   }, [map, fix, camera, turn, taps, snap]);
 
   useEffect(
