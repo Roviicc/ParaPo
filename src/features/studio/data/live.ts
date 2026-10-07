@@ -45,10 +45,10 @@ import { getSupabase } from './supabase';
 //
 // `signboards` (0010, 2026-10-01): a few file names, for the trip card's
 // Signboard and the editor's own (SignboardEditor).
-export const VARIANT_SELECT =
+export const DIRECTION_SELECT =
   'id, route_id, owner_id, direction_name, origin_terminal, destination_terminal, overview, reversed, confidence, updated_at, borrowed_from, borrowed_part, borrowed_m, signboards, route:route(*)';
 /** The list as it was before 0009, for a database it has not reached yet. */
-const VARIANT_SELECT_BEFORE_0009 = VARIANT_SELECT.replace('overview', 'shape');
+const DIRECTION_SELECT_BEFORE_0009 = DIRECTION_SELECT.replace('overview', 'shape');
 
 /** The rest of a direction: its drawing, and its full line. */
 const DRAWING_SELECT = 'control_points, segments, shape';
@@ -66,7 +66,7 @@ const NO_OVERVIEW = /\boverview\b.*does not exist/;
  * Every saved direction of every route, with the generated names filled in
  * from the hotspots at each route's ends. Public: RLS allows anyone to read.
  */
-export async function listVariants(): Promise<DirectionRow[]> {
+export async function listDirections(): Promise<DirectionRow[]> {
   const client = getSupabase();
   if (!client) return [];
   // The client reads a row type off the select and guesses the embedded
@@ -82,11 +82,11 @@ export async function listVariants(): Promise<DirectionRow[]> {
         .then((r) => r as unknown as Page<ListedRow>),
     );
   const [listed, hotspots] = await Promise.all([
-    list(VARIANT_SELECT).catch((e: unknown) => {
+    list(DIRECTION_SELECT).catch((e: unknown) => {
       if (!(e instanceof Error && NO_OVERVIEW.test(e.message))) throw e;
-      return list(VARIANT_SELECT_BEFORE_0009);
+      return list(DIRECTION_SELECT_BEFORE_0009);
     }),
-    listStops(),
+    listHotspots(),
   ]);
   // A drawn row saved before 0009 and not backfilled has no overview yet: its
   // full line stands in, read for those rows alone.
@@ -194,7 +194,7 @@ export async function withDrawing(v: DirectionRow): Promise<DirectionDrawing> {
  * settles, reads afresh.
  */
 let hotspotsInFlight: Promise<HotspotRow[]> | null = null;
-function listStops(): Promise<HotspotRow[]> {
+function listHotspots(): Promise<HotspotRow[]> {
   const client = getSupabase();
   if (!client) return Promise.resolve([]);
   if (hotspotsInFlight) return hotspotsInFlight;
@@ -215,7 +215,7 @@ function listStops(): Promise<HotspotRow[]> {
 }
 
 /** Every hotspot ↔ direction link. Public read. */
-async function listStopLinks(): Promise<HotspotLink[]> {
+async function listHotspotLinks(): Promise<HotspotLink[]> {
   const client = getSupabase();
   if (!client) return [];
   return readAll<HotspotLink>((from, to) =>
@@ -230,7 +230,7 @@ async function listStopLinks(): Promise<HotspotLink[]> {
 }
 
 /** What the editor's hotspots hook loads. Module-level, so it never changes between renders. */
-export const loadStopsFromSupabase = async () => {
-  const [hotspots, links] = await Promise.all([listStops(), listStopLinks()]);
+export const loadHotspotsFromSupabase = async () => {
+  const [hotspots, links] = await Promise.all([listHotspots(), listHotspotLinks()]);
   return { hotspots, links };
 };

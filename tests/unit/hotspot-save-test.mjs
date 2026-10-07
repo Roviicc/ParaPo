@@ -1,17 +1,17 @@
-// The studio's hotspot save (src/features/studio/data/hotspots-write.ts, saveStop)
+// The studio's hotspot save (src/features/studio/data/hotspots-write.ts, saveHotspot)
 // against a fake client.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/stop-save-test.mjs
 //
 // Review of 2026-10-03, finding 4: the row goes in, then its links in
 // separate requests; when the links failed, Save again inserted the box a
-// second time. saveStop now says which row it wrote, and the retry, given
+// second time. saveHotspot now says which row it wrote, and the retry, given
 // that id, updates it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeSupabase } from './fixtures/fake-supabase.mjs';
 import { setSupabase } from '../../src/features/studio/data/supabase.ts';
-import { deleteStop, saveStop } from '../../src/features/studio/data/hotspots-write.ts';
+import { deleteHotspot, saveHotspot } from '../../src/features/studio/data/hotspots-write.ts';
 
 const ring = [
   [121.04, 14.7],
@@ -20,7 +20,7 @@ const ring = [
   [121.04, 14.7001],
 ];
 const input = {
-  stopId: null,
+  hotspotId: null,
   kind: 'hintuan',
   name: 'Tala Ilalim',
   informal: 'Tala',
@@ -42,13 +42,13 @@ test('a hotspot whose links failed is updated by the retry, not inserted again',
   setSupabase(client);
   let written = null;
   await assert.rejects(
-    saveStop(input, (id) => (written = id)),
+    saveHotspot(input, (id) => (written = id)),
     /hotspot is saved.*Press Save again/,
   );
   assert.equal(written, 's1');
 
   linksDown = false;
-  const saved = await saveStop({ ...input, stopId: written }, (id) => (written = id));
+  const saved = await saveHotspot({ ...input, hotspotId: written }, (id) => (written = id));
   assert.equal(saved.id, 's1');
   const hotspotWrites = log.filter((q) => q.table === 'stop').map((q) => q.op);
   assert.deepEqual(hotspotWrites, ['insert', 'update']);
@@ -61,5 +61,5 @@ test('a hotspot delete that matched no row says so (review of 2026-10-03, findin
     throw new Error(`unexpected ${q.op} on ${q.table}`);
   });
   setSupabase(client);
-  await assert.rejects(deleteStop({ id: 's1' }), /Nothing was changed/);
+  await assert.rejects(deleteHotspot({ id: 's1' }), /Nothing was changed/);
 });

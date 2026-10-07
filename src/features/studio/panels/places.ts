@@ -9,7 +9,7 @@ import { haversine, type LngLat } from '@/shared/utils/geo';
  */
 
 /** The hotspot nearest a point, by centroid. Only a starting guess for the picker. */
-export function nearestStop(hotspots: HotspotRow[], to: LngLat | undefined): string {
+export function nearestHotspot(hotspots: HotspotRow[], to: LngLat | undefined): string {
   if (!to || hotspots.length === 0) return '';
   let best = hotspots[0];
   let bestD = haversine(best.point.coordinates, to);
@@ -63,7 +63,7 @@ export function groupPlaces(hotspots: HotspotRow[]): Place[] {
  * line — the one the jeep actually stops at.
  */
 export function boxFor(place: Place, to: LngLat | undefined): string {
-  return place.terminal?.id ?? nearestStop(place.boxes, to);
+  return place.terminal?.id ?? nearestHotspot(place.boxes, to);
 }
 
 /**

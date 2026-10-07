@@ -1,4 +1,4 @@
-// The studio's direction save (src/features/studio/data/routes-write.ts, saveVariant)
+// The studio's direction save (src/features/studio/data/routes-write.ts, saveDirection)
 // against a fake client: which rows a failed save takes back out.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/route-save-test.mjs
@@ -11,11 +11,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeSupabase } from './fixtures/fake-supabase.mjs';
 import { setSupabase } from '../../src/features/studio/data/supabase.ts';
-import { deleteVariant, saveVariant } from '../../src/features/studio/data/routes-write.ts';
+import { deleteDirection, saveDirection } from '../../src/features/studio/data/routes-write.ts';
 
 const input = {
   routeId: null,
-  variantId: null,
+  directionId: null,
   signboard: '',
   mode: 'jeepney',
   fare_note: '',
@@ -54,7 +54,7 @@ test("a save that claimed another save's route does not delete it when its direc
     throw new Error(`unexpected ${q.op} on ${q.table}`);
   });
   setSupabase(client);
-  await assert.rejects(saveVariant(input));
+  await assert.rejects(saveDirection(input));
   assert.equal(log.filter((q) => q.op === 'delete').length, 0);
 });
 
@@ -67,7 +67,7 @@ test('a save that inserted the route takes it back out when its directions are r
     throw new Error(`unexpected ${q.op} on ${q.table}`);
   });
   setSupabase(client);
-  await assert.rejects(saveVariant(input), /null value/);
+  await assert.rejects(saveDirection(input), /null value/);
   const deletes = log.filter((q) => q.op === 'delete');
   assert.equal(deletes.length, 1);
   assert.deepEqual(deletes[0].filters, [['eq', 'id', 'r2']]);
@@ -81,7 +81,7 @@ test('emptying a direction that matched no row says so', async () => {
     throw new Error(`unexpected ${q.op} on ${q.table}`);
   });
   setSupabase(client);
-  await assert.rejects(deleteVariant({ id: 'v1', route_id: 'r1' }), /Nothing was changed/);
+  await assert.rejects(deleteDirection({ id: 'v1', route_id: 'r1' }), /Nothing was changed/);
   assert.equal(log.length, 1);
 });
 
@@ -93,7 +93,7 @@ test('emptying a direction clears its signboards with its line', async () => {
     throw new Error(`unexpected ${q.op} on ${q.table}`);
   });
   setSupabase(client);
-  await deleteVariant({ id: 'v1', route_id: 'r1' });
+  await deleteDirection({ id: 'v1', route_id: 'r1' });
   assert.deepEqual(log[0].payload.signboards, []);
 });
 
@@ -106,7 +106,7 @@ test("a save whose own route another save's directions filled first leaves it", 
     throw new Error(`unexpected ${q.op} on ${q.table}`);
   });
   setSupabase(client);
-  await assert.rejects(saveVariant(input));
+  await assert.rejects(saveDirection(input));
   assert.equal(log.filter((q) => q.op === 'delete').length, 0);
 });
 
@@ -121,7 +121,7 @@ test('a route with these ends but no row this way round is filled, not refused a
     throw new Error(`unexpected ${q.op} on ${q.table}`);
   });
   setSupabase(client);
-  const saved = await saveVariant(input);
+  const saved = await saveDirection(input);
   assert.equal(saved.id, 'v10');
   assert.deepEqual(
     log.map((q) => `${q.table} ${q.op}`),

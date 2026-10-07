@@ -18,12 +18,12 @@ export function linksThrough(
   ring: Ring,
   directions: DirectionRow[],
   line: string | null,
-): { variantId: string; sequence: number }[] {
-  const out: { variantId: string; sequence: number }[] = [];
+): { directionId: string; sequence: number }[] {
+  const out: { directionId: string; sequence: number }[] = [];
   for (const v of directions) {
     if (!servedBy({ line }, v.route)) continue;
     const idx = passIndex(directionLine(v), ring);
-    if (idx >= 0) out.push({ variantId: v.id, sequence: idx });
+    if (idx >= 0) out.push({ directionId: v.id, sequence: idx });
   }
   return out;
 }
@@ -40,7 +40,7 @@ const STARTS_WITHIN_M = 100;
  * metre or two off the road, and the first real terminal traced (Tala) had
  * the route start 20 cm outside its outline.
  */
-export function variantsStartingIn(ring: Ring, directions: DirectionRow[]): string[] {
+export function directionsStartingIn(ring: Ring, directions: DirectionRow[]): string[] {
   return directions
     .filter((v) => {
       const d = entryDistance(directionLine(v), ring);

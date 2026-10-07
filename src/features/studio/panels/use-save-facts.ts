@@ -113,7 +113,7 @@ export function useSaveFacts({
 
   // What an Extend borrowed: measured on the line as it is now, so a borrowed
   // point dragged away or undone is counted as it really is.
-  const borrowFromId = draw.borrow?.variantId ?? existing?.borrowed_from ?? null;
+  const borrowFromId = draw.borrow?.directionId ?? existing?.borrowed_from ?? null;
   const borrowPart = draw.borrow?.part ?? existing?.borrowed_part ?? null;
   const borrowParent = borrowFromId
     ? (directions.find((v) => v.id === borrowFromId) ?? null)

@@ -149,11 +149,11 @@ test('a saved box is linked only to the directions that stop at it', () => {
   const variants = [dir('jeep', JEEP), dir('lrt', LRT1), dir('mrt', MRT3)];
   const ring = ringAt(0.01).coordinates[0];
   assert.deepEqual(
-    linksThrough(ring, variants, null).map((l) => l.variantId),
+    linksThrough(ring, variants, null).map((l) => l.directionId),
     ['jeep'],
   );
   assert.deepEqual(
-    linksThrough(ring, variants, 'LRT-1').map((l) => l.variantId),
+    linksThrough(ring, variants, 'LRT-1').map((l) => l.directionId),
     ['lrt'],
   );
 });

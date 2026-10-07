@@ -9,8 +9,8 @@ import { bboxOf, bboxesOverlap, OVERVIEW_M } from '@/shared/utils/geo';
 
 import { terminalAlreadyAt } from './places';
 import { FIELD_TEXT, FOOTER, OVERLAY, PANEL } from './sheet';
-import { linksThrough, variantsStartingIn } from '../data/hotspots-geometry';
-import { saveStop } from '../data/hotspots-write';
+import { linksThrough, directionsStartingIn } from '../data/hotspots-geometry';
+import { saveHotspot } from '../data/hotspots-write';
 import { linesOf } from '../data/live';
 import type { Drawing } from '../drawing/use-drawing';
 
@@ -27,7 +27,7 @@ interface Props {
   onSaved: (s: HotspotRow) => void;
   onCancel: () => void;
   /** Hears the row a save wrote, the moment it is in, to keep it beyond this panel. */
-  onWritten?: (stopId: string) => void;
+  onWritten?: (hotspotId: string) => void;
 }
 
 const field =
@@ -97,7 +97,7 @@ export function HotspotPanel({
     setOwnWritten(id);
     onWritten?.(id);
   };
-  const stopId = writtenId ?? existing?.id ?? area?.stopId ?? null;
+  const hotspotId = writtenId ?? existing?.id ?? area?.hotspotId ?? null;
 
   // The list holds overviews (0009); a link's sequence is an index into the
   // full line, so the directions the outline can reach are read in full
@@ -131,7 +131,7 @@ export function HotspotPanel({
 
   const station = existing?.line ?? null;
   const through = useMemo(() => linksThrough(ring, lines, station), [ring, lines, station]);
-  const throughIds = useMemo(() => new Set(through.map((l) => l.variantId)), [through]);
+  const throughIds = useMemo(() => new Set(through.map((l) => l.directionId)), [through]);
 
   // A terminal's checklist is pre-ticked from the full lines, once they are
   // in; a box the owner ticks or unticks before then keeps the owner's
@@ -140,7 +140,7 @@ export function HotspotPanel({
     existing ? new Set(existingLinks) : null,
   );
   useEffect(() => {
-    if (lined && startTicks === null) setStartTicks(new Set(variantsStartingIn(ring, lined)));
+    if (lined && startTicks === null) setStartTicks(new Set(directionsStartingIn(ring, lined)));
   }, [lined, startTicks, ring]);
   const [chosen, setChosen] = useState<ReadonlyMap<string, boolean>>(() => new Map());
   const ticked = useMemo(() => {
@@ -172,7 +172,7 @@ export function HotspotPanel({
       return;
     }
     if (kind === 'terminal') {
-      const other = terminalAlreadyAt(hotspots, { id: stopId, name, informal });
+      const other = terminalAlreadyAt(hotspots, { id: hotspotId, name, informal });
       if (other) {
         setError(
           `${hotspotLabel(other)} already has a terminal ("${other.name}"). A place has one terminal; draw this one as a hintuan under the same name.`,
@@ -182,9 +182,9 @@ export function HotspotPanel({
     }
     setBusy(true);
     try {
-      const saved = await saveStop(
+      const saved = await saveHotspot(
         {
-          stopId,
+          hotspotId,
           kind,
           name,
           informal,

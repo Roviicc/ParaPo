@@ -375,10 +375,10 @@ test('read once as the hooks mount: twice in development under StrictMode was on
   // The hooks' effect calls loadOnce with their loader; StrictMode runs it twice, the ref kept.
   const loadedBy = { current: null };
   const reads = [];
-  const listVariants = () => 'routes';
+  const listDirections = () => 'routes';
   const effect = (load) => loadOnce(loadedBy, load, () => reads.push(load()));
-  assert.equal(effect(listVariants), true);
-  assert.equal(effect(listVariants), false);
+  assert.equal(effect(listDirections), true);
+  assert.equal(effect(listDirections), false);
   assert.deepEqual(reads, ['routes']);
   // A loader of another identity (one made each render, which the hooks warn against) reads again.
   const other = () => 'other';

@@ -40,7 +40,7 @@ const hotspots: HotspotRow[] = [
  * kind it is. Sample data only: a story has no Supabase client, so pressing
  * Save here shows an error and writes nothing.
  */
-function outline(kind: 'terminal' | 'hintuan', stopId: string | null = null): Drawing {
+function outline(kind: 'terminal' | 'hintuan', hotspotId: string | null = null): Drawing {
   const [x, y] = [121.0424, 14.741507];
   const d = 0.0003;
   const controlPoints: LngLat[] = [
@@ -49,7 +49,12 @@ function outline(kind: 'terminal' | 'hintuan', stopId: string | null = null): Dr
     [x + d, y + d],
     [x - d, y + d],
   ];
-  return { controlPoints, segments: [], area: { kind, stopId }, uTurns: [] } as unknown as Drawing;
+  return {
+    controlPoints,
+    segments: [],
+    area: { kind, hotspotId },
+    uTurns: [],
+  } as unknown as Drawing;
 }
 
 const meta = {

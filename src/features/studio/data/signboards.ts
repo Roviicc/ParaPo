@@ -23,13 +23,13 @@ export function signboardUrl(name: string): string {
 }
 
 /** The direction's list, written as given; the new list back. */
-async function writeList(variantId: string, names: readonly string[]): Promise<string[]> {
+async function writeList(directionId: string, names: readonly string[]): Promise<string[]> {
   const client = getSupabase();
   if (!client) throw new Error('Supabase is not configured.');
   const { data, error } = await client
     .from('route_variant')
     .update({ signboards: names })
-    .eq('id', variantId)
+    .eq('id', directionId)
     .select('signboards')
     .single();
   if (error) throw new Error(`The signboards were not saved: ${error.message}`);
@@ -38,7 +38,7 @@ async function writeList(variantId: string, names: readonly string[]): Promise<s
 
 /** A file cleaned and sent, then put last in the direction's list. */
 export async function addSignboard(
-  variantId: string,
+  directionId: string,
   current: readonly string[],
   file: File,
 ): Promise<string[]> {
@@ -56,7 +56,7 @@ export async function addSignboard(
       upsert: false,
     });
   if (error) throw new Error(`${file.name} was not uploaded: ${error.message}`);
-  return writeList(variantId, [...current, name]);
+  return writeList(directionId, [...current, name]);
 }
 
 /**
@@ -67,7 +67,7 @@ export async function addSignboard(
  * refusal is then thrown, as one file's is.
  */
 export async function addSignboards(
-  variantId: string,
+  directionId: string,
   current: readonly string[],
   files: readonly File[],
   onStep: (list: string[]) => void,
@@ -75,7 +75,7 @@ export async function addSignboards(
 ): Promise<string[]> {
   let list = [...current];
   for (const f of files) {
-    list = await add(variantId, list, f);
+    list = await add(directionId, list, f);
     onStep(list);
   }
   return list;
@@ -83,14 +83,14 @@ export async function addSignboards(
 
 /** A board taken off the direction, and its file deleted after. */
 export async function removeSignboard(
-  variantId: string,
+  directionId: string,
   current: readonly string[],
   name: string,
 ): Promise<string[]> {
   const client = getSupabase();
   if (!client) throw new Error('Supabase is not configured.');
   const next = await writeList(
-    variantId,
+    directionId,
     current.filter((n) => n !== name),
   );
   await client.storage.from(BUCKET).remove([name]);
@@ -99,7 +99,7 @@ export async function removeSignboard(
 
 /** A board one place earlier in the list. */
 export function moveSignboardEarlier(
-  variantId: string,
+  directionId: string,
   current: readonly string[],
   name: string,
 ): Promise<string[]> {
@@ -107,5 +107,5 @@ export function moveSignboardEarlier(
   if (i < 1) return Promise.resolve([...current]);
   const next = [...current];
   [next[i - 1], next[i]] = [next[i], next[i - 1]];
-  return writeList(variantId, next);
+  return writeList(directionId, next);
 }

@@ -21,8 +21,8 @@ import { requireSupabase } from './supabase';
 
 const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim());
 
-export interface SaveStopInput {
-  stopId: string | null;
+export interface SaveHotspotInput {
+  hotspotId: string | null;
   kind: HotspotKind;
   /** What is written on the ground. Required. */
   name: string;
@@ -47,9 +47,9 @@ export interface SaveStopInput {
  * links failed updates that row instead of inserting a second box on the
  * same ground (review of 2026-10-03, finding 4).
  */
-export async function saveStop(
-  input: SaveStopInput,
-  onWritten?: (stopId: string) => void,
+export async function saveHotspot(
+  input: SaveHotspotInput,
+  onWritten?: (hotspotId: string) => void,
 ): Promise<HotspotRow> {
   const client = requireSupabase();
   if (input.ring.length < 3) throw new Error('A hotspot needs at least three corners');
@@ -73,8 +73,8 @@ export async function saveStop(
     point: { type: 'Point', coordinates: roundLngLat(ringCentroid(ring)) } as PointGeoJSON,
   };
 
-  const query = input.stopId
-    ? client.from('stop').update(row).eq('id', input.stopId)
+  const query = input.hotspotId
+    ? client.from('stop').update(row).eq('id', input.hotspotId)
     : client.from('stop').insert(row);
   const { data, error } = await query.select('*').single();
   if (error) {
@@ -102,7 +102,7 @@ export async function saveStop(
   const links: HotspotLink[] =
     input.kind === 'hintuan'
       ? linksThrough(ring, input.directions, hotspot.line ?? null).map((l) => ({
-          route_variant_id: l.variantId,
+          route_variant_id: l.directionId,
           stop_id: hotspot.id,
           stop_sequence: l.sequence,
         }))
@@ -126,9 +126,9 @@ export async function saveStop(
 }
 
 /** Replace every link for one hotspot with the given set. */
-async function replaceLinks(stopId: string, links: HotspotLink[]) {
+async function replaceLinks(hotspotId: string, links: HotspotLink[]) {
   const client = requireSupabase();
-  const del = await client.from('route_stop').delete().eq('stop_id', stopId);
+  const del = await client.from('route_stop').delete().eq('stop_id', hotspotId);
   if (del.error) throw new Error(del.error.message);
   if (links.length === 0) return;
   const ins = await client.from('route_stop').insert(links);
@@ -140,7 +140,7 @@ async function replaceLinks(stopId: string, links: HotspotLink[]) {
  * RLS will not let through is not an error to PostgREST, only no rows: the
  * rows are read back, and none is said (review of 2026-10-03, finding 6).
  */
-export async function deleteStop(hotspot: HotspotRow): Promise<void> {
+export async function deleteHotspot(hotspot: HotspotRow): Promise<void> {
   const { data, error } = await requireSupabase()
     .from('stop')
     .delete()

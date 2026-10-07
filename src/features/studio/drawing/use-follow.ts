@@ -76,7 +76,7 @@ export function useFollow({
   };
 
   /**
-   * A direction's drawing is not in the list (live.ts VARIANT_SELECT): read
+   * A direction's drawing is not in the list (live.ts DIRECTION_SELECT): read
    * it for the one being opened, then hand it to the tool. A read that fails
    * is a notice, and the tool is never started on an empty drawing.
    */

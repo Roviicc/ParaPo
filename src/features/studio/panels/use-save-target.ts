@@ -15,8 +15,8 @@ import type { Drawing } from '../drawing/use-drawing';
  */
 export function useSaveTarget(draw: Drawing, directions: DirectionRow[], hotspots: HotspotRow[]) {
   // What the save panel is saving into.
-  const editing = draw.target.variantId
-    ? (directions.find((v) => v.id === draw.target.variantId) ?? null)
+  const editing = draw.target.directionId
+    ? (directions.find((v) => v.id === draw.target.directionId) ?? null)
     : null;
   const parentRoute =
     !editing && draw.target.routeId

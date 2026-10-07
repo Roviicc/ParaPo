@@ -20,8 +20,8 @@ import { routeTimeline } from '@/features/routes/model/ride';
 import { isDrawn, directionLine, type DirectionRow } from '@/features/routes/model/routes';
 import {
   lineOf,
-  listVariants,
-  loadStopsFromSupabase,
+  listDirections,
+  loadHotspotsFromSupabase,
   getSupabase,
   supabaseConfigError,
   CardActions,
@@ -36,8 +36,8 @@ import {
   SavePanel,
   SignIn,
   Toast,
-  deleteVariant,
-  deleteStop,
+  deleteDirection,
+  deleteHotspot,
   skipSignInForTests,
   useDrawing,
   useFollow,
@@ -118,14 +118,14 @@ function Workshop({
   const draw = useDrawing(map, { onFollow: (ids, at, offered) => onFollow(ids, at, offered) });
   // The list rows, each with its overview (0009): a direction's full line is
   // read when it is lit or chosen, its drawing when it is opened (below).
-  const saved = useSavedRoutes(map, listVariants, {
+  const saved = useSavedRoutes(map, listDirections, {
     drawing: draw.drawing,
-    hiddenDirectionId: draw.target.variantId,
+    hiddenDirectionId: draw.target.directionId,
     loadLine: lineOf,
   });
-  const hotspots = useSavedHotspots(map, loadStopsFromSupabase, {
+  const hotspots = useSavedHotspots(map, loadHotspotsFromSupabase, {
     drawing: draw.drawing,
-    hiddenHotspotId: draw.area?.stopId ?? null,
+    hiddenHotspotId: draw.area?.hotspotId ?? null,
     // While a trip is open, the map lights only the trip, as on the public map.
     muted: !!saved.selected,
   });
@@ -154,7 +154,7 @@ function Workshop({
 
   // What the lit routes wear on the map, as on the public map (useLitRides);
   // none of the orange over the direction being redrawn.
-  const rides = useLitRides(map, saved, hotspots.hotspots, draw.target.variantId, ride.ridden);
+  const rides = useLitRides(map, saved, hotspots.hotspots, draw.target.directionId, ride.ridden);
 
   // The pill counts routes, not directions: a route is two rows, one of them
   // perhaps an empty slot, and five routes once read "10 routes" (finding 7).
@@ -200,8 +200,8 @@ function Workshop({
   };
 
   // The hotspot being edited, when the area trace came from a saved one.
-  const editingHotspot = draw.area?.stopId
-    ? (hotspots.hotspots.find((s) => s.id === draw.area?.stopId) ?? null)
+  const editingHotspot = draw.area?.hotspotId
+    ? (hotspots.hotspots.find((s) => s.id === draw.area?.hotspotId) ?? null)
     : null;
 
   const onSaved = (v: DirectionRow) => {
@@ -250,7 +250,7 @@ function Workshop({
     }
     if (!window.confirm(`Delete ${s.kind} "${hotspotLabel(s)}"?`)) return;
     try {
-      await deleteStop(s);
+      await deleteHotspot(s);
       hotspots.select(null);
       await hotspots.reload();
     } catch (e) {
@@ -278,7 +278,7 @@ function Workshop({
     }
     if (!window.confirm(`Delete "${v.route?.name}" — ${v.direction_name}?`)) return;
     try {
-      await deleteVariant(v);
+      await deleteDirection(v);
       saved.select(null);
       await saved.reload();
     } catch (e) {

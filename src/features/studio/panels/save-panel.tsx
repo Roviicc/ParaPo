@@ -11,7 +11,7 @@ import {
 } from '@/features/routes/model/routes';
 import { haversine, type LngLat } from '@/shared/utils/geo';
 
-import { boxFor, groupPlaces, nearestStop } from './places';
+import { boxFor, groupPlaces, nearestHotspot } from './places';
 import { SaveNotices } from './save-notices';
 import { FIELD_TEXT, FOOTER, OVERLAY, PANEL } from './sheet';
 import { useSaveFacts } from './use-save-facts';
@@ -93,7 +93,7 @@ export function SavePanel({
   // actually starts and finishes — the nearest box, then that box's place,
   // then the place's own box — and corrected by hand when the guess is wrong.
   const guess = (to: LngLat | undefined) => {
-    const place = placeOf(nearestStop(hotspots, to));
+    const place = placeOf(nearestHotspot(hotspots, to));
     return place ? boxFor(place, to) : '';
   };
   // The guess reads the line's own order: it starts at the head. A return trip
@@ -114,7 +114,7 @@ export function SavePanel({
   // Saves are two steps, not one transaction (PLAN.md's known risk #3): a
   // second press inserted the route again, met its own row and was refused as
   // "already drawn" (review finding 13). Now it updates the row it wrote.
-  const [written, setWritten] = useState<{ routeId: string; variantId: string } | null>(null);
+  const [written, setWritten] = useState<{ routeId: string; directionId: string } | null>(null);
 
   // A return trip fills its route's slot and leaves the route as it is; Edit
   // route may change the route's facts, for both its directions. A new
@@ -188,7 +188,7 @@ export function SavePanel({
       const named = await saveRouteAndLinks(
         {
           routeId: written?.routeId ?? parent?.id ?? null,
-          variantId: written?.variantId ?? existing?.id ?? null,
+          directionId: written?.directionId ?? existing?.id ?? null,
           writeRoute: !!existing,
           signboard,
           mode,

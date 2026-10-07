@@ -31,7 +31,7 @@ import { findUTurns } from './uturns';
 /** What a save will write to: an existing direction, a new direction on an existing route, or (both null) a new route. */
 export interface Target {
   routeId: string | null;
-  variantId: string | null;
+  directionId: string | null;
 }
 
 /** Which kind of hotspot an area trace will become. */
@@ -41,11 +41,11 @@ export type HotspotKind = 'terminal' | 'hintuan';
  * Set while tracing a hotspot instead of a route. The same click / drag /
  * insert / delete / undo machinery runs; the differences are that every edge
  * is a straight line (no router), the ring closes itself, and a fill is drawn.
- * `stopId` is the saved hotspot being edited, or null for a new one.
+ * `hotspotId` is the saved hotspot being edited, or null for a new one.
  */
 export interface AreaTarget {
   kind: HotspotKind;
-  stopId: string | null;
+  hotspotId: string | null;
 }
 
 /**
@@ -54,7 +54,7 @@ export interface AreaTarget {
  * can offer to follow into this line.
  */
 export interface Borrow {
-  variantId: string;
+  directionId: string;
   part: BorrowPart;
 }
 
@@ -105,7 +105,7 @@ export function useDrawing(
    *  existing route, or (both null) a brand-new route. */
   const [target, setTarget] = useState<Target>({
     routeId: null,
-    variantId: null,
+    directionId: null,
   });
   /** Non-null while tracing a hotspot rather than a route. */
   const [area, setArea] = useState<AreaTarget | null>(null);
@@ -372,7 +372,7 @@ export function useDrawing(
       setFreehand(false);
       setArea(null);
       areaRef.current = null;
-      setTarget({ routeId: typeof routeId === 'string' ? routeId : null, variantId: null });
+      setTarget({ routeId: typeof routeId === 'string' ? routeId : null, directionId: null });
       setDrawing(true);
     },
     [reset],
@@ -387,7 +387,7 @@ export function useDrawing(
       setFreehand(false);
       setArea(null);
       areaRef.current = null;
-      setTarget({ routeId: v.route_id, variantId: v.id });
+      setTarget({ routeId: v.route_id, directionId: v.id });
       setDrawing(true);
     },
     [reset, writePoints, writeSegments],
@@ -403,7 +403,7 @@ export function useDrawing(
       setFreehand(false);
       setArea(null);
       areaRef.current = null;
-      setTarget({ routeId: null, variantId: null });
+      setTarget({ routeId: null, directionId: null });
       const p = { direction: v, spot: null };
       setPicking(p);
       pickingRef.current = p;
@@ -426,7 +426,7 @@ export function useDrawing(
       writePoints(cut.controlPoints);
       writeSegments(cut.segments);
       joinRef.current = part === 'end' ? (cut.controlPoints[0] ?? null) : null;
-      setBorrow({ variantId: p.direction.id, part });
+      setBorrow({ directionId: p.direction.id, part });
       setPicking(null);
       pickingRef.current = null;
     },
@@ -496,7 +496,7 @@ export function useDrawing(
         spot: cut.controlPoints[0],
         end: cut.controlPoints[cut.controlPoints.length - 1],
       };
-      setBorrow({ variantId: v.id, part: 'end' });
+      setBorrow({ directionId: v.id, part: 'end' });
       void resolveGaps(gap, [freehandRef.current ? 'freehand' : 'snapped']);
       return null;
     },
@@ -508,10 +508,10 @@ export function useDrawing(
     (kind: HotspotKind) => {
       reset();
       setFreehand(false);
-      const a = { kind, stopId: null };
+      const a = { kind, hotspotId: null };
       setArea(a);
       areaRef.current = a;
-      setTarget({ routeId: null, variantId: null });
+      setTarget({ routeId: null, directionId: null });
       setDrawing(true);
     },
     [reset],
@@ -523,19 +523,19 @@ export function useDrawing(
    * and opened again, or the page reloaded from its draft, updates that row
    * rather than inserting the box a second time (review of 2026-10-03).
    */
-  const adoptHotspot = useCallback((stopId: string) => {
+  const adoptHotspot = useCallback((hotspotId: string) => {
     const a = areaRef.current;
-    if (!a || a.stopId === stopId) return;
-    const next = { ...a, stopId };
+    if (!a || a.hotspotId === hotspotId) return;
+    const next = { ...a, hotspotId };
     setArea(next);
     areaRef.current = next;
   }, []);
 
   /** Open a saved hotspot's outline for editing. */
   const loadArea = useCallback(
-    (kind: HotspotKind, stopId: string, ring: LngLat[]) => {
+    (kind: HotspotKind, hotspotId: string, ring: LngLat[]) => {
       reset();
-      const a = { kind, stopId };
+      const a = { kind, hotspotId };
       setArea(a);
       areaRef.current = a;
       writePoints(ring);
@@ -543,7 +543,7 @@ export function useDrawing(
       for (let i = 1; i < ring.length; i++) segs.push(straightSegment(ring[i - 1], ring[i]));
       writeSegments(segs);
       setFreehand(false);
-      setTarget({ routeId: null, variantId: null });
+      setTarget({ routeId: null, directionId: null });
       setDrawing(true);
     },
     [reset, writePoints, writeSegments],
@@ -552,7 +552,7 @@ export function useDrawing(
   const cancel = useCallback(() => {
     setDrawing(false);
     reset();
-    setTarget({ routeId: null, variantId: null });
+    setTarget({ routeId: null, directionId: null });
     setArea(null);
     areaRef.current = null;
   }, [reset]);
@@ -576,7 +576,7 @@ export function useDrawing(
     writeSegments(
       saved.map((s) => (s?.pending ? { snap: s.snap, coordinates: s.coordinates } : s)),
     );
-    setTarget(d.target ?? { routeId: null, variantId: null });
+    setTarget(d.target ?? { routeId: null, directionId: null });
     setBorrow(d.borrow ?? null);
     joinRef.current = typeof d.join === 'number' ? (d.controlPoints[d.join] ?? null) : null;
     setDrawing(true);

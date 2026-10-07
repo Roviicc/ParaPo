@@ -8,7 +8,7 @@ import type { LngLat, Segment } from '@/shared/utils/geo';
 import { joinSegments, overviewOf, roundLngLat } from '@/shared/utils/geo';
 
 import { NOTHING_CHANGED } from './hotspots-write';
-import { VARIANT_SELECT } from './live';
+import { DIRECTION_SELECT } from './live';
 import { requireSupabase } from './supabase';
 import type { BorrowPart } from '../drawing/borrow';
 
@@ -22,7 +22,7 @@ import type { BorrowPart } from '../drawing/borrow';
  */
 export interface SaveInput {
   routeId: string | null;
-  variantId: string | null;
+  directionId: string | null;
   /** With routeId: write the route's facts too (Edit route). */
   writeRoute?: boolean;
   /** Optional since 0006: an observed fact, filled in when the owner is sure. */
@@ -58,7 +58,7 @@ const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim());
  * the return trip" a fill rather than an insert. Decided 2026-09-21.
  *
  * Writes require a signed-in editor who owns the row; RLS enforces it. The row
- * comes back as the list reads it (VARIANT_SELECT, without the drawing just
+ * comes back as the list reads it (DIRECTION_SELECT, without the drawing just
  * sent) and without its generated name: the caller has the hotspot list and
  * runs nameDirections on it.
  */
@@ -103,7 +103,7 @@ async function claimExistingRoute(
   }
   const mine = directions.find((d) => d.reversed === reversed);
   // No row this way round at all (a slot deleted by hand, a route from
-  // before 0006) is a slot to fill too: saveVariant's update finds nothing
+  // before 0006) is a slot to fill too: saveDirection's update finds nothing
   // and its insert is the honest repair. It was refused as drawn already
   // (review of 2026-10-03).
   if (!mine || mine.shape === null) return { routeId: data.id as string, fillSlot: true };
@@ -117,7 +117,7 @@ export const ENDS_TAKEN =
 const DRAWN_ALREADY =
   'A route between these two places already has this direction drawn. To change it, open it and press Edit route.';
 
-export async function saveVariant(input: SaveInput): Promise<UnnamedDirectionRow> {
+export async function saveDirection(input: SaveInput): Promise<UnnamedDirectionRow> {
   const client = requireSupabase();
 
   let routeId = input.routeId;
@@ -221,7 +221,7 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedDirectionRow
     const { data, error } = await client
       .from('route_variant')
       .insert([drawn, slot])
-      .select(VARIANT_SELECT);
+      .select(DIRECTION_SELECT);
     if (error) {
       // Two requests, not one transaction: the route row is already in.
       // Take it back out, or the next press meets route_ends_unique for a
@@ -247,8 +247,8 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedDirectionRow
   // direction in hand only an empty slot is a target (`shape is null`): a
   // return trip started on a route whose both ways are drawn once matched the
   // drawn row and replaced its line (review finding 2).
-  const target = input.variantId
-    ? client.from('route_variant').update(drawn).eq('id', input.variantId)
+  const target = input.directionId
+    ? client.from('route_variant').update(drawn).eq('id', input.directionId)
     : client
         .from('route_variant')
         .update(drawn)
@@ -256,7 +256,7 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedDirectionRow
         .eq('reversed', input.reversed)
         .is('shape', null);
 
-  const { data, error } = await target.select(VARIANT_SELECT).maybeSingle();
+  const { data, error } = await target.select(DIRECTION_SELECT).maybeSingle();
   if (error) throw new Error(error.message);
   if (data) return withLine(data as unknown as UnnamedDirectionRow, shape);
 
@@ -266,7 +266,7 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedDirectionRow
   const { data: made, error: insertError } = await client
     .from('route_variant')
     .insert(drawn)
-    .select(VARIANT_SELECT)
+    .select(DIRECTION_SELECT)
     .single();
   if (insertError?.code === UNIQUE_VIOLATION) throw new Error(DRAWN_ALREADY);
   if (insertError) throw new Error(insertError.message);
@@ -274,7 +274,7 @@ export async function saveVariant(input: SaveInput): Promise<UnnamedDirectionRow
 }
 
 /**
- * The row as the list reads it comes back with its overview (VARIANT_SELECT);
+ * The row as the list reads it comes back with its overview (DIRECTION_SELECT);
  * the caller gets it with the line it wrote, which its links are worked out on.
  */
 function withLine(
@@ -299,7 +299,7 @@ function withLine(
  * Every step reads its error (finding 16): a refused clean-up is said, not
  * left as a route nobody can reach.
  */
-export async function deleteVariant(direction: DirectionRow): Promise<void> {
+export async function deleteDirection(direction: DirectionRow): Promise<void> {
   const client = requireSupabase();
   const emptied = await client
     .from('route_variant')

@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import {
   boxFor,
   groupPlaces,
-  nearestStop,
+  nearestHotspot,
   terminalAlreadyAt,
 } from '../../src/features/studio/panels/places.ts';
 
@@ -59,9 +59,9 @@ test('a place stands on its terminal; with none, on the box nearest that end of 
 test('the nearest box to a point, and nothing without a point or boxes', () => {
   const a = box('A', 121.0),
     b = box('B', 121.1);
-  assert.equal(nearestStop([a, b], [121.09, 14.7]), b.id);
-  assert.equal(nearestStop([a, b], undefined), '');
-  assert.equal(nearestStop([], [121.0, 14.7]), '');
+  assert.equal(nearestHotspot([a, b], [121.09, 14.7]), b.id);
+  assert.equal(nearestHotspot([a, b], undefined), '');
+  assert.equal(nearestHotspot([], [121.0, 14.7]), '');
 });
 
 test('a place has one terminal: a second is found by the name people say, or the ground name when that is blank', () => {
