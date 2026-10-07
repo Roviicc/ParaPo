@@ -1,0 +1,7 @@
+# Commits that changed formatting alone, so blame reaches the real authors.
+# Turn it on once per clone:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (GitHub's blame view reads this file on its own.)
+
+# style: format the tree with Prettier (2026-10-07)
+cd992ff77f07911a3a21d42f21293c9733891d50

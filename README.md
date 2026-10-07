@@ -56,7 +56,9 @@ The editor needs the project's address and publishable key in `.env.local`
 nothing. `/studio/?e2e=1` skips the sign-in door in development builds, for
 the headless checks — drawing works, saving still needs an account.
 
-    npm run check                   # build with its guards, then the unit checks
+    npm run check                   # formatting, build with its guards, then the unit checks
+    npm run format                  # Prettier over the tree (.prettierrc); blame skips the format commit
+                                    # once per clone: git config blame.ignoreRevsFile .git-blame-ignore-revs
     node tests/e2e/visitor-test.mjs # and the other headless suites, see tests/e2e/README.md
     npm run check:data              # the committed map against the app's own rules
     npm run storybook               # the cards, the chooser, the panels, on their own

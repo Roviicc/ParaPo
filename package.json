@@ -9,7 +9,7 @@
     "build": "node scripts/checks/check-boundaries.mjs && tsc --noEmit && vite build && node --experimental-strip-types scripts/checks/check-build.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "check": "npm run build && npm run test:unit",
+    "check": "npm run format:check && npm run build && npm run test:unit",
     "test": "npm run test:unit",
     "test:unit": "node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs --test \"tests/unit/*-test.mjs\"",
     "check:data": "node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs scripts/checks/check-map-data.mjs",

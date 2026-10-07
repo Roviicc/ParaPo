@@ -114,6 +114,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Prettier, as .prettierrc asks: a file left unformatted fails here.
+      - name: Formatting
+        run: npm run format:check
       # Import boundaries, no editor code on /, the installable app's files.
       - name: Build, with the boundary and build checks
         run: npm run build
