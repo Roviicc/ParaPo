@@ -40,10 +40,6 @@ import { useSaveTarget } from './panels/useSaveTarget'
 import { usePasswordRecovery } from './auth/usePasswordRecovery'
 import { useSession } from './auth/useSession'
 import { useWalkLinks } from './walk/useWalkLinks'
-import { DraftList } from './drafts/DraftList'
-import { draftMiddle, draftNote, draftsLeft, type HintuanDraft } from './drafts/drafts'
-import { DRAFTS } from './drafts/trial'
-import { useHotspotDrafts } from './drafts/useHotspotDrafts'
 
 /**
  * The editor at /studio/. Signed out, the page is only its front door: the
@@ -101,7 +97,6 @@ function Workshop({
   const [changingPassword, setChangingPassword] = useState(false)
   const [saving, setSaving] = useState(false)
   const [hotspotMenu, setHotspotMenu] = useState(false)
-  const [draftList, setDraftList] = useState(false)
   // One toast at a time, the newest: a save's, or a problem.
   const [toast, setToast] = useState<
     { kind: 'route'; v: VariantRow } | { kind: 'stop'; s: StopRow } | { kind: 'notice'; text: string } | null
@@ -145,11 +140,6 @@ function Workshop({
   // The walking-link trial, Caloocan's (2026-10-06): read-only, from a file
   // in the studio's own bundle, never the database (walk/walkLinks.ts).
   useWalkLinks(map, draw.drawing)
-
-  // The hintuan drafts, Caloocan's (2026-10-06): those no saved hotspot has
-  // taken yet, on the map and in their list (drafts/drafts.ts).
-  const drafts = useMemo(() => draftsLeft(DRAFTS.drafts, stops.stops), [stops.stops])
-  useHotspotDrafts(map, drafts, draw.drawing)
 
   // The pill counts routes, not directions: a route is two rows, one of them
   // perhaps an empty slot, and five routes once read "10 routes" (finding 7).
@@ -197,15 +187,6 @@ function Workshop({
     // A moved line may have entered or left a hintuan; its links were re-synced.
     void stops.reload()
     setToast({ kind: 'route', v })
-  }
-
-  // A draft opened: the cards away and the camera on it, as Edit hintuan
-  // does, and its box the outline, its name and note filled in for the save.
-  const openDraft = (d: HintuanDraft) => {
-    setDraftList(false)
-    cards.closeAll()
-    map?.flyTo({ center: draftMiddle(d), zoom: 18 }, APP_MOVE)
-    draw.loadArea(d.kind, null, d.ring, { name: d.name, note: draftNote(d, DRAFTS) })
   }
 
   const onSavedStop = (s: StopRow) => {
@@ -495,9 +476,7 @@ function Workshop({
           keys={!saving && !signingIn && !changingPassword && !resetting}
           ends={extendEnds}
         />
-      ) : choosing ? null : draftList ? (
-        <DraftList area={DRAFTS.area} drafts={drafts} onOpen={openDraft} onClose={() => setDraftList(false)} />
-      ) : (
+      ) : choosing ? null : (
         /*
           Drawing needs no account; saving does, and asks for it at Done. Not
           while the route list is open, as the account pill is not: under
@@ -510,7 +489,6 @@ function Workshop({
           setMenu={setHotspotMenu}
           onNewRoute={() => draw.start()}
           onNewHotspot={(kind) => draw.startArea(kind)}
-          drafts={{ count: drafts.length, area: DRAFTS.area, onOpen: () => setDraftList(true) }}
         />
       )}
 
