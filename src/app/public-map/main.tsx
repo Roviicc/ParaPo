@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '@/styles/global.css'
 import CommuterApp from './public-map-app.tsx'
-import { registerServiceWorker } from '@/features/published-map/pwa'
+import { registerServiceWorker } from '@/features/published-map'
 
 /**
  * Where to send an auth result that arrived here, or null.

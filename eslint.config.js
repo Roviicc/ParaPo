@@ -89,8 +89,11 @@ export default defineConfig([
         {
           patterns: [
             {
-              group: ['@/features/*/*', '!@/features/*/index'],
-              message: 'Import a feature through its index.ts, never its inner files.',
+              // routes has no index.ts: Node runs the publish, the data check and the
+              // unit tests against source files, and a barrel over routes would load
+              // its map view (JSX, MapLibre) into them. Its concern folders are the API.
+              group: ['@/features/*/*', '!@/features/*/index', '!@/features/routes/*', '!@/features/routes/*/*'],
+              message: 'Import a feature through its index.ts, never its inner files (routes: through its concern folders).',
             },
             {
               group: ['@/app/*', '@/pages/*'],
