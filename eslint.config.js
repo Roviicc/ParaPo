@@ -129,7 +129,7 @@ export default defineConfig([
       'check-file/folder-naming-convention': ['error', { 'src/**/': 'KEBAB_CASE' }],
 
       // Logging: console.log never ships; warn and error are for real problems.
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   },
 
