@@ -71,7 +71,7 @@ export default defineConfig([
     },
     rules: {
       // TypeScript
-      '@typescript-eslint/consistent-type-definitions': ['warn', 'interface'],
+      '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
       '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'separate-type-imports' }],
 
       // Imports: four groups, blank lines between, alphabetical within.
