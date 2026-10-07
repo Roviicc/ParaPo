@@ -511,7 +511,7 @@ test("step 13: the rule's fingerprint is pinned to PASS_RULE", () => {
   );
 });
 
-test('step 13: the publish and the map data check import nothing from npm, all the way down (their workflow has no npm ci)', () => {
+test('step 13: the publish and the map data check import nothing from npm but zod, all the way down (their workflow installs the runtime dependencies for it)', () => {
   const root = new URL('../../', import.meta.url);
   const seen = new Set();
   const outside = [];
@@ -567,7 +567,9 @@ test('step 13: the publish and the map data check import nothing from npm, all t
     [...seen].some((u) => u.endsWith('/src/features/published-map/map-file.ts')),
     'they reach map-file.ts',
   );
-  assert.deepEqual(outside, []);
+  // zod reads the index's shape for them (ticket 08, 2026-10-07): the one package, and the
+  // workflow's `npm ci --omit=dev` is for it. Anything else from npm is a surprise.
+  assert.deepEqual([...new Set(outside.map((o) => o.split(': ')[1]))], ['zod/mini']);
 });
 
 // The committed map, as the next publish would write it: a copy of
@@ -634,15 +636,18 @@ test('step 13: on a copy of public/data, every line file written with its stretc
         return new Response('not here', { status: 404 });
       }
     };
-    const { loadMapFile, loadLine } = await import(
-      `../../src/features/published-map/map-file.ts?pass=${Date.now()}`
+    const { fetchIndex } = await import(
+      `../../src/features/published-map/api/fetch-index.ts?pass=${Date.now()}`
     );
-    const map = await loadMapFile();
-    const appBoxes = passBoxes(map.stops);
+    const { fetchLine } = await import(
+      `../../src/features/published-map/api/fetch-line.ts?pass=${Date.now()}`
+    );
+    const map = await fetchIndex();
+    const appBoxes = passBoxes(map.hotspots);
     let taken = 0;
     let stretches = 0;
-    for (const row of map.variants.filter((x) => x.shape)) {
-      const v = { ...row, shape: await loadLine(row.id) };
+    for (const row of map.directions.filter((x) => x.shape)) {
+      const v = { ...row, shape: await fetchLine(row.id) };
       const fromFile = publishedStretches(v, appBoxes);
       assert.ok(fromFile, `${v.id}: the file's stretches are taken`);
       assert.deepStrictEqual(
@@ -660,7 +665,7 @@ test('step 13: on a copy of public/data, every line file written with its stretc
     const v3 = readPublished(join(dir, 'index.v3.json')).file;
     const v3Boxes = passBoxes(v3.stops);
     for (const row of v3.variants.filter((x) => x.shape)) {
-      const v = { ...row, shape: await loadLine(row.id) };
+      const v = { ...row, shape: await fetchLine(row.id) };
       assert.deepStrictEqual(
         stretchesOf(v, v3Boxes),
         stretchesPast(v, v3Boxes),
@@ -687,13 +692,16 @@ test('step 13: the committed line files, with stretches or without, are painted 
       return new Response('not here', { status: 404 });
     }
   };
-  const { loadMapFile, loadLine } = await import(
-    `../../src/features/published-map/map-file.ts?committed=${Date.now()}`
+  const { fetchIndex } = await import(
+    `../../src/features/published-map/api/fetch-index.ts?committed=${Date.now()}`
   );
-  const map = await loadMapFile();
-  const boxes = passBoxes(map.stops);
-  for (const row of map.variants.filter((x) => x.shape)) {
-    const line = await loadLine(row.id);
+  const { fetchLine } = await import(
+    `../../src/features/published-map/api/fetch-line.ts?committed=${Date.now()}`
+  );
+  const map = await fetchIndex();
+  const boxes = passBoxes(map.hotspots);
+  for (const row of map.directions.filter((x) => x.shape)) {
+    const line = await fetchLine(row.id);
     const file = JSON.parse(readFileSync(join(data, 'lines', `${row.id}.json`), 'utf8'));
     const v = { ...row, shape: line };
     if (!('pass' in file))

@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
-import { loadMapFile, mapFileIsStale } from './map-file';
+import { fetchIndex, indexIsStale } from './api/fetch-index';
 
 /**
  * How the public map knows its own state: whether there is a network, and
@@ -34,10 +34,10 @@ export function useMapAge(loaded: unknown): MapAge {
   const [age, setAge] = useState<MapAge>({ publishedAt: null, stale: false });
   useEffect(() => {
     let live = true;
-    loadMapFile().then(
+    fetchIndex().then(
       (f) =>
         live &&
-        setAge((was) => sameAge(was, { publishedAt: f.published_at, stale: mapFileIsStale() })),
+        setAge((was) => sameAge(was, { publishedAt: f.published_at, stale: indexIsStale() })),
       () => {},
     );
     return () => {

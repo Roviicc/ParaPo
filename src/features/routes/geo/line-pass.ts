@@ -139,7 +139,7 @@ export function linePass(v: Direction, boxes: readonly PassBox[]): LinePass {
 }
 
 // The stretches each line file brought, by the very line object read from
-// it (mapFile.ts, loadLine): that object becomes the direction's `shape`
+// it (fetch-line.ts, fetchLine): that object becomes the direction's `shape`
 // as it is (useSavedRoutes), so whatever is kept here is the stretches of
 // that line and no other, and goes when the line does.
 const published = new WeakMap<object, LinePass>();

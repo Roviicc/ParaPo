@@ -1,11 +1,11 @@
 import type { LngLat, Segment } from '@/shared/utils/geo';
 import { joinSegments } from '@/shared/utils/geo';
 
+import type { Direction, TransportMode } from './direction-schema';
 import { hotspotLabel, type Hotspot } from './hotspots';
 
-/** Mirrors the `transport_mode` enum in supabase/migrations/0001_init.sql. */
-export type TransportMode =
-  'jeepney' | 'e_jeepney' | 'uv_express' | 'bus' | 'p2p' | 'tricycle' | 'lrt' | 'mrt' | 'ferry';
+export type { Confidence, Direction, RouteSummary, TransportMode } from './direction-schema';
+export type { LineStringGeoJSON } from './geojson-schema';
 
 export const MODES: { value: TransportMode; label: string }[] = [
   { value: 'jeepney', label: 'Jeepney' },
@@ -83,8 +83,6 @@ export function servedBy(hotspot: { line?: string | null }, route: ServedRoute):
   return line !== null && line === (route.route_code ?? null);
 }
 
-export type Confidence = 'drawn' | 'verified';
-
 export interface RouteRow {
   id: string;
   owner_id: string;
@@ -107,20 +105,6 @@ export interface RouteRow {
   /** Set only when another route shares both ends by a different road. */
   via: string | null;
 }
-
-/**
- * The parent route as the public map shows it. `name` is not a column: it is
- * generated from the two end hotspots by whoever reads the rows — the studio
- * after loading (live.ts), the publish script before writing the file.
- */
-export type RouteSummary = Pick<
-  RouteRow,
-  'id' | 'signboard' | 'long_name' | 'mode' | 'fare_note' | 'head_stop_id' | 'tail_stop_id' | 'via'
-> & {
-  name: string;
-  /** The train line, 'LRT-1', for a rail route (0011). Absent from files published before it. */
-  route_code?: string | null;
-};
 
 /** Spaced en dash. R3: applied by the app, never typed, so it cannot vary. */
 const DASH = '–';
@@ -146,45 +130,6 @@ export function routeName(head: string, tail: string, via?: string | null): stri
  */
 export function directionName(head: string, tail: string, reversed: boolean): string {
   return reversed ? `${tail} → ${head}` : `${head} → ${tail}`;
-}
-
-export interface LineStringGeoJSON {
-  type: 'LineString';
-  coordinates: LngLat[];
-}
-
-/**
- * One direction as the public map needs it: its line and what its card shows.
- * No control points or segments — those exist for editing.
- */
-export interface Direction {
-  id: string;
-  route_id: string;
-  direction_name: string | null;
-  origin_terminal: string | null;
-  destination_terminal: string | null;
-  /**
-   * Null until this direction is drawn. Saving one direction creates the other
-   * at once as an empty slot, so the card can always be flipped and the studio
-   * has a list of what is still undrawn. 0006.
-   */
-  shape: LineStringGeoJSON | null;
-  /** false = head to tail, true = the way back. Exactly two per route. */
-  reversed: boolean;
-  confidence: Confidence;
-  route: RouteSummary;
-  /**
-   * The ride's length in metres, measured on its full line: the published
-   * index carries it, so a trip's Kilometer and fare never read an overview.
-   * Absent from the studio's rows and from map.json's, whose lines are whole.
-   */
-  metres?: number | null;
-  /**
-   * Its signboards as pictures, in order (0010, the owner's ask of
-   * 2026-10-01): file names — in the studio's bucket for the editor, beside
-   * the map (/data/signboards/) for the public. Absent when it has none.
-   */
-  signboards?: readonly string[];
 }
 
 /**

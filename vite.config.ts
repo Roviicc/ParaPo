@@ -550,6 +550,15 @@ export default defineConfig({
               test: /[\\/]node_modules[\\/]maplibre-gl[\\/]dist[\\/]maplibre-gl\.mjs$/,
               priority: 2,
             },
+            //  - zod (ticket 08 of the restructure follow-ups, 2026-10-07): the
+            //    validator the published index is read with, in a chunk of
+            //    its own so check-build.mjs can weigh it and `shared` stays
+            //    our code alone.
+            {
+              name: 'zod',
+              test: /[\\/]node_modules[\\/]zod[\\/]/,
+              priority: 1,
+            },
             {
               name: 'react',
               test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,

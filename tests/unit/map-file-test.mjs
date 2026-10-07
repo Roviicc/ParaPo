@@ -18,7 +18,17 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 let n = 0;
 /** A fresh copy of the module, since it caches the first successful load. */
-const fresh = () => import(`../../src/features/published-map/map-file.ts?case=${n++}`);
+import * as contract from '../../src/features/published-map/map-file.ts';
+
+/** The two fetchers afresh (their module-level state with them), with the contract's names beside. */
+const fresh = async () => {
+  const k = n++;
+  return {
+    ...contract,
+    ...(await import(`../../src/features/published-map/api/fetch-index.ts?case=${k}`)),
+    ...(await import(`../../src/features/published-map/api/fetch-line.ts?case=${k}`)),
+  };
+};
 
 const base = {
   schema: 4,
@@ -51,7 +61,29 @@ const direction = {
   reversed: false,
   confidence: 'drawn',
   overview,
-  route: { id: 'r1' },
+  route: {
+    id: 'r1',
+    signboard: null,
+    long_name: null,
+    mode: 'jeepney',
+    fare_note: null,
+    head_stop_id: 'h1',
+    tail_stop_id: 'h2',
+    via: null,
+    name: 'A – B',
+  },
+};
+/** A hotspot as the index carries one: the terminal the fixture direction leaves from. */
+const hotspot = {
+  id: 'h1',
+  name: 'A',
+  informal: null,
+  aliases: [],
+  kind: 'terminal',
+  point: { type: 'Point', coordinates: [121, 14.7] },
+  area: null,
+  note: null,
+  created_at: '2026-09-29T00:00:00Z',
 };
 
 /** Serve by path: `{ '/data/index.v4.json': body }`; a string body is sent as it is. */
@@ -69,9 +101,9 @@ const index = (body, opts) => serve({ '/data/index.v4.json': body }, opts);
 
 test("today's index, schema 4, loads", async () => {
   index(base);
-  const { loadMapFile, MAP_FILE_SCHEMA } = await fresh();
+  const { fetchIndex, MAP_FILE_SCHEMA } = await fresh();
   assert.equal(MAP_FILE_SCHEMA, 4);
-  assert.equal((await loadMapFile()).schema, 4);
+  assert.equal((await fetchIndex()).schema, 4);
 });
 
 test("a direction's overview is its line until the full line is read", async () => {
@@ -79,21 +111,21 @@ test("a direction's overview is its line until the full line is read", async () 
     '/data/index.v4.json': { ...base, variants: [direction] },
     '/data/lines/d1.json': { schema: 2, id: 'd1', shape: line },
   });
-  const { loadMapFile, loadLine } = await fresh();
-  const [v] = (await loadMapFile()).variants;
+  const { fetchIndex, fetchLine } = await fresh();
+  const [v] = (await fetchIndex()).directions;
   assert.deepEqual(v.shape, overview);
   assert.equal('overview' in v, false);
-  assert.deepEqual(await loadLine('d1'), line);
+  assert.deepEqual(await fetchLine('d1'), line);
 });
 
 test("a line file that is not that direction's is refused, and a failed line is asked again", async () => {
   serve({ '/data/lines/d1.json': { schema: 2, id: 'd2', shape: line } });
-  const { loadLine } = await fresh();
-  await assert.rejects(loadLine('d1'), {
+  const { fetchLine } = await fresh();
+  await assert.rejects(fetchLine('d1'), {
     message: "/data/lines/d1.json is not that direction's line",
   });
   serve({ '/data/lines/d1.json': { schema: 2, id: 'd1', shape: line } });
-  assert.deepEqual(await loadLine('d1'), line);
+  assert.deepEqual(await fetchLine('d1'), line);
 });
 
 // The cheap-phone plan, step 13, 2026-10-05: a line file may carry its
@@ -125,7 +157,7 @@ test("step 13: a line file's orange stretches are kept under the line it brings;
     },
   ];
   const boxes = passBoxes(stops);
-  const row = { ...direction, route: { id: 'r1', mode: 'jeepney' } };
+  const row = { ...direction, route: { ...direction.route, mode: 'jeepney' } };
   const { pass, passKey } = linePass({ ...row, shape: line }, boxes);
   assert.ok(pass.length > 0);
   // Made-up stretches under the true key: what comes back is the file's own, not a walk.
@@ -140,21 +172,21 @@ test("step 13: a line file's orange stretches are kept under the line it brings;
     '/data/lines/d2.json': { schema: 2, id: 'd2', shape: line },
     '/data/lines/d3.json': { schema: 2, id: 'd3', shape: line, pass: 'stretches', passKey },
   });
-  const { loadLine } = await fresh();
+  const { fetchLine } = await fresh();
   for (const id of ['d1', 'd2', 'd3'])
-    assert.deepStrictEqual(await loadLine(id), line, `${id}: the line, and only the line`);
-  const with1 = { ...row, shape: await loadLine('d1') };
+    assert.deepStrictEqual(await fetchLine(id), line, `${id}: the line, and only the line`);
+  const with1 = { ...row, shape: await fetchLine('d1') };
   assert.deepStrictEqual(
     publishedStretches(with1, boxes).map((f) => f.geometry.coordinates),
     theirs,
   );
   assert.equal(
-    publishedStretches({ ...row, id: 'd2', shape: await loadLine('d2') }, boxes),
+    publishedStretches({ ...row, id: 'd2', shape: await fetchLine('d2') }, boxes),
     null,
     'no stretches in the file',
   );
   assert.equal(
-    publishedStretches({ ...row, id: 'd3', shape: await loadLine('d3') }, boxes),
+    publishedStretches({ ...row, id: 'd3', shape: await fetchLine('d3') }, boxes),
     null,
     'stretches it cannot read',
   );
@@ -164,61 +196,100 @@ test("step 13: a line file's orange stretches are kept under the line it brings;
 
 test('fields the app does not know are ignored, not a new shape', async () => {
   index({ ...base, fares: [{ from: 'Tala', to: 'SM Fairview', pesos: 13 }], terminals: [] });
-  const { loadMapFile } = await fresh();
-  const file = await loadMapFile();
-  assert.deepEqual(file.variants, []);
+  const { fetchIndex } = await fresh();
+  const file = await fetchIndex();
+  assert.deepEqual(file.directions, []);
   assert.equal(file.fares.length, 1);
+});
+
+// zod/mini carries no locale, so the message is terse; the path says which row and field.
+test('a row the app cannot read is refused, saying which, and no stored copy stands in', async () => {
+  index({ ...base, variants: [{ ...direction, reversed: 'yes' }] });
+  const { fetchIndex } = await fresh();
+  await assert.rejects(fetchIndex(), {
+    message:
+      '/data/index.v4.json has a row this app cannot read: variants.0.reversed Invalid input',
+  });
+});
+
+test('a stored copy with a row the app cannot read is passed over for the next one', async () => {
+  index(base, { status: 503 });
+  const store = {
+    '/data/index.v4.json': { ...base, stops: [{ ...hotspot, kind: 'bus stop' }] },
+    '/data/index.v3.json': { ...base, schema: 3, published_at: 'the v3 copy', stops: [hotspot] },
+  };
+  globalThis.caches = {
+    match: async (url, { cacheName }) =>
+      cacheName === 'map-file' && store[url] ? json(store[url]) : undefined,
+  };
+  try {
+    const a = await fresh();
+    const file = await a.fetchIndex();
+    assert.equal(file.published_at, 'the v3 copy');
+    assert.deepEqual(file.hotspots, [hotspot]);
+    assert.equal(a.indexIsStale(), true);
+  } finally {
+    delete globalThis.caches;
+  }
+});
+
+test('a line file whose shape is not a line string reads as no line, as before', async () => {
+  serve({
+    '/data/lines/d1.json': { schema: 2, id: 'd1', shape: { type: 'Point', coordinates: [1, 2] } },
+  });
+  const { fetchLine } = await fresh();
+  assert.equal(await fetchLine('d1'), null);
 });
 
 test('a shape this app does not know (schema 5) is refused with the banner message', async () => {
   index({ ...base, schema: 5 });
-  const { loadMapFile, MAP_FILE_TOO_NEW } = await fresh();
-  await assert.rejects(loadMapFile(), { message: MAP_FILE_TOO_NEW });
+  const { fetchIndex, MAP_FILE_TOO_NEW } = await fresh();
+  await assert.rejects(fetchIndex(), { message: MAP_FILE_TOO_NEW });
 });
 
 test("an older shape at the index's path is not the index", async () => {
   index({ ...base, schema: 1 });
-  const { loadMapFile } = await fresh();
-  await assert.rejects(loadMapFile(), { message: '/data/index.v4.json is shape 1, not the index' });
+  const { fetchIndex } = await fresh();
+  await assert.rejects(fetchIndex(), { message: '/data/index.v4.json is shape 1, not the index' });
   index({ ...base, schema: 2 });
-  await assert.rejects((await fresh()).loadMapFile(), {
+  await assert.rejects((await fresh()).fetchIndex(), {
     message: '/data/index.v4.json is shape 2, not the index',
   });
   index({ ...base, schema: 3 });
-  await assert.rejects((await fresh()).loadMapFile(), {
+  await assert.rejects((await fresh()).fetchIndex(), {
     message: '/data/index.v4.json is shape 3, not the index',
   });
 });
 
 test('something that is not a map is that error, whatever number it carries', async () => {
   index({ schema: 5, hello: 'world' });
-  const { loadMapFile } = await fresh();
-  await assert.rejects(loadMapFile(), { message: '/data/index.v4.json is not a published map' });
+  const { fetchIndex } = await fresh();
+  await assert.rejects(fetchIndex(), { message: '/data/index.v4.json is not a published map' });
 });
 
 test('a failed answer is an HTTP error', async () => {
   index('gone', { status: 503 });
-  const { loadMapFile } = await fresh();
-  await assert.rejects(loadMapFile(), { message: '/data/index.v4.json: HTTP 503' });
+  const { fetchIndex } = await fresh();
+  await assert.rejects(fetchIndex(), { message: '/data/index.v4.json: HTTP 503' });
 });
 
 test('a failure is not cached: the next load asks again', async () => {
   index('gone', { status: 503 });
-  const { loadMapFile } = await fresh();
-  await assert.rejects(loadMapFile());
+  const { fetchIndex } = await fresh();
+  await assert.rejects(fetchIndex());
   index(base);
-  assert.equal((await loadMapFile()).schema, 4);
+  assert.equal((await fetchIndex()).schema, 4);
 });
 
 test('the stored-copy header marks the load stale; a network answer does not', async () => {
   index(base, { headers: { 'x-parapo-served-from': 'cache' } });
   const a = await fresh();
-  await a.loadMapFile();
-  assert.equal(a.mapFileIsStale(), true);
+  await a.fetchIndex();
+  assert.equal(a.indexIsStale(), true);
   index(base);
   const b = await fresh();
-  await b.loadMapFile();
-  assert.equal(b.mapFileIsStale(), false);
+  await b.fetchIndex();
+  assert.equal(b.indexIsStale(), false);
 });
 
 // The cheap-phone plan, step 20 (2026-10-04): index.html's own script asks
@@ -260,11 +331,11 @@ test("step 20: index.html's request is the one read, taken once; after a failure
   globalThis.__parapoMapFile = pageAsked(json({ ...base, published_at: 'from index.html' }));
   try {
     const a = await fresh();
-    assert.equal((await a.loadMapFile()).published_at, 'from index.html');
+    assert.equal((await a.fetchIndex()).published_at, 'from index.html');
     assert.deepEqual(asked, [], 'no second request');
     assert.equal('__parapoMapFile' in globalThis, false, 'taken off the page');
     assert.equal(
-      (await a.loadMapFile()).published_at,
+      (await a.fetchIndex()).published_at,
       'from index.html',
       'kept, as a load from the page is',
     );
@@ -272,8 +343,8 @@ test("step 20: index.html's request is the one read, taken once; after a failure
     // A failed one: the next load asks the network itself, never the same answer again.
     globalThis.__parapoMapFile = pageAsked(json('gone', { status: 503 }));
     const b = await fresh();
-    await assert.rejects(b.loadMapFile(), { message: '/data/index.v4.json: HTTP 503' });
-    assert.equal((await b.loadMapFile()).published_at, 'from the page');
+    await assert.rejects(b.fetchIndex(), { message: '/data/index.v4.json: HTTP 503' });
+    assert.equal((await b.fetchIndex()).published_at, 'from the page');
     assert.deepEqual(asked, ['/data/index.v4.json']);
   } finally {
     delete globalThis.__parapoMapFile;
@@ -284,8 +355,8 @@ test("step 20: a request of index.html's that failed (no network as the page was
   const asked = counted({ '/data/index.v4.json': base });
   globalThis.__parapoMapFile = pageAsked(Promise.reject(new TypeError('Failed to fetch')));
   try {
-    const { loadMapFile } = await fresh();
-    assert.equal((await loadMapFile()).schema, 4);
+    const { fetchIndex } = await fresh();
+    assert.equal((await fetchIndex()).schema, 4);
     assert.deepEqual(asked, ['/data/index.v4.json']);
   } finally {
     delete globalThis.__parapoMapFile;
@@ -296,7 +367,7 @@ test("step 20: a request of index.html's that failed (no network as the page was
   };
   globalThis.__parapoMapFile = pageAsked(Promise.reject(new TypeError('Failed to fetch')));
   try {
-    await assert.rejects((await fresh()).loadMapFile(), { message: 'Failed to fetch' });
+    await assert.rejects((await fresh()).fetchIndex(), { message: 'Failed to fetch' });
   } finally {
     delete globalThis.__parapoMapFile;
   }
@@ -308,7 +379,7 @@ test("step 20: index.html's answer is read as the page's own was: an error, the 
   try {
     // A server's error: the error, and with a copy in store, the copy, marked stale.
     globalThis.__parapoMapFile = pageAsked(json('gone', { status: 503 }));
-    await assert.rejects((await fresh()).loadMapFile(), {
+    await assert.rejects((await fresh()).fetchIndex(), {
       message: '/data/index.v4.json: HTTP 503',
     });
     globalThis.caches = {
@@ -317,8 +388,8 @@ test("step 20: index.html's answer is read as the page's own was: an error, the 
     };
     globalThis.__parapoMapFile = pageAsked(json('gone', { status: 503 }));
     const a = await fresh();
-    assert.equal((await a.loadMapFile()).published_at, '2026-09-30T00:00:00Z');
-    assert.equal(a.mapFileIsStale(), true);
+    assert.equal((await a.fetchIndex()).published_at, '2026-09-30T00:00:00Z');
+    assert.equal(a.indexIsStale(), true);
     // The page itself, 200, in place of a missing file: not JSON, so the copy.
     globalThis.__parapoMapFile = pageAsked(
       new Response('<!doctype html><title>Para Po</title>', {
@@ -326,13 +397,13 @@ test("step 20: index.html's answer is read as the page's own was: an error, the 
       }),
     );
     const b = await fresh();
-    assert.equal((await b.loadMapFile()).published_at, '2026-09-30T00:00:00Z');
-    assert.equal(b.mapFileIsStale(), true);
+    assert.equal((await b.fetchIndex()).published_at, '2026-09-30T00:00:00Z');
+    assert.equal(b.indexIsStale(), true);
     delete globalThis.caches;
     globalThis.__parapoMapFile = pageAsked(
       new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }),
     );
-    await assert.rejects((await fresh()).loadMapFile(), {
+    await assert.rejects((await fresh()).fetchIndex(), {
       message: '/data/index.v4.json: not JSON',
     });
     // Served by the worker from its store: stale; from the network: not.
@@ -340,22 +411,22 @@ test("step 20: index.html's answer is read as the page's own was: an error, the 
       json(base, { headers: { 'x-parapo-served-from': 'cache' } }),
     );
     const c = await fresh();
-    await c.loadMapFile();
-    assert.equal(c.mapFileIsStale(), true);
+    await c.fetchIndex();
+    assert.equal(c.indexIsStale(), true);
     globalThis.__parapoMapFile = pageAsked(json(base));
     const d = await fresh();
-    await d.loadMapFile();
-    assert.equal(d.mapFileIsStale(), false);
+    await d.fetchIndex();
+    assert.equal(d.indexIsStale(), false);
     // A shape this app does not know: the banner's message, as before.
     globalThis.__parapoMapFile = pageAsked(json({ ...base, schema: 5 }));
-    const { loadMapFile, MAP_FILE_TOO_NEW } = await fresh();
-    await assert.rejects(loadMapFile(), { message: MAP_FILE_TOO_NEW });
+    const { fetchIndex, MAP_FILE_TOO_NEW } = await fresh();
+    await assert.rejects(fetchIndex(), { message: MAP_FILE_TOO_NEW });
     // An ok answer handed over without its body read: read here.
     globalThis.__parapoMapFile = Promise.resolve({
       res: json({ ...base, published_at: 'read here' }),
       body: null,
     });
-    assert.equal((await (await fresh()).loadMapFile()).published_at, 'read here');
+    assert.equal((await (await fresh()).fetchIndex()).published_at, 'read here');
     assert.deepEqual(asked, [], 'never asked the network again');
   } finally {
     delete globalThis.caches;
@@ -402,9 +473,9 @@ test("Q1: the framing is the map file's once its load has ended, and the kept co
   index({ ...base, variants: [direction] });
   const asked = store({ '/data/index.v4.json': kept });
   try {
-    const { loadMapFile, openingVariants } = await fresh();
-    const file = await loadMapFile();
-    assert.deepEqual(await openingVariants(), file.variants);
+    const { fetchIndex, openingDirections } = await fresh();
+    const file = await fetchIndex();
+    assert.deepEqual(await openingDirections(), file.directions);
     assert.deepEqual(asked, [], 'the store not asked');
   } finally {
     delete globalThis.caches;
@@ -416,19 +487,19 @@ test('Q1: while the file is on its way, the copy kept from an earlier visit fram
   const asked = store({ '/data/index.v4.json': kept });
   try {
     const a = await fresh();
-    void a.loadMapFile();
+    void a.fetchIndex();
     assert.deepEqual(
-      (await a.openingVariants()).map((v) => v.id),
+      (await a.openingDirections()).map((v) => v.id),
       ['kept'],
     );
     assert.deepEqual(asked, ['/data/index.v4.json']);
     // Before any load at all, the same; with nothing kept and no load, nothing.
     assert.deepEqual(
-      (await (await fresh()).openingVariants()).map((v) => v.id),
+      (await (await fresh()).openingDirections()).map((v) => v.id),
       ['kept'],
     );
     store({});
-    assert.equal(await (await fresh()).openingVariants(), null);
+    assert.equal(await (await fresh()).openingDirections(), null);
   } finally {
     delete globalThis.caches;
   }
@@ -443,9 +514,9 @@ test('Q1: with no copy kept, the file on its way once it comes (MapView waits a 
   store({});
   try {
     const a = await fresh();
-    void a.loadMapFile();
+    void a.fetchIndex();
     let framing = null;
-    const opening = a.openingVariants().then((v) => (framing = v));
+    const opening = a.openingDirections().then((v) => (framing = v));
     await new Promise((done) => setTimeout(done, 10));
     assert.equal(framing, null, 'still waiting for the file');
     arrive();
@@ -457,8 +528,8 @@ test('Q1: with no copy kept, the file on its way once it comes (MapView waits a 
     // No worker's store at all: the same.
     delete globalThis.caches;
     const b = await fresh();
-    void b.loadMapFile();
-    const later = b.openingVariants();
+    void b.fetchIndex();
+    const later = b.openingDirections();
     arrive();
     assert.deepEqual(
       (await later).map((v) => v.id),
@@ -469,8 +540,8 @@ test('Q1: with no copy kept, the file on its way once it comes (MapView waits a 
       throw new TypeError('Failed to fetch');
     };
     const c = await fresh();
-    c.loadMapFile().catch(() => {});
-    assert.equal(await c.openingVariants(), null);
+    c.fetchIndex().catch(() => {});
+    assert.equal(await c.openingDirections(), null);
   } finally {
     delete globalThis.caches;
   }
@@ -485,9 +556,9 @@ test('Q1: a file that comes while the kept copy is read is the one opened on', a
   let open;
   store({ '/data/index.v4.json': kept }, new Promise((done) => (open = done)));
   try {
-    const { loadMapFile, openingVariants } = await fresh();
-    const loading = loadMapFile();
-    const framing = openingVariants();
+    const { fetchIndex, openingDirections } = await fresh();
+    const loading = fetchIndex();
+    const framing = openingDirections();
     await new Promise((done) => setTimeout(done, 0));
     arrive();
     await loading;
@@ -505,13 +576,13 @@ test('Q1: a load that failed, with no copy kept, opens on nothing; the next load
   globalThis.fetch = async () => {
     throw new TypeError('Failed to fetch');
   };
-  const { loadMapFile, openingVariants } = await fresh();
-  await assert.rejects(loadMapFile(), { message: 'Failed to fetch' });
-  assert.equal(await openingVariants(), null);
+  const { fetchIndex, openingDirections } = await fresh();
+  await assert.rejects(fetchIndex(), { message: 'Failed to fetch' });
+  assert.equal(await openingDirections(), null);
   index({ ...base, variants: [direction] });
-  await loadMapFile();
+  await fetchIndex();
   assert.deepEqual(
-    (await openingVariants()).map((v) => v.id),
+    (await openingDirections()).map((v) => v.id),
     ['d1'],
   );
 });
@@ -521,18 +592,33 @@ const data = new URL('../../public/data/', import.meta.url);
 const read = (name) => JSON.parse(readFileSync(new URL(name, data), 'utf8'));
 const lineFiles = readdirSync(new URL('lines/', data)).filter((f) => f.endsWith('.json'));
 
+test('the committed index parses with its schema, every line file with its own, inside a budget', async () => {
+  const { indexSchema } = await import('../../src/features/published-map/schemas/index-schema.ts');
+  const { lineFileSchema } =
+    await import('../../src/features/published-map/schemas/line-file-schema.ts');
+  const raw = read('index.v4.json');
+  const started = performance.now();
+  const parsed = indexSchema.parse(raw);
+  const took = performance.now() - started;
+  assert.equal(parsed.directions.length, raw.variants.length);
+  assert.equal(parsed.hotspots.length, raw.stops.length);
+  assert.ok(took < 50, `parsing the committed index took ${took.toFixed(1)} ms`);
+  for (const f of lineFiles)
+    assert.equal(lineFileSchema.parse(read(`lines/${f}`)).id, f.replace(/.json$/, ''));
+});
+
 test('the committed index and every line beside it are files this app reads', async () => {
   const files = { '/data/index.v4.json': read('index.v4.json') };
   for (const f of lineFiles) files[`/data/lines/${f}`] = read(`lines/${f}`);
   serve(files);
-  const { loadMapFile, loadLine, MAP_FILE_SCHEMA } = await fresh();
-  const file = await loadMapFile();
+  const { fetchIndex, fetchLine, MAP_FILE_SCHEMA } = await fresh();
+  const file = await fetchIndex();
   assert.equal(file.schema, MAP_FILE_SCHEMA);
-  const drawn = file.variants.filter((v) => v.shape);
+  const drawn = file.directions.filter((v) => v.shape);
   assert.equal(drawn.length, lineFiles.length, 'one line file per drawn direction, and no other');
   for (const v of drawn)
     assert.ok(
-      (await loadLine(v.id)).coordinates.length >= v.shape.coordinates.length,
+      (await fetchLine(v.id)).coordinates.length >= v.shape.coordinates.length,
       `${v.id}: its line has fewer points than its overview`,
     );
 });
@@ -620,10 +706,10 @@ test('offline after an update, the newest stored older copy is the map, marked s
           : undefined,
     };
     const a = await fresh();
-    const file = await a.loadMapFile();
+    const file = await a.fetchIndex();
     assert.equal(file.schema, 2);
-    assert.deepEqual(file.variants[0].shape, overview);
-    assert.equal(a.mapFileIsStale(), true);
+    assert.deepEqual(file.directions[0].shape, overview);
+    assert.equal(a.indexIsStale(), true);
 
     // Shape 3 stored beside shape 2: the newer one.
     const v3 = { ...base, schema: 3, variants: [direction, { ...direction, id: 'd2' }] };
@@ -636,17 +722,17 @@ test('offline after an update, the newest stored older copy is the map, marked s
             : undefined,
     };
     const b = await fresh();
-    assert.equal((await b.loadMapFile()).schema, 3);
-    assert.equal(b.mapFileIsStale(), true);
+    assert.equal((await b.fetchIndex()).schema, 3);
+    assert.equal(b.indexIsStale(), true);
 
     globalThis.caches = { match: async () => undefined };
-    await assert.rejects((await fresh()).loadMapFile(), { message: 'Failed to fetch' });
+    await assert.rejects((await fresh()).fetchIndex(), { message: 'Failed to fetch' });
 
     // A stored copy that is not the shape its path holds is no map: the network's error stands.
     globalThis.caches = {
       match: async () => new Response(JSON.stringify({ ...stored, schema: 1 })),
     };
-    await assert.rejects((await fresh()).loadMapFile(), { message: 'Failed to fetch' });
+    await assert.rejects((await fresh()).fetchIndex(), { message: 'Failed to fetch' });
   } finally {
     delete globalThis.caches;
   }
@@ -666,17 +752,17 @@ test("a server's error with a stored copy shows the copy, marked stale", async (
   try {
     index('gone', { status: 503 });
     const a = await fresh();
-    const file = await a.loadMapFile();
+    const file = await a.fetchIndex();
     assert.equal(file.published_at, '2026-09-30T00:00:00Z');
-    assert.equal(a.mapFileIsStale(), true);
+    assert.equal(a.indexIsStale(), true);
     // Only an older shape kept: that one, as offline.
     delete stored['/data/index.v4.json'];
     stored['/data/index.v3.json'] = { ...base, schema: 3 };
     const b = await fresh();
-    assert.equal((await b.loadMapFile()).schema, 3);
+    assert.equal((await b.fetchIndex()).schema, 3);
     // Nothing kept: the error, as before.
     delete stored['/data/index.v3.json'];
-    await assert.rejects((await fresh()).loadMapFile(), {
+    await assert.rejects((await fresh()).fetchIndex(), {
       message: '/data/index.v4.json: HTTP 503',
     });
   } finally {
@@ -694,13 +780,13 @@ test('the page served in place of a missing index shows the stored copy too', as
   try {
     index('<!doctype html><title>Para Po</title>', { headers: { 'content-type': 'text/html' } });
     const a = await fresh();
-    assert.equal((await a.loadMapFile()).schema, 4);
-    assert.equal(a.mapFileIsStale(), true);
+    assert.equal((await a.fetchIndex()).schema, 4);
+    assert.equal(a.indexIsStale(), true);
   } finally {
     delete globalThis.caches;
   }
   index('<!doctype html>', { headers: { 'content-type': 'text/html' } });
-  await assert.rejects((await fresh()).loadMapFile(), { message: '/data/index.v4.json: not JSON' });
+  await assert.rejects((await fresh()).fetchIndex(), { message: '/data/index.v4.json: not JSON' });
 });
 
 // The cheap-phone plan, step 16 (g), 2026-10-04: the public map's age is set

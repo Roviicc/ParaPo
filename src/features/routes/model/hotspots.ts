@@ -1,57 +1,16 @@
-import type { LngLat } from '@/shared/utils/geo';
-
+import type { Hotspot } from './hotspot-schema';
 import { polygonToRing, type Ring } from '../geo/ring';
 
-/** Mirrors the `stop_kind` enum in supabase/migrations/0004_stop_hotspot.sql. */
-export type HotspotKind = 'terminal' | 'hintuan';
-
-export interface PolygonGeoJSON {
-  type: 'Polygon';
-  coordinates: LngLat[][];
-}
-export interface PointGeoJSON {
-  type: 'Point';
-  coordinates: LngLat;
-}
-
-/** A hotspot as the public map shows it. `area` is null only for legacy point-only hotspots (none exist). */
-export interface Hotspot {
-  id: string;
-  /** The ground name: what is written on the ground, "SM Fairview Terminal B". */
-  name: string;
-  /**
-   * The hotspot name: what people say, "SM Fairview". Optional; `hotspotLabel`
-   * falls back to the ground name. The route name reads this (R1), and
-   * boxes that share it are one hotspot to a commuter, whatever is written on
-   * each — a terminal and two hintuans under one hotspot name. 0007; the
-   * owner's two words for the two names, 2026-09-26.
-   */
-  informal: string | null;
-  /** Other ways people say the same place, for a search or a suggestion list. */
-  aliases: string[];
-  kind: HotspotKind;
-  point: PointGeoJSON;
-  area: PolygonGeoJSON | null;
-  note: string | null;
-  created_at: string;
-  /**
-   * The line this hintuan is a station of: a train's, 'LRT-1' (0011), or the
-   * ferry's, 'PRFS' (0012); null for every other hintuan and every terminal.
-   * Only that line stops here, and no jeep does (servedBy). Absent from files
-   * published before.
-   */
-  line?: string | null;
-}
+/**
+ * The rows' shapes are hotspot-schema.ts's (Zod, since ticket 08 of the
+ * restructure follow-ups, 2026-10-07); the types derive from them and are
+ * re-exported here, beside the rules, so the model keeps one door.
+ */
+export type { Hotspot, HotspotKind, HotspotLink } from './hotspot-schema';
+export type { PointGeoJSON, PolygonGeoJSON } from './geojson-schema';
 
 /** A hotspot with what the editor needs: who owns it. */
 export type HotspotRow = Hotspot & { owner_id: string };
-
-/** One row of route_stop: this direction passes through (or stages at) this hotspot. */
-export interface HotspotLink {
-  route_variant_id: string;
-  stop_id: string;
-  stop_sequence: number;
-}
 
 /** The polygon corners of a saved hotspot. */
 export function hotspotRing(s: Hotspot): Ring {

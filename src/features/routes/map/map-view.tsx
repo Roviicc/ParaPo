@@ -143,7 +143,7 @@ interface Props {
   /**
    * The public map's (the owner's Q1, 2026-10-04): the routes' framing to
    * open on, from the map file in by then, the copy kept from an earlier
-   * visit, or the file on its way (mapFile.ts, openingVariants), null for
+   * visit, or the file on its way (fetch-index.ts, openingDirections), null for
    * none. It is asked for as the map is about to be made, waited for a
    * second at most (OPENING_WAIT_MS), and the map is made framed on it — as
    * the routes' own fit (useSavedRoutes) left it, padding 100, zoom 13 at

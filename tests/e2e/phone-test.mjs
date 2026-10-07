@@ -862,11 +862,11 @@ const snapshot = await page.evaluate(async () => {
   // Each direction's full line, as the page reads it for a lit direction
   // (map-file.ts): the source holds overviews until then, and where two routes
   // share a road is found on the lines themselves, as before the index.
-  const { loadLine } = await import('/src/features/published-map/map-file.ts');
+  const { fetchLine } = await import('/src/features/published-map/api/fetch-line.ts');
   const routes = [];
   for (const f of routesFC?.features ?? []) {
     if (f.geometry.type !== 'LineString' || f.geometry.coordinates.length < 2) continue;
-    const full = await loadLine(f.properties.id).catch(() => null);
+    const full = await fetchLine(f.properties.id).catch(() => null);
     routes.push({
       id: f.properties.id,
       routeId: f.properties.route_id,
@@ -895,9 +895,11 @@ console.log(
 // its route's two end hotspots — from the published index, through the page's
 // own reader (overviews as the lines: only whether one is drawn is asked).
 const published = await page.evaluate(() =>
-  import('/src/features/published-map/map-file.ts').then((f) => f.loadMapFile()).catch(() => null),
+  import('/src/features/published-map/api/fetch-index.ts')
+    .then((f) => f.fetchIndex())
+    .catch(() => null),
 );
-const fileDirections = published?.variants ?? [];
+const fileDirections = published?.directions ?? [];
 /**
  * What a trip on direction `id` lists behind its ‹ when it was opened on its
  * own (the owner's ask, 2026-09-29): the directions, drawn and the same way
@@ -1046,9 +1048,10 @@ const tripChecks = async () => {
         import('/src/features/routes/model/routes.ts'),
       ]);
       // The direction with its full line, as the page reads them (map-file.ts).
-      const { loadMapFile, loadLine } = await import('/src/features/published-map/map-file.ts');
-      const found = (await loadMapFile()).variants.find((x) => x.id === id);
-      const v = found && { ...found, shape: (await loadLine(id)) ?? found.shape };
+      const { fetchIndex } = await import('/src/features/published-map/api/fetch-index.ts');
+      const { fetchLine } = await import('/src/features/published-map/api/fetch-line.ts');
+      const found = (await fetchIndex()).directions.find((x) => x.id === id);
+      const v = found && { ...found, shape: (await fetchLine(id)) ?? found.shape };
       const metres = v && lineLength(directionLine(v));
       return v ? { km: kmLabel(metres), fare: rideFare(v.route?.mode, metres) ?? null } : null;
     } catch {
@@ -1173,11 +1176,12 @@ const tripChecks = async () => {
             import('/src/features/routes/model/ride.ts'),
             import('/src/shared/utils/geo.ts'),
           ]);
-          const { loadMapFile, loadLine } = await import('/src/features/published-map/map-file.ts');
-          const m = await loadMapFile();
-          const found = m.variants.find((x) => x.id === id);
-          const v = found && { ...found, shape: (await loadLine(id)) ?? found.shape };
-          const cut = v && rideCut(v, m.stops, rowId);
+          const { fetchIndex } = await import('/src/features/published-map/api/fetch-index.ts');
+          const { fetchLine } = await import('/src/features/published-map/api/fetch-line.ts');
+          const m = await fetchIndex();
+          const found = m.directions.find((x) => x.id === id);
+          const v = found && { ...found, shape: (await fetchLine(id)) ?? found.shape };
+          const cut = v && rideCut(v, m.hotspots, rowId);
           return cut
             ? {
                 fare: rideFare(v.route?.mode, cut.metres) ?? null,
@@ -1506,10 +1510,14 @@ const tripChecks = async () => {
     const ends = await page.evaluate(async (id) => {
       try {
         const { travelLine } = await import('/src/features/routes/model/ride.ts');
-        const { loadMapFile, loadLine } = await import('/src/features/published-map/map-file.ts');
-        const m = await loadMapFile();
-        const found = m.variants.find((x) => x.id === id);
-        const line = travelLine({ ...found, shape: (await loadLine(id)) ?? found.shape }, m.stops);
+        const { fetchIndex } = await import('/src/features/published-map/api/fetch-index.ts');
+        const { fetchLine } = await import('/src/features/published-map/api/fetch-line.ts');
+        const m = await fetchIndex();
+        const found = m.directions.find((x) => x.id === id);
+        const line = travelLine(
+          { ...found, shape: (await fetchLine(id)) ?? found.shape },
+          m.hotspots,
+        );
         return line.length > 1 ? { from: line[0], to: line[line.length - 1] } : null;
       } catch {
         return null;

@@ -130,7 +130,7 @@ export function openedOn(map: Watched, on: Bounds | null): void {
  * last (`bounds`, routesBounds). The studio's map, as always. The public
  * map's (openedOn) opened framed already, so only if what came frames
  * otherwise — the copy kept from an earlier visit (mapFile.ts,
- * openingVariants) differing from the one the network brought, or none to
+ * openingDirections) differing from the one the network brought, or none to
  * open on — and never once the visitor has moved it: the camera ends where
  * the framing of what came puts it, or where the visitor took it.
  */

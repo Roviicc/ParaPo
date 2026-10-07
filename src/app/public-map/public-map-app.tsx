@@ -4,10 +4,10 @@ import { useMemo, useState } from 'react';
 import { VisitorLocation, useGazeHush } from '@/features/locator';
 import {
   MAP_FILE_TOO_NEW,
-  loadLine,
-  loadStopsFromFile,
-  loadVariantsFromFile,
-  openingVariants,
+  fetchLine,
+  loadDirectionsFromFile,
+  loadHotspotsFromFile,
+  openingDirections,
   reloadForNewerApp,
   reloadToUpdate,
   useNeedRefresh,
@@ -38,11 +38,11 @@ import { useStatusBarColour } from './status-bar';
 /**
  * The routes' framing the map opens on (the owner's Q1, 2026-10-04): their
  * box as the map file or the copy kept from an earlier visit has them
- * (openingVariants), the box the routes' own fit frames (useSavedRoutes).
+ * (openingDirections), the box the routes' own fit frames (useSavedRoutes).
  * Module-level, as the loaders below are.
  */
 const openOnRoutes = () =>
-  openingVariants().then((directions) => (directions ? routesBounds(directions) : null));
+  openingDirections().then((directions) => (directions ? routesBounds(directions) : null));
 
 /**
  * The public map at /. Everything published so far and a card for whatever is
@@ -57,9 +57,9 @@ export function PublicMapApp() {
   const [map, setMap] = useState<MapLibreMap | null>(null);
   // One index, fetched once, shared by both hooks; a direction's full line
   // read as it is lit (mapFile.ts).
-  const saved = useSavedRoutes(map, loadVariantsFromFile, { loadLine });
+  const saved = useSavedRoutes(map, loadDirectionsFromFile, { loadLine: fetchLine });
   // While a trip is open, the map lights only the trip (the owner, 2026-09-29).
-  const hotspots = useSavedHotspots(map, loadStopsFromFile, { muted: !!saved.selected });
+  const hotspots = useSavedHotspots(map, loadHotspotsFromFile, { muted: !!saved.selected });
   const tooNew = saved.error === MAP_FILE_TOO_NEW || hotspots.error === MAP_FILE_TOO_NEW;
 
   // The route list, a hotspot's card and the trip opened from either: which
