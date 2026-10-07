@@ -53,7 +53,7 @@ const openOnRoutes = () =>
  * On a phone the tap is the whole interface: the cards are bottom sheets, a
  * tap near a line counts, and a tap where routes share a road offers a choice.
  */
-export default function CommuterApp() {
+export function PublicMapApp() {
   const [map, setMap] = useState<MapLibreMap | null>(null);
   // One index, fetched once, shared by both hooks; a direction's full line
   // read as it is lit (mapFile.ts).

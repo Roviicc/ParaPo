@@ -56,7 +56,7 @@ import {
  * stays on screen with whatever is half-typed, and the next save asks for
  * sign-in again. Swapping it for the door would throw that work away.
  */
-export default function StudioApp() {
+export function StudioApp() {
   const session = useSession();
   // Read on the very first render, before supabase-js consumes the reset link.
   const recovery = usePasswordRecovery();

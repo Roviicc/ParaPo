@@ -5,7 +5,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import '@/styles/global.css';
 import { registerServiceWorker } from '@/features/published-map';
 
-import CommuterApp from './public-map-app.tsx';
+import { PublicMapApp } from './public-map-app.tsx';
 
 /**
  * Where to send an auth result that arrived here, or null.
@@ -42,7 +42,7 @@ if (forwardTo) {
   registerServiceWorker();
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <CommuterApp />
+      <PublicMapApp />
     </StrictMode>,
   );
 }
