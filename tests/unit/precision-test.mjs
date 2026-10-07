@@ -1,4 +1,4 @@
-// What a save keeps of a coordinate (src/shared/geo/geo.ts, round6 and
+// What a save keeps of a coordinate (src/shared/utils/geo.ts, round6 and
 // roundLngLat), and that a line joined from rounded segments is the rounded
 // line: the studio rounds at save since 2026-09-25 (future-proofing stage 2),
 // and the publish script's own rounding must then change nothing.
@@ -6,7 +6,7 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/precision-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { haversine, joinSegments, round6, roundLngLat } from '../../src/shared/geo/geo.ts'
+import { haversine, joinSegments, round6, roundLngLat } from '../../src/shared/utils/geo.ts'
 
 test('six decimals: within 0.08 m of the point, and the same number the publish script writes', () => {
   const p = [121.06012345678901, 14.735987654321098]

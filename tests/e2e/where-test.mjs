@@ -1,4 +1,4 @@
-// The LocatorButton on the public map (src/commuter/useLocator.ts,
+// The LocatorButton on the public map (src/features/locator/use-locator.ts,
 // Locator.tsx, LocatorButton.tsx, LocatorIndicatorOverlay.tsx — the owner's
 // 3870:5408 rules, 2026-10-01), driven by a pretend GPS. Playwright's
 // geolocation emulation feeds the browser's own watchPosition, so the app's

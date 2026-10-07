@@ -1,15 +1,15 @@
-// The chevrons' geometry (src/shared/map/chevrons.ts): where along a lit line
+// The chevrons' geometry (src/features/routes/map/chevrons.ts): where along a lit line
 // they sit, the stretches an earlier lit line already flows on, and each
 // one's polygon; and what a move of the map does to them
-// (src/shared/map/directionArrows.ts, onAMove), and in the hook itself when
+// (src/features/routes/map/direction-arrows.ts, onAMove), and in the hook itself when
 // one move starts as another ends (useDirectionArrows, 2026-10-05).
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/chevrons-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { chevronAt, chevronsAt, markCovered, measure, spacingPx } from '../../src/shared/map/chevrons.ts'
-import { haversine, metresPerPixel } from '../../src/shared/geo/geo.ts'
-import { onAMove, widened } from '../../src/shared/map/directionArrows.ts'
+import { chevronAt, chevronsAt, markCovered, measure, spacingPx } from '../../src/features/routes/map/chevrons.ts'
+import { haversine, metresPerPixel } from '../../src/shared/utils/geo.ts'
+import { onAMove, widened } from '../../src/features/routes/map/direction-arrows.ts'
 
 /** A straight line north from [121.04, 14.70], `km` long, in `n` segments: sample data. */
 const north = (km, n = 10, lng = 121.04) =>
@@ -251,7 +251,7 @@ test('a move that starts as another ends, as a camera call stops another, draws 
   }
   const { createElement: h, act } = await import('react')
   const { createRoot } = await import('react-dom/client')
-  const { useDirectionArrows } = await import('../../src/shared/map/directionArrows.ts')
+  const { useDirectionArrows } = await import('../../src/features/routes/map/direction-arrows.ts')
 
   const line = Array.from({ length: 41 }, (_, i) => [121.03 + i * 0.0006, 14.69 + Math.sin(i / 4) * 0.002])
   const rides = [{ id: 'd1', line, from: 'A', to: 'B' }]

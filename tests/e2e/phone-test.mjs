@@ -721,7 +721,7 @@ const snapshot = await page.evaluate(async () => {
   // Each direction's full line, as the page reads it for a lit direction
   // (mapFile.ts): the source holds overviews until then, and where two routes
   // share a road is found on the lines themselves, as before the index.
-  const { loadLine } = await import('/src/commuter/mapFile.ts')
+  const { loadLine } = await import('/src/features/published-map/map-file.ts')
   const routes = []
   for (const f of routesFC?.features ?? []) {
     if (f.geometry.type !== 'LineString' || f.geometry.coordinates.length < 2) continue
@@ -751,7 +751,7 @@ console.log(`\n(${snapshot.routes.length} route directions, ${snapshot.polys.len
 // What the features do not carry — each direction's way round, its name and
 // its route's two end hotspots — from the published index, through the page's
 // own reader (overviews as the lines: only whether one is drawn is asked).
-const published = await page.evaluate(() => import('/src/commuter/mapFile.ts').then((f) => f.loadMapFile()).catch(() => null))
+const published = await page.evaluate(() => import('/src/features/published-map/map-file.ts').then((f) => f.loadMapFile()).catch(() => null))
 const fileDirections = published?.variants ?? []
 /**
  * What a trip on direction `id` lists behind its ‹ when it was opened on its
@@ -880,12 +880,12 @@ const tripChecks = async () => {
   const want = await page.evaluate(async (id) => {
     try {
       const [{ rideFare }, { kmLabel, lineLength }, { variantLine }] = await Promise.all([
-        import('/src/shared/model/fares.ts'),
-        import('/src/shared/geo/geo.ts'),
-        import('/src/shared/model/routes.ts'),
+        import('/src/features/routes/model/fares.ts'),
+        import('/src/shared/utils/geo.ts'),
+        import('/src/features/routes/model/routes.ts'),
       ])
       // The direction with its full line, as the page reads them (mapFile.ts).
-      const { loadMapFile, loadLine } = await import('/src/commuter/mapFile.ts')
+      const { loadMapFile, loadLine } = await import('/src/features/published-map/map-file.ts')
       const found = (await loadMapFile()).variants.find((x) => x.id === id)
       const v = found && { ...found, shape: (await loadLine(id)) ?? found.shape }
       const metres = v && lineLength(variantLine(v))
@@ -967,8 +967,8 @@ const tripChecks = async () => {
     const rowId = await row.getAttribute('data-hintuan')
     const pickWant = await page.evaluate(async ([id, rowId]) => {
       try {
-        const [{ rideFare }, { rideCut }, { kmLabel }] = await Promise.all([import('/src/shared/model/fares.ts'), import('/src/shared/model/ride.ts'), import('/src/shared/geo/geo.ts')])
-        const { loadMapFile, loadLine } = await import('/src/commuter/mapFile.ts')
+        const [{ rideFare }, { rideCut }, { kmLabel }] = await Promise.all([import('/src/features/routes/model/fares.ts'), import('/src/features/routes/model/ride.ts'), import('/src/shared/utils/geo.ts')])
+        const { loadMapFile, loadLine } = await import('/src/features/published-map/map-file.ts')
         const m = await loadMapFile()
         const found = m.variants.find((x) => x.id === id)
         const v = found && { ...found, shape: (await loadLine(id)) ?? found.shape }
@@ -1115,7 +1115,7 @@ const tripChecks = async () => {
     // back where it was before the pick (the owner's ask, 2026-10-02).
     if (pickWant) {
       const zoomed = await camNow()
-      const want = await page.evaluate(async (lat) => (await import('/src/shared/geo/geo.ts')).zoomForScale(500, lat), zoomed.lat)
+      const want = await page.evaluate(async (lat) => (await import('/src/shared/utils/geo.ts')).zoomForScale(500, lat), zoomed.lat)
       check('  zoomed in to 500 m on the scale bar', Math.abs(zoomed.zoom - want) < 0.05, `zoom ${zoomed.zoom.toFixed(2)}, want ${want.toFixed(2)}`)
     }
     await buttonTap(pickButton, async () => !(await isPicked()))
@@ -1176,8 +1176,8 @@ const tripChecks = async () => {
     // line, above the card. Picking the hintuan again lets the end go.
     const ends = await page.evaluate(async (id) => {
       try {
-        const { travelLine } = await import('/src/shared/model/ride.ts')
-        const { loadMapFile, loadLine } = await import('/src/commuter/mapFile.ts')
+        const { travelLine } = await import('/src/features/routes/model/ride.ts')
+        const { loadMapFile, loadLine } = await import('/src/features/published-map/map-file.ts')
         const m = await loadMapFile()
         const found = m.variants.find((x) => x.id === id)
         const line = travelLine({ ...found, shape: (await loadLine(id)) ?? found.shape }, m.stops)
@@ -1231,7 +1231,7 @@ const tripChecks = async () => {
       )
       if (ends?.[end]) {
         const zoomed = await camNow()
-        const want = await page.evaluate(async (lat) => (await import('/src/shared/geo/geo.ts')).zoomForScale(500, lat), ends[end][1])
+        const want = await page.evaluate(async (lat) => (await import('/src/shared/utils/geo.ts')).zoomForScale(500, lat), ends[end][1])
         check('    in to 500 m on the scale bar, as a hintuan is', Math.abs(zoomed.zoom - want) < 0.05, `zoom ${zoomed.zoom.toFixed(2)}, want ${want.toFixed(2)}`)
       }
     }
@@ -1353,7 +1353,7 @@ const framedAboveCard = async (bbox, sheet = 'card') =>
 // is held to two different colours.
 const MAP = await page.evaluate(async () => {
   try {
-    return (await import('/src/design-system/foundation/mapColours.ts')).MAP_COLOURS
+    return (await import('/src/design-system/foundation/map-colours.ts')).MAP_COLOURS
   } catch {
     return null
   }
@@ -1369,7 +1369,7 @@ const twoLooks = (p, lit = MAP?.['Map/RouteLine/surface-selected']) =>
 // server; a server that cannot serve it skips the colour.
 const LOOKS = await page.evaluate(async () => {
   try {
-    const m = await import('/src/shared/map/liveryLine.ts')
+    const m = await import('/src/features/routes/map/livery-line.ts')
     return { byLivery: m.LIVERY_LINE, lit: m.LIT_LINE }
   } catch {
     return null

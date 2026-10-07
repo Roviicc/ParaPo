@@ -10,12 +10,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { BASEMAPS } from '../../src/shared/map/basemap.ts'
+import { BASEMAPS } from '../../src/features/routes/map/basemap.ts'
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
 test('MapView.tsx starts the worker as it is read, after giving MapLibre its address', () => {
-  const src = read('../../src/shared/map/MapView.tsx')
+  const src = read('../../src/features/routes/map/map-view.tsx')
   // At the top of the module, unindented: not in the component or an effect.
   const set = src.search(/^setWorkerUrl\(maplibreWorkerUrl\)$/m)
   const warm = src.search(/^prewarm\(\)$/m)

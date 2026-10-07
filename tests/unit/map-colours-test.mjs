@@ -1,4 +1,4 @@
-// The map's colours (src/design-system/foundation/mapColours.ts) are the
+// The map's colours (src/design-system/foundation/map-colours.ts) are the
 // Map/… semantics of tokens.css written once more, in hex, for MapLibre, which
 // reads neither var() nor oklch. Two copies drift, so this holds them
 // together: every Map/… token has its hex, every hex its token, and each hex
@@ -11,7 +11,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
-import { CARD_COLOURS, MAP_COLOURS, MAP_PAINT } from '../../src/design-system/foundation/mapColours.ts'
+import { CARD_COLOURS, MAP_COLOURS, MAP_PAINT } from '../../src/design-system/foundation/map-colours.ts'
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const tokens = read('../../src/design-system/foundation/tokens.css')
@@ -104,7 +104,16 @@ test('each hex is the primitive its token aliases', () => {
 // rgb() in the painters of both pages and the editor's drawing — is one the
 // next restyle cannot find.
 test('no colour is written in the map code outside mapColours.ts', () => {
-  const dirs = ['../../src/shared/map/', '../../src/shared/geo/', '../../src/studio/drawing/', '../../src/commuter/']
+  const dirs = [
+    '../../src/features/routes/map/',
+    '../../src/features/routes/geo/',
+    '../../src/shared/utils/',
+    '../../src/features/studio/drawing/',
+    '../../src/features/locator/',
+    '../../src/features/published-map/',
+    '../../src/app/public-map/',
+    '../../src/shared/hooks/',
+  ]
   const found = []
   for (const dir of dirs) {
     for (const f of readdirSync(new URL(dir, import.meta.url)).filter((n) => /\.ts$/.test(n))) {

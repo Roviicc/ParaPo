@@ -1,13 +1,13 @@
-// The dot's gaze at what was just picked (src/commuter/dotGaze.ts, the
+// The dot's gaze at what was just picked (src/features/locator/dot-gaze.ts, the
 // owner's ask of 2026-10-01): which way it gazes, where its eyes go for it,
 // where on the routes it gazes, and what the public map hands it to gaze at.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/dot-gaze-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { GAZE_PX, gazeOffset, gazeSubjects, gazeToward, nearestOnLines } from '../../src/commuter/dotGaze.ts'
-import { placeKey } from '../../src/shared/model/places.ts'
-import { variantLine } from '../../src/shared/model/routes.ts'
+import { GAZE_PX, gazeOffset, gazeSubjects, gazeToward, nearestOnLines } from '../../src/features/locator/dot-gaze.ts'
+import { placeKey } from '../../src/features/routes/model/places.ts'
+import { variantLine } from '../../src/features/routes/model/routes.ts'
 
 const here = [121.05, 14.7]
 const m = 1 / 111_320

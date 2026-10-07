@@ -1,11 +1,11 @@
-// What the saved routes show and light (src/shared/map/routesShown.ts), and
-// what a tap marks on the saved hotspots (src/shared/map/stopsShown.ts).
+// What the saved routes show and light (src/features/routes/map/routes-shown.ts), and
+// what a tap marks on the saved hotspots (src/features/routes/map/stops-shown.ts).
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/shown-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { litOf, shownOf, showingOf } from '../../src/shared/map/routesShown.ts'
-import { boxMarks, placeHull } from '../../src/shared/map/stopsShown.ts'
+import { litOf, shownOf, showingOf } from '../../src/features/routes/map/routes-shown.ts'
+import { boxMarks, placeHull } from '../../src/features/routes/map/stops-shown.ts'
 
 /** A direction of `route`, drawn unless `drawn` is false: sample data, shaped like the published file. */
 const dir = (id, route, reversed = false, drawn = true) => ({
@@ -98,7 +98,7 @@ test("with a hotspot card open over a kept list, the card's routes are shown", (
 // The cheap-phone plan, step 16 (c), 2026-10-04: what is lit kept one array
 // while it holds the same directions (routesShown.ts, steady), as
 // useSavedRoutes keeps litVariants and lit.
-import { steady } from '../../src/shared/map/routesShown.ts'
+import { steady } from '../../src/features/routes/map/routes-shown.ts'
 
 test('step 16 (c): the same things in the same order keep the array; anything else is the new one', () => {
   const was = [out, bOut]

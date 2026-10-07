@@ -1,5 +1,5 @@
 // A child's effect run where its parent's hook stood in the commit
-// (src/commuter/commitTurn.ts), and the visitor's camera that needs it
+// (src/shared/hooks/commit-turn.ts), and the visitor's camera that needs it
 // (useLocator.ts's `cameraTurn`, VisitorLocation.tsx; the cheap-phone plan,
 // step 15, 2026-10-05). React runs a component's effects after all of its
 // children's, so the locator's hooks, moved from CommuterApp into a child of
@@ -16,8 +16,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { StrictMode, act, createElement as h, useEffect, useState } from 'react'
-import { turnFor, useTurn } from '../../src/commuter/commitTurn.ts'
-import { useLocator } from '../../src/commuter/useLocator.ts'
+import { turnFor, useTurn } from '../../src/shared/hooks/commit-turn.ts'
+import { useLocator } from '../../src/features/locator/use-locator.ts'
 
 // ------------------------------------------------------------ React in Node
 globalThis.IS_REACT_ACT_ENVIRONMENT = true

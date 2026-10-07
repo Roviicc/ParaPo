@@ -1,4 +1,4 @@
-// The studio's hotspot save (src/studio/data/stopsWrite.ts, saveStop)
+// The studio's hotspot save (src/features/studio/data/stops-write.ts, saveStop)
 // against a fake client.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/stop-save-test.mjs
@@ -10,8 +10,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeSupabase } from './fixtures/fake-supabase.mjs'
-import { setSupabase } from '../../src/studio/data/supabase.ts'
-import { deleteStop, saveStop } from '../../src/studio/data/stopsWrite.ts'
+import { setSupabase } from '../../src/features/studio/data/supabase.ts'
+import { deleteStop, saveStop } from '../../src/features/studio/data/stops-write.ts'
 
 const ring = [[121.04, 14.7], [121.0401, 14.7], [121.0401, 14.7001], [121.04, 14.7001]]
 const input = { stopId: null, kind: 'hintuan', name: 'Tala Ilalim', informal: 'Tala', aliases: [], note: '', ring, variants: [] }

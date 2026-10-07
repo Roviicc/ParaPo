@@ -1,16 +1,16 @@
 // The layers that draw only what is lit or marked, switched off as a whole
 // while nothing is (the cheap-phone plan, step 18, 2026-10-04): the lit
 // routes' casing and copy, their orange stretches, the hotspots' siblings and
-// stripes. src/shared/map/layerSwitch.ts.
+// stripes. src/features/routes/map/layer-switch.ts.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/layer-switch-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { LayerSwitch, twinsOf } from '../../src/shared/map/layerSwitch.ts'
-import { addSavedRoutes } from '../../src/shared/map/savedRoutesLayers.ts'
-import { addSavedStops, boxState } from '../../src/shared/map/savedStopsLayers.ts'
-import { PASS_LAYER } from '../../src/shared/geo/passStretches.ts'
+import { LayerSwitch, twinsOf } from '../../src/features/routes/map/layer-switch.ts'
+import { addSavedRoutes } from '../../src/features/routes/map/saved-routes-layers.ts'
+import { addSavedStops, boxState } from '../../src/features/routes/map/saved-stops-layers.ts'
+import { PASS_LAYER } from '../../src/features/routes/geo/pass-stretches.ts'
 
 /** A map of layers with paint, counting each paint set, as MapLibre's: unset is undefined. */
 function paintedMap(layers) {

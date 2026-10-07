@@ -1,4 +1,4 @@
-// Several signboards added at once (src/studio/data/signboards.ts,
+// Several signboards added at once (src/features/studio/data/signboards.ts,
 // addSignboards), one refused halfway.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/signboards-add-test.mjs
@@ -8,7 +8,7 @@
 // the next change wrote that back over the boards already uploaded.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { addSignboards } from '../../src/studio/data/signboards.ts'
+import { addSignboards } from '../../src/features/studio/data/signboards.ts'
 
 test('each board listed is heard before a later one is refused', async () => {
   const add = async (_id, now, file) => {

@@ -14,18 +14,18 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createPropertyExpression, groupByLayout, latest } from '@maplibre/maplibre-gl-style-spec'
-import { TILE_BUFFER, layOutOnce } from '../../src/shared/map/layers.ts'
-import { loadOnce } from '../../src/shared/map/loadOnce.ts'
-import { addSavedRoutes, routesData, unpatched } from '../../src/shared/map/savedRoutesLayers.ts'
-import { addSavedStops, hiddenStopFilters, stopsData } from '../../src/shared/map/savedStopsLayers.ts'
-import { variantLine } from '../../src/shared/model/routes.ts'
-import { stopRing } from '../../src/shared/model/stops.ts'
-import { labelGroups } from '../../src/shared/model/places.ts'
-import { addPassStretches } from '../../src/shared/geo/passStretches.ts'
-import { addDirectionArrows } from '../../src/shared/map/directionArrows.ts'
-import { addBabaanSides } from '../../src/shared/geo/babaanSides.ts'
-import { INSET_PX, chevronAt } from '../../src/shared/map/chevrons.ts'
-import { litWidthAt } from '../../src/shared/map/lineStyle.ts'
+import { TILE_BUFFER, layOutOnce } from '../../src/features/routes/map/layers.ts'
+import { loadOnce } from '../../src/features/routes/map/load-once.ts'
+import { addSavedRoutes, routesData, unpatched } from '../../src/features/routes/map/saved-routes-layers.ts'
+import { addSavedStops, hiddenStopFilters, stopsData } from '../../src/features/routes/map/saved-stops-layers.ts'
+import { variantLine } from '../../src/features/routes/model/routes.ts'
+import { stopRing } from '../../src/features/routes/model/stops.ts'
+import { labelGroups } from '../../src/features/routes/model/places.ts'
+import { addPassStretches } from '../../src/features/routes/geo/pass-stretches.ts'
+import { addDirectionArrows } from '../../src/features/routes/map/direction-arrows.ts'
+import { addBabaanSides } from '../../src/features/routes/geo/babaan-sides.ts'
+import { INSET_PX, chevronAt } from '../../src/features/routes/map/chevrons.ts'
+import { litWidthAt } from '../../src/features/routes/map/line-style.ts'
 
 /**
  * A map that keeps what is added to it, in its drawing order: a basemap of
@@ -325,8 +325,8 @@ test('read once as the hooks mount: twice in development under StrictMode was on
   assert.equal(effect(other), true)
   assert.deepEqual(reads, ['routes', 'other'])
   // Both hooks run their mount's read through it, keyed on the loader; a reload is the hook's own and reads afresh.
-  for (const file of ['useSavedRoutes.ts', 'useSavedStops.ts']) {
-    const src = readFileSync(new URL(`../../src/shared/map/${file}`, import.meta.url), 'utf8')
+  for (const file of ['use-saved-routes.ts', 'use-saved-stops.ts']) {
+    const src = readFileSync(new URL(`../../src/features/routes/map/${file}`, import.meta.url), 'utf8')
     assert.match(src, /useEffect\(\(\) => \{\n\s*loadOnce\(loadedBy, load, \(\) => void reload\(\)\)\n\s*\}, \[load, reload\]\)/, file)
     assert.equal((src.match(/void reload\(\)/g) ?? []).length, 1, `${file}: the mount's read only through loadOnce`)
   }
@@ -417,7 +417,7 @@ test('a style made afresh gets every full line read so far, one on its way when 
   container.ownerDocument = globalThis.document
   const { createElement: h, act } = await import('react')
   const { createRoot } = await import('react-dom/client')
-  const { useSavedRoutesLayers } = await import('../../src/shared/map/savedRoutesLayers.ts')
+  const { useSavedRoutesLayers } = await import('../../src/features/routes/map/saved-routes-layers.ts')
 
   const map = routesMap()
   const [a, b, c] = rows.map((r) => r.id)

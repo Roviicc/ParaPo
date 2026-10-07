@@ -1,4 +1,4 @@
-// The train fares (src/shared/model/railFares.ts) against the operators' own
+// The train fares (src/features/routes/model/rail-fares.ts) against the operators' own
 // tables, every cell: LRMC's two LRT-1 matrices, LRTA's LRT-2 matrices before
 // and after the half fare, MRT-3's fare by stations travelled and its half.
 // The fixture is the tables as transcribed from the published images; the
@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { DISCOUNT_FROM, HALF_FARE_FROM, railFare, railFareText, railFares, stationIndex } from '../../src/shared/model/railFares.ts'
+import { DISCOUNT_FROM, HALF_FARE_FROM, railFare, railFareText, railFares, stationIndex } from '../../src/features/routes/model/rail-fares.ts'
 
 const official = JSON.parse(readFileSync(new URL('./fixtures/rail-fares-official.json', import.meta.url), 'utf8'))
 const BEFORE_HALF = '2026-01-15'

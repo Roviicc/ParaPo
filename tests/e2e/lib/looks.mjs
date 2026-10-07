@@ -11,7 +11,7 @@
  */
 export function lookReaders() {
   // Since 2026-09-25 a tap is feature state, not a filter or a paint
-  // expression naming ids (useLighting in src/shared/map/savedRoutesLayers.ts).
+  // expression naming ids (useLighting in src/features/routes/map/saved-routes-layers.ts).
   // The directions a source has lit.
   window.__lit = async (src) => {
     const m = window.__map

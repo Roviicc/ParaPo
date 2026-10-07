@@ -230,7 +230,7 @@ check(
 // is held to two different colours.
 const MAP = await page.evaluate(async () => {
   try {
-    return (await import('/src/design-system/foundation/mapColours.ts')).MAP_COLOURS
+    return (await import('/src/design-system/foundation/map-colours.ts')).MAP_COLOURS
   } catch {
     return null
   }
@@ -251,7 +251,7 @@ const twoLooks = (p, lit = MAP?.['Map/RouteLine/surface-selected']) =>
 // server; a server that cannot serve it skips the colour.
 const LOOKS = await page.evaluate(async () => {
   try {
-    const m = await import('/src/shared/map/liveryLine.ts')
+    const m = await import('/src/features/routes/map/livery-line.ts')
     return { byLivery: m.LIVERY_LINE, lit: m.LIT_LINE }
   } catch {
     return null
@@ -772,8 +772,8 @@ if (PART === 1) {
           new Promise((done) => {
             const m = window.__map
             const read = async () => {
-              const { loadMapFile } = await import('/src/commuter/mapFile.ts')
-              const { variantLine } = await import('/src/shared/model/routes.ts')
+              const { loadMapFile } = await import('/src/features/published-map/map-file.ts')
+              const { variantLine } = await import('/src/features/routes/model/routes.ts')
               const v = (await loadMapFile()).variants.find((x) => x.id === id)
               const line = v ? variantLine(v) : []
               const c = m.getCanvas().getBoundingClientRect()
@@ -804,7 +804,7 @@ if (PART === 1) {
         const m = window.__map
         let line = null
         try {
-          const { litWidthAt } = await import('/src/shared/map/lineStyle.ts')
+          const { litWidthAt } = await import('/src/features/routes/map/line-style.ts')
           line = litWidthAt(m.getZoom())
         } catch {}
         const all = ((await window.__src('direction-arrows'))?.features ?? []).map((f) => {
@@ -900,8 +900,8 @@ if (PART === 1) {
         const rowId = await row.getAttribute('data-hintuan')
         const want = await page.evaluate(async ([id, rowId]) => {
           try {
-            const [{ rideFare }, { rideCut }, { kmLabel }] = await Promise.all([import('/src/shared/model/fares.ts'), import('/src/shared/model/ride.ts'), import('/src/shared/geo/geo.ts')])
-            const { loadMapFile, loadLine } = await import('/src/commuter/mapFile.ts')
+            const [{ rideFare }, { rideCut }, { kmLabel }] = await Promise.all([import('/src/features/routes/model/fares.ts'), import('/src/features/routes/model/ride.ts'), import('/src/shared/utils/geo.ts')])
+            const { loadMapFile, loadLine } = await import('/src/features/published-map/map-file.ts')
             const m = await loadMapFile()
             const found = m.variants.find((x) => x.id === id)
             const v = found && { ...found, shape: (await loadLine(id)) ?? found.shape }
@@ -977,8 +977,8 @@ if (PART === 1) {
         // the line's end, right of the card in the corner.
         const end = await page.evaluate(async (id) => {
           try {
-            const { travelLine } = await import('/src/shared/model/ride.ts')
-            const { loadMapFile, loadLine } = await import('/src/commuter/mapFile.ts')
+            const { travelLine } = await import('/src/features/routes/model/ride.ts')
+            const { loadMapFile, loadLine } = await import('/src/features/published-map/map-file.ts')
             const m = await loadMapFile()
             const found = m.variants.find((x) => x.id === id)
             const line = travelLine({ ...found, shape: (await loadLine(id)) ?? found.shape }, m.stops)

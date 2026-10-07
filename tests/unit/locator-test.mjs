@@ -1,4 +1,4 @@
-// The LocatorButton's rules (src/commuter/useLocator.ts, the owner's
+// The LocatorButton's rules (src/features/locator/use-locator.ts, the owner's
 // 3870:5408, 2026-10-01): the button's look for where the camera is, where a
 // tap takes it, the zooms its "1000 ft" and "200 ft" come to, the phone's
 // compass read; and the speed and heading worked out from the fixes when the
@@ -21,8 +21,8 @@ import {
   motionFrom,
   indicatorScale,
   trackedZoom,
-} from '../../src/commuter/useLocator.ts'
-import { M_PER_DEG, SCALE_PX, metresPerPixel, zoomForScale } from '../../src/shared/geo/geo.ts'
+} from '../../src/features/locator/use-locator.ts'
+import { M_PER_DEG, SCALE_PX, metresPerPixel, zoomForScale } from '../../src/shared/utils/geo.ts'
 
 /** A point `east` metres east and `north` metres north of 121.05, 14.70: sample geometry, not the map. */
 const at = (east, north = 0) => [121.05 + east / (M_PER_DEG * Math.cos((14.7 * Math.PI) / 180)), 14.7 + north / M_PER_DEG]

@@ -1,4 +1,4 @@
-// A trip card's timeline as it first renders (src/shared/cards/TripTimeline.tsx):
+// A trip card's timeline as it first renders (src/features/routes/cards/trip-timeline.tsx):
 // folded rows are their bare <li>s until the fold is first opened (the
 // cheap-phone plan, step 11, 2026-10-04) — each with its data, its classes
 // and its 0fr row, so it folds, hides and first opens as it did — and one
@@ -19,13 +19,15 @@ import { createServer } from 'vite'
 const vite = await createServer({
   configFile: false,
   root: fileURLToPath(new URL('../..', import.meta.url)),
+  // configFile: false leaves vite.config.ts unread, so the `@/` alias is given here.
+  resolve: { alias: { '@': fileURLToPath(new URL('../../src', import.meta.url)) } },
   logLevel: 'silent',
   appType: 'custom',
   server: { middlewareMode: true, hmr: false, watch: null, ws: false },
   optimizeDeps: { noDiscovery: true, include: [] },
 })
 after(() => vite.close())
-const { TripTimeline } = await vite.ssrLoadModule('/src/shared/cards/TripTimeline.tsx')
+const { TripTimeline } = await vite.ssrLoadModule('/src/features/routes/cards/trip-timeline.tsx')
 
 /** The timeline of a trip with `n` hintuans, h0 … h(n-1), as it first renders. */
 const render = (n, props = {}) =>

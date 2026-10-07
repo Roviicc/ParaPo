@@ -5,7 +5,17 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { EARLY_MAP_FILE, MAP_FILE_URL } from './src/commuter/mapFile.ts'
+
+// The map file's address and the early request's name, read from map-file.ts's
+// text rather than imported: Vite bundles this config before any alias exists,
+// and map-file.ts reaches the rest of the app through `@/` (2026-10-07, the
+// restructure). The same two regexes guard the build in check-build.mjs.
+const mapFileSource = readFileSync(new URL('./src/features/published-map/map-file.ts', import.meta.url), 'utf8')
+const MAP_FILE_URL = /^export const MAP_FILE_URL = '([^']+)'$/m.exec(mapFileSource)?.[1]
+const EARLY_MAP_FILE = /^export const EARLY_MAP_FILE = '([^']+)'$/m.exec(mapFileSource)?.[1]
+if (!MAP_FILE_URL || !EARLY_MAP_FILE) {
+  throw new Error('map-file.ts must export MAP_FILE_URL and EARLY_MAP_FILE as single-quoted string constants')
+}
 
 /**
  * Writes .vite/modules.json: every output chunk and the source modules inside
@@ -200,7 +210,7 @@ export default defineConfig({
     readOutDir(),
     mapFileEarly(),
     VitePWA({
-      // The page registers the worker itself (src/commuter/pwa.ts), so the
+      // The page registers the worker itself (src/features/published-map/pwa.ts), so the
       // plugin writes no registration script — and none into /studio/.
       injectRegister: false,
       // A new version waits until the visitor taps "Reload": a silent reload
@@ -434,7 +444,7 @@ export default defineConfig({
     // /studio/. Each HTML file is its own entry point with its own <head>.
     rolldownOptions: {
       input: {
-        commuter: 'index.html',
+        'public-map': 'index.html',
         studio: 'studio/index.html',
       },
       // What both pages load, in chunks named for what they are (the

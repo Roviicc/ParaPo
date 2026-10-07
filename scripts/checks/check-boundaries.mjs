@@ -1,15 +1,18 @@
 // The line between the two front doors, checked rather than hoped for.
 //
-//   src/design-system/  PalimosPoDesignSystem: imports itself only — it is
-//                       domain-free, so never shared/, commuter/ or studio/.
-//                       Inside it, foundation ← primitives ← patterns: a
-//                       lower layer never imports a higher one.
-//   src/shared/    imports shared/ and the design system
-//   src/commuter/  imports shared/, the design system and itself
-//   src/studio/    imports shared/, the design system and itself
+//   src/design-system/   PalimosPoDesignSystem: imports itself only — it is
+//                        domain-free, so never shared/, features/ or app/.
+//                        Inside it, foundation ← primitives ← patterns: a
+//                        lower layer never imports a higher one.
+//   src/shared/          imports shared/ and the design system; knows no feature
+//   src/styles/          the Tailwind entry; imports the design system's tokens
+//   src/features/<f>/    imports itself, shared/, the design system, and the
+//                        features below it: routes first, then locator,
+//                        published-map and studio, which never import each other
+//   src/app/<shell>/     public-map imports every feature but studio; studio, all
 //
 // Reads every import in src/ and fails, naming the file and line, on any that
-// crosses. A source file outside the three folders fails too. An import may be
+// crosses. A source file outside these folders fails too. An import may be
 // relative, root-absolute (`/src/…`) or aliased (`@/…` is `src/…`, as in
 // vite.config.ts and tsconfig.json); packages are not ours to police.
 //
@@ -25,8 +28,13 @@ const src = join(root, 'src')
 const ALLOWED = {
   'design-system': ['design-system'],
   shared: ['shared', 'design-system'],
-  commuter: ['commuter', 'shared', 'design-system'],
-  studio: ['studio', 'shared', 'design-system'],
+  styles: ['styles', 'shared', 'design-system'],
+  'features/routes': ['features/routes', 'shared', 'design-system'],
+  'features/locator': ['features/locator', 'features/routes', 'shared', 'design-system'],
+  'features/published-map': ['features/published-map', 'features/routes', 'shared', 'design-system'],
+  'features/studio': ['features/studio', 'features/routes', 'shared', 'design-system'],
+  'app/public-map': ['app/public-map', 'features/locator', 'features/published-map', 'features/routes', 'shared', 'styles', 'design-system'],
+  'app/studio': ['app/studio', 'features/studio', 'features/routes', 'shared', 'styles', 'design-system'],
 }
 
 /** The design system's inner layers, lowest first; each imports itself and lower. */
@@ -51,7 +59,11 @@ function* walk(dir) {
   }
 }
 
-const areaOf = (file) => relative(src, file).split(sep)[0]
+// An app shell or a feature is an area of its own: the first two folders.
+const areaOf = (file) => {
+  const [a, b] = relative(src, file).split(sep)
+  return a === 'app' || a === 'features' ? `${a}/${b}` : a
+}
 const problems = []
 let files = 0
 let imports = 0
@@ -62,7 +74,7 @@ for (const file of walk(src)) {
   const area = areaOf(file)
 
   if (!(area in ALLOWED)) {
-    if (!LOOSE.has(relative(src, file))) problems.push(`${rel}: outside design-system/, shared/, commuter/ and studio/`)
+    if (!LOOSE.has(relative(src, file))) problems.push(`${rel}: outside app/<shell>/, features/<feature>/, shared/, styles/ and design-system/`)
     continue
   }
   files++

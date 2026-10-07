@@ -1,4 +1,4 @@
-// A direction's timeline (src/shared/model/timeline.ts, timelineFor): a row is a
+// A direction's timeline (src/features/routes/model/timeline.ts, timelineFor): a row is a
 // hintuan, named by its stop name. The boxes of one place passed one after
 // another are its mini stops and make one row — the owner's model of
 // 2026-09-28.
@@ -6,12 +6,12 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/timeline-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { SAME_HINTUAN_M, labelGroups, placeBoxes, placeSummary } from '../../src/shared/model/places.ts'
-import { drawnFromTheEnd, timelineFor, hintuansAlong, orderLinked } from '../../src/shared/model/timeline.ts'
-import { variantLine } from '../../src/shared/model/routes.ts'
-import { rideCut, routeTimeline } from '../../src/shared/model/ride.ts'
-import { otherRoutesFrom, sharingAnEnd } from '../../src/shared/model/departures.ts'
-import { haversine, lineLength } from '../../src/shared/geo/geo.ts'
+import { SAME_HINTUAN_M, labelGroups, placeBoxes, placeSummary } from '../../src/features/routes/model/places.ts'
+import { drawnFromTheEnd, timelineFor, hintuansAlong, orderLinked } from '../../src/features/routes/model/timeline.ts'
+import { variantLine } from '../../src/features/routes/model/routes.ts'
+import { rideCut, routeTimeline } from '../../src/features/routes/model/ride.ts'
+import { otherRoutesFrom, sharingAnEnd } from '../../src/features/routes/model/departures.ts'
+import { haversine, lineLength } from '../../src/shared/utils/geo.ts'
 import { fileURLToPath } from 'node:url'
 import { readPublished } from '../../scripts/checks/check-map-data.mjs'
 
@@ -95,7 +95,7 @@ test('the committed map: every box named by exactly one label, same-name boxes a
     }
 })
 
-// The ride-to preview's cut (src/shared/model/ride.ts, rideCut).
+// The ride-to preview's cut (src/features/routes/model/ride.ts, rideCut).
 const pt = (lng, lat = 0) => ({ type: 'Point', coordinates: [lng, lat] })
 const ringAt = (lng, r = 0.0002) => ({ type: 'Polygon', coordinates: [[[lng - r, -r], [lng + r, -r], [lng + r, r], [lng - r, r], [lng - r, -r]]] })
 const mini = (id, lng, name = 'Amparo') => ({ id, kind: 'hintuan', name, informal: null, aliases: [], point: pt(lng), area: ringAt(lng) })
@@ -174,7 +174,7 @@ test('the committed map: every trip-card row cuts, forward, short of the whole',
   assert.ok(rows > 0, 'no rows on the committed map')
 })
 
-// The routes a trip's ‹ lists when it was opened on its own (src/shared/model/departures.ts, sharingAnEnd).
+// The routes a trip's ‹ lists when it was opened on its own (src/features/routes/model/departures.ts, sharingAnEnd).
 /** A route's two directions, head to tail and back: sample data, shaped like the published file. */
 const both = (id, head, tail) =>
   [false, true].map((reversed) => ({ id: id + (reversed ? '-back' : ''), route_id: id, reversed, route: { head_stop_id: head, tail_stop_id: tail } }))
@@ -223,7 +223,7 @@ test("a place's boxes on its HintuanCard: terminals first, then hintuans, in dra
   assert.deepEqual(placeBoxes(other, [other, a]).map((r) => r.label), ['Bestlink'])
 })
 
-// "Other routes" under a trip (src/shared/model/departures.ts, otherRoutesFrom).
+// "Other routes" under a trip (src/features/routes/model/departures.ts, otherRoutesFrom).
 /** As `both`, drawn: a line of two points each way. */
 const drawn = (id, head, tail) => both(id, head, tail).map((v) => ({ ...v, shape: { coordinates: [[0, 0], [1, 1]] } }))
 const OUT = [
@@ -287,7 +287,7 @@ test("the card's timeline, read from the links, puts two on one segment in the o
 
 // The cheap-phone plan, step 16 (b), 2026-10-04: travelLine's line turned
 // round is made once per line array and kept (ride.ts, reversedOf).
-import { travelLine } from '../../src/shared/model/ride.ts'
+import { travelLine } from '../../src/features/routes/model/ride.ts'
 
 test('step 16 (b): a line drawn from the far end, turned round once and kept; the same as before; a new line, turned anew', () => {
   const file = published()

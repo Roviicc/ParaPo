@@ -1,11 +1,11 @@
-// One metres-per-degree and one point-to-segment (src/shared/geo/geo.ts,
+// One metres-per-degree and one point-to-segment (src/shared/utils/geo.ts,
 // M_PER_DEG, nearestOnSegment, pointToSegmentM): the review's 6.5 found four
 // figures and five copies; these hold the one left to haversine's sphere.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/geo-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { M_PER_DEG, bboxOf, haversine, joinSegments, nearestOnSegment, pointToSegmentM } from '../../src/shared/geo/geo.ts'
+import { M_PER_DEG, bboxOf, haversine, joinSegments, nearestOnSegment, pointToSegmentM } from '../../src/shared/utils/geo.ts'
 
 test('a degree of latitude is what haversine measures it', () => {
   assert.ok(Math.abs(haversine([121, 14], [121, 15]) - M_PER_DEG) < 0.001)
@@ -61,8 +61,8 @@ test('a join that repeats the point before it, to the centimetre, is kept once',
 })
 
 test('a spot on the line is measured along the line as it is joined, hop included', async () => {
-  const { nearestSpot } = await import('../../src/studio/drawing/borrow.ts')
-  const { lineLength } = await import('../../src/shared/geo/geo.ts')
+  const { nearestSpot } = await import('../../src/features/studio/drawing/borrow.ts')
+  const { lineLength } = await import('../../src/shared/utils/geo.ts')
   const click = [121.04, 14.7]
   const onRoad = [121.04, 14.70015]
   const segments = [

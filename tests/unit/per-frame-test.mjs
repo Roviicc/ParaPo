@@ -1,4 +1,4 @@
-// What arrives in a burst, handed on once a frame (src/shared/map/perFrame.ts):
+// What arrives in a burst, handed on once a frame (src/features/routes/map/per-frame.ts):
 // the directions' full lines as useSavedRoutes takes them in since the
 // cheap-phone plan, step 16 (e), 2026-10-04. A fake frame clock stands in
 // for the browser's.
@@ -6,7 +6,7 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/per-frame-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { perFrame } from '../../src/shared/map/perFrame.ts'
+import { perFrame } from '../../src/features/routes/map/per-frame.ts'
 
 /** A frame clock the test turns by hand: `tick` runs the frame's callbacks. */
 function clock() {

@@ -11,15 +11,15 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { Map as MapLibreMap } from 'maplibre-gl'
 import { featureFilter, groupByLayout } from '@maplibre/maplibre-gl-style-spec'
-import { BASEMAPS, applyBasemap } from '../../src/shared/map/basemap.ts'
-import { applyHidden, firstLayerOfType } from '../../src/shared/map/layers.ts'
-import { hiddenStopFilters } from '../../src/shared/map/savedStopsLayers.ts'
-import { backgroundColour } from '../../src/commuter/statusBar.ts'
+import { BASEMAPS, applyBasemap } from '../../src/features/routes/map/basemap.ts'
+import { applyHidden, firstLayerOfType } from '../../src/features/routes/map/layers.ts'
+import { hiddenStopFilters } from '../../src/features/routes/map/saved-stops-layers.ts'
+import { backgroundColour } from '../../src/app/public-map/status-bar.ts'
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
 test('the map is made with no whole-style check', () => {
-  const made = read('../../src/shared/map/MapView.tsx').match(/new MapLibreMap\(\{[\s\S]*?\n\s*\}\)/)
+  const made = read('../../src/features/routes/map/map-view.tsx').match(/new MapLibreMap\(\{[\s\S]*?\n\s*\}\)/)
   assert.ok(made, 'MapView.tsx makes its map with new MapLibreMap({ … })')
   assert.match(made[0], /\n\s*validateStyle: false,/)
 })

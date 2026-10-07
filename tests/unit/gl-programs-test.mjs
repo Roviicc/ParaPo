@@ -11,16 +11,16 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { Color, createPropertyExpression, featureFilter, latest } from '@maplibre/maplibre-gl-style-spec'
-import { PASS_LAYER } from '../../src/shared/geo/passStretches.ts'
-import { ENDS_PAINT, ENDS_TWIN } from '../../src/shared/map/directionArrows.ts'
-import { WARM_SOURCE, afterIdle, warmPrograms, warmSoon } from '../../src/shared/map/warmPrograms.ts'
-import { twinsOf } from '../../src/shared/map/layerSwitch.ts'
-import { addSavedRoutes } from '../../src/shared/map/savedRoutesLayers.ts'
-import { addSavedStops } from '../../src/shared/map/savedStopsLayers.ts'
-import { hiddenStopFilters, namePaint } from '../../src/shared/map/savedStopsLayers.ts'
-import { HOTSPOT_CONTENT } from '../../src/shared/map/colours.ts'
-import { litOpacity } from '../../src/shared/map/savedRoutesLayers.ts'
-import { litWidth } from '../../src/shared/map/lineStyle.ts'
+import { PASS_LAYER } from '../../src/features/routes/geo/pass-stretches.ts'
+import { ENDS_PAINT, ENDS_TWIN } from '../../src/features/routes/map/direction-arrows.ts'
+import { WARM_SOURCE, afterIdle, warmPrograms, warmSoon } from '../../src/features/routes/map/warm-programs.ts'
+import { twinsOf } from '../../src/features/routes/map/layer-switch.ts'
+import { addSavedRoutes } from '../../src/features/routes/map/saved-routes-layers.ts'
+import { addSavedStops } from '../../src/features/routes/map/saved-stops-layers.ts'
+import { hiddenStopFilters, namePaint } from '../../src/features/routes/map/saved-stops-layers.ts'
+import { HOTSPOT_CONTENT } from '../../src/features/routes/map/colours.ts'
+import { litOpacity } from '../../src/features/routes/map/saved-routes-layers.ts'
+import { litWidth } from '../../src/features/routes/map/line-style.ts'
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
@@ -66,7 +66,7 @@ test("the orange stretches are drawn by the lit line's program, from zoom 15", (
   // The lit line and its casing as savedRoutesLayers.ts paints them: a
   // colour for the layer, litWidth() and litOpacity(). Read off the file, so
   // a change there is a change here.
-  const routes = read('../../src/shared/map/savedRoutesLayers.ts')
+  const routes = read('../../src/features/routes/map/saved-routes-layers.ts')
   const selected = routes.match(/id: SELECTED,[\s\S]*?paint: \{([\s\S]*?)\n\s*\},\n\s*\},\n\s*before,/)
   assert.ok(selected, 'savedRoutesLayers.ts adds SELECTED with a paint')
   assert.match(selected[1], /'line-width': litWidth\(\),/)

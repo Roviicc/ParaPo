@@ -1,4 +1,4 @@
-// The lines' one rule (src/shared/model/routes.ts, servedBy): a train, or the
+// The lines' one rule (src/features/routes/model/routes.ts, servedBy): a train, or the
 // ferry, stops only at its own line's stations, a jeep at every hintuan but a
 // station — the owner's default of 2026-10-02, the ferry the same way since
 // 2026-10-03. Every question of which hintuans a line passes asks it: the
@@ -7,10 +7,10 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/rail-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { FERRY_LINES, LINES, MODES, RAIL_LINES, isFerry, isLineMode, isRail, servedBy } from '../../src/shared/model/routes.ts'
-import { hintuansAlong } from '../../src/shared/model/timeline.ts'
-import { rideCut } from '../../src/shared/model/ride.ts'
-import { linksThrough } from '../../src/studio/data/stopsGeometry.ts'
+import { FERRY_LINES, LINES, MODES, RAIL_LINES, isFerry, isLineMode, isRail, servedBy } from '../../src/features/routes/model/routes.ts'
+import { hintuansAlong } from '../../src/features/routes/model/timeline.ts'
+import { rideCut } from '../../src/features/routes/model/ride.ts'
+import { linksThrough } from '../../src/features/studio/data/stops-geometry.ts'
 
 const JEEP = { mode: 'jeepney', route_code: null }
 const LRT1 = { mode: 'lrt', route_code: 'LRT-1' }

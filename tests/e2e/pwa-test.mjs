@@ -35,7 +35,7 @@ if (!existsSync(join(root, 'dist', 'sw.js'))) {
   process.exit(1)
 }
 const published = JSON.parse(readFileSync(join(root, 'public', 'data', 'index.v4.json'), 'utf8'))
-/** One past the shape this app reads (src/commuter/mapFile.ts, MAP_FILE_SCHEMA). */
+/** One past the shape this app reads (src/features/published-map/map-file.ts, MAP_FILE_SCHEMA). */
 const MAP_FILE_SCHEMA_NEXT = published.schema + 1
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const d = new Date(published.published_at)
@@ -252,7 +252,7 @@ try {
   // `/studio/`. Only the worker is on trial.) The data file and the manifest
   // typed into a tab come through the worker's rules, as themselves.
   for (const [path, marker, viaWorker] of [
-    ['/', '/assets/commuter-', true],
+    ['/', '/assets/public-map-', true],
     ['/studio', null, false],
     ['/studio/', 'ParaPo Studio', false],
     ['/data/index.v4.json', '"published_at"', null],
@@ -261,7 +261,7 @@ try {
     const r = await page.goto(`${base}${path}`, { waitUntil: 'load' })
     const body = await page.evaluate(() => document.documentElement.outerHTML)
     const fromWorker = !!r && r.fromServiceWorker()
-    const asItself = !marker || (body.includes(marker) && !body.includes('/assets/commuter-') === (path !== '/'))
+    const asItself = !marker || (body.includes(marker) && !body.includes('/assets/public-map-') === (path !== '/'))
     check(
       `controlled page: ${path} ${viaWorker === true ? 'comes from the worker' : viaWorker === false ? 'is not answered by the worker' : 'is served'}${marker ? ' as itself' : ''}`,
       !!r?.ok() && asItself && (viaWorker === null || fromWorker === viaWorker),

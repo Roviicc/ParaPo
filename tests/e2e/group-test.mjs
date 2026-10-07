@@ -63,7 +63,7 @@ const offLine = (p, coords) => {
 // is held to two different colours.
 const MAP = await page.evaluate(async () => {
   try {
-    return (await import('/src/design-system/foundation/mapColours.ts')).MAP_COLOURS
+    return (await import('/src/design-system/foundation/map-colours.ts')).MAP_COLOURS
   } catch {
     return null
   }

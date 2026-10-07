@@ -1,4 +1,4 @@
-// The orange stretches (src/shared/geo/pass.ts, passStretches) with the bounds
+// The orange stretches (src/features/routes/geo/pass.ts, passStretches) with the bounds
 // checks of 2026-09-25, against the same walk without them.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/pass-stretches-test.mjs
@@ -12,10 +12,10 @@
 // pair the caller skips has no stretch.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { PASS_WITHIN_M, passBounds, passStretches } from '../../src/shared/geo/pass.ts'
-import { stopRing } from '../../src/shared/model/stops.ts'
-import { bboxOf, bboxesOverlap, haversine } from '../../src/shared/geo/geo.ts'
-import { distanceToRingM } from '../../src/shared/geo/ring.ts'
+import { PASS_WITHIN_M, passBounds, passStretches } from '../../src/features/routes/geo/pass.ts'
+import { stopRing } from '../../src/features/routes/model/stops.ts'
+import { bboxOf, bboxesOverlap, haversine } from '../../src/shared/utils/geo.ts'
+import { distanceToRingM } from '../../src/features/routes/geo/ring.ts'
 import { fileURLToPath } from 'node:url'
 import { readPublished } from '../../scripts/checks/check-map-data.mjs'
 
@@ -128,7 +128,7 @@ test('a line through a box is painted; one 100 m away is not', () => {
 // a vertex — its end, coming straight at the box — was passed (passIndex)
 // but painted nothing, its one-point stretch dropped.
 test('a line that only comes near at its end vertex gets a stub of a stretch, as passIndex lists it', async () => {
-  const { passIndex } = await import('../../src/shared/geo/pass.ts')
+  const { passIndex } = await import('../../src/features/routes/geo/pass.ts')
   const m = 1 / 111_000
   const ring = [[121.04, 14.7], [121.0401, 14.7], [121.0401, 14.7001], [121.04, 14.7001]]
   // Coming up from the south, ending 4.5 m below the box's lower edge.
@@ -149,8 +149,8 @@ test('a line that only comes near at its end vertex gets a stub of a stretch, as
 // The cheap-phone plan, step 16 (a), 2026-10-04: each direction's stretches
 // worked out once per list of boxes and kept (passStretches.ts, stretchesOf),
 // against the hook's memo as it was, kept word for word here.
-import { passBoxes, stretchesOf, stretchesPast } from '../../src/shared/geo/passStretches.ts'
-import { servedBy, variantLine } from '../../src/shared/model/routes.ts'
+import { passBoxes, stretchesOf, stretchesPast } from '../../src/features/routes/geo/pass-stretches.ts'
+import { servedBy, variantLine } from '../../src/features/routes/model/routes.ts'
 
 /** usePassStretches' features before step 16, word for word (but for types). */
 function oldFeatures(variants, stops) {
@@ -209,10 +209,10 @@ test('step 16 (a): asked again with the same direction and boxes, the very same 
 
 // The cheap-phone plan, step 13, 2026-10-05: each line file carries its
 // direction's stretches, worked out by the publish (scripts/publish/lineFile.mjs,
-// src/shared/geo/linePass.ts), with a key: the hintuans they were worked out
+// src/features/routes/geo/line-pass.ts), with a key: the hintuans they were worked out
 // against. The app takes them only when the index it has gives the same key,
 // and works them out as before otherwise.
-import { PASS_RULE, keepLinePass, linePass, passKey, publishedStretches, boxesReached } from '../../src/shared/geo/linePass.ts'
+import { PASS_RULE, keepLinePass, linePass, passKey, publishedStretches, boxesReached } from '../../src/features/routes/geo/line-pass.ts'
 import { lineFileText } from '../../scripts/publish/lineFile.mjs'
 import { checkMapData } from '../../scripts/checks/check-map-data.mjs'
 import { createHash } from 'node:crypto'
@@ -392,7 +392,7 @@ test('step 13: the rule\'s fingerprint is pinned to PASS_RULE', () => {
   assert.equal(
     fingerprint,
     RULE_PINS[PASS_RULE],
-    'what passStretches paints has changed: bump PASS_RULE in src/shared/geo/linePass.ts, so line files published by the old rule are worked out again, and pin this fingerprint under the new number',
+    'what passStretches paints has changed: bump PASS_RULE in src/features/routes/geo/line-pass.ts, so line files published by the old rule are worked out again, and pin this fingerprint under the new number',
   )
 })
 
@@ -408,21 +408,23 @@ test('step 13: the publish and the map data check import nothing from npm, all t
     for (const m of text.matchAll(/^\s*(?:import|export)\s+(?!type\b)[^'"]*?\bfrom\s*['"]([^'"]+)['"]|^\s*import\s*['"]([^'"]+)['"]/gm)) {
       const spec = m[1] ?? m[2]
       if (spec.startsWith('node:')) continue
-      if (!spec.startsWith('.')) {
+      // `@/x` is src/x (vite.config.ts, tsconfig.json, the Node hook): ours, not npm.
+      const local = spec.startsWith('@/') ? new URL('src/' + spec.slice(2), root) : spec.startsWith('.') ? new URL(spec, url) : null
+      if (!local) {
         outside.push(`${url.pathname.slice(root.pathname.length)}: ${spec}`)
         continue
       }
-      let next = new URL(spec, url)
-      if (!/\.[a-z]+$/i.test(spec)) next = [new URL(spec + '.ts', url), new URL(spec + '.tsx', url)].find((u) => { try { readFileSync(u); return true } catch { return false } })
+      let next = local
+      if (!/\.[a-z]+$/i.test(spec)) next = [new URL(local.href + '.ts'), new URL(local.href + '.tsx'), new URL(local.href + '/index.ts')].find((u) => { try { readFileSync(u); return true } catch { return false } })
       walk(next)
     }
   }
   walk(new URL('scripts/publish/publish-map.mjs', root))
-  assert.ok([...seen].some((u) => u.endsWith('/src/shared/geo/linePass.ts')), 'the publish reaches linePass.ts')
+  assert.ok([...seen].some((u) => u.endsWith('/src/features/routes/geo/line-pass.ts')), 'the publish reaches linePass.ts')
   // The check the same workflow runs after it, which reads the app's map file shape since 2026-10-06 (question T).
   walk(new URL('scripts/checks/check-map-data.mjs', root))
   assert.ok([...seen].some((u) => u.endsWith('/scripts/checks/check-map-data.mjs')), 'the check walked too')
-  assert.ok([...seen].some((u) => u.endsWith('/src/commuter/mapFile.ts')), 'they reach mapFile.ts')
+  assert.ok([...seen].some((u) => u.endsWith('/src/features/published-map/map-file.ts')), 'they reach mapFile.ts')
   assert.deepEqual(outside, [])
 })
 
@@ -475,7 +477,7 @@ test('step 13: on a copy of public/data, every line file written with its stretc
         return new Response('not here', { status: 404 })
       }
     }
-    const { loadMapFile, loadLine } = await import(`../../src/commuter/mapFile.ts?pass=${Date.now()}`)
+    const { loadMapFile, loadLine } = await import(`../../src/features/published-map/map-file.ts?pass=${Date.now()}`)
     const map = await loadMapFile()
     const appBoxes = passBoxes(map.stops)
     let taken = 0
@@ -516,7 +518,7 @@ test('step 13: the committed line files, with stretches or without, are painted 
       return new Response('not here', { status: 404 })
     }
   }
-  const { loadMapFile, loadLine } = await import(`../../src/commuter/mapFile.ts?committed=${Date.now()}`)
+  const { loadMapFile, loadLine } = await import(`../../src/features/published-map/map-file.ts?committed=${Date.now()}`)
   const map = await loadMapFile()
   const boxes = passBoxes(map.stops)
   for (const row of map.variants.filter((x) => x.shape)) {

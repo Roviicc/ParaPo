@@ -1,11 +1,11 @@
-// The save panel's places (src/studio/panels/places.ts): the hotspots a route
+// The save panel's places (src/features/studio/panels/places.ts): the hotspots a route
 // can end at, grouped by the name people say, and the one box a picked place
 // stands on.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/places-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { boxFor, groupPlaces, nearestStop, terminalAlreadyAt } from '../../src/studio/panels/places.ts'
+import { boxFor, groupPlaces, nearestStop, terminalAlreadyAt } from '../../src/features/studio/panels/places.ts'
 
 let n = 0
 /** A box at [lng, 14.7]: sample data, shaped like the stop rows. */

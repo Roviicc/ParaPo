@@ -1,5 +1,5 @@
 // The public map opens framed on the routes (the owner's Q1, 2026-10-04):
-// src/shared/map/framing.ts. The box it frames is the one useSavedRoutes'
+// src/features/routes/map/framing.ts. The box it frames is the one useSavedRoutes'
 // fit framed after the map's 'load' until then; the fit itself now runs on
 // the public map only if what came frames otherwise, and never once the
 // visitor has moved the map. The studio's map is framed as it always was.
@@ -13,9 +13,9 @@
 import { mock, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { OPENING_WAIT_MS, ROUTES_FRAMING, framesRoutes, loadClock, loadingLifts, openedOn, routesBounds, sameBounds, within } from '../../src/shared/map/framing.ts'
-import { ROUTES_LINE, routesDrawn } from '../../src/shared/map/savedRoutesLayers.ts'
-import { variantLine } from '../../src/shared/model/routes.ts'
+import { OPENING_WAIT_MS, ROUTES_FRAMING, framesRoutes, loadClock, loadingLifts, openedOn, routesBounds, sameBounds, within } from '../../src/features/routes/map/framing.ts'
+import { ROUTES_LINE, routesDrawn } from '../../src/features/routes/map/saved-routes-layers.ts'
+import { variantLine } from '../../src/features/routes/model/routes.ts'
 import { routesOnMap } from '../../scripts/research/phoneSpeedParts.mjs'
 
 /** useSavedRoutes' fit as it was until 2026-10-04, verbatim but for the map: the box it handed fitBounds, or null where it fitted nothing. */
@@ -59,8 +59,8 @@ test('fewer than two points frame nothing, as the fit did', () => {
 test("the framing is the fit's: 100 px clear of the edges, zoom 13 at most", () => {
   assert.deepEqual({ ...ROUTES_FRAMING }, { padding: 100, maxZoom: 13 })
   // useSavedRoutes and MapView both read it, so neither can drift from the other.
-  const hook = readFileSync(new URL('../../src/shared/map/useSavedRoutes.ts', import.meta.url), 'utf8')
-  const view = readFileSync(new URL('../../src/shared/map/MapView.tsx', import.meta.url), 'utf8')
+  const hook = readFileSync(new URL('../../src/features/routes/map/use-saved-routes.ts', import.meta.url), 'utf8')
+  const view = readFileSync(new URL('../../src/features/routes/map/map-view.tsx', import.meta.url), 'utf8')
   assert.match(hook, /map\.fitBounds\(bounds, \{ \.\.\.ROUTES_FRAMING, duration: 0 \}\)/)
   assert.match(view, /bounds: framing, fitBoundsOptions: ROUTES_FRAMING/)
 })
@@ -202,7 +202,7 @@ function styledMap() {
 test("the map's load clock: 12 s from its making, and the public map's 12 s again from its style", (t) => {
   t.after(() => mock.timers.reset())
   mock.timers.enable({ apis: ['setTimeout'] })
-  const view = readFileSync(new URL('../../src/shared/map/MapView.tsx', import.meta.url), 'utf8')
+  const view = readFileSync(new URL('../../src/features/routes/map/map-view.tsx', import.meta.url), 'utf8')
   assert.match(view, /stopClock = loadClock\(map, !!openOn, LOAD_TIMEOUT_MS, \(\) => \{/, 'MapView runs it, from the style on the public map only')
   assert.match(view, /\n\s*stopClock\(\)\n/, 'and stops it as the map goes')
 
@@ -374,7 +374,7 @@ test('the studio\'s map: "Loading map…" goes at its \'load\', routes drawn or 
   // MapView: the routes' test on the public map only (`openOn`), the text
   // shown until it lifts or a failure is said, and stopped as the map goes.
   // The clock still reads the map's 'load', not the text.
-  const view = readFileSync(new URL('../../src/shared/map/MapView.tsx', import.meta.url), 'utf8')
+  const view = readFileSync(new URL('../../src/features/routes/map/map-view.tsx', import.meta.url), 'utf8')
   assert.match(view, /stopLift = loadingLifts\(map, openOn \? routesDrawn : null, \(\) => setLifted\(true\)\)/)
   assert.match(view, /\n\s*stopLift\(\)\n/)
   assert.match(view, /\{!lifted && !error && \(\s*<div className="pointer-events-none absolute inset-0 grid place-items-center">\s*<p className="text-sm text-neutral-500">Loading map…<\/p>/)

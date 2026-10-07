@@ -31,7 +31,7 @@ import {
   tilesAlong,
   tripSpots,
 } from '../../scripts/research/phoneSpeedParts.mjs'
-import { ROUTES_LINE } from '../../src/shared/map/savedRoutesLayers.ts'
+import { ROUTES_LINE } from '../../src/features/routes/map/saved-routes-layers.ts'
 
 // A small map near Manila's latitude, in metres east and north: route A's
 // two directions on one road running east for 2 km; route B 10 m north of

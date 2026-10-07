@@ -2,7 +2,7 @@
 // handle, and where a drag let go, takes it.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { LOW_PX, follow, heightsFor, snapAfterTap, snapFor } from '../../src/shared/cards/sheetGesture.ts'
+import { LOW_PX, follow, heightsFor, snapAfterTap, snapFor } from '../../src/shared/ui/sheet-gesture.ts'
 
 test('a tap goes round: Low, Middle, Max, Low; from a free height, on up to Max', () => {
   assert.equal(snapAfterTap('low'), 'middle')

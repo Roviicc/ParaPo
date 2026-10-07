@@ -1,4 +1,4 @@
-// The studio's direction save (src/studio/data/routesWrite.ts, saveVariant)
+// The studio's direction save (src/features/studio/data/routes-write.ts, saveVariant)
 // against a fake client: which rows a failed save takes back out.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/route-save-test.mjs
@@ -10,8 +10,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeSupabase } from './fixtures/fake-supabase.mjs'
-import { setSupabase } from '../../src/studio/data/supabase.ts'
-import { deleteVariant, saveVariant } from '../../src/studio/data/routesWrite.ts'
+import { setSupabase } from '../../src/features/studio/data/supabase.ts'
+import { deleteVariant, saveVariant } from '../../src/features/studio/data/routes-write.ts'
 
 const input = {
   routeId: null,

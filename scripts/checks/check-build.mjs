@@ -4,8 +4,8 @@
 // 1. Modules. Walks Vite's manifest from each HTML entry through every chunk it
 //    imports, statically or dynamically, and reads which source files went
 //    into those chunks (.vite/modules.json, written by the chunkModules plugin
-//    in vite.config.ts). No file from src/studio/ may reach the public page,
-//    whatever it contains.
+//    in vite.config.ts). No file from src/app/studio/ or src/features/studio/
+//    may reach the public page, whatever it contains.
 //
 // 2. Strings, as a second net: the public chunks may not contain words only
 //    the editor has —
@@ -19,8 +19,8 @@
 //    file (/data/index.v4.json and the lines; the index since 2026-09-29), so
 //    no module from @supabase may reach it — 54 kB gzipped a visitor does not
 //    download (the shared chunk went 375 → 321 kB), and a database the public
-//    never touches. The live-table readers live in src/studio/data/live.ts, which
-//    check-boundaries.mjs keeps out of commuter/ by construction; these two
+//    never touches. The live-table readers live in src/features/studio/data/live.ts, which
+//    check-boundaries.mjs keeps out of the public shell and its features by construction; these two
 //    checks are the backstop.
 //
 // Each check has a positive control on the studio side — its chunks must hold
@@ -146,16 +146,25 @@ const studioModules = sourceModules(studioFiles)
 // The design system is domain-free and imports only itself, so it is the
 // public page's as much as the studio's: the route list brought its first
 // primitives there on 2026-09-28.
-const PUBLIC_AREAS = ['src/shared/', 'src/commuter/', 'src/design-system/']
+const PUBLIC_AREAS = [
+  'src/app/public-map/',
+  'src/features/routes/',
+  'src/features/locator/',
+  'src/features/published-map/',
+  'src/shared/',
+  'src/styles/',
+  'src/design-system/',
+]
 const leakedModules = commuterModules.filter((m) => !PUBLIC_AREAS.some((a) => m.startsWith(a)))
 check(
-  `public page (${commuterFiles.length} chunk(s), ${commuterModules.length} of our modules) holds only shared/, commuter/ and design-system/ code`,
+  `public page (${commuterFiles.length} chunk(s), ${commuterModules.length} of our modules) holds only the public shell, routes, locator, published-map, shared, styles and design-system code`,
   commuterModules.length > 0 && leakedModules.length === 0,
   leakedModules.join(', '),
 )
+const STUDIO_AREAS = ['src/app/studio/', 'src/features/studio/']
 check(
-  'studio chunks hold src/studio/ modules — the module search works',
-  studioModules.some((m) => m.startsWith('src/studio/')),
+  'studio chunks hold src/app/studio/ and src/features/studio/ modules — the module search works',
+  STUDIO_AREAS.every((a) => studioModules.some((m) => m.startsWith(a))),
 )
 
 /** Package modules (under node_modules/) inside the given chunks. */
@@ -242,11 +251,11 @@ for (const page of ['index.html', 'studio/index.html']) {
 
 // --------------------------------------------------- the early map file (8)
 
-const mapFileSource = readFileSync(join(root, 'src', 'commuter', 'mapFile.ts'), 'utf8')
+const mapFileSource = readFileSync(join(root, 'src', 'features', 'published-map', 'map-file.ts'), 'utf8')
 const MAP_FILE_URL = mapFileSource.match(/^export const MAP_FILE_URL = '([^']+)'$/m)?.[1]
 const EARLY_MAP_FILE = mapFileSource.match(/^export const EARLY_MAP_FILE = '([^']+)'$/m)?.[1]
 check(
-  'mapFile.ts names the map file and where the root page leaves its request for it — the search below works',
+  'map-file.ts names the map file and where the root page leaves its request for it — the search below works',
   !!MAP_FILE_URL && !!EARLY_MAP_FILE,
   `MAP_FILE_URL ${MAP_FILE_URL ?? 'not found'}, EARLY_MAP_FILE ${EARLY_MAP_FILE ?? 'not found'}`,
 )

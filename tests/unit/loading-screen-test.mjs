@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs'
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const page = read('../../index.html')
 const studio = read('../../studio/index.html')
-const mapView = read('../../src/shared/map/MapView.tsx')
+const mapView = read('../../src/features/routes/map/map-view.tsx')
 const tokens = read('../../src/design-system/foundation/tokens.css')
 const tailwind = read('../../node_modules/tailwindcss/theme.css')
 
@@ -40,7 +40,7 @@ const root = /<div id="root"><div style="([^"]+)"><p style="([^"]+)">Loading map
 test('the root page holds "Loading map…" inside #root, the only thing there, for React to replace', () => {
   assert.ok(root, 'index.html: <div id="root"><div style=…><p style=…>Loading map…</p></div></div>')
   // The module script comes after it, as before: the app replaces it on its first render.
-  assert.ok(page.indexOf('Loading map…') < page.indexOf('<script type="module" src="/src/commuter/main.tsx">'))
+  assert.ok(page.indexOf('Loading map…') < page.indexOf('<script type="module" src="/src/app/public-map/main.tsx">'))
   assert.equal(studio.includes('Loading map…'), false, "the studio's page opens on its sign-in and has none")
 })
 

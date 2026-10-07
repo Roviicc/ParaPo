@@ -1,4 +1,4 @@
-// What a tap lands on (src/shared/map/tap.ts), asked of the map once a tap
+// What a tap lands on (src/features/routes/map/tap.ts), asked of the map once a tap
 // (the cheap-phone plan, step 7, 2026-10-04): both hooks hear the map's one
 // click (routeTaps, stopTaps) and ask the same question, so the second takes
 // the first's answer, kept on the browser's event, or without one on the
@@ -11,7 +11,7 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/tap-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, bindHover, resolveTap, tapBox, tapTargets } from '../../src/shared/map/tap.ts'
+import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, bindHover, resolveTap, tapBox, tapTargets } from '../../src/features/routes/map/tap.ts'
 
 /**
  * A map with the two hit layers: `under` gives, for a layer, what a query

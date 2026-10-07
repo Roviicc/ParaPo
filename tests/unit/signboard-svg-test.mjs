@@ -1,4 +1,4 @@
-// A signboard's SVG made drawing only (src/shared/model/signboardSvg.ts),
+// A signboard's SVG made drawing only (src/features/routes/model/signboard-svg.ts),
 // the cleaning the studio does before an upload and the publish does again
 // before a board lands on the map's own domain.
 //
@@ -9,7 +9,7 @@
 // come out without it; and a board as Figma exports it must come out whole.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { SIGNBOARD_MAX_BYTES, cleanSignboardSvg, keepsAttribute } from '../../src/shared/model/signboardSvg.ts'
+import { SIGNBOARD_MAX_BYTES, cleanSignboardSvg, keepsAttribute } from '../../src/features/routes/model/signboard-svg.ts'
 
 const clean = (s) => {
   const r = cleanSignboardSvg(s)

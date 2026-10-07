@@ -1,4 +1,4 @@
-// The public map's file reader (src/commuter/mapFile.ts) against files of
+// The public map's file reader (src/features/published-map/map-file.ts) against files of
 // every shape it can meet, served by a fake fetch.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/map-file-test.mjs
@@ -18,7 +18,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 
 let n = 0
 /** A fresh copy of the module, since it caches the first successful load. */
-const fresh = () => import(`../../src/commuter/mapFile.ts?case=${n++}`)
+const fresh = () => import(`../../src/features/published-map/map-file.ts?case=${n++}`)
 
 const base = { schema: 4, published_at: '2026-09-29T11:33:22Z', variants: [], stops: [], links: [] }
 const line = { type: 'LineString', coordinates: [[121, 14.7], [121.001, 14.701], [121.002, 14.7]] }
@@ -63,11 +63,11 @@ test('a line file that is not that direction\'s is refused, and a failed line is
 })
 
 // The cheap-phone plan, step 13, 2026-10-05: a line file may carry its
-// direction's orange stretches and their key (src/shared/geo/linePass.ts).
+// direction's orange stretches and their key (src/features/routes/geo/line-pass.ts).
 // The line read is the same object either way; the stretches are kept
 // under it, and a file without them, or with them unreadable, keeps none.
 test("step 13: a line file's orange stretches are kept under the line it brings; the line is read as before", async () => {
-  const { passBoxes, linePass, publishedStretches } = await import('../../src/shared/geo/linePass.ts')
+  const { passBoxes, linePass, publishedStretches } = await import('../../src/features/routes/geo/line-pass.ts')
   // A jeep's hintuan on the line's middle point.
   const [x, y] = line.coordinates[1]
   const d = 0.0001
@@ -530,7 +530,7 @@ test('the page served in place of a missing index shows the stored copy too', as
 // anew only when it says something new (status.ts, sameAge), so a full line
 // read — a new list of directions — renders nothing more.
 test("step 16 (g): the map's age, the same date and the same copy, is the one already set; a new date or copy is the new one", async () => {
-  const { sameAge } = await import('../../src/commuter/status.ts')
+  const { sameAge } = await import('../../src/features/published-map/status.ts')
   const was = { publishedAt: '2026-09-29T11:33:22Z', stale: false }
   assert.equal(sameAge(was, { publishedAt: '2026-09-29T11:33:22Z', stale: false }), was)
   const newer = { publishedAt: '2026-10-04T00:00:00Z', stale: false }

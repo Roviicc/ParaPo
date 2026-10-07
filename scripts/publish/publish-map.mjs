@@ -9,7 +9,7 @@
 //   data/index.v4.json      schema 4, what the app reads (MAP_FILE_URL): the
 //                           index below with every line in, the trains and
 //                           the ferry — a line's `route_code`, a station's
-//                           `line` — read by servedBy (src/shared/model/routes.ts).
+//                           `line` — read by servedBy (src/features/routes/model/routes.ts).
 //   data/index.v3.json      schema 3: the same without the ferry
 //                           (withoutLines.mjs), for an app that knows the
 //                           trains but would take the ferry for a jeep. Kept
@@ -28,13 +28,13 @@
 //   data/lines/<id>.json    each direction's full line (below), fetched when
 //                           the direction is lit or opened, with its orange
 //                           stretches worked out (`pass`, and `passKey`, what
-//                           they were worked out against: src/shared/geo/linePass.ts),
+//                           they were worked out against: src/features/routes/geo/line-pass.ts),
 //                           since 2026-10-05.
 //   data/map.json           schema 1, everything in full as before (without
 //                           any line, as the index), for one
 //                           release: an installed app that has not updated
 //                           reads it. Drop it a month at least after the
-//                           index ships (src/commuter/mapFile.ts has the
+//                           index ships (src/features/published-map/map-file.ts has the
 //                           rule), with its commit line in the workflow.
 // A line file of a direction that no longer exists is removed.
 //
@@ -76,12 +76,12 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { gzipSync } from 'node:zlib'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { OVERVIEW_M, lineLength, overviewOf, pointToSegmentM, round6, roundLngLat, simplifyLine } from '../../src/shared/geo/geo.ts'
-import { directionName, isLineMode, routeName } from '../../src/shared/model/routes.ts'
-import { stopLabel } from '../../src/shared/model/stops.ts'
-import { passBoxes } from '../../src/shared/geo/linePass.ts'
-import { MAP_FILE_SCHEMA } from '../../src/commuter/mapFile.ts'
-import { cleanSignboardSvg } from '../../src/shared/model/signboardSvg.ts'
+import { OVERVIEW_M, lineLength, overviewOf, pointToSegmentM, round6, roundLngLat, simplifyLine } from '../../src/shared/utils/geo.ts'
+import { directionName, isLineMode, routeName } from '../../src/features/routes/model/routes.ts'
+import { stopLabel } from '../../src/features/routes/model/stops.ts'
+import { passBoxes } from '../../src/features/routes/geo/line-pass.ts'
+import { MAP_FILE_SCHEMA } from '../../src/features/published-map/map-file.ts'
+import { cleanSignboardSvg } from '../../src/features/routes/model/signboard-svg.ts'
 import { EVERY_LINE, FERRY, withoutLines } from './withoutLines.mjs'
 import { boardsRefusal } from './boardGuard.mjs'
 import { lineFileText } from './lineFile.mjs'
@@ -133,7 +133,7 @@ const MAX_SHRINK = 0.3
 const PAGE = 1000
 const TIMEOUT_MS = 30_000
 
-/** map.json's shape, the one before the index: fixed, since installed apps read it as it is (src/commuter/mapFile.ts has the rules). */
+/** map.json's shape, the one before the index: fixed, since installed apps read it as it is (src/features/published-map/map-file.ts has the rules). */
 const SCHEMA = 1
 /** The old index's shape, before the train lines: fixed, as map.json's, for installed apps. */
 const INDEX_SCHEMA = 2
@@ -471,7 +471,7 @@ const published_at = same ? previousV4.published_at : new Date().toISOString().r
 
 // The terms travel inside each file, so no copy can arrive without them. The
 // shape number first: an installed app reads whatever its path serves, and
-// checks the number against the one it knows (src/commuter/mapFile.ts has the
+// checks the number against the one it knows (src/features/published-map/map-file.ts has the
 // rules for changing it — a new shape goes to a new path).
 const stamp = (schema, rows) =>
   JSON.stringify({ schema, published_at, license: LICENSE, attribution: ATTRIBUTION, ...rows }) + '\n'
@@ -493,7 +493,7 @@ writeFileSync(INDEX_V4, indexV4File)
 //
 // With its orange stretches, worked out here once rather than by every
 // phone that lights the line (lineFile.mjs; the cheap-phone plan, step 13,
-// 2026-10-05): by the app's own rule (src/shared/geo/linePass.ts: passBoxes,
+// 2026-10-05): by the app's own rule (src/features/routes/geo/line-pass.ts: passBoxes,
 // passBounds, passStretches, stopRing, bboxOf, servedBy), on what the app
 // reads — the line as written and the hotspots as rounded in the index,
 // shape 4's, every line in — with the key the app checks them by.

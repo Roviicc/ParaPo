@@ -1,4 +1,4 @@
-// A hotspot's point, the centroid of its box (src/shared/geo/ring.ts,
+// A hotspot's point, the centroid of its box (src/features/routes/geo/ring.ts,
 // ringCentroid). Its shoelace sums were taken from 0°, and at Manila's
 // longitude they cancelled the digits that mattered: a 10 m box's centroid
 // landed some 60 m away, outside its own box (review of 2026-10-03).
@@ -6,8 +6,8 @@
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/ring-centroid-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { haversine } from '../../src/shared/geo/geo.ts'
-import { pointInRing, ringCentroid } from '../../src/shared/geo/ring.ts'
+import { haversine } from '../../src/shared/utils/geo.ts'
+import { pointInRing, ringCentroid } from '../../src/features/routes/geo/ring.ts'
 
 // About 10 m by 8 m on Quirino Highway, 6-decimal corners as saved.
 const box = [
@@ -50,7 +50,7 @@ test('a zero-area trace gets the average of its corners', () => {
 
 // Review of 2026-10-03, finding 15: a bow-tie was saved as a hotspot.
 test('an outline whose sides cross is found; a plain one, convex or not, is not', async () => {
-  const { ringCrossesItself } = await import('../../src/shared/geo/ring.ts')
+  const { ringCrossesItself } = await import('../../src/features/routes/geo/ring.ts')
   assert.equal(ringCrossesItself(box), false)
   // Corners 2 and 3 swapped: the sides cross in the middle.
   assert.equal(ringCrossesItself([box[0], box[1], box[3], box[2]]), true)
@@ -63,7 +63,7 @@ test('an outline whose sides cross is found; a plain one, convex or not, is not'
 })
 
 test('a corner repeated where it stands is not a crossing', async () => {
-  const { ringCrossesItself } = await import('../../src/shared/geo/ring.ts')
+  const { ringCrossesItself } = await import('../../src/features/routes/geo/ring.ts')
   assert.equal(ringCrossesItself([...box, box[0]]), false)
   assert.equal(ringCrossesItself([box[0], box[1], box[1], box[2], box[3]]), false)
 })

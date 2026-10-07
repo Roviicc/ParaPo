@@ -1,6 +1,6 @@
 // The basemap tiles the public map asked for before the service worker took
 // control of a first visit, asked for again once it has, so the worker keeps
-// them (src/shared/map/tilesAsked.ts, src/commuter/pwa.ts's warmCaches).
+// them (src/features/routes/map/tiles-asked.ts, src/features/published-map/pwa.ts's warmCaches).
 // Since the map opens on its routes (Q1, 2026-10-04) every tile of the first
 // screen comes before the worker takes over; pwa-test's "basemap-tiles holds
 // tiles" found none kept on GitHub's runner (2026-10-06).
@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { TILES_KEPT, noteTile, takeTilesAsked, tileNotes } from '../../src/shared/map/tilesAsked.ts'
+import { TILES_KEPT, noteTile, takeTilesAsked, tileNotes } from '../../src/features/routes/map/tiles-asked.ts'
 
 const tile = (z, x, y) => `https://tiles.openfreemap.org/planet/20260927_080001_pt/${z}/${x}/${y}.pbf`
 
@@ -67,18 +67,18 @@ test("the module's own notes are one page's: noteTile and takeTilesAsked share t
 })
 
 test('the public map notes its tiles, the studio none, and the worker asks for them again once in control', () => {
-  const view = readFileSync(new URL('../../src/shared/map/MapView.tsx', import.meta.url), 'utf8')
-  assert.match(view, /import \{ noteTile \} from '\.\/tilesAsked'/)
+  const view = readFileSync(new URL('../../src/features/routes/map/map-view.tsx', import.meta.url), 'utf8')
+  assert.match(view, /import \{ noteTile \} from '\.\/tiles-asked'/)
   // Only with `openOn`, which only the public map passes.
   assert.match(view, /\.\.\.\(openOn \? \{ transformRequest: noteTile \} : \{\}\)/)
   assert.equal(view.match(/transformRequest/g).length, 1, 'no other transform')
-  const studio = readFileSync(new URL('../../src/studio/StudioApp.tsx', import.meta.url), 'utf8')
+  const studio = readFileSync(new URL('../../src/app/studio/studio-app.tsx', import.meta.url), 'utf8')
   assert.doesNotMatch(studio, /openOn/)
 
-  const pwa = readFileSync(new URL('../../src/commuter/pwa.ts', import.meta.url), 'utf8')
+  const pwa = readFileSync(new URL('../../src/features/published-map/pwa.ts', import.meta.url), 'utf8')
   const warm = pwa.slice(pwa.indexOf('async function warmCaches'))
   const control = warm.indexOf("addEventListener('controllerchange'")
   const take = warm.indexOf('...takeTilesAsked().map(quiet)')
   assert.ok(control > 0 && take > control, 'the tiles are taken once the worker controls the page, with the map file and the style')
-  assert.match(pwa, /import \{ takeTilesAsked \} from '\.\.\/shared\/map\/tilesAsked'/)
+  assert.match(pwa, /import \{ takeTilesAsked \} from '@\/features\/routes\/map\/tiles-asked'/)
 })

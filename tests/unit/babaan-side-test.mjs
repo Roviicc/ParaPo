@@ -1,13 +1,13 @@
-// The babaan side (src/shared/geo/rightOfLine.ts): a hintuan box drawn
+// The babaan side (src/features/routes/geo/right-of-line.ts): a hintuan box drawn
 // across the road, cut along a direction's line, keeps the half on the
 // line's right — the owner's rule of 2026-09-26, papunta and balikan alike.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/babaan-side-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { rightOfLine } from '../../src/shared/geo/rightOfLine.ts'
-import { hintuansAlong } from '../../src/shared/model/timeline.ts'
-import { stopRing } from '../../src/shared/model/stops.ts'
+import { rightOfLine } from '../../src/features/routes/geo/right-of-line.ts'
+import { hintuansAlong } from '../../src/features/routes/model/timeline.ts'
+import { stopRing } from '../../src/features/routes/model/stops.ts'
 import { fileURLToPath } from 'node:url'
 import { readPublished } from '../../scripts/checks/check-map-data.mjs'
 
@@ -92,13 +92,13 @@ test('a line ending in the box on a repeated point still cuts it', () => {
 // The same output, held here against the code as it was, kept word for word
 // below: deep equality, not a tolerance, for every line and every hintuan of
 // the committed map, both ways, and for lines made up to find the corners.
-import { bboxOf } from '../../src/shared/geo/geo.ts'
-import { nearestOnSegment } from '../../src/shared/geo/geo.ts'
-import { pointInRing, ringToPolygon } from '../../src/shared/geo/ring.ts'
-import { passIndex } from '../../src/shared/geo/pass.ts'
-import { isLineMode, servedBy, variantLine } from '../../src/shared/model/routes.ts'
-import { drawnFromTheEnd } from '../../src/shared/model/timeline.ts'
-import { babaanSideFeatures } from '../../src/shared/geo/babaanSides.ts'
+import { bboxOf } from '../../src/shared/utils/geo.ts'
+import { nearestOnSegment } from '../../src/shared/utils/geo.ts'
+import { pointInRing, ringToPolygon } from '../../src/features/routes/geo/ring.ts'
+import { passIndex } from '../../src/features/routes/geo/pass.ts'
+import { isLineMode, servedBy, variantLine } from '../../src/features/routes/model/routes.ts'
+import { drawnFromTheEnd } from '../../src/features/routes/model/timeline.ts'
+import { babaanSideFeatures } from '../../src/features/routes/geo/babaan-sides.ts'
 
 /** rightOfLine before step 8, word for word (but for its name and types). */
 function oldRightOfLine(ring, line) {

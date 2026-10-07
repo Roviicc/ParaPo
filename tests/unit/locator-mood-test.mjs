@@ -1,4 +1,4 @@
-// The visitor's dot's moods (src/commuter/locatorMood.ts, the owner's ask of
+// The visitor's dot's moods (src/features/locator/locator-mood.ts, the owner's ask of
 // 2026-10-01): cross at a run of taps, glad as the location comes or the
 // camera arrives and on the move, and
 // otherwise neutral; and the faces each wears.
@@ -16,7 +16,7 @@ import {
   faceFor,
   moodAt,
   reactionTo,
-} from '../../src/commuter/locatorMood.ts'
+} from '../../src/features/locator/locator-mood.ts'
 
 const T = 1_000_000
 /** A good, fresh fix, standing still. */

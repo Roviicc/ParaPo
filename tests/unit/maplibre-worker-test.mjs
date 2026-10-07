@@ -14,7 +14,7 @@ import config, { MAPLIBRE_WORKER_URL, maplibreWorkerWithThePage } from '../../vi
 const plugin = maplibreWorkerWithThePage()
 
 test("MapView.tsx asks for the worker's URL by the import the plugin answers in a build and Vite's worker plugin in dev", () => {
-  const src = readFileSync(new URL('../../src/shared/map/MapView.tsx', import.meta.url), 'utf8')
+  const src = readFileSync(new URL('../../src/features/routes/map/map-view.tsx', import.meta.url), 'utf8')
   assert.ok(src.includes(`import maplibreWorkerUrl from '${MAPLIBRE_WORKER_URL}'`), MAPLIBRE_WORKER_URL)
   assert.ok(
     config.plugins.flat().some((p) => p?.name === plugin.name),
@@ -49,7 +49,7 @@ test('the plugin takes that one import, and emits the worker as a chunk of the b
   const worker = { id: '/repo/node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs' }
   assert.equal(await plugin.load.call(context(worker), id), 'export default import.meta.ROLLUP_FILE_URL_ref7')
   assert.deepEqual(emitted, [{ type: 'chunk', id: worker.id, name: 'maplibre-gl-worker' }])
-  assert.equal(await plugin.load.call(context(worker), '/repo/src/shared/map/MapView.tsx'), null, 'no other module')
+  assert.equal(await plugin.load.call(context(worker), '/repo/src/features/routes/map/map-view.tsx'), null, 'no other module')
   assert.equal(emitted.length, 1)
   await assert.rejects(plugin.load.call(context(null), id), /maplibre-gl-worker\.mjs is missing/)
 })
@@ -88,7 +88,7 @@ test('React has its group; our code, other packages and the runtime none', () =>
     '/repo/node_modules/react-is/index.js',
     '/repo/node_modules/workbox-window/build/workbox-window.prod.es5.mjs',
     '/repo/node_modules/@supabase/supabase-js/dist/index.mjs',
-    '/repo/src/shared/map/MapView.tsx',
+    '/repo/src/features/routes/map/map-view.tsx',
     '/repo/src/react/x.ts',
     '\0rolldown/runtime.js',
   ]) {

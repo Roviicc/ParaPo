@@ -1,10 +1,10 @@
-// Where a routed line turns back on itself (src/studio/drawing/uturns.ts):
+// Where a routed line turns back on itself (src/features/studio/drawing/uturns.ts):
 // the U-turns the studio rings in amber, from the router's segments alone.
 //
 //   node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs tests/unit/uturns-test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { findUTurns } from '../../src/studio/drawing/uturns.ts'
+import { findUTurns } from '../../src/features/studio/drawing/uturns.ts'
 
 /** A point `m` metres east (and `n` north) of 121.05, 14.70: sample geometry, not the map. */
 const at = (m, n = 0) => [121.05 + m / 107_700, 14.7 + n / 110_600]

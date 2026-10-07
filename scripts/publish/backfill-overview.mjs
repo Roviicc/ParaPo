@@ -10,7 +10,7 @@
 // SUPABASE_SERVICE_ROLE_KEY in the environment (the project's settings,
 // API). Never commit that key. The overview is the app's own (geo.ts
 // overviewOf), so a backfilled row is what a save would have written.
-import { overviewOf } from '../../src/shared/geo/geo.ts'
+import { overviewOf } from '../../src/shared/utils/geo.ts'
 
 const URL_BASE = process.env.SUPABASE_URL
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY

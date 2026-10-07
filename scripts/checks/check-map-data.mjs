@@ -19,14 +19,14 @@
 // it is, with the warnings on the run's summary page and in the issue the
 // workflow keeps (.github/workflows/publish-map.yml).
 //
-// The rules are the app's own (src/shared/geo/pass.ts): a direction
+// The rules are the app's own (src/features/routes/geo/pass.ts): a direction
 // passes a hotspot when its line comes within PASS_WITHIN_M of the box,
 // which is what the studio links on save and what the public map paints
 // orange. Judged here on the published line, which lies within half a metre
 // of the drawn one, so a pass is only doubted beyond that half metre.
 //
 // A line file that carries its orange stretches (`pass`, since 2026-10-05,
-// the cheap-phone plan, step 13: src/shared/geo/linePass.ts) has them worked
+// the cheap-phone plan, step 13: src/features/routes/geo/line-pass.ts) has them worked
 // out again here, against this file's hotspots, as the app would. Where
 // their key is the one this file's hotspots give, the app paints them as
 // they are: stretches that are not the ones the line and the hotspots make,
@@ -45,15 +45,15 @@
 import { existsSync, readFileSync, appendFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { PASS_WITHIN_M, passBounds } from '../../src/shared/geo/pass.ts'
-import { stopLabel, stopRing } from '../../src/shared/model/stops.ts'
-import { FERRY_LINES, LINES, RAIL_LINES, isFerry, isRail, servedBy } from '../../src/shared/model/routes.ts'
-import { stationIndex } from '../../src/shared/model/railFares.ts'
-import { bboxOf, bboxesOverlap, haversine, lineLength } from '../../src/shared/geo/geo.ts'
-import { distanceToRingM } from '../../src/shared/geo/ring.ts'
-import { firstNearIndex } from '../../src/shared/geo/pass.ts'
-import { linePass, passBoxes, readablePass } from '../../src/shared/geo/linePass.ts'
-import { MAP_FILE_SCHEMA } from '../../src/commuter/mapFile.ts'
+import { PASS_WITHIN_M, passBounds } from '../../src/features/routes/geo/pass.ts'
+import { stopLabel, stopRing } from '../../src/features/routes/model/stops.ts'
+import { FERRY_LINES, LINES, RAIL_LINES, isFerry, isRail, servedBy } from '../../src/features/routes/model/routes.ts'
+import { stationIndex } from '../../src/features/routes/model/rail-fares.ts'
+import { bboxOf, bboxesOverlap, haversine, lineLength } from '../../src/shared/utils/geo.ts'
+import { distanceToRingM } from '../../src/features/routes/geo/ring.ts'
+import { firstNearIndex } from '../../src/features/routes/geo/pass.ts'
+import { linePass, passBoxes, readablePass } from '../../src/features/routes/geo/line-pass.ts'
+import { MAP_FILE_SCHEMA } from '../../src/features/published-map/map-file.ts'
 
 /** How far a line's first or last point may sit from the hotspot it leaves from or arrives at. */
 export const END_WITHIN_M = 50
