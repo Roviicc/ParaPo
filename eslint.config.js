@@ -72,7 +72,7 @@ export default defineConfig([
     rules: {
       // TypeScript
       '@typescript-eslint/consistent-type-definitions': ['warn', 'interface'],
-      '@typescript-eslint/consistent-type-imports': ['warn', { fixStyle: 'separate-type-imports' }],
+      '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'separate-type-imports' }],
 
       // Imports: four groups, blank lines between, alphabetical within.
       // `tsc` already proves every import resolves, so the resolver rule is off
