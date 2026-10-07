@@ -58,7 +58,7 @@ export function groupPlaces(hotspots: HotspotRow[]): Place[] {
 }
 
 /**
- * The box a chosen place stands on, since `route.head_stop_id` references one
+ * The box a chosen place stands on, since `route.headHotspotId` references one
  * row: its terminal when it has one, else the box nearest that end of the
  * line — the one the jeep actually stops at.
  */

@@ -46,8 +46,7 @@ export function placeBoxes<S extends Hotspot>(
   all: readonly S[],
 ): { box: S; label: string }[] {
   const key = placeKey(hotspot);
-  const drawn = (a: S, b: S) =>
-    a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id);
+  const drawn = (a: S, b: S) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id);
   const boxes = all
     .filter((s) => placeKey(s) === key)
     .sort((a, b) => (a.kind === b.kind ? drawn(a, b) : a.kind === 'terminal' ? -1 : 1));

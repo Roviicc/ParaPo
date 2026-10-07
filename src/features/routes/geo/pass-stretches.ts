@@ -156,7 +156,7 @@ const stretchesKept = new WeakMap<readonly PassBox[], WeakMap<Direction, readonl
  * - `boxes` is made from a list of hotspots (passBoxes, the hook's memo of
  *   `hotspots`), and any other list of hotspots — a reload, a save — makes new
  *   boxes, with nothing kept yet;
- * - `v` is everything a stretch reads (its id, route_id, route and line,
+ * - `v` is everything a stretch reads (its id, routeId, route and line,
  *   and the stretches its line file brought with that line), and a
  *   direction whose row or line changes is a new object (the line hook's
  *   `withLine`, a reload's new rows).

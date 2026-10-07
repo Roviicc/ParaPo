@@ -19,7 +19,7 @@ export async function saveRouteAndLinks(
   onWritten: (written: { routeId: string; directionId: string }) => void,
 ): Promise<DirectionRow> {
   const saved = await saveDirection(input);
-  onWritten({ routeId: saved.route_id, directionId: saved.id });
+  onWritten({ routeId: saved.routeId, directionId: saved.id });
   const named = nameDirections([saved], hotspots)[0];
   try {
     await syncHintuanLinks(named);

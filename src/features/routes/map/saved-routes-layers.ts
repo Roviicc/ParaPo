@@ -115,7 +115,7 @@ export function routesData(rows: readonly Direction[]) {
         type: 'Feature' as const,
         properties: {
           id: v.id,
-          route_id: v.route_id,
+          routeId: v.routeId,
           name: v.route?.name ?? '',
           mode: v.route?.mode ?? 'jeepney',
         },

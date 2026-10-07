@@ -80,7 +80,7 @@ export function useTripOverview(
   dock: RefObject<HTMLDivElement | null>,
   snap: Snap,
 ): void {
-  const routeId = trip?.route_id;
+  const routeId = trip?.routeId;
   useEffect(() => {
     if (!map || !trip) return;
     overview(map, [directionLine(trip)], dock.current, snap);

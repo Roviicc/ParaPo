@@ -21,10 +21,10 @@ const pictures: Record<string, string> = {
 const direction = (signboards: string[], reversed = false) =>
   ({
     id: 'v1',
-    route_id: 'r1',
-    direction_name: null,
-    origin_terminal: null,
-    destination_terminal: null,
+    routeId: 'r1',
+    name: null,
+    originTerminal: null,
+    destinationTerminal: null,
     shape: null,
     reversed,
     confidence: 'drawn',

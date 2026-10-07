@@ -18,8 +18,8 @@ import {
 /** A direction of a route from `head` to `tail`, drawn unless `drawn` is false: sample data, not the map. */
 const dir = (id, route, head, tail, reversed = false, drawn = true) => ({
   id,
-  route_id: route,
-  direction_name: id,
+  routeId: route,
+  name: id,
   reversed,
   confidence: 'drawn',
   shape: drawn
@@ -31,7 +31,7 @@ const dir = (id, route, head, tail, reversed = false, drawn = true) => ({
         ],
       }
     : null,
-  route: { signboard: null, head_stop_id: head, tail_stop_id: tail, via: null },
+  route: { signboard: null, headHotspotId: head, tailHotspotId: tail, via: null },
 });
 
 // Tala → Novaliches and Tala → SM Fairview share their head (the owner's example).

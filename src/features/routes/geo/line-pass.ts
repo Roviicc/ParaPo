@@ -54,7 +54,7 @@ export interface PassBox {
 /** One orange stretch, as the map's source takes it: its direction's id on it, for the lighting. */
 export interface PassFeature {
   type: 'Feature';
-  properties: { id: string; route_id: string };
+  properties: { id: string; routeId: string };
   geometry: { type: 'LineString'; coordinates: LngLat[] };
 }
 
@@ -97,7 +97,7 @@ function stretchesAlong(line: readonly LngLat[], reached: readonly PassBox[]): L
 
 const feature = (v: Direction, coordinates: LngLat[]): PassFeature => ({
   type: 'Feature',
-  properties: { id: v.id, route_id: v.route_id },
+  properties: { id: v.id, routeId: v.routeId },
   geometry: { type: 'LineString', coordinates },
 });
 

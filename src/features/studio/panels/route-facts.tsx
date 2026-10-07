@@ -52,7 +52,7 @@ export function RouteFacts({ direction, actions }: { direction: Direction; actio
             <dd className="text-content-primary">{r.signboard}</dd>
           </>
         )}
-        {(today || r?.fare_note) && (
+        {(today || r?.fareNote) && (
           <>
             <dt className="text-content-tertiary">Fare</dt>
             <dd data-testid="facts-fare" className="text-xs text-content-quaternary">
@@ -73,7 +73,7 @@ export function RouteFacts({ direction, actions }: { direction: Direction; actio
                   new fare guide.
                 </p>
               )}
-              {r?.fare_note && <p>{r.fare_note}</p>}
+              {r?.fareNote && <p>{r.fareNote}</p>}
               {today && (
                 <p className="text-neutral-400">
                   Estimate · {today.rule.source} · length of this line

@@ -11,21 +11,21 @@ import type { Direction } from '../model/routes';
 const route = {
   id: 'sample-route',
   signboard: null,
-  long_name: null,
+  longName: null,
   mode: 'jeepney',
-  fare_note: null,
-  head_stop_id: 'sample-hotspot',
-  tail_stop_id: 'sample-fairview',
+  fareNote: null,
+  headHotspotId: 'sample-hotspot',
+  tailHotspotId: 'sample-fairview',
   via: null,
   name: 'Tala – SM Fairview',
 } as const;
 
 const outbound: Direction = {
   id: 'sample-out',
-  route_id: route.id,
-  direction_name: 'Tala → SM Fairview',
-  origin_terminal: null,
-  destination_terminal: null,
+  routeId: route.id,
+  name: 'Tala → SM Fairview',
+  originTerminal: null,
+  destinationTerminal: null,
   shape: null,
   reversed: false,
   confidence: 'drawn',
@@ -35,13 +35,13 @@ const outbound: Direction = {
 const inbound: Direction = {
   ...outbound,
   id: 'sample-in',
-  direction_name: 'SM Fairview → Tala',
+  name: 'SM Fairview → Tala',
   reversed: true,
 };
 
 const terminal: HotspotRow = {
   id: 'sample-hotspot',
-  owner_id: 'sample-owner',
+  ownerId: 'sample-owner',
   name: 'Tala Jeepney Terminal',
   informal: 'Tala',
   aliases: ['Tala Terminal', 'Terminal Tala'],
@@ -49,7 +49,7 @@ const terminal: HotspotRow = {
   point: { type: 'Point', coordinates: [121.0467, 14.7478] },
   area: null,
   note: null,
-  created_at: '2026-09-12T00:00:00Z',
+  createdAt: '2026-09-12T00:00:00Z',
 };
 
 /** Keeps the Selected card as the public map does, so the RouteCards stories can be tapped through. */
@@ -175,8 +175,8 @@ const drawn = (
 ): Direction => ({
   ...outbound,
   id: key + (reversed ? '-back' : '-out'),
-  route_id: key,
-  direction_name: direction,
+  routeId: key,
+  name: direction,
   shape: {
     type: 'LineString',
     coordinates: [
@@ -185,7 +185,7 @@ const drawn = (
     ],
   },
   reversed,
-  route: { ...route, id: key, name, head_stop_id: 'sample-hotspot', tail_stop_id: key + '-tail' },
+  route: { ...route, id: key, name, headHotspotId: 'sample-hotspot', tailHotspotId: key + '-tail' },
 });
 const talaRoutes = [
   drawn('nova', 'Tala – Novaliches', 'Tala → Novaliches', 12.4),

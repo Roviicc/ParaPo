@@ -47,6 +47,8 @@ import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { PASS_WITHIN_M, passBounds } from '../../src/features/routes/geo/pass.ts';
 import { hotspotLabel, hotspotRing } from '../../src/features/routes/model/hotspots.ts';
+import { toDirection } from '../../src/features/routes/model/direction-schema.ts';
+import { toHotspot, toHotspotLink } from '../../src/features/routes/model/hotspot-schema.ts';
 import {
   FERRY_LINES,
   LINES,
@@ -128,19 +130,45 @@ const FOR_THE_PUBLISH = 'the publish to look at (scripts/publish/lineFile.mjs), 
  * Every problem, warning and note about a published map (the parsed file).
  * Problems mean "do not publish"; warnings mean "publish, and tell the owner".
  */
+/**
+ * The file's rows in the glossary's names (toDirection, toHotspot,
+ * toHotspotLink: the reader's own translation), read as they are, so a map
+ * of shape 1, whose lines are whole, and a row short of a field are checked
+ * too, each by the rule that reads it. A direction's orange stretches, when
+ * the line file brought them (readPublished), ride along.
+ */
+export function asModel(file) {
+  if ('directions' in file) return file;
+  const { variants, stops, published_at, ...rest } = file;
+  return {
+    ...rest,
+    publishedAt: published_at,
+    directions: variants.map((v) => ({
+      ...toDirection(v),
+      ...('pass' in v || 'passKey' in v ? { pass: v.pass, passKey: v.passKey } : {}),
+    })),
+    hotspots: stops.map(toHotspot),
+    links: file.links.map(toHotspotLink),
+  };
+}
+
+/** Whether `file` is a map at all, in either shape: the reader's own pre-check (index-schema.ts). */
+const isMap = (file) =>
+  file && 'directions' in file
+    ? ['directions', 'hotspots', 'links'].every((k) => Array.isArray(file[k]))
+    : indexOutlineSchema.safeParse(file).success;
+
 export function checkMapData(file) {
   const problems = [];
   const warnings = [];
   const notes = [];
-  // What makes a file a map at all: the reader's own pre-check (index-schema.ts).
-  // The rows are then read as they are, so a map of shape 1, whose lines are
-  // whole, and a row short of a field are checked too, each by the rule that
-  // reads it; readPublished reads a published index with the whole schema.
-  if (!indexOutlineSchema.safeParse(file).success) {
+  // What makes a file a map at all: the reader's own pre-check (index-schema.ts);
+  // readPublished reads a published index with the whole schema.
+  if (!isMap(file)) {
     problems.push('not a published map: no variants, stops and links');
     return { problems, warnings, notes, counts: { directions: 0, hotspots: 0, links: 0 } };
   }
-  const { variants, stops, links } = file;
+  const { directions: variants, hotspots: stops, links } = asModel(file);
 
   const hotspotById = new Map();
   for (const s of stops) {
@@ -184,12 +212,12 @@ export function checkMapData(file) {
 
   const linksOf = new Map();
   for (const l of links) {
-    if (!directionById.has(l.route_variant_id))
-      problems.push(`a link names direction ${l.route_variant_id}, which is not in the file`);
-    if (!hotspotById.has(l.stop_id))
-      problems.push(`a link names hotspot ${l.stop_id}, which is not in the file`);
-    if (!linksOf.has(l.route_variant_id)) linksOf.set(l.route_variant_id, []);
-    linksOf.get(l.route_variant_id).push(l);
+    if (!directionById.has(l.directionId))
+      problems.push(`a link names direction ${l.directionId}, which is not in the file`);
+    if (!hotspotById.has(l.hotspotId))
+      problems.push(`a link names hotspot ${l.hotspotId}, which is not in the file`);
+    if (!linksOf.has(l.directionId)) linksOf.set(l.directionId, []);
+    linksOf.get(l.directionId).push(l);
   }
 
   // A pass judged on the published line: sure beyond the half metre either way.
@@ -205,31 +233,31 @@ export function checkMapData(file) {
   const passOther = [];
   let unmapped = 0;
   for (const v of variants) {
-    const name = `${v.route?.name ?? v.route_id} · ${v.direction_name ?? v.id}`;
-    const head = hotspotById.get(v.route?.head_stop_id);
-    const tail = hotspotById.get(v.route?.tail_stop_id);
+    const name = `${v.route?.name ?? v.routeId} · ${v.name ?? v.id}`;
+    const head = hotspotById.get(v.route?.headHotspotId);
+    const tail = hotspotById.get(v.route?.tailHotspotId);
     if (!head)
       problems.push(
-        `${name}: its route's head hotspot ${v.route?.head_stop_id} is not in the file`,
+        `${name}: its route's head hotspot ${v.route?.headHotspotId} is not in the file`,
       );
     if (!tail)
       problems.push(
-        `${name}: its route's tail hotspot ${v.route?.tail_stop_id} is not in the file`,
+        `${name}: its route's tail hotspot ${v.route?.tailHotspotId} is not in the file`,
       );
-    if (isFerry(v.route?.mode) && !FERRY_LINES.includes(v.route?.route_code)) {
+    if (isFerry(v.route?.mode) && !FERRY_LINES.includes(v.route?.routeCode)) {
       problems.push(
-        `${name}: a ferry route whose line ("${v.route?.route_code ?? ''}") is not a ferry line, so it stops at no station`,
+        `${name}: a ferry route whose line ("${v.route?.routeCode ?? ''}") is not a ferry line, so it stops at no station`,
       );
-    } else if (isRail(v.route?.mode) && !RAIL_LINES.includes(v.route?.route_code)) {
+    } else if (isRail(v.route?.mode) && !RAIL_LINES.includes(v.route?.routeCode)) {
       problems.push(
-        `${name}: a train route whose line ("${v.route?.route_code ?? ''}") is not a train line, so it stops at no station`,
+        `${name}: a train route whose line ("${v.route?.routeCode ?? ''}") is not a train line, so it stops at no station`,
       );
     } else if (isRail(v.route?.mode)) {
       // The whole ride is priced from end to end by the ends' names (rail-fares.ts).
       for (const end of [head, tail]) {
-        if (end && stationIndex(v.route.route_code, hotspotLabel(end)) < 0) {
+        if (end && stationIndex(v.route.routeCode, hotspotLabel(end)) < 0) {
           warnings.push(
-            `${name}: ends at "${hotspotLabel(end)}", which is not in the ${v.route.route_code} fare table, so its card shows no fare`,
+            `${name}: ends at "${hotspotLabel(end)}", which is not in the ${v.route.routeCode} fare table, so its card shows no fare`,
           );
         }
       }
@@ -267,7 +295,7 @@ export function checkMapData(file) {
     }
 
     // The links against the line, by the studio's own rule.
-    const linked = new Map((linksOf.get(v.id) ?? []).map((l) => [l.stop_id, l]));
+    const linked = new Map((linksOf.get(v.id) ?? []).map((l) => [l.hotspotId, l]));
     const reach = bboxOf(line);
     for (const { s, ring, bounds } of hintuans) {
       // A hintuan this route does not stop at — a jeep's under a train's
@@ -294,7 +322,7 @@ export function checkMapData(file) {
       }
     }
     for (const l of linked.values()) {
-      const s = hotspotById.get(l.stop_id);
+      const s = hotspotById.get(l.hotspotId);
       if (!s || s.kind !== 'terminal') continue;
       const ring = hotspotRing(s);
       const far =
@@ -349,7 +377,8 @@ export function checkMapData(file) {
  */
 export function markdownReport(file, result) {
   const { problems, warnings, notes, counts } = result;
-  const when = typeof file?.published_at === 'string' ? ` published ${file.published_at}` : '';
+  const published = file?.publishedAt ?? file?.published_at;
+  const when = typeof published === 'string' ? ` published ${published}` : '';
   const lines = [
     `### The map data${when}: ${counts.directions} direction(s), ${counts.hotspots} hotspot(s), ${counts.links} link(s)`,
     '',
@@ -429,7 +458,9 @@ export function readPublished(path) {
       'pass' in line || 'passKey' in line ? { pass: line.pass, passKey: line.passKey } : {};
     return { ...v, shape: line.shape, ...pass };
   });
-  return { file: { ...file, variants }, problems };
+  // Handed back in the app's shape (asModel): directions and hotspots, the
+  // glossary's names, the stretches a line file brought riding along.
+  return { file: asModel({ ...file, variants }), problems };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

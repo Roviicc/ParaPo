@@ -88,7 +88,7 @@ export function bindHover(
 }
 
 interface IdFeature {
-  properties?: { id?: unknown; route_id?: unknown };
+  properties?: { id?: unknown; routeId?: unknown };
 }
 
 /**
@@ -96,7 +96,7 @@ interface IdFeature {
  * own tiles and a polygon is split across them, so the same feature comes
  * back several times.
  */
-function idsInOrder(features: IdFeature[], key: 'id' | 'route_id' = 'id'): string[] {
+function idsInOrder(features: IdFeature[], key: 'id' | 'routeId' = 'id'): string[] {
   const seen = new Set<string>();
   for (const f of features) {
     const id = f.properties?.[key];
@@ -168,7 +168,7 @@ function queryTargets(
   if (routes.length > 0)
     return {
       routeIds: idsInOrder(routes),
-      routeKeys: idsInOrder(routes, 'route_id'),
+      routeKeys: idsInOrder(routes, 'routeId'),
       hotspotIds: [],
     };
   return { routeIds: [], routeKeys: [], hotspotIds: idsInOrder(features(HOTSPOTS_FILL_LAYER)) };

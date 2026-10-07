@@ -16,7 +16,7 @@ function hotspot(
 ): HotspotRow {
   return {
     id,
-    owner_id: 'sample-owner',
+    ownerId: 'sample-owner',
     name,
     informal,
     aliases: [],
@@ -24,7 +24,7 @@ function hotspot(
     point: { type: 'Point', coordinates: [121.0424, 14.741507] },
     area: null,
     note: null,
-    created_at: '2026-09-21T00:00:00Z',
+    createdAt: '2026-09-21T00:00:00Z',
   };
 }
 

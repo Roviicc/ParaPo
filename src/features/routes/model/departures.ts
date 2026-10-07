@@ -23,9 +23,9 @@ export interface RouteGroup<V extends Direction> {
 function groupByRoute<V extends Direction>(directions: readonly V[]): RouteGroup<V>[] {
   const groups = new Map<string, RouteGroup<V>>();
   for (const v of directions) {
-    const g = groups.get(v.route_id) ?? { routeId: v.route_id, route: v.route, directions: [] };
+    const g = groups.get(v.routeId) ?? { routeId: v.routeId, route: v.route, directions: [] };
     g.directions.push(v);
-    groups.set(v.route_id, g);
+    groups.set(v.routeId, g);
   }
   return [...groups.values()];
 }
@@ -95,7 +95,7 @@ export function directionToOpen<V extends Direction>(directions: readonly V[]): 
  * the route has only this one.
  */
 export function otherDirection<V extends Direction>(all: readonly V[], of: V): V | null {
-  return all.find((v) => v.route_id === of.route_id && v.id !== of.id) ?? null;
+  return all.find((v) => v.routeId === of.routeId && v.id !== of.id) ?? null;
 }
 
 /**
@@ -108,12 +108,12 @@ export function otherDirection<V extends Direction>(all: readonly V[], of: V): V
  * then shares none.
  */
 export function sharingAnEnd<V extends Direction>(all: readonly V[], of: V): V[] {
-  const { head_stop_id: head, tail_stop_id: tail } = of.route;
+  const { headHotspotId: head, tailHotspotId: tail } = of.route;
   return all.filter(
     (v) =>
-      v.route_id === of.route_id ||
-      (!!head && v.route.head_stop_id === head) ||
-      (!!tail && v.route.tail_stop_id === tail),
+      v.routeId === of.routeId ||
+      (!!head && v.route.headHotspotId === head) ||
+      (!!tail && v.route.tailHotspotId === tail),
   );
 }
 
@@ -129,7 +129,6 @@ export function otherRoutesFrom<V extends Direction>(all: readonly V[], of: V): 
   const start = directionEndHotspots(of).fromHotspot;
   if (!start) return [];
   return all.filter(
-    (v) =>
-      v.route_id !== of.route_id && isDrawn(v) && directionEndHotspots(v).fromHotspot === start,
+    (v) => v.routeId !== of.routeId && isDrawn(v) && directionEndHotspots(v).fromHotspot === start,
   );
 }

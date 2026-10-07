@@ -75,7 +75,9 @@ export function SavePanel({
   // Where a picked end's box is looked for: at the end of the line nearer
   // the route's head, and the tail at the other — whichever way it was
   // drawn; a new route's line starts at its head.
-  const headNow = existing ? hotspots.find((s) => s.id === existing.route.head_stop_id) : undefined;
+  const headNow = existing
+    ? hotspots.find((s) => s.id === existing.route.headHotspotId)
+    : undefined;
   const startsAtHead =
     !headNow ||
     !lineStart ||
@@ -86,7 +88,7 @@ export function SavePanel({
 
   const [signboard, setSignboard] = useState(parent?.signboard ?? '');
   const [mode, setMode] = useState<TransportMode>(parent?.mode ?? 'jeepney');
-  const [fareNote, setFareNote] = useState(parent?.fare_note ?? '');
+  const [fareNote, setFareNote] = useState(parent?.fareNote ?? '');
   const [via, setVia] = useState(parent?.via ?? '');
   // The ends are the route's: a return trip takes them as they are, and Edit
   // route starts from them; a new route's are guessed from where the line
@@ -102,12 +104,12 @@ export function SavePanel({
   const [firstGuess] = useState(() => {
     const [h, t] = [guess(lineStart), guess(lineEnd)];
     const swapped = directions.some(
-      (v) => v.route.head_stop_id === t && v.route.tail_stop_id === h,
+      (v) => v.route.headHotspotId === t && v.route.tailHotspotId === h,
     );
     return swapped ? [t, h] : [h, t];
   });
-  const [headId, setHeadId] = useState(parent?.head_stop_id ?? firstGuess[0]);
-  const [tailId, setTailId] = useState(parent?.tail_stop_id ?? firstGuess[1]);
+  const [headId, setHeadId] = useState(parent?.headHotspotId ?? firstGuess[0]);
+  const [tailId, setTailId] = useState(parent?.tailHotspotId ?? firstGuess[1]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The direction as a save wrote it, when the link sync after it failed.
@@ -192,17 +194,17 @@ export function SavePanel({
           writeRoute: !!existing,
           signboard,
           mode,
-          fare_note: fareNote,
-          head_stop_id: headId,
-          tail_stop_id: tailId,
+          fareNote: fareNote,
+          headHotspotId: headId,
+          tailHotspotId: tailId,
           via,
           reversed,
-          control_points: draw.controlPoints,
+          controlPoints: draw.controlPoints,
           segments: draw.segments,
           // A parent deleted since, or a borrowed part redrawn away, borrows nothing.
-          borrowed_from: borrowParent && borrowed > 0 ? borrowParent.id : null,
-          borrowed_part: borrowPart,
-          borrowed_m: borrowed > 0 ? Math.round(borrowed) : null,
+          borrowedFrom: borrowParent && borrowed > 0 ? borrowParent.id : null,
+          borrowedPart: borrowPart,
+          borrowedMetres: borrowed > 0 ? Math.round(borrowed) : null,
         },
         hotspots,
         setWritten,

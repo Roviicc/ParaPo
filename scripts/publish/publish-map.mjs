@@ -88,6 +88,8 @@ import {
 } from '../../src/shared/utils/geo.ts';
 import { directionName, isLineMode, routeName } from '../../src/features/routes/model/routes.ts';
 import { hotspotLabel } from '../../src/features/routes/model/hotspots.ts';
+import { toDirection } from '../../src/features/routes/model/direction-schema.ts';
+import { toHotspot } from '../../src/features/routes/model/hotspot-schema.ts';
 import { passBoxes } from '../../src/features/routes/geo/line-pass.ts';
 import { MAP_FILE_SCHEMA } from '../../src/features/published-map/map-file.ts';
 import { indexSchema } from '../../src/features/published-map/schemas/index-schema.ts';
@@ -554,14 +556,17 @@ writeFileSync(INDEX_V4, indexV4File);
 // passBounds, passStretches, hotspotRing, bboxOf, servedBy), on what the app
 // reads — the line as written and the hotspots as rounded in the index,
 // shape 4's, every line in — with the key the app checks them by.
-const passBoxesOfIndex = passBoxes(stops);
+// The rows are the file's (the database's names); the app's rules read the
+// glossary's, so each is handed over translated (toHotspot, toDirection:
+// the same functions the reader uses).
+const passBoxesOfIndex = passBoxes(stops.map(toHotspot));
 mkdirSync(LINES, { recursive: true });
 const lineFiles = new Set();
 let linesWritten = 0;
 for (const v of variants) {
   if (!v.shape) continue;
   const path = join(LINES, `${v.id}.json`);
-  const text = lineFileText(v, passBoxesOfIndex);
+  const text = lineFileText(toDirection(v), passBoxesOfIndex);
   lineFiles.add(`${v.id}.json`);
   if (existsSync(path) && readFileSync(path, 'utf8') === text) continue;
   writeFileSync(path, text);

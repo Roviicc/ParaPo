@@ -869,7 +869,7 @@ const snapshot = await page.evaluate(async () => {
     const full = await fetchLine(f.properties.id).catch(() => null);
     routes.push({
       id: f.properties.id,
-      routeId: f.properties.route_id,
+      routeId: f.properties.routeId,
       signboard: f.properties.name ?? '',
       coords: full?.coordinates ?? f.geometry.coordinates,
     });
@@ -909,11 +909,11 @@ const fileDirections = published?.directions ?? [];
 const fanOf = (id) => {
   const v = fileDirections.find((d) => d.id === id);
   if (!v) return [];
-  const { head_stop_id: head, tail_stop_id: tail } = v.route;
+  const { headHotspotId: head, tailHotspotId: tail } = v.route;
   const shares = (d) =>
-    d.route_id === v.route_id ||
-    (!!head && d.route.head_stop_id === head) ||
-    (!!tail && d.route.tail_stop_id === tail);
+    d.routeId === v.routeId ||
+    (!!head && d.route.headHotspotId === head) ||
+    (!!tail && d.route.tailHotspotId === tail);
   return fileDirections.filter(
     (d) => d.reversed === v.reversed && (d.shape?.coordinates?.length ?? 0) > 1 && shares(d),
   );
@@ -1982,7 +1982,7 @@ const openedDirection = async () => {
   const lit = (await litIds(page)) ?? [];
   if (lit.length === 1) return fileDirections.find((d) => d.id === lit[0]) ?? null;
   const label = await tripLabel();
-  return label ? (fileDirections.find((d) => d.direction_name === label) ?? null) : null;
+  return label ? (fileDirections.find((d) => d.name === label) ?? null) : null;
 };
 
 /**
@@ -3277,7 +3277,7 @@ const drawnIds = new Set(
   fileDirections.filter((d) => (d.shape?.coordinates?.length ?? 0) > 1).map((d) => d.id),
 );
 const withRoutes = snapshot.polys.find((poly) =>
-  (published?.links ?? []).some((l) => l.stop_id === poly.id && drawnIds.has(l.route_variant_id)),
+  (published?.links ?? []).some((l) => l.hotspotId === poly.id && drawnIds.has(l.directionId)),
 );
 if (!withRoutes) {
   skip(
@@ -3551,7 +3551,7 @@ if (!fannedOne) {
   );
   if (await listShown()) {
     // A card per place they leave from, the way the trip went; a row for each.
-    const ends = fan.map((d) => (d.direction_name ?? '').split(' → '));
+    const ends = fan.map((d) => (d.name ?? '').split(' → '));
     const places = new Set(ends.map(([from = '']) => from.toLowerCase())).size;
     const title = `${places} ${places === 1 ? 'Route' : 'Routes'}`;
     const text = await chooser.first().innerText();
@@ -3592,12 +3592,12 @@ if (!fannedOne) {
 // The other drawn routes out of where a trip starts, one row each by where it
 // goes; a tap opens that route's trip in the card's place, its line alone
 // lit (the owner's RouteTripDetail, 3778:3183, 2026-10-01).
-const startOf = (d) => (d.reversed ? d.route?.tail_stop_id : d.route?.head_stop_id) ?? null;
+const startOf = (d) => (d.reversed ? d.route?.tailHotspotId : d.route?.headHotspotId) ?? null;
 const drawnDirection = (d) => (d.shape?.coordinates?.length ?? 0) > 1;
 const othersOf = (d) =>
   fileDirections.filter(
     (o) =>
-      o.route_id !== d.route_id && drawnDirection(o) && !!startOf(d) && startOf(o) === startOf(d),
+      o.routeId !== d.routeId && drawnDirection(o) && !!startOf(d) && startOf(o) === startOf(d),
   );
 // Opened by a tap on its own line: the first of up to ten that a tap can open alone.
 const othersCandidates = fileDirections.filter((d) => drawnDirection(d) && othersOf(d).length > 0);
@@ -3626,7 +3626,7 @@ if (!withOthers) {
     `${shown.length} row(s), want ${others.length}`,
   );
   const to = others[0];
-  const toName = (to.direction_name ?? '').split(' → ')[1] ?? '';
+  const toName = (to.name ?? '').split(' → ')[1] ?? '';
   // Opened first: another route leaves the hintuans as they were, not folded
   // (the owner, 2026-10-01: "don't shrink it").
   const tripFold = card().locator('[data-testid="trip-fold"]');

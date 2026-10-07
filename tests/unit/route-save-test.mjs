@@ -18,12 +18,12 @@ const input = {
   directionId: null,
   signboard: '',
   mode: 'jeepney',
-  fare_note: '',
-  head_stop_id: 'tala',
-  tail_stop_id: 'fairview',
+  fareNote: '',
+  headHotspotId: 'tala',
+  tailHotspotId: 'fairview',
   via: '',
   reversed: false,
-  control_points: [
+  controlPoints: [
     [121.04, 14.7],
     [121.05, 14.7],
   ],
@@ -36,12 +36,45 @@ const input = {
       ],
     },
   ],
-  borrowed_from: null,
-  borrowed_part: null,
-  borrowed_m: null,
+  borrowedFrom: null,
+  borrowedPart: null,
+  borrowedMetres: null,
 };
 
 const refused = { code: '23505', message: 'duplicate key value violates unique constraint' };
+
+/** A route_variant row as the list reads it back (DIRECTION_SELECT), whole: the boundary parses what comes back. */
+const listed = (over) => ({
+  id: 'v',
+  route_id: 'r',
+  owner_id: 'o',
+  direction_name: null,
+  origin_terminal: null,
+  destination_terminal: null,
+  overview: null,
+  reversed: false,
+  confidence: 'drawn',
+  updated_at: '2026-10-07T00:00:00Z',
+  borrowed_from: null,
+  borrowed_part: null,
+  borrowed_m: null,
+  signboards: [],
+  route: {
+    id: 'r',
+    owner_id: 'o',
+    signboard: null,
+    route_code: null,
+    short_name: null,
+    long_name: null,
+    mode: 'jeepney',
+    fare_note: null,
+    fare_as_of: null,
+    head_stop_id: 'tala',
+    tail_stop_id: 'fairview',
+    via: null,
+  },
+  ...over,
+});
 
 test("a save that claimed another save's route does not delete it when its directions are refused", async () => {
   const { client, log } = fakeSupabase((q) => {
@@ -81,7 +114,7 @@ test('emptying a direction that matched no row says so', async () => {
     throw new Error(`unexpected ${q.op} on ${q.table}`);
   });
   setSupabase(client);
-  await assert.rejects(deleteDirection({ id: 'v1', route_id: 'r1' }), /Nothing was changed/);
+  await assert.rejects(deleteDirection({ id: 'v1', routeId: 'r1' }), /Nothing was changed/);
   assert.equal(log.length, 1);
 });
 
@@ -93,7 +126,7 @@ test('emptying a direction clears its signboards with its line', async () => {
     throw new Error(`unexpected ${q.op} on ${q.table}`);
   });
   setSupabase(client);
-  await deleteDirection({ id: 'v1', route_id: 'r1' });
+  await deleteDirection({ id: 'v1', routeId: 'r1' });
   assert.deepEqual(log[0].payload.signboards, []);
 });
 
@@ -117,7 +150,7 @@ test('a route with these ends but no row this way round is filled, not refused a
       return { data: { id: 'r4', route_variant: [{ id: 'v9', reversed: true, shape: {} }] } };
     if (q.table === 'route_variant' && q.op === 'update') return { data: null };
     if (q.table === 'route_variant' && q.op === 'insert')
-      return { data: { id: 'v10', route_id: 'r4', reversed: false } };
+      return { data: listed({ id: 'v10', route_id: 'r4', reversed: false }) };
     throw new Error(`unexpected ${q.op} on ${q.table}`);
   });
   setSupabase(client);

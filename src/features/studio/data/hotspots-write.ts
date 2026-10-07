@@ -5,10 +5,14 @@ import {
   type Ring,
 } from '@/features/routes/geo/ring';
 import {
+  hotspotRowSchema,
+  toLinkRow,
+  type RawHotspotLink,
+} from '@/features/routes/model/hotspot-schema';
+import {
   normaliseName,
   type PointGeoJSON,
   type HotspotKind,
-  type HotspotLink,
   type HotspotRow,
 } from '@/features/routes/model/hotspots';
 import { directionLine, type DirectionRow } from '@/features/routes/model/routes';
@@ -92,27 +96,37 @@ export async function saveHotspot(
     }
     throw new Error(error.message);
   }
-  const hotspot = data as HotspotRow;
+  // The row comes back in the table's names; the app's hotspot is read off it
+  // (hotspot-schema.ts: this file is the boundary, CONTEXT.md, ticket 07).
+  const read = hotspotRowSchema.safeParse(data);
+  if (!read.success) {
+    const [issue] = read.error.issues;
+    throw new Error(
+      `The hotspot was saved but could not be read back: ${issue?.path.join('.')} ${issue?.message}`,
+    );
+  }
+  const hotspot = read.data;
   onWritten?.(hotspot.id);
 
   // Links: computed for a hintuan, chosen for a terminal. Either way the
   // sequence is where the direction first meets the outline (0 when a ticked
   // terminal route never actually enters it — still a valid, ordered link).
   const byId = new Map(input.directions.map((v) => [v.id, v]));
-  const links: HotspotLink[] =
+  const links: RawHotspotLink[] = (
     input.kind === 'hintuan'
       ? linksThrough(ring, input.directions, hotspot.line ?? null).map((l) => ({
-          route_variant_id: l.directionId,
-          stop_id: hotspot.id,
-          stop_sequence: l.sequence,
+          directionId: l.directionId,
+          hotspotId: hotspot.id,
+          sequence: l.sequence,
         }))
       : (input.directionIds ?? [])
           .filter((id) => byId.has(id))
           .map((id) => ({
-            route_variant_id: id,
-            stop_id: hotspot.id,
-            stop_sequence: Math.max(0, firstTouchIndex(directionLine(byId.get(id)!), ring)),
-          }));
+            directionId: id,
+            hotspotId: hotspot.id,
+            sequence: Math.max(0, firstTouchIndex(directionLine(byId.get(id)!), ring)),
+          }))
+  ).map(toLinkRow);
 
   try {
     await replaceLinks(hotspot.id, links);
@@ -125,8 +139,8 @@ export async function saveHotspot(
   return hotspot;
 }
 
-/** Replace every link for one hotspot with the given set. */
-async function replaceLinks(hotspotId: string, links: HotspotLink[]) {
+/** Replace every link for one hotspot with the given set, as route_stop rows. */
+async function replaceLinks(hotspotId: string, links: RawHotspotLink[]) {
   const client = requireSupabase();
   const del = await client.from('route_stop').delete().eq('stop_id', hotspotId);
   if (del.error) throw new Error(del.error.message);
@@ -188,11 +202,9 @@ export async function syncHintuanLinks(direction: DirectionRow): Promise<void> {
   // The same rule the save panel showed before Save was pressed. A link to a
   // hintuan this route does not stop at (servedBy) is one it no longer earns.
   const along = hintuansAlong(directionLine(direction), hintuans, direction.route);
-  const keep: HotspotLink[] = along.map(({ hotspot, index }) => ({
-    route_variant_id: direction.id,
-    stop_id: hotspot.id,
-    stop_sequence: index,
-  }));
+  const keep: RawHotspotLink[] = along.map(({ hotspot, index }) =>
+    toLinkRow({ directionId: direction.id, hotspotId: hotspot.id, sequence: index }),
+  );
   const kept = new Set(keep.map((k) => k.stop_id));
   // Only the hintuan links this direction has and no longer earns — usually
   // none. It once listed every hintuan the line does not pass, a request line

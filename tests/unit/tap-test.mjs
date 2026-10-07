@@ -45,8 +45,8 @@ const touch = () => ({ type: 'click', pointerType: 'touch' });
 test("a tap's answer is asked of the map once, and the other hook takes it", () => {
   const map = standIn({
     [ROUTES_HIT_LAYER]: [
-      { id: 'a-out', route_id: 'a' },
-      { id: 'a-out', route_id: 'a' },
+      { id: 'a-out', routeId: 'a' },
+      { id: 'a-out', routeId: 'a' },
     ],
   });
   const event = touch();
@@ -94,7 +94,7 @@ test("without the browser's event, the answer is kept on MapLibre's point, the o
 });
 
 test('an answer is kept for its own map and its own point only', () => {
-  const under = { [ROUTES_HIT_LAYER]: [{ id: 'b-back', route_id: 'b' }] };
+  const under = { [ROUTES_HIT_LAYER]: [{ id: 'b-back', routeId: 'b' }] };
   const [one, two] = [standIn(under), standIn(under)];
   const event = touch();
   tapTargets(one, { x: 1, y: 1 }, event);

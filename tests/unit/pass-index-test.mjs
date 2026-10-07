@@ -32,10 +32,10 @@ const published = () =>
   readPublished(fileURLToPath(new URL('../../public/data/index.v4.json', import.meta.url))).file;
 
 const file = published();
-const lines = file.variants
+const lines = file.directions
   .filter((v) => v.shape)
   .map((v) => ({ id: v.id, line: v.shape.coordinates }));
-const rings = file.stops.filter((s) => s.area).map((s) => ({ id: s.id, ring: hotspotRing(s) }));
+const rings = file.hotspots.filter((s) => s.area).map((s) => ({ id: s.id, ring: hotspotRing(s) }));
 
 // ---------------------------------------------------- the walks as they were
 function slowTouch(line, ring) {

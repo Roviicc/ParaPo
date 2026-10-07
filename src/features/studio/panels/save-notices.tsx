@@ -81,8 +81,8 @@ export function SaveNotices({
           className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900"
         >
           Shares {(borrowed.metres / 1000).toFixed(2)} km with{' '}
-          <strong>{borrowed.parent.direction_name}</strong> ({borrowed.parent.route.name}), copied
-          from it. If that line is changed later, this one can follow.
+          <strong>{borrowed.parent.name}</strong> ({borrowed.parent.route.name}), copied from it. If
+          that line is changed later, this one can follow.
         </p>
       )}
 

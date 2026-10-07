@@ -1,10 +1,18 @@
+import * as z from 'zod/mini';
+
+import {
+  rawDirectionRowSchema,
+  toUnnamedDirectionRow,
+  type UnnamedDirectionRow,
+} from '@/features/routes/model/direction-schema';
+import { lineStringSchema } from '@/features/routes/model/geojson-schema';
+import { hotspotLinkSchema, hotspotRowSchema } from '@/features/routes/model/hotspot-schema';
 import type { HotspotLink, HotspotRow } from '@/features/routes/model/hotspots';
 import {
   nameDirections,
-  type LineStringGeoJSON,
-  type UnnamedDirectionRow,
   type DirectionDrawing,
   type DirectionRow,
+  type LineStringGeoJSON,
 } from '@/features/routes/model/routes';
 
 import { readAll, type Page } from './read-all';
@@ -14,9 +22,16 @@ import { getSupabase } from './supabase';
  * Readers of the live tables, for the editor. They live in studio/, apart
  * from the types in routes/model/routes.ts and routes/model/hotspots.ts, on
  * purpose: the public map imports those types but reads the published file
- * instead (published-map/map-file.ts), and ESLint forbids the public shell
- * importing studio/. So Supabase's address can never land in a chunk both pages share;
- * check-build.mjs proves it stays out of the public page's build too.
+ * instead (published-map/api/fetch-index.ts), and ESLint forbids the public
+ * shell importing studio/. So Supabase's address can never land in a chunk
+ * both pages share; check-build.mjs proves it stays out of the public
+ * page's build too.
+ *
+ * This is the boundary where the database's names become the glossary's
+ * (CONTEXT.md; ticket 07 of the restructure follow-ups, 2026-10-07): every
+ * row is parsed with the raw schema of its table and translated by the
+ * model's own `to…` function, so no `route_variant_id` or `stop_id` reaches
+ * a panel. A row the schema cannot read is said, naming the field.
  *
  * Each returns nothing when the build has no Supabase, so the studio shows
  * its config banner rather than a load error on top of it.
@@ -53,11 +68,39 @@ const DIRECTION_SELECT_BEFORE_0009 = DIRECTION_SELECT.replace('overview', 'shape
 /** The rest of a direction: its drawing, and its full line. */
 const DRAWING_SELECT = 'control_points, segments, shape';
 
-/** A row as the list reads it: its overview where its line will go. */
-type ListedRow = Omit<UnnamedDirectionRow, 'shape'> & {
-  overview?: LineStringGeoJSON | null;
-  shape?: LineStringGeoJSON | null;
-};
+/** A row as the list reads it (DIRECTION_SELECT): its overview where its line will go, or its line on a database before 0009. */
+const listedRowSchema = z.extend(z.omit(rawDirectionRowSchema, { shape: true }), {
+  overview: z.optional(z.nullable(lineStringSchema)),
+  shape: z.optional(z.nullable(lineStringSchema)),
+});
+type ListedRow = z.infer<typeof listedRowSchema>;
+
+/** Rows off the wire as the schema reads them, or the first field it cannot, named. */
+function parsed<T>(schema: z.ZodMiniType<T>, rows: unknown[], what: string): T[] {
+  return rows.map((row, i) => {
+    const read = schema.safeParse(row);
+    if (read.success) return read.data;
+    const [issue] = read.error.issues;
+    const at = issue?.path.map(String).join('.') ?? '';
+    throw new Error(
+      `A ${what} the studio cannot read (row ${i}): ${at} ${issue?.message ?? ''}`.trimEnd(),
+    );
+  });
+}
+
+/**
+ * A listed row as the editor holds it, before nameDirections: the glossary's
+ * names, and `shape` holding what the list carried for it (`line` when the
+ * caller knows better: the save hands back the line it just wrote).
+ */
+export function unnamedFromListed(
+  raw: unknown,
+  line?: LineStringGeoJSON | null,
+): UnnamedDirectionRow {
+  const [row] = parsed(listedRowSchema, [raw], 'direction');
+  const { overview, shape, ...rest } = row;
+  return toUnnamedDirectionRow({ ...rest, shape: line ?? overview ?? shape ?? null });
+}
 
 /** Postgres's words for `overview` on a database 0009 has not reached (42703; readAll keeps the message). */
 const NO_OVERVIEW = /\boverview\b.*does not exist/;
@@ -70,34 +113,35 @@ export async function listDirections(): Promise<DirectionRow[]> {
   const client = getSupabase();
   if (!client) return [];
   // The client reads a row type off the select and guesses the embedded
-  // route as a list; the foreign key makes it one row. Cast, as the save does.
+  // route as a list; the foreign key makes it one row. Read as unknown and
+  // parsed, as every row here is.
   const list = (select: string) =>
-    readAll<ListedRow>((from, to) =>
+    readAll<unknown>((from, to) =>
       client
         .from('route_variant')
         .select(select, { count: 'exact' })
         .order('updated_at', { ascending: false })
         .order('id')
         .range(from, to)
-        .then((r) => r as unknown as Page<ListedRow>),
+        .then((r) => r as unknown as Page<unknown>),
     );
-  const [listed, hotspots] = await Promise.all([
+  const [listedRaw, hotspots] = await Promise.all([
     list(DIRECTION_SELECT).catch((e: unknown) => {
       if (!(e instanceof Error && NO_OVERVIEW.test(e.message))) throw e;
       return list(DIRECTION_SELECT_BEFORE_0009);
     }),
     listHotspots(),
   ]);
+  const listed: ListedRow[] = parsed(listedRowSchema, listedRaw, 'direction');
   // A drawn row saved before 0009 and not backfilled has no overview yet: its
   // full line stands in, read for those rows alone.
   const missing = listed.some((r) => r.overview === null)
     ? await unsummarised()
     : new Map<string, LineStringGeoJSON>();
-  const rows = listed.map(({ overview, shape, ...r }) => ({
-    ...r,
-    shape: overview ?? shape ?? missing.get(r.id) ?? null,
-  }));
-  return nameDirections(rows as UnnamedDirectionRow[], hotspots);
+  const rows = listed.map(({ overview, shape, ...r }) =>
+    toUnnamedDirectionRow({ ...r, shape: overview ?? shape ?? missing.get(r.id) ?? null }),
+  );
+  return nameDirections(rows, hotspots);
 }
 
 /** The full lines of the drawn rows that have no overview yet, by id. */
@@ -131,7 +175,7 @@ const LINES_PER_READ = 50;
 /**
  * These directions with their full lines: the few a hotspot's outline
  * reaches, before its links are worked out on them, read LINES_PER_READ at
- * a time. A hotspot's `stop_sequence` is an index into the full line, so an
+ * a time. A hotspot's link `sequence` is an index into the full line, so an
  * overview must never be what it is counted on.
  */
 export async function linesOf<T extends DirectionRow>(directions: readonly T[]): Promise<T[]> {
@@ -177,8 +221,8 @@ export async function withDrawing(v: DirectionRow): Promise<DirectionDrawing> {
   return {
     ...v,
     shape: d.shape,
-    control_points: Array.isArray(d.control_points)
-      ? (d.control_points as DirectionDrawing['control_points'])
+    controlPoints: Array.isArray(d.control_points)
+      ? (d.control_points as DirectionDrawing['controlPoints'])
       : [],
     segments: Array.isArray(d.segments) ? (d.segments as DirectionDrawing['segments']) : [],
   };
@@ -198,14 +242,14 @@ function listHotspots(): Promise<HotspotRow[]> {
   const client = getSupabase();
   if (!client) return Promise.resolve([]);
   if (hotspotsInFlight) return hotspotsInFlight;
-  const read = readAll<HotspotRow>((from, to) =>
+  const read = readAll<unknown>((from, to) =>
     client
       .from('stop')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .order('id')
       .range(from, to),
-  );
+  ).then((rows) => parsed(hotspotRowSchema, rows, 'hotspot'));
   hotspotsInFlight = read;
   const settle = () => {
     if (hotspotsInFlight === read) hotspotsInFlight = null;
@@ -218,7 +262,7 @@ function listHotspots(): Promise<HotspotRow[]> {
 async function listHotspotLinks(): Promise<HotspotLink[]> {
   const client = getSupabase();
   if (!client) return [];
-  return readAll<HotspotLink>((from, to) =>
+  const rows = await readAll<unknown>((from, to) =>
     client
       .from('route_stop')
       .select('route_variant_id, stop_id, stop_sequence', { count: 'exact' })
@@ -227,6 +271,7 @@ async function listHotspotLinks(): Promise<HotspotLink[]> {
       .order('stop_id')
       .range(from, to),
   );
+  return parsed(hotspotLinkSchema, rows, 'link');
 }
 
 /** What the editor's hotspots hook loads. Module-level, so it never changes between renders. */

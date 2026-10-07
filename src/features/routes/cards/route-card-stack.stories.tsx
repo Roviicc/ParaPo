@@ -19,10 +19,10 @@ function direction(
 ): Direction {
   return {
     id: route + (reversed ? '-back' : '-out'),
-    route_id: route,
-    direction_name: dir,
-    origin_terminal: null,
-    destination_terminal: null,
+    routeId: route,
+    name: dir,
+    originTerminal: null,
+    destinationTerminal: null,
     shape: {
       type: 'LineString',
       coordinates: [
@@ -35,11 +35,11 @@ function direction(
     route: {
       id: route,
       signboard: null,
-      long_name: null,
+      longName: null,
       mode: 'jeepney',
-      fare_note: null,
-      head_stop_id: 'tala',
-      tail_stop_id: route + '-tail',
+      fareNote: null,
+      headHotspotId: 'tala',
+      tailHotspotId: route + '-tail',
       via: null,
       name,
     },

@@ -116,13 +116,13 @@ export function useSavedHotspots<S extends Hotspot>(
 
   const selected = hotspots.find((s) => s.id === selectedId) ?? null;
 
-  /** Direction ids linked to a hotspot, in stop_sequence order. */
+  /** Direction ids linked to a hotspot, in sequence order. */
   const linkedDirectionIds = useCallback(
     (hotspotId: string) =>
       links
-        .filter((l) => l.stop_id === hotspotId)
-        .sort((a, b) => a.stop_sequence - b.stop_sequence)
-        .map((l) => l.route_variant_id),
+        .filter((l) => l.hotspotId === hotspotId)
+        .sort((a, b) => a.sequence - b.sequence)
+        .map((l) => l.directionId),
     [links],
   );
 
@@ -135,10 +135,10 @@ export function useSavedHotspots<S extends Hotspot>(
     (directionId: string, line: readonly LngLat[] = []): S[] =>
       orderLinked(
         links
-          .filter((l) => l.route_variant_id === directionId)
+          .filter((l) => l.directionId === directionId)
           .map((l) => ({
-            hotspot: hotspots.find((s) => s.id === l.stop_id),
-            sequence: l.stop_sequence,
+            hotspot: hotspots.find((s) => s.id === l.hotspotId),
+            sequence: l.sequence,
           }))
           .filter((l): l is { hotspot: S; sequence: number } => !!l.hotspot),
         line,

@@ -13,7 +13,7 @@ import type { Ring } from '../geo/ring';
 
 /**
  * The hintuans a line passes, in the order it reaches them. `index` is
- * where along the line, which is what `route_stop.stop_sequence` stores.
+ * where along the line, which is what `route_stop.sequence` stores.
  * Terminals are not listed: a route's ends come from the route itself, and
  * neither are the hintuans this route does not stop at (`servedBy`): the
  * jeep hintuans under a train's track, the stations over a jeep's road.
@@ -73,7 +73,7 @@ export const inPassingOrder = (
 
 /**
  * The hotspots a direction is linked to, in the order its line reaches
- * them: by `stop_sequence`, and two on one segment (the same sequence) by
+ * them: by `sequence`, and two on one segment (the same sequence) by
  * how far along the line their middles are — the card's timeline, as
  * hintuansAlong orders the save panel's (review of 2026-10-03). `line` may
  * be the overview: a position along it is, an index into it is not.

@@ -225,8 +225,11 @@ test('a stored copy with a row the app cannot read is passed over for the next o
   try {
     const a = await fresh();
     const file = await a.fetchIndex();
-    assert.equal(file.published_at, 'the v3 copy');
-    assert.deepEqual(file.hotspots, [hotspot]);
+    assert.equal(file.publishedAt, 'the v3 copy');
+    assert.deepEqual(
+      file.hotspots.map((h) => h.id),
+      ['h1'],
+    );
     assert.equal(a.indexIsStale(), true);
   } finally {
     delete globalThis.caches;
@@ -331,11 +334,11 @@ test("step 20: index.html's request is the one read, taken once; after a failure
   globalThis.__parapoMapFile = pageAsked(json({ ...base, published_at: 'from index.html' }));
   try {
     const a = await fresh();
-    assert.equal((await a.fetchIndex()).published_at, 'from index.html');
+    assert.equal((await a.fetchIndex()).publishedAt, 'from index.html');
     assert.deepEqual(asked, [], 'no second request');
     assert.equal('__parapoMapFile' in globalThis, false, 'taken off the page');
     assert.equal(
-      (await a.fetchIndex()).published_at,
+      (await a.fetchIndex()).publishedAt,
       'from index.html',
       'kept, as a load from the page is',
     );
@@ -344,7 +347,7 @@ test("step 20: index.html's request is the one read, taken once; after a failure
     globalThis.__parapoMapFile = pageAsked(json('gone', { status: 503 }));
     const b = await fresh();
     await assert.rejects(b.fetchIndex(), { message: '/data/index.v4.json: HTTP 503' });
-    assert.equal((await b.fetchIndex()).published_at, 'from the page');
+    assert.equal((await b.fetchIndex()).publishedAt, 'from the page');
     assert.deepEqual(asked, ['/data/index.v4.json']);
   } finally {
     delete globalThis.__parapoMapFile;
@@ -388,7 +391,7 @@ test("step 20: index.html's answer is read as the page's own was: an error, the 
     };
     globalThis.__parapoMapFile = pageAsked(json('gone', { status: 503 }));
     const a = await fresh();
-    assert.equal((await a.fetchIndex()).published_at, '2026-09-30T00:00:00Z');
+    assert.equal((await a.fetchIndex()).publishedAt, '2026-09-30T00:00:00Z');
     assert.equal(a.indexIsStale(), true);
     // The page itself, 200, in place of a missing file: not JSON, so the copy.
     globalThis.__parapoMapFile = pageAsked(
@@ -397,7 +400,7 @@ test("step 20: index.html's answer is read as the page's own was: an error, the 
       }),
     );
     const b = await fresh();
-    assert.equal((await b.fetchIndex()).published_at, '2026-09-30T00:00:00Z');
+    assert.equal((await b.fetchIndex()).publishedAt, '2026-09-30T00:00:00Z');
     assert.equal(b.indexIsStale(), true);
     delete globalThis.caches;
     globalThis.__parapoMapFile = pageAsked(
@@ -426,7 +429,7 @@ test("step 20: index.html's answer is read as the page's own was: an error, the 
       res: json({ ...base, published_at: 'read here' }),
       body: null,
     });
-    assert.equal((await (await fresh()).fetchIndex()).published_at, 'read here');
+    assert.equal((await (await fresh()).fetchIndex()).publishedAt, 'read here');
     assert.deepEqual(asked, [], 'never asked the network again');
   } finally {
     delete globalThis.caches;
@@ -753,7 +756,7 @@ test("a server's error with a stored copy shows the copy, marked stale", async (
     index('gone', { status: 503 });
     const a = await fresh();
     const file = await a.fetchIndex();
-    assert.equal(file.published_at, '2026-09-30T00:00:00Z');
+    assert.equal(file.publishedAt, '2026-09-30T00:00:00Z');
     assert.equal(a.indexIsStale(), true);
     // Only an older shape kept: that one, as offline.
     delete stored['/data/index.v4.json'];

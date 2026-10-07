@@ -10,8 +10,8 @@ import { boxMarks, placeHull } from '../../src/features/routes/map/hotspots-show
 /** A direction of `route`, drawn unless `drawn` is false: sample data, shaped like the published file. */
 const dir = (id, route, reversed = false, drawn = true) => ({
   id,
-  route_id: route,
-  direction_name: id,
+  routeId: route,
+  name: id,
   reversed,
   confidence: 'drawn',
   shape: drawn

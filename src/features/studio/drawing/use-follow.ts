@@ -55,7 +55,8 @@ export function useFollow({
         travel: travelLine(v, hotspots),
         endsAtDestination:
           home !== null &&
-          target.placeOfHotspot(v.reversed ? v.route.head_stop_id : v.route.tail_stop_id) === home,
+          target.placeOfHotspot(v.reversed ? v.route.headHotspotId : v.route.tailHotspotId) ===
+            home,
       }));
     // The line now, without the point an offer would drop: the render's
     // `draw.line` is a step behind the edits that led here.
@@ -63,7 +64,7 @@ export function useFollow({
     if (!choice) return;
     if ('against' in choice) {
       setNotice(
-        `${choice.against.v.direction_name} runs the other way here. ${coarsePointer() ? 'Follow' : 'Right-click'} a line going the way you are drawing.`,
+        `${choice.against.v.name} runs the other way here. ${coarsePointer() ? 'Follow' : 'Right-click'} a line going the way you are drawing.`,
       );
       return;
     }
@@ -85,7 +86,7 @@ export function useFollow({
       then(await withDrawing(v));
     } catch (e) {
       setNotice(
-        `Couldn't open ${v.direction_name ?? 'this direction'}: ${e instanceof Error ? e.message : String(e)}`,
+        `Couldn't open ${v.name ?? 'this direction'}: ${e instanceof Error ? e.message : String(e)}`,
       );
     }
   };

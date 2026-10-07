@@ -20,8 +20,8 @@ export function routeTimeline(
   hotspots: readonly Hotspot[],
   along: readonly Hotspot[],
 ): Timeline {
-  const head = hotspots.find((s) => s.id === v.route?.head_stop_id) ?? null;
-  const tail = hotspots.find((s) => s.id === v.route?.tail_stop_id) ?? null;
+  const head = hotspots.find((s) => s.id === v.route?.headHotspotId) ?? null;
+  const tail = hotspots.find((s) => s.id === v.route?.tailHotspotId) ?? null;
   return timelineFor(head, tail, v.reversed, along, directionLine(v)[0]);
 }
 
@@ -65,7 +65,7 @@ export interface RideDot {
  * the owner's asks of 2026-09-28. The row is a place; each of its mini
  * hotspots the line passes gets a dot at the middle of its orange stretch
  * (`passStretches`, the one rule, walked rather than the stored
- * `stop_sequence`, which indexes the editor's full line and overshoots the
+ * `sequence`, which indexes the editor's full line and overshoots the
  * published, thinned one). The ride ends at `endHotspotId`'s dot when given —
  * tapping a dot toggles the get-off side without moving the hintuan — and
  * at the last dot otherwise. `ridden` runs from the place this direction
@@ -126,8 +126,8 @@ export function rideCut(
 export function travelLine(v: Direction, hotspots: readonly Hotspot[]): readonly LngLat[] {
   const line = directionLine(v);
   if (line.length < 2) return line;
-  const head = hotspots.find((s) => s.id === v.route?.head_stop_id);
-  const tail = hotspots.find((s) => s.id === v.route?.tail_stop_id);
+  const head = hotspots.find((s) => s.id === v.route?.headHotspotId);
+  const tail = hotspots.find((s) => s.id === v.route?.tailHotspotId);
   const [from, to] = v.reversed ? [tail, head] : [head, tail];
   if (!from || !to) return line;
   return drawnFromTheEnd(line[0], from, to) ? reversedOf(line) : line;

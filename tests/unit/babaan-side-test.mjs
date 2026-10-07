@@ -122,9 +122,9 @@ test('a box beside the road is not cut', () => {
 test('the two directions of the committed map share each box they both cut', () => {
   const file = published();
   let cut = 0;
-  for (const v of file.variants.filter((v) => v.shape)) {
+  for (const v of file.directions.filter((v) => v.shape)) {
     const line = v.shape.coordinates;
-    for (const { hotspot } of hintuansAlong(line, file.stops, v.route)) {
+    for (const { hotspot } of hintuansAlong(line, file.hotspots, v.route)) {
       const ring = hotspotRing(hotspot);
       const right = rightOfLine(ring, line);
       if (!right) continue;
@@ -258,8 +258,8 @@ function oldHintuansAlong(line, stops, route) {
 function oldTravelLine(v, stops) {
   const line = directionLine(v);
   if (line.length < 2) return line;
-  const head = stops.find((s) => s.id === v.route?.head_stop_id);
-  const tail = stops.find((s) => s.id === v.route?.tail_stop_id);
+  const head = stops.find((s) => s.id === v.route?.headHotspotId);
+  const tail = stops.find((s) => s.id === v.route?.tailHotspotId);
   const [from, to] = v.reversed ? [tail, head] : [head, tail];
   if (!from || !to) return line;
   return drawnFromTheEnd(line[0], from, to) ? [...line].reverse() : line;
@@ -278,8 +278,8 @@ function oldBabaanFeatures(chosen, stops) {
 
 test('step 8: every line of the committed map against every hintuan, both ways, cut exactly as before', () => {
   const file = published();
-  const lines = file.variants.filter((v) => v.shape).map((v) => v.shape.coordinates);
-  const boxes = file.stops.filter((s) => s.kind === 'hintuan' && s.area).map(hotspotRing);
+  const lines = file.directions.filter((v) => v.shape).map((v) => v.shape.coordinates);
+  const boxes = file.hotspots.filter((s) => s.kind === 'hintuan' && s.area).map(hotspotRing);
   assert.ok(
     lines.length >= 20 && boxes.length >= 100,
     `${lines.length} lines, ${boxes.length} boxes`,
@@ -303,15 +303,15 @@ test('step 8: every line of the committed map against every hintuan, both ways, 
 test("step 8: every direction's babaan sides, either way round, the same features in the same order", () => {
   const file = published();
   let features = 0;
-  for (const v of file.variants.filter((v) => v.shape)) {
+  for (const v of file.directions.filter((v) => v.shape)) {
     for (const chosen of [v, { ...v, reversed: !v.reversed }]) {
-      const was = oldBabaanFeatures(chosen, file.stops);
-      assert.deepStrictEqual(babaanSideFeatures(chosen, file.stops), was, `${v.direction_name}`);
+      const was = oldBabaanFeatures(chosen, file.hotspots);
+      assert.deepStrictEqual(babaanSideFeatures(chosen, file.hotspots), was, `${v.name}`);
       features += was.length;
     }
   }
   assert.ok(features > 20, `only ${features} sides`);
-  assert.deepStrictEqual(babaanSideFeatures(null, file.stops), []);
+  assert.deepStrictEqual(babaanSideFeatures(null, file.hotspots), []);
   console.log(`  ${features} babaan sides, all as before`);
 });
 
@@ -424,7 +424,7 @@ test('step 8: made-up directions — ties on one segment, stations, terminals, b
             ? boxAt(x, y - 0.0003 * rand(), 0.00002 + 0.0002 * rand(), 0.0001 + 0.0006 * rand())
             : null,
         note: null,
-        created_at: '2026-10-04',
+        createdAt: '2026-10-04',
         line: rand() < 0.15 ? pick(['LRT-1', 'MRT-3']) : null,
       });
     }
@@ -433,21 +433,21 @@ test('step 8: made-up directions — ties on one segment, stations, terminals, b
       id: 'r',
       name: 'R',
       signboard: null,
-      long_name: null,
-      fare_note: null,
+      longName: null,
+      fareNote: null,
       via: null,
       mode: train ? 'lrt' : 'jeepney',
-      route_code: train ? 'LRT-1' : null,
-      head_stop_id: rand() < 0.8 ? pick(stops).id : null,
-      tail_stop_id: rand() < 0.8 ? pick(stops).id : null,
+      routeCode: train ? 'LRT-1' : null,
+      headHotspotId: rand() < 0.8 ? pick(stops).id : null,
+      tailHotspotId: rand() < 0.8 ? pick(stops).id : null,
     };
     const line = rand() < 0.5 ? road : [...road].reverse();
     const chosen = {
       id: `v${n}`,
-      route_id: 'r',
-      direction_name: null,
-      origin_terminal: null,
-      destination_terminal: null,
+      routeId: 'r',
+      name: null,
+      originTerminal: null,
+      destinationTerminal: null,
       shape: { type: 'LineString', coordinates: line },
       reversed: rand() < 0.5,
       confidence: 'drawn',

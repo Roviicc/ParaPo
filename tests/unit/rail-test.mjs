@@ -21,10 +21,10 @@ import { hintuansAlong } from '../../src/features/routes/model/timeline.ts';
 import { rideCut } from '../../src/features/routes/model/ride.ts';
 import { linksThrough } from '../../src/features/studio/data/hotspots-geometry.ts';
 
-const JEEP = { mode: 'jeepney', route_code: null };
-const LRT1 = { mode: 'lrt', route_code: 'LRT-1' };
-const MRT3 = { mode: 'mrt', route_code: 'MRT-3' };
-const PRFS = { mode: 'ferry', route_code: 'PRFS' };
+const JEEP = { mode: 'jeepney', routeCode: null };
+const LRT1 = { mode: 'lrt', routeCode: 'LRT-1' };
+const MRT3 = { mode: 'mrt', routeCode: 'MRT-3' };
+const PRFS = { mode: 'ferry', routeCode: 'PRFS' };
 
 test('only lrt and mrt are trains', () => {
   assert.deepEqual(
@@ -55,7 +55,7 @@ test('the ferry stops at its own stations only, and no jeep or train at them', (
   assert.equal(servedBy({ line: 'MRT-3' }, PRFS), false);
   assert.equal(servedBy({ line: 'PRFS' }, JEEP), false);
   assert.equal(servedBy({ line: 'PRFS' }, MRT3), false);
-  assert.equal(servedBy({ line: null }, { mode: 'ferry', route_code: null }), false);
+  assert.equal(servedBy({ line: null }, { mode: 'ferry', routeCode: null }), false);
 });
 
 test('a jeep stops at a hintuan, not at a station', () => {
@@ -72,7 +72,7 @@ test("a train stops at its own line's stations only", () => {
 });
 
 test('a train with no line named stops nowhere, not at the jeep hintuans under it', () => {
-  for (const route of [{ mode: 'lrt', route_code: null }, { mode: 'mrt' }]) {
+  for (const route of [{ mode: 'lrt', routeCode: null }, { mode: 'mrt' }]) {
     assert.equal(servedBy({ line: null }, route), false);
     assert.equal(servedBy({ line: 'LRT-1' }, route), false);
   }
@@ -129,7 +129,7 @@ test("the ride-to cut of a place shared by a jeep hintuan and a station keeps to
   const v = (route) => ({
     id: 'v',
     reversed: false,
-    route: { ...route, head_stop_id: 'h', tail_stop_id: 't' },
+    route: { ...route, headHotspotId: 'h', tailHotspotId: 't' },
     shape: { type: 'LineString', coordinates: LINE },
   });
   assert.deepEqual(

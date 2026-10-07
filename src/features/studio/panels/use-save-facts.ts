@@ -77,8 +77,8 @@ export function useSaveFacts({
     if (parent || !headId || !tailId) return null;
     const v = directions.find(
       (x) =>
-        x.route.head_stop_id === headId &&
-        x.route.tail_stop_id === tailId &&
+        x.route.headHotspotId === headId &&
+        x.route.tailHotspotId === tailId &&
         (x.route.via ?? '') === via.trim() &&
         x.reversed === reversed,
     );
@@ -92,16 +92,20 @@ export function useSaveFacts({
     if (!existing || !headId || !tailId) return false;
     return directions.some(
       (x) =>
-        x.route_id !== existing.route_id &&
-        x.route.head_stop_id === headId &&
-        x.route.tail_stop_id === tailId &&
+        x.routeId !== existing.routeId &&
+        x.route.headHotspotId === headId &&
+        x.route.tailHotspotId === tailId &&
         (x.route.via ?? '') === via.trim(),
     );
   }, [existing, headId, tailId, via, directions]);
   // By place, as the pickers choose: another box of the same place is the
   // same end.
-  const headNow = existing ? hotspots.find((s) => s.id === existing.route.head_stop_id) : undefined;
-  const tailNow = existing ? hotspots.find((s) => s.id === existing.route.tail_stop_id) : undefined;
+  const headNow = existing
+    ? hotspots.find((s) => s.id === existing.route.headHotspotId)
+    : undefined;
+  const tailNow = existing
+    ? hotspots.find((s) => s.id === existing.route.tailHotspotId)
+    : undefined;
   const turnedRound =
     !!existing &&
     !!head &&
@@ -113,8 +117,8 @@ export function useSaveFacts({
 
   // What an Extend borrowed: measured on the line as it is now, so a borrowed
   // point dragged away or undone is counted as it really is.
-  const borrowFromId = draw.borrow?.directionId ?? existing?.borrowed_from ?? null;
-  const borrowPart = draw.borrow?.part ?? existing?.borrowed_part ?? null;
+  const borrowFromId = draw.borrow?.directionId ?? existing?.borrowedFrom ?? null;
+  const borrowPart = draw.borrow?.part ?? existing?.borrowedPart ?? null;
   const borrowParent = borrowFromId
     ? (directions.find((v) => v.id === borrowFromId) ?? null)
     : null;
@@ -169,13 +173,13 @@ export function useSaveFacts({
   const name = head && tail ? routeName(hotspotLabel(head), hotspotLabel(tail), via) : '';
   const direction =
     head && tail ? directionName(hotspotLabel(head), hotspotLabel(tail), reversed) : '';
-  // The line a train runs is its route's (route_code); a new route has none yet.
-  const routeCode = (existing?.route ?? parent)?.route_code ?? null;
+  // The line a train runs is its route's (routeCode); a new route has none yet.
+  const routeCode = (existing?.route ?? parent)?.routeCode ?? null;
   // The snapped geometry, not the control points: a box between two clicks
   // still counts, and this is the line the save will check.
   const preview = useMemo(() => {
     const line = joinSegments(draw.segments);
-    const along = hintuansAlong(line, hotspots, { mode, route_code: routeCode }).map(
+    const along = hintuansAlong(line, hotspots, { mode, routeCode: routeCode }).map(
       (a) => a.hotspot,
     );
     return timelineFor(head, tail, reversed, along, line[0]);

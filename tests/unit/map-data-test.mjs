@@ -329,7 +329,7 @@ import { PASS_TOLERANCE, sameStretches } from '../../scripts/checks/check-map-da
 /** good(), its direction carrying the stretches the publish writes, or `change` of them. */
 const withPass = (change = (p) => p) => {
   const m = good();
-  const { pass, passKey } = linePass(m.variants[0], passBoxes(m.stops));
+  const { pass, passKey } = linePass(toDirection(m.variants[0]), passBoxes(m.stops.map(toHotspot)));
   assert.ok(pass.length > 0);
   m.variants[0] = { ...m.variants[0], ...change({ pass, passKey }) };
   return m;
@@ -367,7 +367,11 @@ test("step 13: stretches within a unit of the sixth decimal are the same; furthe
   );
   // One stretch fewer, or one point fewer, is not the same either: the
   // stretch past Mid is its two ends and the vertex at 500 m between them.
-  assert.equal(linePass(good().variants[0], passBoxes(good().stops)).pass[0].length, 3);
+  assert.equal(
+    linePass(toDirection(good().variants[0]), passBoxes(good().stops.map(toHotspot))).pass[0]
+      .length,
+    3,
+  );
   assert.equal(
     checkMapData(withPass(({ pass, passKey }) => ({ pass: pass.slice(1), passKey }))).problems
       .length,
@@ -450,7 +454,7 @@ test('step 13: a line file without stretches is checked as before', () => {
   const file = published();
   const without = checkMapData({
     ...file,
-    variants: file.variants.map(({ pass, passKey, ...v }) => v),
+    directions: file.directions.map(({ pass, passKey, ...v }) => v),
   });
   assert.deepEqual(without.problems, []);
   assert.deepEqual(passNote(without), []);
@@ -467,6 +471,8 @@ test('step 13: a line file without stretches is checked as before', () => {
 import { MAP_FILE_SCHEMA } from '../../src/features/published-map/map-file.ts';
 import { boxesReached } from '../../src/features/routes/geo/line-pass.ts';
 import { lineFileText } from '../../scripts/publish/lineFile.mjs';
+import { toDirection } from '../../src/features/routes/model/direction-schema.ts';
+import { toHotspot } from '../../src/features/routes/model/hotspot-schema.ts';
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -582,17 +588,17 @@ test('T: a copy of public/data written as the next publish writes it gives no wa
     const check = (name) => checkMapData(read(name));
     const index = read('index.v4.json');
     assert.equal(index.schema, MAP_FILE_SCHEMA, 'index.v4.json is the index the app reads');
-    const drawn = index.variants.filter((v) => v.shape);
+    const drawn = index.directions.filter((v) => v.shape);
     const writeAll = (boxes) => {
       for (const v of drawn)
         writeFileSync(join(dir, 'lines', `${v.id}.json`), lineFileText(v, boxes));
     };
     // As publish-map.mjs writes them: lineFileText against passBoxes of the index's own hotspots.
-    const boxes = passBoxes(index.stops);
+    const boxes = passBoxes(index.hotspots);
     writeAll(boxes);
     assert.ok(
       read('index.v4.json')
-        .variants.filter((v) => v.shape)
+        .directions.filter((v) => v.shape)
         .every((v) => typeof v.passKey === 'string' && Array.isArray(v.pass)),
     );
     const fresh = check('index.v4.json');
@@ -604,7 +610,7 @@ test('T: a copy of public/data written as the next publish writes it gives no wa
     const others = (r) => r.warnings.filter((w) => !passWarning(r).includes(w));
 
     // A key changed by hand, in a line file the older index shape 3 reads too.
-    const v3 = new Set(read('index.v3.json').variants.map((v) => v.id));
+    const v3 = new Set(read('index.v3.json').directions.map((v) => v.id));
     const one = drawn.find((v) => v3.has(v.id) && linePass(v, boxes).pass.length > 0);
     assert.ok(one, 'a line with stretches in both indexes');
     const path = join(dir, 'lines', `${one.id}.json`);
@@ -629,7 +635,7 @@ test('T: a copy of public/data written as the next publish writes it gives no wa
     // Stale: every line file kept from a publish before a hintuan that line reaches moved 3 m east.
     const hintuan = boxesReached(one, one.shape.coordinates, boxes)[0].hotspot;
     const east = (c) => [c[0] + 3 / (111_320 * Math.cos((c[1] * Math.PI) / 180)), c[1]];
-    const before = index.stops.map((s) =>
+    const before = index.hotspots.map((s) =>
       s.id === hintuan.id
         ? { ...s, area: { ...s.area, coordinates: s.area.coordinates.map((r) => r.map(east)) } }
         : s,

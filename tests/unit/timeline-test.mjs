@@ -91,9 +91,9 @@ test('what a place is made of: one hintuan, its boxes mini stops', () => {
 
 test('the committed map: no direction lists the same hintuan twice in a row', () => {
   const m = published();
-  for (const v of m.variants) {
-    const rows = labels(hintuansAlong(directionLine(v), m.stops, v.route).map((a) => a.hotspot));
-    rows.forEach((r, i) => assert.notEqual(r, rows[i - 1], `${v.direction_name}: ${r} twice`));
+  for (const v of m.directions) {
+    const rows = labels(hintuansAlong(directionLine(v), m.hotspots, v.route).map((a) => a.hotspot));
+    rows.forEach((r, i) => assert.notEqual(r, rows[i - 1], `${v.name}: ${r} twice`));
   }
 });
 
@@ -123,13 +123,13 @@ test('the committed map: every box named by exactly one label, same-name boxes a
   // By the rule, not by a named stop: the owner edits the live map between
   // publishes, and a test naming Bestlink broke the day he deleted it.
   const m = published();
-  const groups = labelGroups(m.stops);
+  const groups = labelGroups(m.hotspots);
   const labelled = groups.flatMap((g) => g.ids);
-  assert.equal(labelled.length, m.stops.length);
+  assert.equal(labelled.length, m.hotspots.length);
   assert.equal(new Set(labelled).size, labelled.length);
   const groupOf = (id) => groups.findIndex((g) => g.ids.includes(id));
-  for (const a of m.stops)
-    for (const b of m.stops) {
+  for (const a of m.hotspots)
+    for (const b of m.hotspots) {
       if (a.id >= b.id || a.kind !== 'hintuan' || b.kind !== 'hintuan') continue;
       if (a.name.trim().toLowerCase() !== b.name.trim().toLowerCase()) continue;
       if (haversine(a.point.coordinates, b.point.coordinates) <= SAME_HINTUAN_M)
@@ -175,7 +175,7 @@ const LINE = [
 const vr = (coordinates, reversed = false) => ({
   id: 'v1',
   reversed,
-  route: { head_stop_id: 'h', tail_stop_id: 't' },
+  route: { headHotspotId: 'h', tailHotspotId: 't' },
   shape: { type: 'LineString', coordinates },
 });
 const KM = 3339.6 / 3; // one 0.01° step at the equator, in metres
@@ -231,22 +231,22 @@ test('a place the line never passes: null', () => {
 test('the committed map: every trip-card row cuts, forward, short of the whole', () => {
   const m = published();
   let rows = 0;
-  for (const v of m.variants.filter((x) => x.shape?.coordinates?.length > 1)) {
+  for (const v of m.directions.filter((x) => x.shape?.coordinates?.length > 1)) {
     const along = m.links
-      .filter((l) => l.route_variant_id === v.id)
-      .sort((a, b) => a.stop_sequence - b.stop_sequence)
-      .map((l) => m.stops.find((s) => s.id === l.stop_id))
+      .filter((l) => l.directionId === v.id)
+      .sort((a, b) => a.sequence - b.sequence)
+      .map((l) => m.hotspots.find((s) => s.id === l.hotspotId))
       .filter(Boolean);
     const whole = lineLength(directionLine(v));
     let last = 0;
-    for (const row of routeTimeline(v, m.stops, along).between) {
-      const cut = rideCut(v, m.stops, row.id);
-      assert.ok(cut, `${v.direction_name}: ${row.label} does not cut`);
+    for (const row of routeTimeline(v, m.hotspots, along).between) {
+      const cut = rideCut(v, m.hotspots, row.id);
+      assert.ok(cut, `${v.name}: ${row.label} does not cut`);
       assert.ok(
         cut.metres > last,
-        `${v.direction_name}: ${row.label} at ${Math.round(cut.metres)} m, not past ${Math.round(last)} m`,
+        `${v.name}: ${row.label} at ${Math.round(cut.metres)} m, not past ${Math.round(last)} m`,
       );
-      assert.ok(cut.metres < whole, `${v.direction_name}: ${row.label} past the whole ride`);
+      assert.ok(cut.metres < whole, `${v.name}: ${row.label} past the whole ride`);
       last = cut.metres;
       rows++;
     }
@@ -259,9 +259,9 @@ test('the committed map: every trip-card row cuts, forward, short of the whole',
 const both = (id, head, tail) =>
   [false, true].map((reversed) => ({
     id: id + (reversed ? '-back' : ''),
-    route_id: id,
+    routeId: id,
     reversed,
-    route: { head_stop_id: head, tail_stop_id: tail },
+    route: { headHotspotId: head, tailHotspotId: tail },
   }));
 const idsOf = (vs) => vs.map((v) => v.id).sort();
 const FAN = [
@@ -298,10 +298,10 @@ test('a line is drawn from the far end when it starts nearer where the ride goes
 });
 
 test("a place's boxes on its HintuanCard: terminals first, then hintuans, in drawing order; shared names numbered", () => {
-  const at = (name, informal, kind, created_at) => ({
+  const at = (name, informal, kind, createdAt) => ({
     ...box(name, informal, kind),
-    id: `${name}@${created_at}`,
-    created_at,
+    id: `${name}@${createdAt}`,
+    createdAt,
   });
   const t = at('SM City Fairview Jeepney Terminal', 'SM Fairview', 'terminal', '2026-09-03');
   const a = at('Fairview Teraccess', 'SM Fairview', 'hintuan', '2026-09-01');
@@ -393,7 +393,7 @@ test('two hintuans on one segment are listed in the order the line reaches them'
   ];
   const along = hintuansAlong(line, [box('far', 20), box('near', 5)], {
     mode: 'jeepney',
-    route_code: null,
+    routeCode: null,
   });
   assert.deepEqual(
     along.map((a) => a.hotspot.id),
@@ -449,18 +449,18 @@ import { travelLine } from '../../src/features/routes/model/ride.ts';
 
 test('step 16 (b): a line drawn from the far end, turned round once and kept; the same as before; a new line, turned anew', () => {
   const file = published();
-  const turned = file.variants
+  const turned = file.directions
     .filter((v) => v.shape)
     .flatMap((v) => [v, { ...v, reversed: !v.reversed }])
-    .filter((v) => travelLine(v, file.stops) !== v.shape.coordinates);
+    .filter((v) => travelLine(v, file.hotspots) !== v.shape.coordinates);
   assert.ok(turned.length >= 10, `${turned.length} directions turned round`);
   for (const v of turned) {
-    const line = travelLine(v, file.stops);
+    const line = travelLine(v, file.hotspots);
     // As before step 16: [...line].reverse(), the same points in the other order.
     assert.deepStrictEqual(line, [...v.shape.coordinates].reverse());
-    assert.equal(travelLine(v, file.stops), line, 'asked again: the very same array');
+    assert.equal(travelLine(v, file.hotspots), line, 'asked again: the very same array');
     assert.equal(
-      travelLine({ ...v }, file.stops),
+      travelLine({ ...v }, file.hotspots),
       line,
       'another object with the same line: the same line turned',
     );
@@ -469,13 +469,13 @@ test('step 16 (b): a line drawn from the far end, turned round once and kept; th
       ...v,
       shape: { ...v.shape, coordinates: v.shape.coordinates.map(([x, y]) => [x + 0.001, y]) },
     };
-    const freshLine = travelLine(fresh, file.stops);
+    const freshLine = travelLine(fresh, file.hotspots);
     assert.notEqual(freshLine, line);
     assert.deepStrictEqual(freshLine, [...fresh.shape.coordinates].reverse());
   }
   // A line in travel order already is the direction's own array, as before.
-  const forward = file.variants.find(
-    (v) => v.shape && travelLine(v, file.stops) === v.shape.coordinates,
+  const forward = file.directions.find(
+    (v) => v.shape && travelLine(v, file.hotspots) === v.shape.coordinates,
   );
   assert.ok(forward, 'a direction drawn forward');
 });
@@ -487,22 +487,22 @@ test('step 16 (b): a line drawn from the far end, turned round once and kept; th
 test("the committed map: a trip card's timeline is the same for the same trip and hotspots, and touches neither", () => {
   const m = published();
   let trips = 0;
-  for (const v of m.variants.filter((x) => x.shape?.coordinates?.length > 1)) {
+  for (const v of m.directions.filter((x) => x.shape?.coordinates?.length > 1)) {
     // As useSavedHotspots' hotspotsAlong hands them: the links in order, two on one segment as the line reaches them.
     const along = orderLinked(
       m.links
-        .filter((l) => l.route_variant_id === v.id)
+        .filter((l) => l.directionId === v.id)
         .map((l) => ({
-          hotspot: m.stops.find((s) => s.id === l.stop_id),
-          sequence: l.stop_sequence,
+          hotspot: m.hotspots.find((s) => s.id === l.hotspotId),
+          sequence: l.sequence,
         }))
         .filter((l) => !!l.hotspot),
       directionLine(v),
     );
-    const was = structuredClone({ v, stops: m.stops, along });
-    const first = routeTimeline(v, m.stops, along);
-    assert.deepEqual(routeTimeline(v, m.stops, along), first);
-    assert.deepEqual({ v, stops: m.stops, along }, was);
+    const was = structuredClone({ v, stops: m.hotspots, along });
+    const first = routeTimeline(v, m.hotspots, along);
+    assert.deepEqual(routeTimeline(v, m.hotspots, along), first);
+    assert.deepEqual({ v, stops: m.hotspots, along }, was);
     trips++;
   }
   assert.ok(trips > 0, 'no trips on the committed map');

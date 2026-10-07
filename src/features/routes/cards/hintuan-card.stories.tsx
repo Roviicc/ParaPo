@@ -15,21 +15,21 @@ import type { RouteSummary, Direction } from '../model/routes';
 const route = (id: string, name: string, tail: string): RouteSummary => ({
   id,
   signboard: null,
-  long_name: null,
+  longName: null,
   mode: 'jeepney',
-  fare_note: null,
-  head_stop_id: 'tala',
-  tail_stop_id: tail,
+  fareNote: null,
+  headHotspotId: 'tala',
+  tailHotspotId: tail,
   via: null,
   name,
 });
 
 const direction = (id: string, r: RouteSummary, name: string, reversed: boolean): Direction => ({
   id,
-  route_id: r.id,
-  direction_name: name,
-  origin_terminal: null,
-  destination_terminal: null,
+  routeId: r.id,
+  name: name,
+  originTerminal: null,
+  destinationTerminal: null,
   // A line, so it counts as drawn: the cards list drawn directions only.
   shape: {
     type: 'LineString',
@@ -55,7 +55,7 @@ const box = (
   name: string,
   kind: Hotspot['kind'],
   at: [number, number],
-  created_at: string,
+  createdAt: string,
 ): Hotspot => ({
   id,
   name,
@@ -65,7 +65,7 @@ const box = (
   point: { type: 'Point', coordinates: at },
   area: null,
   note: null,
-  created_at,
+  createdAt,
 });
 
 const terminal = box(

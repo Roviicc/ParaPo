@@ -90,7 +90,7 @@ export interface Picks {
   /** The RouteCard picked, in the list or on a hotspot's card. */
   highlight: Highlight | null;
   /** What the route list lists, and what is lit. */
-  candidates: readonly { route_id: string }[];
+  candidates: readonly { routeId: string }[];
   litDirections: readonly Direction[];
 }
 
@@ -104,15 +104,15 @@ export interface Picks {
  */
 export function gazeSubjects(p: Picks, from: LngLat | null): Subject[] {
   const nearestLit = (lines: LngLat[][]) => (from ? nearestOnLines(from, lines) : null);
-  const routesOf = (vs: readonly { route_id: string }[]) =>
-    [...new Set(vs.map((v) => v.route_id))].sort().join() || null;
+  const routesOf = (vs: readonly { routeId: string }[]) =>
+    [...new Set(vs.map((v) => v.routeId))].sort().join() || null;
   return [
     { key: p.pickedId, at: () => p.pinAt },
     {
       key: p.place && placeKey(p.place),
       at: () => (p.place?.point.coordinates as LngLat | undefined) ?? null,
     },
-    { key: p.trip?.route_id ?? null, at: () => nearestLit(p.trip ? [directionLine(p.trip)] : []) },
+    { key: p.trip?.routeId ?? null, at: () => nearestLit(p.trip ? [directionLine(p.trip)] : []) },
     {
       key: p.highlight && `${p.highlight.where}:${p.highlight.from}`,
       at: () => nearestLit(p.litDirections.map(directionLine)),

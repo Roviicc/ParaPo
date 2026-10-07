@@ -22,7 +22,7 @@
  * a short one: nothing says how many to ask for.
  *
  * A caller's order must be total (end it with a unique column) or pages can
- * overlap or skip: rows tie on `updated_at`, not on `id`.
+ * overlap or skip: rows tie on `updatedAt`, not on `id`.
  */
 export const PAGE = 1000;
 

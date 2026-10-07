@@ -81,7 +81,7 @@ export function StationLabels({
   const route = selected.route;
   if (!isLineMode(route?.mode)) return null;
   // A line's stations, a train's or the ferry's (servedBy): both directions stop at each.
-  const ends = new Set([route.head_stop_id, route.tail_stop_id, pickedId]);
+  const ends = new Set([route.headHotspotId, route.tailHotspotId, pickedId]);
   const stations = hotspots.filter((s) => servedBy(s, route) && !ends.has(s.id));
   return (
     <>

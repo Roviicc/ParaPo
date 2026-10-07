@@ -382,12 +382,12 @@ export function useDrawing(
   const load = useCallback(
     (v: DirectionDrawing) => {
       reset();
-      writePoints(v.control_points ?? []);
+      writePoints(v.controlPoints ?? []);
       writeSegments(v.segments ?? []);
       setFreehand(false);
       setArea(null);
       areaRef.current = null;
-      setTarget({ routeId: v.route_id, directionId: v.id });
+      setTarget({ routeId: v.routeId, directionId: v.id });
       setDrawing(true);
     },
     [reset, writePoints, writeSegments],
@@ -422,7 +422,7 @@ export function useDrawing(
     (part: BorrowPart) => {
       const p = pickingRef.current;
       if (!p?.spot) return;
-      const cut = cutAt(p.direction.control_points ?? [], p.direction.segments ?? [], p.spot, part);
+      const cut = cutAt(p.direction.controlPoints ?? [], p.direction.segments ?? [], p.spot, part);
       writePoints(cut.controlPoints);
       writeSegments(cut.segments);
       joinRef.current = part === 'end' ? (cut.controlPoints[0] ?? null) : null;
@@ -475,7 +475,7 @@ export function useDrawing(
     (v: DirectionDrawing, at: LngLat, backwards: boolean, drop?: LngLat): string | null => {
       const gate = joinGate();
       if (!gate.go) return gate.problem;
-      const cp = v.control_points ?? [];
+      const cp = v.controlPoints ?? [];
       const segs = v.segments ?? [];
       const src = backwards ? reverseDrawing(cp, segs) : { controlPoints: cp, segments: segs };
       const spot = nearestSpot(src.segments, at);

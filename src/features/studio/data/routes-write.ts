@@ -8,7 +8,7 @@ import type { LngLat, Segment } from '@/shared/utils/geo';
 import { joinSegments, overviewOf, roundLngLat } from '@/shared/utils/geo';
 
 import { NOTHING_CHANGED } from './hotspots-write';
-import { DIRECTION_SELECT } from './live';
+import { DIRECTION_SELECT, unnamedFromListed } from './live';
 import { requireSupabase } from './supabase';
 import type { BorrowPart } from '../drawing/borrow';
 
@@ -28,24 +28,28 @@ export interface SaveInput {
   /** Optional since 0006: an observed fact, filled in when the owner is sure. */
   signboard: string;
   mode: TransportMode;
-  fare_note: string;
+  fareNote: string;
   /** The two ends, as hotspots. The name is generated from them. */
-  head_stop_id: string;
-  tail_stop_id: string;
+  headHotspotId: string;
+  tailHotspotId: string;
   /** Only when another route shares both ends by a different road. */
   via: string;
   /** false = head to tail; true = the way back. */
   reversed: boolean;
-  control_points: LngLat[];
+  controlPoints: LngLat[];
   segments: Segment[];
   /**
    * What this line borrowed, when it was started with Extend (0008). Null
    * when it borrows nothing, including a borrowed part since redrawn away.
    */
-  borrowed_from: string | null;
-  borrowed_part: BorrowPart | null;
-  borrowed_m: number | null;
+  borrowedFrom: string | null;
+  borrowedPart: BorrowPart | null;
+  borrowedMetres: number | null;
 }
+
+// The column objects below carry the database's names (fare_note,
+// head_stop_id, control_points): this file is the boundary where the
+// glossary's names become the table's (CONTEXT.md; ticket 07, 2026-10-07).
 
 const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim());
 
@@ -136,9 +140,9 @@ export async function saveDirection(input: SaveInput): Promise<UnnamedDirectionR
       .update({
         signboard: blankToNull(input.signboard),
         mode: input.mode,
-        fare_note: blankToNull(input.fare_note),
-        head_stop_id: input.head_stop_id,
-        tail_stop_id: input.tail_stop_id,
+        fare_note: blankToNull(input.fareNote),
+        head_stop_id: input.headHotspotId,
+        tail_stop_id: input.tailHotspotId,
         via: blankToNull(input.via),
       })
       .eq('id', routeId);
@@ -149,11 +153,11 @@ export async function saveDirection(input: SaveInput): Promise<UnnamedDirectionR
     const facts = {
       signboard: blankToNull(input.signboard),
       mode: input.mode,
-      fare_note: blankToNull(input.fare_note),
+      fare_note: blankToNull(input.fareNote),
     };
     const ends = {
-      head_stop_id: input.head_stop_id,
-      tail_stop_id: input.tail_stop_id,
+      head_stop_id: input.headHotspotId,
+      tail_stop_id: input.tailHotspotId,
       via: blankToNull(input.via),
     };
     const { data, error } = await client
@@ -188,7 +192,7 @@ export async function saveDirection(input: SaveInput): Promise<UnnamedDirectionR
   const drawn = {
     route_id: routeId,
     reversed: input.reversed,
-    control_points: input.control_points.map(roundLngLat),
+    control_points: input.controlPoints.map(roundLngLat),
     segments,
     shape,
     // What the list draws (0009): the same line, thinned at 5 m.
@@ -196,9 +200,9 @@ export async function saveDirection(input: SaveInput): Promise<UnnamedDirectionR
       shape.coordinates.length > 1
         ? ({ type: 'LineString', coordinates: overviewOf(shape.coordinates) } as LineStringGeoJSON)
         : null,
-    borrowed_from: input.borrowed_from,
-    borrowed_part: input.borrowed_from ? input.borrowed_part : null,
-    borrowed_m: input.borrowed_from ? input.borrowed_m : null,
+    borrowed_from: input.borrowedFrom,
+    borrowed_part: input.borrowedFrom ? input.borrowedPart : null,
+    borrowed_m: input.borrowedFrom ? input.borrowedMetres : null,
   };
 
   if (newRoute) {
@@ -234,11 +238,11 @@ export async function saveDirection(input: SaveInput): Promise<UnnamedDirectionR
         await client.from('route').delete().eq('id', routeId);
       throw new Error(error.message);
     }
-    const saved = (data as unknown as UnnamedDirectionRow[]).find(
-      (v) => v.reversed === input.reversed,
+    const saved = (data as unknown[]).find(
+      (v) => (v as { reversed: boolean }).reversed === input.reversed,
     );
     if (!saved) throw new Error('Saved the route but could not read the direction back');
-    return withLine(saved, shape);
+    return unnamedFromListed(saved, shape);
   }
 
   // An existing route: either an edit of a drawn direction, or the first
@@ -258,7 +262,7 @@ export async function saveDirection(input: SaveInput): Promise<UnnamedDirectionR
 
   const { data, error } = await target.select(DIRECTION_SELECT).maybeSingle();
   if (error) throw new Error(error.message);
-  if (data) return withLine(data as unknown as UnnamedDirectionRow, shape);
+  if (data) return unnamedFromListed(data, shape);
 
   // No slot to fill. Only reachable for a route saved before 0006, or one
   // whose slot was deleted by hand; an insert is the honest repair. When the
@@ -270,19 +274,9 @@ export async function saveDirection(input: SaveInput): Promise<UnnamedDirectionR
     .single();
   if (insertError?.code === UNIQUE_VIOLATION) throw new Error(DRAWN_ALREADY);
   if (insertError) throw new Error(insertError.message);
-  return withLine(made as unknown as UnnamedDirectionRow, shape);
-}
-
-/**
- * The row as the list reads it comes back with its overview (DIRECTION_SELECT);
- * the caller gets it with the line it wrote, which its links are worked out on.
- */
-function withLine(
-  row: UnnamedDirectionRow & { overview?: unknown },
-  shape: LineStringGeoJSON,
-): UnnamedDirectionRow {
-  const { overview: _overview, ...rest } = row;
-  return { ...rest, shape };
+  // The row as the list reads it comes back with its overview (DIRECTION_SELECT);
+  // the caller gets it with the line it wrote, which its links are worked out on.
+  return unnamedFromListed(made, shape);
 }
 
 /**
@@ -334,12 +328,12 @@ export async function deleteDirection(direction: DirectionRow): Promise<void> {
   const { count, error: countError } = await client
     .from('route_variant')
     .select('id', { count: 'exact', head: true })
-    .eq('route_id', direction.route_id)
+    .eq('route_id', direction.routeId)
     .not('shape', 'is', null);
   if (countError) throw new Error(countError.message);
   if (count === 0) {
     // Both ways empty: the route goes, its two slots with it (cascade).
-    const gone = await client.from('route').delete().eq('id', direction.route_id).select('id');
+    const gone = await client.from('route').delete().eq('id', direction.routeId).select('id');
     if (gone.error) throw new Error(gone.error.message);
     if (!gone.data?.length) throw new Error(NOTHING_CHANGED);
   }

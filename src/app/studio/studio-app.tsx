@@ -159,7 +159,7 @@ function Workshop({
   // The pill counts routes, not directions: a route is two rows, one of them
   // perhaps an empty slot, and five routes once read "10 routes" (finding 7).
   const routeCount = useMemo(
-    () => new Set(saved.directions.map((v) => v.route_id)).size,
+    () => new Set(saved.directions.map((v) => v.routeId)).size,
     [saved.directions],
   );
 
@@ -237,7 +237,7 @@ function Workshop({
     const ending = [
       ...new Set(
         saved.directions
-          .filter((v) => v.route.head_stop_id === s.id || v.route.tail_stop_id === s.id)
+          .filter((v) => v.route.headHotspotId === s.id || v.route.tailHotspotId === s.id)
           .map((v) => v.route.name),
       ),
     ];
@@ -266,7 +266,7 @@ function Workshop({
   // just saved is drawn whatever the list says until its reload lands.
   const slotLeft = justSaved
     ? saved.directions.some(
-        (v) => v.route_id === justSaved.route_id && v.id !== justSaved.id && v.shape === null,
+        (v) => v.routeId === justSaved.routeId && v.id !== justSaved.id && v.shape === null,
       )
     : false;
 
@@ -276,7 +276,7 @@ function Workshop({
       setSigningIn(true);
       return;
     }
-    if (!window.confirm(`Delete "${v.route?.name}" — ${v.direction_name}?`)) return;
+    if (!window.confirm(`Delete "${v.route?.name}" — ${v.name}?`)) return;
     try {
       await deleteDirection(v);
       saved.select(null);
@@ -330,7 +330,7 @@ function Workshop({
       */}
       {!draw.drawing && saved.selected && tripLivery && (
         <TripCard
-          key={saved.selected.route_id}
+          key={saved.selected.routeId}
           direction={saved.selected}
           directions={saved.directions}
           timeline={routeTimeline(
@@ -356,7 +356,7 @@ function Workshop({
                 direction={saved.selected}
                 actions={
                   userId !== null &&
-                  userId === saved.selected.owner_id && (
+                  userId === saved.selected.ownerId && (
                     <CardActions
                       editLabel="Edit route"
                       onEdit={() => {
@@ -382,7 +382,7 @@ function Workshop({
                   )
                 }
               />
-              {userId !== null && userId === saved.selected.owner_id && (
+              {userId !== null && userId === saved.selected.ownerId && (
                 <SignboardEditor direction={saved.selected} onChanged={() => void saved.reload()} />
               )}
             </>
@@ -418,7 +418,7 @@ function Workshop({
           }}
           actions={
             userId !== null &&
-            userId === hotspots.selected.owner_id && (
+            userId === hotspots.selected.ownerId && (
               <CardActions
                 editLabel={hotspots.selected.kind === 'terminal' ? 'Edit terminal' : 'Edit hintuan'}
                 onEdit={() => {
@@ -492,7 +492,7 @@ function Workshop({
               <button
                 type="button"
                 onClick={() => {
-                  const routeId = toast.v.route_id;
+                  const routeId = toast.v.routeId;
                   setToast(null);
                   draw.start(routeId);
                 }}
@@ -503,7 +503,7 @@ function Workshop({
             )
           }
         >
-          Saved <strong>{toast.v.route?.name}</strong> · {toast.v.direction_name}
+          Saved <strong>{toast.v.route?.name}</strong> · {toast.v.name}
         </Toast>
       )}
 

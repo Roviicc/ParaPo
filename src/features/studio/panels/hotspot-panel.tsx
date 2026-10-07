@@ -38,7 +38,7 @@ const field =
 function groupBySignboard(directions: DirectionRow[]) {
   const groups = new Map<string, { signboard: string; directions: DirectionRow[] }>();
   for (const v of directions) {
-    const key = v.route_id;
+    const key = v.routeId;
     const g = groups.get(key) ?? { signboard: v.route?.name ?? '(unnamed)', directions: [] };
     g.directions.push(v);
     groups.set(key, g);
@@ -273,7 +273,7 @@ export function HotspotPanel({
                               onChange={() => toggle(v.id)}
                               className="h-4 w-4 accent-neutral-900"
                             />
-                            <span>{v.direction_name}</span>
+                            <span>{v.name}</span>
                           </label>
                         </li>
                       ))}
@@ -301,7 +301,7 @@ export function HotspotPanel({
                     <span className="font-medium text-neutral-900">{g.signboard}</span>
                     <span className="text-neutral-500">
                       {' '}
-                      · {g.directions.map((v) => v.direction_name).join(' · ')}
+                      · {g.directions.map((v) => v.name).join(' · ')}
                     </span>
                   </li>
                 ))}

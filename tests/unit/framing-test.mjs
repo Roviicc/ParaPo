@@ -50,7 +50,7 @@ const committed = JSON.parse(
   readFileSync(new URL('../../public/data/index.v4.json', import.meta.url), 'utf8'),
 ).variants.map(({ overview, ...v }) => ({ ...v, shape: overview ?? null }));
 const line = (...coordinates) => ({ type: 'LineString', coordinates });
-const direction = (id, shape) => ({ id, route_id: id, shape });
+const direction = (id, shape) => ({ id, routeId: id, shape });
 
 test("routesBounds is the fit's own box: on the committed map, and on small ones", () => {
   assert.ok(committed.length > 0);

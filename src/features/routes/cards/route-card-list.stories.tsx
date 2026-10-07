@@ -12,11 +12,11 @@ function route(id: string, name: string): Direction['route'] {
   return {
     id,
     signboard: null,
-    long_name: null,
+    longName: null,
     mode: 'jeepney',
-    fare_note: null,
-    head_stop_id: id + '-head',
-    tail_stop_id: id + '-tail',
+    fareNote: null,
+    headHotspotId: id + '-head',
+    tailHotspotId: id + '-tail',
     via: null,
     name,
   };
@@ -36,10 +36,10 @@ function direction(
 ): Direction {
   return {
     id: key + (reversed ? '-back' : '-out'),
-    route_id: key + '-route',
-    direction_name: direction,
-    origin_terminal: null,
-    destination_terminal: null,
+    routeId: key + '-route',
+    name: direction,
+    originTerminal: null,
+    destinationTerminal: null,
     shape: drawn
       ? {
           type: 'LineString',
@@ -106,7 +106,7 @@ function hotspot(
     point: { type: 'Point', coordinates: [121.04, 14.7] },
     area: null,
     note: null,
-    created_at: '2026-09-12T00:00:00Z',
+    createdAt: '2026-09-12T00:00:00Z',
   };
 }
 

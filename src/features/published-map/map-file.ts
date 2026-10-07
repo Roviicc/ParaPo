@@ -45,7 +45,7 @@ export const LINES_URL = '/data/lines/';
  *     its own path, so an app installed before still loads.
  *   - Shape 2 is `/data/index.json`; shape 3, `/data/index.v3.json`, is the
  *     same index with the train lines in (2026-10-03): a train's
- *     `route_code` and a station's `line` change which hintuans a line stops
+ *     `routeCode` and a station's `line` change which hintuans a line stops
  *     at (servedBy), so a shape-2 app would draw a jeep stopping at a
  *     station. Shape 4, `/data/index.v4.json`, is shape 3 with the ferry
  *     in (the same day): a shape-3 app knows only the trains as lines, and

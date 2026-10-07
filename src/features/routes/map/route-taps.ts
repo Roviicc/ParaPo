@@ -58,18 +58,18 @@ export function useRouteTaps<T extends Direction>(
         // opened Tala → Novaliches); with neither shown, the outbound rule
         // decides.
         const under = out.routeIds.map((id) => read.byId.current.get(id)).filter((v) => !!v);
-        const routeId = under[0]?.route_id;
+        const routeId = under[0]?.routeId;
         const open =
           under.length === 1
             ? under[0]!
             : (under.find((v) => read.shown.current.includes(v.id)) ??
-              directionToOpen(all.filter((v) => v.route_id === routeId)));
+              directionToOpen(all.filter((v) => v.routeId === routeId)));
         set.selectedId(open?.id ?? null);
         set.candidates([]);
       } else if (out.kind === 'several') {
         const keys = new Set(out.routeKeys);
         set.selectedId(null);
-        set.candidates(all.filter((v) => keys.has(v.route_id)));
+        set.candidates(all.filter((v) => keys.has(v.routeId)));
         // The way round under the finger, as for one route: outbound where an
         // outbound line was hit, the way back where only ways back were — so
         // a tap on the light-blue way back switches to it (the owner's

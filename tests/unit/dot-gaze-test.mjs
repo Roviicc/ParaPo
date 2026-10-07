@@ -67,7 +67,7 @@ test('on the routes, the point nearest the dot, between their points too', () =>
 // is `before` here.
 function before(ride, stops, saved, locator) {
   const nearestLit = (lines) => (locator.fix ? nearestOnLines(locator.fix.at, lines) : null);
-  const routesOf = (vs) => [...new Set(vs.map((v) => v.route_id))].sort().join() || null;
+  const routesOf = (vs) => [...new Set(vs.map((v) => v.routeId))].sort().join() || null;
   return [
     { key: ride.pickedId, at: () => ride.pinAt },
     {
@@ -75,7 +75,7 @@ function before(ride, stops, saved, locator) {
       at: () => stops.selected?.point.coordinates ?? null,
     },
     {
-      key: saved.selected?.route_id ?? null,
+      key: saved.selected?.routeId ?? null,
       at: () => nearestLit(saved.selected ? [directionLine(saved.selected)] : []),
     },
     {
@@ -90,9 +90,9 @@ function before(ride, stops, saved, locator) {
 }
 
 test("the public map's subjects: the same keys, gazed at the same places, as CommuterApp's were", () => {
-  const line = (id, route_id, pts) => ({
+  const line = (id, routeId, pts) => ({
     id,
-    route_id,
+    routeId,
     reversed: false,
     shape: { type: 'LineString', coordinates: pts },
   });

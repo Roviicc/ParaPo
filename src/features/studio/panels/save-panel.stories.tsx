@@ -14,7 +14,7 @@ function terminal(id: string, name: string, at: LngLat): HotspotRow {
   const d = 0.0003;
   return {
     id,
-    owner_id: 'sample-owner',
+    ownerId: 'sample-owner',
     name,
     informal: null,
     aliases: [],
@@ -33,7 +33,7 @@ function terminal(id: string, name: string, at: LngLat): HotspotRow {
       ],
     },
     note: null,
-    created_at: '2026-09-21T00:00:00Z',
+    createdAt: '2026-09-21T00:00:00Z',
   };
 }
 
@@ -183,16 +183,16 @@ export const ManyBoxesOnePlace: Story = {
 /** The route the return-trip stories add a direction to. */
 const talaFairview: RouteRow = {
   id: 'sample-route',
-  owner_id: 'sample-owner',
+  ownerId: 'sample-owner',
   signboard: null,
-  route_code: null,
-  short_name: null,
-  long_name: null,
+  routeCode: null,
+  shortName: null,
+  longName: null,
   mode: 'jeepney',
-  fare_note: null,
-  fare_as_of: null,
-  head_stop_id: 'sample-tala',
-  tail_stop_id: 'sample-fairview',
+  fareNote: null,
+  fareAsOf: null,
+  headHotspotId: 'sample-tala',
+  tailHotspotId: 'sample-fairview',
   via: null,
 };
 
@@ -283,15 +283,15 @@ export const PassesBesideTheRoad: Story = {
 /** Tala – SM Fairview's outbound as the list holds it, for Edit route. */
 const talaFairviewOut: DirectionRow = {
   id: 'sample-out',
-  route_id: 'sample-route',
-  direction_name: 'Tala → SM Fairview',
-  origin_terminal: null,
-  destination_terminal: null,
+  routeId: 'sample-route',
+  name: 'Tala → SM Fairview',
+  originTerminal: null,
+  destinationTerminal: null,
   shape: null,
   reversed: false,
   confidence: 'drawn',
-  owner_id: 'sample-owner',
-  updated_at: '2026-09-21T00:00:00Z',
+  ownerId: 'sample-owner',
+  updatedAt: '2026-09-21T00:00:00Z',
   route: { ...talaFairview, name: 'Tala – SM Fairview' },
 };
 
@@ -303,12 +303,12 @@ const lagro: HotspotRow = {
 const lagroFairviewOut: DirectionRow = {
   ...talaFairviewOut,
   id: 'sample-lagro-out',
-  route_id: 'sample-route-2',
-  direction_name: 'Lagro → SM Fairview',
+  routeId: 'sample-route-2',
+  name: 'Lagro → SM Fairview',
   route: {
     ...talaFairview,
     id: 'sample-route-2',
-    head_stop_id: 'sample-lagro',
+    headHotspotId: 'sample-lagro',
     name: 'Lagro – SM Fairview',
   },
 };

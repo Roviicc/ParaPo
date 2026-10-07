@@ -13,7 +13,7 @@ import type { Direction } from '../model/routes';
 
 interface Props {
   hotspot: Hotspot;
-  /** Directions linked to this hotspot, in stop_sequence order. */
+  /** Directions linked to this hotspot, in sequence order. */
   linkedDirectionIds: string[];
   directions: Direction[];
   /** Called with the direction picked, and, from a RouteCard, the colour its card wore: its trip wears the same. */

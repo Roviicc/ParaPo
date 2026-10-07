@@ -24,10 +24,10 @@ const published = () =>
   readPublished(fileURLToPath(new URL('../../public/data/index.v4.json', import.meta.url))).file;
 
 const file = published();
-const lines = file.variants
+const lines = file.directions
   .filter((v) => v.shape)
   .map((v) => ({ id: v.id, line: v.shape.coordinates }));
-const rings = file.stops.filter((s) => s.area).map((s) => ({ id: s.id, ring: hotspotRing(s) }));
+const rings = file.hotspots.filter((s) => s.area).map((s) => ({ id: s.id, ring: hotspotRing(s) }));
 
 /** The walk as it was before the bounds checks: the ring distance for every vertex, samples only near the box. */
 function slowStretches(line, ring, withinM = PASS_WITHIN_M, stepM = 1) {
@@ -201,7 +201,7 @@ function oldFeatures(variants, stops) {
       .flatMap(({ ring }) =>
         passStretches(line, ring).map((coordinates) => ({
           type: 'Feature',
-          properties: { id: v.id, route_id: v.route_id },
+          properties: { id: v.id, routeId: v.routeId },
           geometry: { type: 'LineString', coordinates },
         })),
       );
@@ -209,18 +209,18 @@ function oldFeatures(variants, stops) {
 }
 
 test('step 16 (a): the stretches kept per direction are the ones worked out before, for every direction', () => {
-  const variants = file.variants;
-  const boxes = passBoxes(file.stops);
+  const variants = file.directions;
+  const boxes = passBoxes(file.hotspots);
   const kept = variants.flatMap((v) => stretchesOf(v, boxes));
-  assert.deepStrictEqual(kept, oldFeatures(variants, file.stops));
+  assert.deepStrictEqual(kept, oldFeatures(variants, file.hotspots));
   assert.ok(kept.length > 50, `${kept.length} stretches`);
   // A direction with no line yet (an overview-less slot) has none.
   assert.deepStrictEqual(stretchesOf({ ...variants[0], shape: null }, boxes), []);
 });
 
 test('step 16 (a): asked again with the same direction and boxes, the very same array; a new line or new boxes, worked out anew', () => {
-  const boxes = passBoxes(file.stops);
-  const v = file.variants.find((x) => x.shape && stretchesPast(x, boxes).length > 0);
+  const boxes = passBoxes(file.hotspots);
+  const v = file.directions.find((x) => x.shape && stretchesPast(x, boxes).length > 0);
   const first = stretchesOf(v, boxes);
   assert.equal(stretchesOf(v, boxes), first, 'the same direction and boxes: kept');
   // A line arriving makes the direction a new object (useSavedRoutes' withLine): never the old stretches.
@@ -234,7 +234,7 @@ test('step 16 (a): asked again with the same direction and boxes, the very same 
     'the stretches of the line turned round run the other way',
   );
   // Another list of stops makes other boxes: nothing kept from the last.
-  const moved = file.stops.map((s) =>
+  const moved = file.hotspots.map((s) =>
     s.kind === 'hintuan' && s.area
       ? {
           ...s,
@@ -251,7 +251,7 @@ test('step 16 (a): asked again with the same direction and boxes, the very same 
     'the boxes moved, and so did their stretches',
   );
   // The same stops again, a new list: worked out anew, the same stretches.
-  const sameAgain = passBoxes(file.stops);
+  const sameAgain = passBoxes(file.hotspots);
   assert.notEqual(stretchesOf(v, sameAgain), first);
   assert.deepStrictEqual(stretchesOf(v, sameAgain), first);
 });
@@ -303,7 +303,7 @@ const hotspot = (id, kind, eastM, northM, extra = {}) => ({
   point: { type: 'Point', coordinates: at(eastM, northM) },
   area: squareAt(eastM, northM),
   note: null,
-  created_at: '2026-10-05T00:00:00Z',
+  createdAt: '2026-10-05T00:00:00Z',
   ...extra,
 });
 /** A jeep down the road, west to east, every 25 m for a kilometre, with a hintuan beside the road at 300 m and one on it at 700 m. */
@@ -311,14 +311,14 @@ const smallMap = () => {
   const line = Array.from({ length: 41 }, (_, i) => at(i * 25, 0));
   const v = {
     id: 'd',
-    route_id: 'r',
-    direction_name: 'West → East',
-    origin_terminal: null,
-    destination_terminal: null,
+    routeId: 'r',
+    name: 'West → East',
+    originTerminal: null,
+    destinationTerminal: null,
     shape: { type: 'LineString', coordinates: line },
     reversed: false,
     confidence: 'drawn',
-    route: { id: 'r', mode: 'jeepney', head_stop_id: 'West', tail_stop_id: 'East' },
+    route: { id: 'r', mode: 'jeepney', headHotspotId: 'West', tailHotspotId: 'East' },
   };
   const stops = [
     hotspot('West', 'terminal', 0, 0),
@@ -401,7 +401,7 @@ test('step 13: a hintuan moved, added, gone, of another id, or no longer stopped
     );
   }
   // The route made a train: it stops at none of the jeep's hintuans.
-  const train = { ...read, route: { ...read.route, mode: 'lrt', route_code: 'LRT-1' } };
+  const train = { ...read, route: { ...read.route, mode: 'lrt', routeCode: 'LRT-1' } };
   assert.equal(publishedStretches(train, passBoxes(stops)), null);
   assert.deepStrictEqual(stretchesOf(train, passBoxes(stops)), []);
 });
@@ -583,10 +583,10 @@ test('step 13: on a copy of public/data, every line file written with its stretc
     cpSync(committed, dir, { recursive: true });
     const indexPath = join(dir, 'index.v4.json');
     const index = readPublished(indexPath).file;
-    const boxes = passBoxes(index.stops);
+    const boxes = passBoxes(index.hotspots);
     let before = 0;
     let after = 0;
-    for (const v of index.variants.filter((x) => x.shape)) {
+    for (const v of index.directions.filter((x) => x.shape)) {
       const path = join(dir, 'lines', `${v.id}.json`);
       const old = readFileSync(path, 'utf8');
       const text = lineFileText(v, boxes);
@@ -607,14 +607,14 @@ test('step 13: on a copy of public/data, every line file written with its stretc
       after += text.length;
     }
     console.log(
-      `  ${index.variants.filter((x) => x.shape).length} line files, ${before} -> ${after} bytes`,
+      `  ${index.directions.filter((x) => x.shape).length} line files, ${before} -> ${after} bytes`,
     );
 
     // The check reads them back: the stretches are its own, and nothing is said of them.
     const { file: back, problems } = readPublished(indexPath);
     assert.deepEqual(problems, []);
     assert.ok(
-      back.variants
+      back.directions
         .filter((x) => x.shape)
         .every((x) => typeof x.passKey === 'string' && Array.isArray(x.pass)),
     );
@@ -663,8 +663,8 @@ test('step 13: on a copy of public/data, every line file written with its stretc
 
     // Against an older index (shape 3: no ferry), only lines whose hintuans it has all are taken; the rest are worked out, the same.
     const v3 = readPublished(join(dir, 'index.v3.json')).file;
-    const v3Boxes = passBoxes(v3.stops);
-    for (const row of v3.variants.filter((x) => x.shape)) {
+    const v3Boxes = passBoxes(v3.hotspots);
+    for (const row of v3.directions.filter((x) => x.shape)) {
       const v = { ...row, shape: await fetchLine(row.id) };
       assert.deepStrictEqual(
         stretchesOf(v, v3Boxes),

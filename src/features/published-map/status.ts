@@ -37,7 +37,7 @@ export function useMapAge(loaded: unknown): MapAge {
     fetchIndex().then(
       (f) =>
         live &&
-        setAge((was) => sameAge(was, { publishedAt: f.published_at, stale: indexIsStale() })),
+        setAge((was) => sameAge(was, { publishedAt: f.publishedAt, stale: indexIsStale() })),
       () => {},
     );
     return () => {

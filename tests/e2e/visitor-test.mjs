@@ -93,7 +93,7 @@ const metresToLine = (p, coords) => {
 const findVertexOutsideHotspots = (routes, polys) => {
   const clear = 0.001;
   for (const r of routes) {
-    const others = routes.filter((o) => o.route_id !== r.route_id);
+    const others = routes.filter((o) => o.routeId !== r.routeId);
     for (const c of r.coords) {
       const nearBox = polys.some((p) =>
         p.ring.some((v) => Math.hypot(v[0] - c[0], v[1] - c[1]) < clear),
@@ -109,7 +109,7 @@ const findVertexOutsideHotspots = (routes, polys) => {
 // road two routes share, where one tap lists them both.
 const findSharedVertexOutsideHotspots = (routes, polys) => {
   for (const r of routes) {
-    const others = routes.filter((o) => o.route_id !== r.route_id);
+    const others = routes.filter((o) => o.routeId !== r.routeId);
     for (const c of r.coords) {
       if (polys.some((p) => pointInPolygon(c, p.ring))) continue;
       if (others.some((o) => metresToLine(c, o.coords) < 3)) return c;
@@ -342,7 +342,7 @@ const snapshot = await page.evaluate(async () => {
     labelledIds: pointFeatures.flatMap((f) => String(f.properties.ids).split(',')),
     routeLines: (routesFC?.features ?? []).map((f) => f.geometry.coordinates),
     routes: (routesFC?.features ?? []).map((f) => ({
-      route_id: f.properties.route_id,
+      routeId: f.properties.routeId,
       coords: f.geometry.coordinates,
     })),
     routeCount: routesFC?.features?.length ?? 0,

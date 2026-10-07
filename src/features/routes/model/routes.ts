@@ -1,10 +1,17 @@
 import type { LngLat, Segment } from '@/shared/utils/geo';
 import { joinSegments } from '@/shared/utils/geo';
 
-import type { Direction, TransportMode } from './direction-schema';
+import type { Direction, RouteRow, TransportMode, UnnamedDirectionRow } from './direction-schema';
 import { hotspotLabel, type Hotspot } from './hotspots';
 
-export type { Confidence, Direction, RouteSummary, TransportMode } from './direction-schema';
+export type {
+  Confidence,
+  Direction,
+  RouteRow,
+  RouteSummary,
+  TransportMode,
+  UnnamedDirectionRow,
+} from './direction-schema';
 export type { LineStringGeoJSON } from './geojson-schema';
 
 export const MODES: { value: TransportMode; label: string }[] = [
@@ -21,13 +28,13 @@ export const MODES: { value: TransportMode; label: string }[] = [
 
 /**
  * The train lines (0011, the owner's ask of 2026-10-02): LRT-1, LRT-2 and
- * MRT-3, each a route whose `route_code` names its line. A train runs on its
+ * MRT-3, each a route whose `routeCode` names its line. A train runs on its
  * own track and stops only at its own stations, so everything that asks
  * which hintuans a line passes asks `servedBy` too.
  */
 export const RAIL_MODES: readonly TransportMode[] = ['lrt', 'mrt'];
 
-/** The lines a route_code or a station's `line` may name; 0011 holds `hotspot.line` to them. */
+/** The lines a routeCode or a station's `line` may name; 0011 holds `hotspot.line` to them. */
 export const RAIL_LINES = ['LRT-1', 'LRT-2', 'MRT-3'] as const;
 export type RailLine = (typeof RAIL_LINES)[number];
 export const isRailLine = (code: string | null | undefined): code is RailLine =>
@@ -46,7 +53,7 @@ export const FERRY_LINES = ['PRFS'] as const;
 
 /** Every mode that runs on a line of its own: the trains and the ferry. */
 export const LINE_MODES: readonly TransportMode[] = [...RAIL_MODES, ...FERRY_MODES];
-/** Every line a route_code or a station's `line` may name; 0011 and 0012 hold `hotspot.line` to them. */
+/** Every line a routeCode or a station's `line` may name; 0011 and 0012 hold `hotspot.line` to them. */
 export const LINES: readonly string[] = [...RAIL_LINES, ...FERRY_LINES];
 
 export const isLineMode = (mode: TransportMode | null | undefined): boolean =>
@@ -63,10 +70,10 @@ export const LINE_NOTES: Readonly<Record<string, string>> = {
   PRFS: 'Mon–Sat, daytime · Suspended in bad weather: check MMDA',
 };
 
-/** What `servedBy` reads of a route. `route_code` is absent from files published before 0011. */
+/** What `servedBy` reads of a route. `routeCode` is absent from files published before 0011. */
 export interface ServedRoute {
   mode: TransportMode;
-  route_code?: string | null;
+  routeCode?: string | null;
 }
 
 /**
@@ -80,30 +87,7 @@ export interface ServedRoute {
 export function servedBy(hotspot: { line?: string | null }, route: ServedRoute): boolean {
   const line = hotspot.line ?? null;
   if (!isLineMode(route.mode)) return line === null;
-  return line !== null && line === (route.route_code ?? null);
-}
-
-export interface RouteRow {
-  id: string;
-  owner_id: string;
-  /**
-   * What is painted on the windshield. Optional since 0006: the generated name
-   * took over the job of making a route recognisable, which leaves the
-   * signboard as the observed fact it really is — filled in when the owner is
-   * sure of it, rather than invented at save time.
-   */
-  signboard: string | null;
-  route_code: string | null;
-  short_name: string | null;
-  long_name: string | null;
-  mode: TransportMode;
-  fare_note: string | null;
-  fare_as_of: string | null;
-  /** The two ends, as hotspots. The name is generated from them; see routeName. */
-  head_stop_id: string;
-  tail_stop_id: string;
-  /** Set only when another route shares both ends by a different road. */
-  via: string | null;
+  return line !== null && line === (route.routeCode ?? null);
 }
 
 /** Spaced en dash. R3: applied by the app, never typed, so it cannot vary. */
@@ -139,37 +123,30 @@ export function directionName(head: string, tail: string, reversed: boolean): st
  * when a direction is opened (DirectionDrawing, live.ts withDrawing): it is
  * half of every row, and the editor lists a thousand rows to open one.
  */
-export type DirectionRow = Direction & {
-  owner_id: string;
-  updated_at: string;
+/**
+ * One direction as the editor lists it: what the map, the cards, the links
+ * and a save need to know about every direction, without its drawing. The
+ * drawing — the clicks and the road between each pair — is read on its own
+ * when a direction is opened (DirectionDrawing, live.ts withDrawing): it is
+ * half of every row, and the editor lists a thousand rows to open one. Its
+ * route carries the generated name (nameDirections).
+ */
+export type DirectionRow = Omit<UnnamedDirectionRow, 'route'> & {
   route: RouteRow & { name: string };
-  /**
-   * Set when this line was started from part of another direction's (Extend,
-   * 0008): which one, which part of *this* line it is ('start' or 'end'), and
-   * how many metres of it still run on the other's. The borrowed part is a
-   * copy; this only remembers where it came from. Optional so fixtures and
-   * rows read before 0008 need not carry it.
-   */
-  borrowed_from?: string | null;
-  borrowed_part?: 'start' | 'end' | null;
-  borrowed_m?: number | null;
 };
 
 /** A direction with its drawing, for reopening and re-saving it. */
 export type DirectionDrawing = DirectionRow & {
-  control_points: LngLat[];
+  controlPoints: LngLat[];
   segments: Segment[];
 };
-
-/** A DirectionRow straight from the database, before nameDirections has run. */
-export type UnnamedDirectionRow = Omit<DirectionRow, 'route'> & { route: RouteRow };
 
 type HotspotName = Pick<Hotspot, 'id' | 'name' | 'informal'>;
 
 interface Unnamed {
   reversed: boolean;
-  direction_name: string | null;
-  route: Pick<RouteRow, 'signboard' | 'head_stop_id' | 'tail_stop_id' | 'via'>;
+  name: string | null;
+  route: Pick<RouteRow, 'signboard' | 'headHotspotId' | 'tailHotspotId' | 'via'>;
 }
 
 /**
@@ -188,14 +165,14 @@ export function nameDirections<V extends Unnamed>(
 ): (V & { route: V['route'] & { name: string } })[] {
   const byId = new Map(hotspots.map((s) => [s.id, hotspotLabel(s)]));
   return directions.map((v) => {
-    const head = byId.get(v.route.head_stop_id);
-    const tail = byId.get(v.route.tail_stop_id);
+    const head = byId.get(v.route.headHotspotId);
+    const tail = byId.get(v.route.tailHotspotId);
     if (!head || !tail) {
       return { ...v, route: { ...v.route, name: v.route.signboard ?? '(unnamed)' } };
     }
     return {
       ...v,
-      direction_name: directionName(head, tail, v.reversed),
+      name: directionName(head, tail, v.reversed),
       route: { ...v.route, name: routeName(head, tail, v.route.via) },
     };
   });
@@ -213,7 +190,7 @@ export function isDrawn(v: Direction & { segments?: Segment[] | null }): boolean
  * row that has no direction name (a file from before names were generated).
  */
 export function directionEnds(v: Direction): { from: string; to: string } {
-  const [from, to] = (v.direction_name ?? '').split(' → ');
+  const [from, to] = (v.name ?? '').split(' → ');
   if (from && to) return { from, to };
   const [head = '', tail = ''] = (v.route?.name ?? '').replace(/ via .*$/, '').split(` ${DASH} `);
   return v.reversed ? { from: tail, to: head } : { from: head, to: tail };
@@ -224,8 +201,8 @@ export function directionEndHotspots(v: Direction): {
   fromHotspot: string | null;
   toHotspot: string | null;
 } {
-  const head = v.route?.head_stop_id ?? null;
-  const tail = v.route?.tail_stop_id ?? null;
+  const head = v.route?.headHotspotId ?? null;
+  const tail = v.route?.tailHotspotId ?? null;
   return v.reversed
     ? { fromHotspot: tail, toHotspot: head }
     : { fromHotspot: head, toHotspot: tail };

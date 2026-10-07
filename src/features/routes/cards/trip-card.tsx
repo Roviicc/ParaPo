@@ -37,12 +37,12 @@ export function useTripLivery(
   wornBehind: boolean,
 ): Livery | null {
   const [tripWears, setTripWears] = useState<{ routeId: string; livery: Livery } | null>(null);
-  let tripLivery = open && tripWears?.routeId === open.route_id ? tripWears.livery : null;
+  let tripLivery = open && tripWears?.routeId === open.routeId ? tripWears.livery : null;
   if (open && !tripLivery) {
     tripLivery =
       (wornBehind && worn?.id === open.id ? worn.livery : undefined) ??
       liveriesFor([directionEnds(open).from])[0];
-    setTripWears({ routeId: open.route_id, livery: tripLivery });
+    setTripWears({ routeId: open.routeId, livery: tripLivery });
   } else if (!open && tripWears) {
     setTripWears(null);
   }
@@ -64,7 +64,7 @@ export function useTripLivery(
  * pill prices the ride from the trip's start to there, as the tile prices
  * the whole.
  * So did the old card's fare details — the students/seniors/PWDs price, the
- * fare rule line, the route's fare_note, the estimate's source line and the
+ * fare rule line, the route's fareNote, the estimate's source line and the
  * "old ₱13" grace warning (fare.previous): his frames carry only the pesos,
  * and he dropped them all on 2026-09-29. The studio shows them under the
  * tiles (`extras`): the same card, with what an editor needs below it (the
@@ -155,7 +155,7 @@ export function TripCard({
       onBackToList={onBackToList}
       onClose={onClose}
       signboards={(direction.signboards ?? []).map(signboardUrl)}
-      note={LINE_NOTES[direction.route?.route_code ?? '']}
+      note={LINE_NOTES[direction.route?.routeCode ?? '']}
       otherRoutes={others.map((v) => ({ id: v.id, to: directionEnds(v).to }))}
       onOtherRoute={(id) => {
         const v = others.find((o) => o.id === id);
@@ -179,7 +179,7 @@ function faresFor(mode: Parameters<typeof rideFare>[0], metres: number): Fares |
 function fareFor(direction: Direction, metres: number, timeline: Timeline): Fare | undefined {
   if (isFerry(direction.route?.mode)) return FREE;
   if (isRail(direction.route?.mode))
-    return railFares(direction.route.route_code, timeline.from?.label, timeline.to?.label);
+    return railFares(direction.route.routeCode, timeline.from?.label, timeline.to?.label);
   return faresFor(direction.route?.mode, metres);
 }
 
@@ -193,7 +193,7 @@ function pickedFareFor(
   if (isFerry(direction.route?.mode)) return picked ? FREE : undefined;
   if (isRail(direction.route?.mode)) {
     const row = picked ? timeline.between.find((r) => r.id === picked) : undefined;
-    return row ? railFares(direction.route.route_code, timeline.from?.label, row.label) : undefined;
+    return row ? railFares(direction.route.routeCode, timeline.from?.label, row.label) : undefined;
   }
   return pickedMetres === undefined ? undefined : faresFor(direction.route?.mode, pickedMetres);
 }

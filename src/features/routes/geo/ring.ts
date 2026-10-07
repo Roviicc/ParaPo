@@ -104,7 +104,7 @@ export function ringCrossesItself(corners: Ring): boolean {
  * vertex inside it, or, when the line crosses between two vertices, the index
  * of the vertex just before that crossing. -1 when they never meet.
  *
- * This is what `route_stop.stop_sequence` stores. The second case matters: a
+ * This is what `route_stop.sequence` stores. The second case matters: a
  * snapped road has a vertex every ~20–30 m, so a narrow hotspot drawn across
  * a straight stretch can sit entirely between two vertices.
  */

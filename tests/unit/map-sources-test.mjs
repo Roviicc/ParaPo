@@ -276,7 +276,7 @@ const routesBefore = (rows) => ({
       type: 'Feature',
       properties: {
         id: v.id,
-        route_id: v.route_id,
+        routeId: v.routeId,
         name: v.route?.name ?? '',
         mode: v.route?.mode ?? 'jeepney',
       },

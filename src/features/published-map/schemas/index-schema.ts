@@ -1,6 +1,6 @@
 import * as z from 'zod/mini';
 
-import { directionSchema } from '@/features/routes/model/direction-schema';
+import { rawDirectionSchema, toDirection } from '@/features/routes/model/direction-schema';
 import { lineStringSchema } from '@/features/routes/model/geojson-schema';
 import { hotspotLinkSchema, hotspotSchema } from '@/features/routes/model/hotspot-schema';
 
@@ -8,20 +8,22 @@ import { hotspotLinkSchema, hotspotSchema } from '@/features/routes/model/hotspo
  * The published index (shape 4, map-file.ts MAP_FILE_SCHEMA) as one
  * contract: the reader parses the file with it, the publish validates what
  * it writes with it, and the data check reads with it (ticket 08 of the
- * restructure follow-ups, 2026-10-07). The file says `variants`, `stops`
- * and `overview`, the database's words; the app says directions, hotspots
- * and a direction's `shape` (CONTEXT.md), so the schema translates as it
- * parses. Fields the app does not know pass through at the top level and
- * are dropped from a row: adding a field is not a new shape (map-file.ts
- * has the rules).
+ * restructure follow-ups, 2026-10-07). The file says `variants`, `stops`,
+ * `published_at` and a direction's `overview` and `route_id`, the database's
+ * words; the app says directions, hotspots, publishedAt, a direction's
+ * `shape` and routeId (CONTEXT.md), so the schema translates as it parses
+ * (the rows' own `to…` functions, direction-schema.ts and hotspot-schema.ts).
+ * Fields the app does not know pass through at the top level and are
+ * dropped from a row: adding a field is not a new shape (map-file.ts has
+ * the rules).
  */
 
 /** A direction as the index carries it: its overview, the line thinned at 5 m, under its own name. */
 const indexDirectionSchema = z.pipe(
-  z.extend(z.omit(directionSchema, { shape: true }), {
+  z.extend(z.omit(rawDirectionSchema, { shape: true }), {
     overview: z.optional(z.nullable(lineStringSchema)),
   }),
-  z.transform(({ overview, ...direction }) => ({ ...direction, shape: overview ?? null })),
+  z.transform(({ overview, ...raw }) => toDirection({ ...raw, shape: overview ?? null })),
 );
 
 /** What makes a file a map at all, before its rows are read: the pre-check's shape. */
@@ -46,8 +48,9 @@ export const indexSchema = z.pipe(
     stops: z.array(hotspotSchema),
     links: z.array(hotspotLinkSchema),
   }),
-  z.transform(({ variants, stops, ...rest }) => ({
+  z.transform(({ variants, stops, published_at, ...rest }) => ({
     ...rest,
+    publishedAt: published_at,
     directions: variants,
     hotspots: stops,
   })),

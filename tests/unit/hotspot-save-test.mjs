@@ -29,7 +29,20 @@ const input = {
   ring,
   directions: [],
 };
-const row = { id: 's1', name: 'Tala Ilalim', informal: 'Tala', kind: 'hintuan', line: null };
+// The stop row as the table answers it, whole: the boundary parses what comes back.
+const row = {
+  id: 's1',
+  owner_id: 'o',
+  name: 'Tala Ilalim',
+  informal: 'Tala',
+  aliases: [],
+  kind: 'hintuan',
+  point: { type: 'Point', coordinates: [121.04, 14.7] },
+  area: null,
+  note: null,
+  created_at: '2026-10-07T00:00:00Z',
+  line: null,
+};
 
 test('a hotspot whose links failed is updated by the retry, not inserted again', async () => {
   let linksDown = true;

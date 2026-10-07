@@ -161,7 +161,7 @@ test('step 16 (d): the committed map, every line both ways, measured as before',
   const file = readPublished(
     fileURLToPath(new URL('../../public/data/index.v4.json', import.meta.url)),
   ).file;
-  for (const v of file.variants.filter((x) => x.shape)) {
+  for (const v of file.directions.filter((x) => x.shape)) {
     for (const line of [v.shape.coordinates, [...v.shape.coordinates].reverse()]) {
       assert.deepStrictEqual(measure(line), oldMeasure(line));
       assert.deepStrictEqual(measure(line), oldMeasure(line), 'and asked again');

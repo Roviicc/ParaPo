@@ -20,13 +20,13 @@ export function useSaveTarget(draw: Drawing, directions: DirectionRow[], hotspot
     : null;
   const parentRoute =
     !editing && draw.target.routeId
-      ? (directions.find((v) => v.route_id === draw.target.routeId)?.route ?? null)
+      ? (directions.find((v) => v.routeId === draw.target.routeId)?.route ?? null)
       : null;
   // The direction this line is for: the route's slot with no line yet. Fixed
   // here rather than read off the drawing, so a return trip started from the
   // wrong end cannot land on top of the direction that already exists.
   const slotReversed = parentRoute
-    ? (directions.find((v) => v.route_id === parentRoute.id && v.shape === null)?.reversed ?? null)
+    ? (directions.find((v) => v.routeId === parentRoute.id && v.shape === null)?.reversed ?? null)
     : null;
 
   // While extending: the places the chosen direction runs between, in travel
@@ -34,8 +34,8 @@ export function useSaveTarget(draw: Drawing, directions: DirectionRow[], hotspot
   const extendEnds = useMemo(() => {
     const v = draw.picking?.direction;
     if (!v) return null;
-    const head = hotspots.find((s) => s.id === v.route.head_stop_id);
-    const tail = hotspots.find((s) => s.id === v.route.tail_stop_id);
+    const head = hotspots.find((s) => s.id === v.route.headHotspotId);
+    const tail = hotspots.find((s) => s.id === v.route.tailHotspotId);
     if (!head || !tail) return null;
     const [from, to] = v.reversed ? [tail, head] : [head, tail];
     const travel = travelLine(v, hotspots);
@@ -50,12 +50,12 @@ export function useSaveTarget(draw: Drawing, directions: DirectionRow[], hotspot
   // the direction being edited, or of the route's slot a return trip fills.
   const destinationHotspotId = editing
     ? editing.reversed
-      ? editing.route.head_stop_id
-      : editing.route.tail_stop_id
+      ? editing.route.headHotspotId
+      : editing.route.tailHotspotId
     : parentRoute && slotReversed !== null
       ? slotReversed
-        ? parentRoute.head_stop_id
-        : parentRoute.tail_stop_id
+        ? parentRoute.headHotspotId
+        : parentRoute.tailHotspotId
       : null;
   const placeOfHotspot = (id: string | null) => {
     const s = id ? hotspots.find((x) => x.id === id) : undefined;
