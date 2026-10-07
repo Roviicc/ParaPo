@@ -308,7 +308,7 @@ Imports come in four groups separated by blank lines. ESLint enforces the order:
 import { useState } from 'react';                        // 1. external packages
 import { useQuery } from '@tanstack/react-query';
 
-import { Button } from '@/shared/ui';                    // 2. internal via @/
+import { cn } from '@/shared/utils/cn';                  // 2. internal via @/
 import { useRoutesQuery } from '@/features/routes';
 
 import { RouteCardSkeleton } from './route-card-skeleton'; // 3. relative
