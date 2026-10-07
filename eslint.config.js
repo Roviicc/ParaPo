@@ -122,11 +122,11 @@ export default defineConfig([
       // File and folder names are kebab-case. Middle extensions (.stories, .d)
       // are ignored, so route-card.stories.tsx and vite-env.d.ts pass.
       'check-file/filename-naming-convention': [
-        'warn',
+        'error',
         { 'src/**/*.{ts,tsx,css}': 'KEBAB_CASE' },
         { ignoreMiddleExtensions: true },
       ],
-      'check-file/folder-naming-convention': ['warn', { 'src/**/': 'KEBAB_CASE' }],
+      'check-file/folder-naming-convention': ['error', { 'src/**/': 'KEBAB_CASE' }],
 
       // Logging: console.log never ships; warn and error are for real problems.
       'no-console': ['warn', { allow: ['warn', 'error'] }],
