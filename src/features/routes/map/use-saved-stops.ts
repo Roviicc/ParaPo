@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MapLibreMap } from 'maplibre-gl';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import type { LngLat } from '@/shared/utils/geo';
+
 import { loadOnce } from './load-once';
 import { APP_MOVE } from './map-view';
-import type { StopLink, StopSummary } from '../model/stops';
-import type { LngLat } from '@/shared/utils/geo';
-import { orderLinked } from '../model/timeline';
 import { useSavedStopsLayers } from './saved-stops-layers';
-import { boxMarks, placeHull } from './stops-shown';
 import { useStopTaps } from './stop-taps';
+import { boxMarks, placeHull } from './stops-shown';
 import { letGoHolds } from '../cards/card-stack';
+import type { StopLink, StopSummary } from '../model/stops';
+import { orderLinked } from '../model/timeline';
 
 /**
  * Every saved hotspot, drawn for everyone as a shaded outline in its kind's

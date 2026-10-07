@@ -1,6 +1,6 @@
+import { keepLinePass } from '@/features/routes/geo/line-pass';
 import type { LineStringGeoJSON, VariantSummary } from '@/features/routes/model/routes';
 import type { StopLink, StopSummary } from '@/features/routes/model/stops';
-import { keepLinePass } from '@/features/routes/geo/line-pass';
 
 /**
  * The published map, as the public map reads it (since 2026-09-29, stage 7 of

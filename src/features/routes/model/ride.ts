@@ -1,9 +1,10 @@
 import { haversine, lineLength, type LngLat } from '@/shared/utils/geo';
-import { passStretches } from '../geo/pass';
+
 import { placeKey } from './places';
+import { servedBy, variantLine, type VariantSummary } from './routes';
 import { stopRing, type StopSummary } from './stops';
 import { drawnFromTheEnd, timelineFor, type Timeline } from './timeline';
-import { servedBy, variantLine, type VariantSummary } from './routes';
+import { passStretches } from '../geo/pass';
 
 /*
  * A direction ridden: its line in the jeep's order, its timeline of

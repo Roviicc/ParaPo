@@ -1,15 +1,17 @@
-import { useEffect, useRef } from 'react';
 import type { GeoJSONSource, MapLibreMap, SymbolLayerSpecification } from 'maplibre-gl';
-import { HOTSPOT_COLOUR, HOTSPOT_CONTENT, HOTSPOT_OPACITY } from './colours';
+import { useEffect, useRef } from 'react';
+
 import { MAP_OPACITY, MAP_PAINT } from '@/design-system/foundation/map-colours';
-import { ringToPolygon, type Ring } from '../geo/ring';
 import type { LngLat } from '@/shared/utils/geo';
-import { labelGroups } from '../model/places';
-import { stopRing, type StopKind, type StopSummary } from '../model/stops';
-import { STOPS_FILL_LAYER } from './tap';
+
+import { HOTSPOT_COLOUR, HOTSPOT_CONTENT, HOTSPOT_OPACITY } from './colours';
+import { useLayerSwitch } from './layer-switch';
 import { LAYERS, applyHidden, firstLayerOfType, layOutOnce } from './layers';
 import type { BoxMark } from './stops-shown';
-import { useLayerSwitch } from './layer-switch';
+import { STOPS_FILL_LAYER } from './tap';
+import { ringToPolygon, type Ring } from '../geo/ring';
+import { labelGroups } from '../model/places';
+import { stopRing, type StopKind, type StopSummary } from '../model/stops';
 
 /*
  * The saved hotspots on the map: their source, the place wash's, their

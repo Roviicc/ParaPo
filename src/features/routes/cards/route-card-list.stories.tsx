@@ -1,7 +1,8 @@
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ComponentProps } from 'react';
 import { useState } from 'react';
-import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+
 import { RouteCardList } from './route-card-list';
 import type { VariantSummary } from '../model/routes';
 import type { StopSummary } from '../model/stops';

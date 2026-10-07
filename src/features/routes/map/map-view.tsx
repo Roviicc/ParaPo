@@ -1,6 +1,16 @@
+import {
+  AttributionControl,
+  MapLibreMap,
+  NavigationControl,
+  ScaleControl,
+  prewarm,
+  setWorkerUrl,
+} from 'maplibre-gl';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { useEffect, useRef, useState } from 'react';
-import { BasemapControl } from './basemap-control';
+
 import { DEFAULT_BASEMAP, initialStyle, readBasemap, type Basemap } from './basemap';
+import { BasemapControl } from './basemap-control';
 import { diagnose, type Diagnosis } from './diagnose';
 import {
   OPENING_WAIT_MS,
@@ -13,15 +23,6 @@ import {
 } from './framing';
 import { routesDrawn } from './saved-routes-layers';
 import { noteTile } from './tiles-asked';
-import {
-  AttributionControl,
-  MapLibreMap,
-  NavigationControl,
-  ScaleControl,
-  prewarm,
-  setWorkerUrl,
-} from 'maplibre-gl';
-import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 
 /**
  * MapLibre 6 spawns its tile-parsing worker from a sibling file whose URL it

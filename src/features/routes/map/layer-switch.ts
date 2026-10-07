@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
 import type { LayerSpecification, MapLibreMap } from 'maplibre-gl';
+import { useEffect, useRef } from 'react';
+
 import { warmSoon, type Twin } from './warm-programs';
 
 /*

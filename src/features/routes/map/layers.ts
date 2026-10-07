@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import type { MapLibreMap } from 'maplibre-gl';
+import { useEffect, useState } from 'react';
 
 /**
  * The layer ids one file paints and another places its own layers against.

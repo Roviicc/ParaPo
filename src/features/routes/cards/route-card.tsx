@@ -1,4 +1,3 @@
-import type { Livery } from '../model/liveries';
 import {
   BLOB_PLACE,
   CARD_BLOB,
@@ -8,6 +7,7 @@ import {
   CARD_TEXT,
 } from './livery-card';
 import { RouteEndPointBar } from './route-end-point-bar';
+import type { Livery } from '../model/liveries';
 
 /**
  * A place and the routes that leave it, in a jeepney's livery — the owner's

@@ -1,11 +1,13 @@
-import { useEffect, useRef } from 'react';
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl';
-import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes';
-import { ROUTES_HIT_LAYER } from './tap';
-import { LAYERS, applyHidden, firstLayerOfType, layOutOnce } from './layers';
+import { useEffect, useRef } from 'react';
+
 import { MAP_COLOURS, MAP_PAINT } from '@/design-system/foundation/map-colours';
-import { CASING_EXTRA, litWidth, roadWidth } from './line-style';
+
 import { useLayerSwitch, type LayerSwitch } from './layer-switch';
+import { LAYERS, applyHidden, firstLayerOfType, layOutOnce } from './layers';
+import { CASING_EXTRA, litWidth, roadWidth } from './line-style';
+import { ROUTES_HIT_LAYER } from './tap';
+import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes';
 
 /*
  * The saved directions on the map: their source, their five layers, and

@@ -1,10 +1,14 @@
 import { useState, type ReactNode, type Ref } from 'react';
-import { FREE, RouteTripDetail, type Fare, type Fares } from './route-trip-detail';
-import { useFareKind } from './use-fare-kind';
+
 import type { SheetHeight } from '@/shared/ui/bottom-sheet';
 import { lineLength } from '@/shared/utils/geo';
+
+import { FREE, RouteTripDetail, type Fare, type Fares } from './route-trip-detail';
+import { useFareKind } from './use-fare-kind';
+import { otherDirection, otherRoutesFrom } from '../model/departures';
 import { manilaDate, rideFare } from '../model/fares';
 import { liveriesFor, type Livery } from '../model/liveries';
+import { railFares } from '../model/rail-fares';
 import {
   directionEnds,
   isDrawn,
@@ -14,8 +18,6 @@ import {
   variantLine,
   type VariantSummary,
 } from '../model/routes';
-import { railFares } from '../model/rail-fares';
-import { otherDirection, otherRoutesFrom } from '../model/departures';
 import type { Timeline } from '../model/timeline';
 
 /**

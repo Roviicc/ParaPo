@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+
 import { coarsePointer } from '@/features/routes/map/tap';
+
 import { FollowChip, PointBar, PutBack } from './point-bar';
 import type { Drawing } from './use-drawing';
 

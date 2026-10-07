@@ -33,7 +33,12 @@ const asWarnings = (configs) =>
       : config,
   );
 
-const SOURCE = ['src/**/*.{ts,tsx}', '.storybook/**/*.{ts,tsx}', 'vite.config.ts'];
+const SOURCE = [
+  'src/**/*.{ts,tsx}',
+  '.storybook/**/*.{ts,tsx}',
+  'vite.config.ts',
+  'scripts/**/*.ts',
+];
 
 export default defineConfig([
   globalIgnores(['dist/', 'storybook-static/', 'node_modules/', 'public/', '.vite/', '.scratch/']),

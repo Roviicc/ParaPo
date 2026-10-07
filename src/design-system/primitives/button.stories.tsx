@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
+
 import { Button } from './button';
 
 /** The set's default icon is a navigation arrow; any square SVG in currentColor works. */

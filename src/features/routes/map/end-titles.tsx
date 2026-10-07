@@ -1,12 +1,15 @@
+import { Marker, type MapLibreMap } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Marker, type MapLibreMap } from 'maplibre-gl';
-import type { LngLat } from '@/shared/utils/geo';
-import { rideEnds, type Ride } from './direction-arrows';
-import type { LineLook } from './livery-line';
-import { litWidthAt } from './line-style';
-import { tapsOnItsButton } from './marker-tap';
+
 import { CircleArrowRightIcon } from '@/shared/ui/route-icons';
+import type { LngLat } from '@/shared/utils/geo';
+
+import { rideEnds, type Ride } from './direction-arrows';
+import { litWidthAt } from './line-style';
+import type { LineLook } from './livery-line';
+import { tapsOnItsButton } from './marker-tap';
+
 import './end-titles.css';
 
 /**

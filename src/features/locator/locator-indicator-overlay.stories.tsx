@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+
 import { BEAM_DRAWN_DEG, LocatorIndicatorOverlay } from './locator-indicator-overlay';
 import type { Face, Mood } from './locator-mood';
 

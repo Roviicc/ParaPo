@@ -1,7 +1,9 @@
 import type { MapLibreMap } from 'maplibre-gl';
-import type { Snap } from '@/shared/ui/sheet-gesture';
+
 import { coarse } from '@/features/routes/map/map-view';
 import type { Turn } from '@/shared/hooks/commit-turn';
+import type { Snap } from '@/shared/ui/sheet-gesture';
+
 import { gazeSubjects, type Picks } from './dot-gaze';
 import { Locator } from './locator';
 import { LocatorOnMap } from './locator-indicator-overlay';

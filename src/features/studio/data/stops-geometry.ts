@@ -1,5 +1,5 @@
-import { entryDistance, type Ring } from '@/features/routes/geo/ring';
 import { passIndex } from '@/features/routes/geo/pass';
+import { entryDistance, type Ring } from '@/features/routes/geo/ring';
 import { servedBy, variantLine, type VariantRow } from '@/features/routes/model/routes';
 
 // Pure functions, kept apart from the writes (stopsWrite.ts), which need the

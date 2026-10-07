@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
 import type { MapLibreMap } from 'maplibre-gl';
+import { useMemo } from 'react';
+
+import type { LngLat } from '@/shared/utils/geo';
+
+import { useDirectionArrows, type Ride } from './direction-arrows';
 import { useBabaanSides } from '../geo/babaan-sides';
 import { usePassStretches } from '../geo/pass-stretches';
 import { travelLine } from '../model/ride';
 import { directionEndStops, directionEnds, type VariantSummary } from '../model/routes';
 import type { StopSummary } from '../model/stops';
-import type { LngLat } from '@/shared/utils/geo';
-import { useDirectionArrows, type Ride } from './direction-arrows';
 
 /**
  * What a lit route wears on the map, in both apps: its orange stretches

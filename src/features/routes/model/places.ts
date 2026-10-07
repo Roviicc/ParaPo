@@ -1,4 +1,5 @@
 import { haversine, type LngLat } from '@/shared/utils/geo';
+
 import { stopLabel, type StopKind, type StopSummary } from './stops';
 
 /*

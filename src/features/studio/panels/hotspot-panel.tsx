@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { bboxOf, bboxesOverlap, OVERVIEW_M } from '@/shared/utils/geo';
-import { variantLine, type VariantRow } from '@/features/routes/model/routes';
+
 import { PASS_WITHIN_M } from '@/features/routes/geo/pass';
 import { ringCrossesItself } from '@/features/routes/geo/ring';
-import { parseAliases, stopLabel, type StopRow } from '@/features/routes/model/stops';
-import { linesOf } from '../data/live';
-import { saveStop } from '../data/stops-write';
-import { linksThrough, variantsStartingIn } from '../data/stops-geometry';
-import type { Drawing } from '../drawing/use-drawing';
-import { terminalAlreadyAt } from './places';
 import { coarse } from '@/features/routes/map/map-view';
+import { variantLine, type VariantRow } from '@/features/routes/model/routes';
+import { parseAliases, stopLabel, type StopRow } from '@/features/routes/model/stops';
+import { bboxOf, bboxesOverlap, OVERVIEW_M } from '@/shared/utils/geo';
+
+import { terminalAlreadyAt } from './places';
 import { FIELD_TEXT, FOOTER, OVERLAY, PANEL } from './sheet';
+import { linesOf } from '../data/live';
+import { linksThrough, variantsStartingIn } from '../data/stops-geometry';
+import { saveStop } from '../data/stops-write';
+import type { Drawing } from '../drawing/use-drawing';
 
 type Props = {
   draw: Drawing;

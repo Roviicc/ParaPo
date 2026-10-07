@@ -1,6 +1,6 @@
-import { haversine, type LngLat } from '@/shared/utils/geo';
 import { placeKey } from '@/features/routes/model/places';
 import { normaliseName, stopLabel, type StopRow } from '@/features/routes/model/stops';
+import { haversine, type LngLat } from '@/shared/utils/geo';
 
 /**
  * The places a route can end at, for the save panel's two pickers: pure, so

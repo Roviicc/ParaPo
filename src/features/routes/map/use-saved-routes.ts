@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MapLibreMap } from 'maplibre-gl';
-import { loadOnce } from './load-once';
-import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes';
-import type { Livery } from '../model/liveries';
-import { ROUTES_LINE, useSavedRoutesLayers } from './saved-routes-layers';
-import { litOf, shownOf, showingOf, steady } from './routes-shown';
-import { useRouteTaps } from './route-taps';
-import { perFrame, type PerFrame } from './per-frame';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
 import { ROUTES_FRAMING, framesRoutes, routesBounds } from './framing';
+import { loadOnce } from './load-once';
+import { perFrame, type PerFrame } from './per-frame';
+import { useRouteTaps } from './route-taps';
+import { litOf, shownOf, showingOf, steady } from './routes-shown';
+import { ROUTES_LINE, useSavedRoutesLayers } from './saved-routes-layers';
+import type { Livery } from '../model/liveries';
+import { variantLine, type LineStringGeoJSON, type VariantSummary } from '../model/routes';
 
 /**
  * The RouteCard picked in a list of them — the route list's, or a hotspot's

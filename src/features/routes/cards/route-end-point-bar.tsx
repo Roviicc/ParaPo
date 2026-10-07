@@ -1,7 +1,9 @@
 import type { ComponentPropsWithoutRef } from 'react';
-import type { Livery } from '../model/liveries';
-import { ROW_PRESSED } from './livery-card';
+
 import { CircleArrowRightIcon } from '@/shared/ui/route-icons';
+
+import { ROW_PRESSED } from './livery-card';
+import type { Livery } from '../model/liveries';
 
 type Props = Omit<ComponentPropsWithoutRef<'button'>, 'type' | 'children'> & {
   /** Figma's routeDirection: the place the row's route goes to. */

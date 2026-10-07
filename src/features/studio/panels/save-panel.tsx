@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import type { Drawing } from '../drawing/use-drawing';
-import { haversine, type LngLat } from '@/shared/utils/geo';
+
+import { StopTimeline, passesThrough } from '@/features/routes/cards/stop-timeline';
 import {
   isLineMode,
   MODES,
@@ -9,13 +9,15 @@ import {
   type VariantRow,
 } from '@/features/routes/model/routes';
 import { stopLabel, type StopRow } from '@/features/routes/model/stops';
-import { StopTimeline, passesThrough } from '@/features/routes/cards/stop-timeline';
+import { haversine, type LngLat } from '@/shared/utils/geo';
+
+import { boxFor, groupPlaces, nearestStop } from './places';
+import { SaveNotices } from './save-notices';
+import { FIELD_TEXT, FOOTER, OVERLAY, PANEL } from './sheet';
+import { useSaveFacts } from './use-save-facts';
 import { ENDS_TAKEN } from '../data/routes-write';
 import { saveRouteAndLinks } from '../data/save-route';
-import { SaveNotices } from './save-notices';
-import { boxFor, groupPlaces, nearestStop } from './places';
-import { useSaveFacts } from './use-save-facts';
-import { FIELD_TEXT, FOOTER, OVERLAY, PANEL } from './sheet';
+import type { Drawing } from '../drawing/use-drawing';
 
 type Props = {
   draw: Drawing;

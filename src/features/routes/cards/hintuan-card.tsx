@@ -1,14 +1,8 @@
 import { useLayoutEffect, useRef, useState, type Ref } from 'react';
+
 import { Button } from '@/design-system/primitives/button';
 import { IconButton } from '@/design-system/primitives/icon-button';
-import { haversine } from '@/shared/utils/geo';
-import type { Livery } from '../model/liveries';
-import { drawnDepartures } from '../model/departures';
-import { placeBoxes } from '../model/places';
-import type { VariantSummary } from '../model/routes';
-import { stopLabel, type StopKind, type StopSummary } from '../model/stops';
 import { BottomSheet, type SheetHeight } from '@/shared/ui/bottom-sheet';
-import { wayWord } from './route-card-header';
 import {
   ChevronLeftIcon,
   CloseIcon,
@@ -17,7 +11,15 @@ import {
   JeepIcon,
   TerminalIcon,
 } from '@/shared/ui/route-icons';
+import { haversine } from '@/shared/utils/geo';
+
+import { wayWord } from './route-card-header';
 import { RouteCardStack, type PickedPlace } from './route-card-stack';
+import { drawnDepartures } from '../model/departures';
+import type { Livery } from '../model/liveries';
+import { placeBoxes } from '../model/places';
+import type { VariantSummary } from '../model/routes';
+import { stopLabel, type StopKind, type StopSummary } from '../model/stops';
 
 type Props = {
   /** The box picked: the one tapped on the map, or a row since. Its row is Selected. */

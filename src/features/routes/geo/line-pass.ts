@@ -1,8 +1,9 @@
-import { servedBy, variantLine, type VariantSummary } from '../model/routes';
-import { stopRing, type StopSummary } from '../model/stops';
 import { bboxOf, bboxesOverlap, type BBox, type LngLat } from '@/shared/utils/geo';
+
 import { passBounds, passStretches } from './pass';
 import type { Ring } from './ring';
+import { servedBy, variantLine, type VariantSummary } from '../model/routes';
+import { stopRing, type StopSummary } from '../model/stops';
 
 /*
  * The orange stretches as a direction's line file carries them (the

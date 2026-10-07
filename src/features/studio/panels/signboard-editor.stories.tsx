@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+
 import type { VariantSummary } from '@/features/routes/model/routes';
+
 import { SignboardEditor, type SignboardCalls } from './signboard-editor';
 
 /** Sample boards, not real ones: a dark board, a lime word over a gold one. */

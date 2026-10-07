@@ -1,4 +1,5 @@
 import { bboxMeetsSegment, bboxOf, type LngLat } from '@/shared/utils/geo';
+
 import { pointInRing, type Ring } from './ring';
 
 /* The babaan side: a box's half on a line's right (split from geo.ts, 2026-09-29). */

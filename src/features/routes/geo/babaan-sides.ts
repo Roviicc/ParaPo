@@ -1,14 +1,16 @@
-import { useEffect, useMemo } from 'react';
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl';
-import { HOTSPOT_COLOUR } from '../map/colours';
+import { useEffect, useMemo } from 'react';
+
 import { bboxOf, bboxesOverlap, lineBounds } from '@/shared/utils/geo';
+
 import { rightOfLine } from './right-of-line';
 import { ringToPolygon, type Ring } from './ring';
+import { HOTSPOT_COLOUR } from '../map/colours';
+import { LAYERS, useLayerReady } from '../map/layers';
 import { travelLine } from '../model/ride';
 import { isLineMode, type VariantSummary } from '../model/routes';
-import { inPassingOrder, listedAlong, passedAt } from '../model/timeline';
 import { stopRing, type StopSummary } from '../model/stops';
-import { LAYERS, useLayerReady } from '../map/layers';
+import { inPassingOrder, listedAlong, passedAt } from '../model/timeline';
 
 /**
  * The babaan side: on the chosen direction, each hintuan box it cuts across

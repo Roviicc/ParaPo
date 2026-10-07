@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MapLibreMap } from 'maplibre-gl';
-import { haversine, zoomForScale, type LngLat } from '@/shared/utils/geo';
-import type { Snap } from '@/shared/ui/sheet-gesture';
-import type { LocatorMode } from './locator-button';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
 import type { Turn } from '@/shared/hooks/commit-turn';
+import type { Snap } from '@/shared/ui/sheet-gesture';
+import { haversine, zoomForScale, type LngLat } from '@/shared/utils/geo';
+
+import type { LocatorMode } from './locator-button';
 
 /**
  * The visitor's own place on the map, and the camera with them: the owner's

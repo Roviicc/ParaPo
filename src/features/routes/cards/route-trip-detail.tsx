@@ -1,8 +1,10 @@
 import { useId, useState, type ReactNode, type Ref } from 'react';
-import { kmLabel } from '@/shared/utils/geo';
-import { RouteCardHeader } from './route-card-header';
+
 import { BottomSheet, type SheetHeight } from '@/shared/ui/bottom-sheet';
 import { ReloadIcon } from '@/shared/ui/route-icons';
+import { kmLabel } from '@/shared/utils/geo';
+
+import { RouteCardHeader } from './route-card-header';
 import { RouteEndPointBar } from './route-end-point-bar';
 import { TripTimeline, type TripTimelineProps } from './trip-timeline';
 

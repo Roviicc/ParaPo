@@ -1,4 +1,5 @@
 import type { LngLat } from '@/shared/utils/geo';
+
 import { polygonToRing, type Ring } from '../geo/ring';
 
 /** Mirrors the `stop_kind` enum in supabase/migrations/0004_stop_hotspot.sql. */

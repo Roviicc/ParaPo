@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
-import { M_PER_DEG, type LngLat, type Segment } from '@/shared/utils/geo';
+
 import type { RouteRow, VariantRow } from '@/features/routes/model/routes';
 import type { StopRow } from '@/features/routes/model/stops';
+import { M_PER_DEG, type LngLat, type Segment } from '@/shared/utils/geo';
+
 import { SavePanel } from './save-panel';
 import type { Drawing } from '../drawing/use-drawing';
 

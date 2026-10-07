@@ -8,10 +8,12 @@ import {
   type ReactNode,
   type Ref,
 } from 'react';
+
 import { IconButton } from '@/design-system/primitives/icon-button';
-import { CloseIcon } from './route-icons';
 import { useDialogFocus } from '@/shared/hooks/use-dialog-focus';
 import { useEscape } from '@/shared/hooks/use-escape';
+
+import { CloseIcon } from './route-icons';
 import {
   DRAG_PX,
   MAX_STRIP_PX,

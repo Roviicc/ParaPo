@@ -1,9 +1,11 @@
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ComponentProps } from 'react';
 import { useState } from 'react';
-import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
-import { FREE, RouteTripDetail } from './route-trip-detail';
+
 import { kmLabel } from '@/shared/utils/geo';
+
+import { FREE, RouteTripDetail } from './route-trip-detail';
 
 /** Sample data only: the places of the owner's frames (3762:3546), not the real map. */
 const hintuans = (...labels: string[]) => labels.map((label, i) => ({ id: 'h' + i, label }));

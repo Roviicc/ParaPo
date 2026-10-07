@@ -1,16 +1,18 @@
-import { useMemo, useState, type RefObject } from 'react';
 import type { MapLibreMap } from 'maplibre-gl';
-import { LIT_LINE, LIVERY_LINE, type LineLook } from '../map/livery-line';
+import { useMemo, useState, type RefObject } from 'react';
+
+import { clearOfSheet, type SheetHeight } from '@/shared/ui/bottom-sheet';
+import type { Snap } from '@/shared/ui/sheet-gesture';
+
+import { isChoosing, sharedSnap, tripBack, tripBehindHolds } from './card-stack';
+import { useTripLivery } from './trip-card';
 import { useRideColours } from '../map/direction-arrows';
+import { LIT_LINE, LIVERY_LINE, type LineLook } from '../map/livery-line';
 import { useLitLineColour } from '../map/saved-routes-layers';
 import type { Highlight } from '../map/use-saved-routes';
 import { drawnDepartures, sharingAnEnd } from '../model/departures';
 import { liveriesFor, type Livery } from '../model/liveries';
 import type { VariantSummary } from '../model/routes';
-import { clearOfSheet, type SheetHeight } from '@/shared/ui/bottom-sheet';
-import { isChoosing, sharedSnap, tripBack, tripBehindHolds } from './card-stack';
-import type { Snap } from '@/shared/ui/sheet-gesture';
-import { useTripLivery } from './trip-card';
 
 type Routes<V extends VariantSummary> = {
   variants: readonly V[];

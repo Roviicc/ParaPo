@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
 import type { MapLibreMap } from 'maplibre-gl';
+import { useEffect } from 'react';
+
 import { firstLayerOfType } from '@/features/routes/map/layers';
 
 /**

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
+
 import { IconButton } from './icon-button';
 
 /** The set's default icon, the same navigation arrow Button's stories use. */

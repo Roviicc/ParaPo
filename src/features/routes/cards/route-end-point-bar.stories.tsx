@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
-import { RouteEndPointBar } from './route-end-point-bar';
+
 import { CARD_SURFACE, CARD_TEXT } from './livery-card';
+import { RouteEndPointBar } from './route-end-point-bar';
 
 const meta = {
   title: 'Features/Routes/RouteEndPointBar',

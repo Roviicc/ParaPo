@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
+
 import { loadMapFile, mapFileIsStale } from './map-file';
 
 /**

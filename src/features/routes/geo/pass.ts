@@ -9,6 +9,7 @@ import {
   type BBox,
   type LngLat,
 } from '@/shared/utils/geo';
+
 import { distanceToRingM, firstTouchIndex, type Ring } from './ring';
 
 /*

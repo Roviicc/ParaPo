@@ -4,9 +4,7 @@ import {
   ringToPolygon,
   type Ring,
 } from '@/features/routes/geo/ring';
-import { roundLngLat } from '@/shared/utils/geo';
 import { variantLine, type VariantRow } from '@/features/routes/model/routes';
-import { hintuansAlong } from '@/features/routes/model/timeline';
 import {
   normaliseName,
   type PointGeoJSON,
@@ -14,9 +12,12 @@ import {
   type StopLink,
   type StopRow,
 } from '@/features/routes/model/stops';
+import { hintuansAlong } from '@/features/routes/model/timeline';
+import { roundLngLat } from '@/shared/utils/geo';
+
+import { readAll } from './read-all';
 import { linksThrough } from './stops-geometry';
 import { requireSupabase } from './supabase';
-import { readAll } from './read-all';
 
 const blankToNull = (s: string) => (s.trim() === '' ? null : s.trim());
 

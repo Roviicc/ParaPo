@@ -1,5 +1,6 @@
 import { nameVariants, type VariantRow } from '@/features/routes/model/routes';
 import type { StopRow } from '@/features/routes/model/stops';
+
 import { saveVariant, type SaveInput } from './routes-write';
 import { syncHintuanLinks } from './stops-write';
 

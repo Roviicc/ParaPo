@@ -1,8 +1,9 @@
 import { haversine, metresAlong, nearestOnSegment, type LngLat } from '@/shared/utils/geo';
-import { passIndex } from '../geo/pass';
+
 import { placeKey } from './places';
 import { servedBy, type ServedRoute } from './routes';
 import { stopLabel, stopRing, type StopKind, type StopSummary } from './stops';
+import { passIndex } from '../geo/pass';
 import type { Ring } from '../geo/ring';
 
 /*

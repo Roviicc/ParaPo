@@ -1,11 +1,13 @@
+import { Marker, type MapLibreMap } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Marker, type MapLibreMap } from 'maplibre-gl';
+
+import type { LngLat } from '@/shared/utils/geo';
+
+import { tapsOnItsButton } from './marker-tap';
 import { CARD_SURFACE, CARD_TEXT, TIMELINE_SURFACE } from '../cards/livery-card';
 import { TimelineDot } from '../cards/trip-timeline';
-import type { LngLat } from '@/shared/utils/geo';
 import type { Livery } from '../model/liveries';
-import { tapsOnItsButton } from './marker-tap';
 import './hintuan-pin.css';
 
 type Props = {

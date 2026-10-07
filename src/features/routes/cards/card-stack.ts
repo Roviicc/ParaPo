@@ -1,7 +1,8 @@
+import type { Snap } from '@/shared/ui/sheet-gesture';
 import type { LngLat } from '@/shared/utils/geo';
+
 import { sharingAnEnd } from '../model/departures';
 import { isDrawn, variantLine, type VariantSummary } from '../model/routes';
-import type { Snap } from '@/shared/ui/sheet-gesture';
 
 /*
  * The cards that stand in for one another over the map — the route list, a

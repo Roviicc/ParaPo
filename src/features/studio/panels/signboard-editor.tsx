@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
+
 import type { VariantSummary } from '@/features/routes/model/routes';
+
 import * as live from '../data/signboards';
 
 /** What the editor does with the bucket and the row; the live ones unless a story passes its own. */

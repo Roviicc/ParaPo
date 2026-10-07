@@ -1,7 +1,8 @@
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ComponentProps } from 'react';
 import { useState } from 'react';
-import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
+
 import { HotspotCard } from './hotspot-card';
 import type { VariantSummary } from '../model/routes';
 import type { StopRow } from '../model/stops';

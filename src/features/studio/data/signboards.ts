@@ -1,4 +1,5 @@
 import { cleanSignboardSvg } from '@/features/routes/model/signboard-svg';
+
 import { getSupabase, supabaseConfig } from './supabase';
 
 /**

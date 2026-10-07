@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
-import type { LngLat } from '@/shared/utils/geo';
+
 import type { StopRow } from '@/features/routes/model/stops';
+import type { LngLat } from '@/shared/utils/geo';
+
 import { HotspotPanel } from './hotspot-panel';
 import type { Drawing } from '../drawing/use-drawing';
 

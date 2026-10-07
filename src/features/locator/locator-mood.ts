@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+
 import { STILL_BELOW_MPS, type Camera, type Fix } from './use-locator';
 
 /*

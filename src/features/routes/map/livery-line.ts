@@ -1,4 +1,5 @@
 import { CARD_COLOURS, MAP_COLOURS } from '@/design-system/foundation/map-colours';
+
 import type { Livery } from '../model/liveries';
 
 /** How a lit route line is painted: the line, and the chevrons flowing inside it. The end circles ring in the line's colour. */

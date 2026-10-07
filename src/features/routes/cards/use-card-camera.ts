@@ -1,14 +1,11 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { MapLibreMap } from 'maplibre-gl';
-import { useRideTo } from '../map/ride-to';
-import type { Highlight } from '../map/use-saved-routes';
-import type { Livery } from '../model/liveries';
-import type { VariantSummary } from '../model/routes';
-import type { StopSummary } from '../model/stops';
+import { useEffect, useRef, useState, type RefObject } from 'react';
+
 import { clearOfSheet, type SheetHeight } from '@/shared/ui/bottom-sheet';
+import type { Snap } from '@/shared/ui/sheet-gesture';
+
 import { framedBy, type Framed } from './card-stack';
 import type { PickedPlace } from './route-card-stack';
-import type { Snap } from '@/shared/ui/sheet-gesture';
 import {
   useCameraBefore,
   useCardOverview,
@@ -17,6 +14,11 @@ import {
   useSwitchOverview,
   useTripOverview,
 } from './use-overviews';
+import { useRideTo } from '../map/ride-to';
+import type { Highlight } from '../map/use-saved-routes';
+import type { Livery } from '../model/liveries';
+import type { VariantSummary } from '../model/routes';
+import type { StopSummary } from '../model/stops';
 
 type Routes<V extends VariantSummary> = {
   variants: readonly V[];

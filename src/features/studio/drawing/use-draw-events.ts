@@ -1,7 +1,9 @@
-import { useEffect, type RefObject } from 'react';
 import type { MapLibreMap, MapMouseEvent, MapTouchEvent } from 'maplibre-gl';
-import type { LngLat, Segment, SnapMode } from '@/shared/utils/geo';
+import { useEffect, type RefObject } from 'react';
+
 import { ROUTES_HIT_LAYER, tapBox } from '@/features/routes/map/tap';
+import type { LngLat, Segment, SnapMode } from '@/shared/utils/geo';
+
 import { nearestSpot } from './borrow';
 import { CLOSING, HIT_LAYER, POINT_LAYER } from './draw-layers';
 import type { AreaTarget, Borrow, FollowOffer, Picking } from './use-drawing';

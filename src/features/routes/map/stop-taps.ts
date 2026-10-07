@@ -1,7 +1,8 @@
-import { useEffect, type RefObject } from 'react';
 import type { MapLibreMap, MapMouseEvent } from 'maplibre-gl';
-import type { StopSummary } from '../model/stops';
+import { useEffect, type RefObject } from 'react';
+
 import { ROUTES_HIT_LAYER, STOPS_FILL_LAYER, bindHover, resolveTap, tapTargets } from './tap';
+import type { StopSummary } from '../model/stops';
 
 /*
  * A tap on the saved hotspots: what it opens, lists or lets go. Split from

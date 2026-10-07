@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Drawing } from '../drawing/use-drawing';
-import { haversine, joinSegments, type LngLat } from '@/shared/utils/geo';
-import { sharedMetres } from '../drawing/borrow';
+
+import { placeKey } from '@/features/routes/model/places';
 import {
   directionName,
   isDrawn,
@@ -11,10 +10,13 @@ import {
   type TransportMode,
   type VariantRow,
 } from '@/features/routes/model/routes';
-import { hintuansAlong, timelineFor } from '@/features/routes/model/timeline';
 import { stopLabel, type StopRow } from '@/features/routes/model/stops';
-import { placeKey } from '@/features/routes/model/places';
+import { hintuansAlong, timelineFor } from '@/features/routes/model/timeline';
+import { haversine, joinSegments, type LngLat } from '@/shared/utils/geo';
+
 import { lineOf } from '../data/live';
+import { sharedMetres } from '../drawing/borrow';
+import type { Drawing } from '../drawing/use-drawing';
 
 /**
  * What the save panel knows about the line being saved, from the ends picked

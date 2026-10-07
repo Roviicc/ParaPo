@@ -5,6 +5,7 @@ import type {
   StyleSpecification,
   SymbolLayerSpecification,
 } from 'maplibre-gl';
+
 import { MAP_PAINT } from '@/design-system/foundation/map-colours';
 
 /**

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
+
 import { MapControlButton } from './map-control-button';
 
 /** The compass needle "Where am I" wears; any 16 px icon sits the same. */

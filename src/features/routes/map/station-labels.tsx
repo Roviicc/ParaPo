@@ -1,13 +1,15 @@
+import { Marker, type MapLibreMap } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Marker, type MapLibreMap } from 'maplibre-gl';
+
+import { haversine } from '@/shared/utils/geo';
+
+import { tapsOnItsButton } from './marker-tap';
 import { CARD_SURFACE, CARD_TEXT } from '../cards/livery-card';
 import { TimelineDot } from '../cards/trip-timeline';
-import { haversine } from '@/shared/utils/geo';
 import type { Livery } from '../model/liveries';
 import { isLineMode, servedBy, type VariantSummary } from '../model/routes';
 import { stopLabel, type StopSummary } from '../model/stops';
-import { tapsOnItsButton } from './marker-tap';
 import './hintuan-pin.css';
 
 /** The scale bar's width (MapView's ScaleControl, MapLibre's default maxWidth). */

@@ -1,15 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { MapLibreMap } from 'maplibre-gl';
+import { useEffect, useMemo, useState } from 'react';
+
 import { HotspotCard } from '@/features/routes/cards/hotspot-card';
-import { APP_MOVE, MapView } from '@/features/routes/map/map-view';
 import { RouteCardList } from '@/features/routes/cards/route-card-list';
 import { TripCard } from '@/features/routes/cards/trip-card';
-import { useCardStack } from '@/features/routes/cards/use-card-stack';
 import { useCardCamera } from '@/features/routes/cards/use-card-camera';
-import { HintuanPin } from '@/features/routes/map/hintuan-pin';
-import { StationLabels } from '@/features/routes/map/station-labels';
+import { useCardStack } from '@/features/routes/cards/use-card-stack';
 import { EndTitles } from '@/features/routes/map/end-titles';
+import { HintuanPin } from '@/features/routes/map/hintuan-pin';
+import { APP_MOVE, MapView } from '@/features/routes/map/map-view';
+import { StationLabels } from '@/features/routes/map/station-labels';
+import { useLitRides } from '@/features/routes/map/use-lit-rides';
+import { useSavedRoutes } from '@/features/routes/map/use-saved-routes';
+import { useSavedStops } from '@/features/routes/map/use-saved-stops';
+import { hotspotCount } from '@/features/routes/model/places';
+import { routeTimeline } from '@/features/routes/model/ride';
+import { isDrawn, variantLine, type VariantRow } from '@/features/routes/model/routes';
+import { stopLabel, stopRing, type StopRow } from '@/features/routes/model/stops';
 import {
   lineOf,
   listVariants,
@@ -37,13 +45,6 @@ import {
   usePasswordRecovery,
   useSession,
 } from '@/features/studio';
-import { isDrawn, variantLine, type VariantRow } from '@/features/routes/model/routes';
-import { routeTimeline } from '@/features/routes/model/ride';
-import { hotspotCount } from '@/features/routes/model/places';
-import { stopLabel, stopRing, type StopRow } from '@/features/routes/model/stops';
-import { useLitRides } from '@/features/routes/map/use-lit-rides';
-import { useSavedRoutes } from '@/features/routes/map/use-saved-routes';
-import { useSavedStops } from '@/features/routes/map/use-saved-stops';
 
 /**
  * The editor at /studio/. Signed out, the page is only its front door: the

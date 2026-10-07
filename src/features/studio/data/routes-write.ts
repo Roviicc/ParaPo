@@ -1,14 +1,15 @@
-import type { LngLat, Segment } from '@/shared/utils/geo';
-import { joinSegments, overviewOf, roundLngLat } from '@/shared/utils/geo';
-import { VARIANT_SELECT } from './live';
 import type {
   LineStringGeoJSON,
   TransportMode,
   UnnamedVariantRow,
   VariantRow,
 } from '@/features/routes/model/routes';
-import { requireSupabase } from './supabase';
+import type { LngLat, Segment } from '@/shared/utils/geo';
+import { joinSegments, overviewOf, roundLngLat } from '@/shared/utils/geo';
+
+import { VARIANT_SELECT } from './live';
 import { NOTHING_CHANGED } from './stops-write';
+import { requireSupabase } from './supabase';
 import type { BorrowPart } from '../drawing/borrow';
 
 /**

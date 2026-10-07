@@ -1,5 +1,7 @@
 import { useEffect, type RefObject } from 'react';
+
 import type { LngLat, Segment } from '@/shared/utils/geo';
+
 import type { AreaTarget, Borrow, Target } from './use-drawing';
 
 /**

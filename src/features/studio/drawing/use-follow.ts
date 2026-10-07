@@ -1,17 +1,18 @@
-import type { LngLat } from '@/shared/utils/geo';
+import { coarsePointer } from '@/features/routes/map/tap';
+import { travelLine } from '@/features/routes/model/ride';
 import {
   isDrawn,
   variantLine,
   type VariantDrawing,
   type VariantRow,
 } from '@/features/routes/model/routes';
-import { travelLine } from '@/features/routes/model/ride';
 import type { StopRow } from '@/features/routes/model/stops';
-import { withDrawing } from '../data/live';
-import type { SaveTarget } from '../panels/use-save-target';
-import { coarsePointer } from '@/features/routes/map/tap';
+import type { LngLat } from '@/shared/utils/geo';
+
 import { lineToFollow } from './borrow';
 import type { Drawing } from './use-drawing';
+import { withDrawing } from '../data/live';
+import type { SaveTarget } from '../panels/use-save-target';
 
 /**
  * Two ways a saved direction comes into the drawing: `opening` reads its

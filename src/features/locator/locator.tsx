@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+
 import { slide } from '@/shared/ui/sheet-gesture';
+
 import { LocatorButton } from './locator-button';
 import type { Locator as State } from './use-locator';
 

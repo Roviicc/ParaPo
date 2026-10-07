@@ -1,5 +1,7 @@
 import { useCallback, useRef, useState, type RefObject } from 'react';
+
 import type { LngLat, Segment, SnapMode } from '@/shared/utils/geo';
+
 import { snapSegments, straightSegment } from './snap';
 import type { AreaTarget } from './use-drawing';
 

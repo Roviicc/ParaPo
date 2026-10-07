@@ -1,8 +1,10 @@
+import { Marker, type MapLibreMap } from 'maplibre-gl';
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { Marker, type MapLibreMap } from 'maplibre-gl';
-import { metresPerPixel } from '@/shared/utils/geo';
+
 import { tapsOnItsButton } from '@/features/routes/map/marker-tap';
+import { metresPerPixel } from '@/shared/utils/geo';
+
 import './locator.css';
 import { gazeOffset, useDotGaze, type Subject } from './dot-gaze';
 import type { Face, Mood } from './locator-mood';

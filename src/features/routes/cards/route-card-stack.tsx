@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import { liveriesFor, type Livery } from '../model/liveries';
+
 import { RouteCard } from './route-card';
 import { drawnDepartures } from '../model/departures';
+import { liveriesFor, type Livery } from '../model/liveries';
 import type { VariantSummary } from '../model/routes';
 
 /** A card picked: the place it stands for, the directions its rows list, and its colour, for the map to light them in. */

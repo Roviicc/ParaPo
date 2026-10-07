@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
-import type { Drawing } from '../drawing/use-drawing';
+
+import { placeKey } from '@/features/routes/model/places';
 import { travelLine } from '@/features/routes/model/ride';
 import { variantLine, type VariantRow } from '@/features/routes/model/routes';
-import { placeKey } from '@/features/routes/model/places';
 import { stopLabel, type StopRow } from '@/features/routes/model/stops';
+
+import type { Drawing } from '../drawing/use-drawing';
 
 /**
  * What a drawing will be saved into, read off what it was started from: the

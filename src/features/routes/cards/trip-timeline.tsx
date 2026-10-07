@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import type { Livery } from '../model/liveries';
+
+import { ChevronDownIcon, CircleArrowRightIcon } from '@/shared/ui/route-icons';
+
 import {
   BLOB_PLACE,
   CARD_BLOB,
@@ -10,7 +12,7 @@ import {
   TIMELINE_PILL,
   TIMELINE_SURFACE,
 } from './livery-card';
-import { ChevronDownIcon, CircleArrowRightIcon } from '@/shared/ui/route-icons';
+import type { Livery } from '../model/liveries';
 
 export type TripTimelineProps = {
   livery: Livery;

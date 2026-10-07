@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { M_PER_DEG, nearestOnSegment, type LngLat } from '@/shared/utils/geo';
+
 import type { Highlight } from '@/features/routes/map/use-saved-routes';
 import { placeKey } from '@/features/routes/model/places';
 import { variantLine, type VariantSummary } from '@/features/routes/model/routes';
 import type { StopSummary } from '@/features/routes/model/stops';
+import { M_PER_DEG, nearestOnSegment, type LngLat } from '@/shared/utils/geo';
 
 /**
  * The dot's gaze at what was just picked (the owner's ask, 2026-10-01: "when

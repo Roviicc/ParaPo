@@ -1,5 +1,6 @@
 import type { LngLat, Segment } from '@/shared/utils/geo';
 import { joinSegments } from '@/shared/utils/geo';
+
 import { stopLabel, type StopSummary } from './stops';
 
 /** Mirrors the `transport_mode` enum in supabase/migrations/0001_init.sql. */

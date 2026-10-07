@@ -1,5 +1,6 @@
-import type { StopKind } from '../model/stops';
 import { MAP_COLOURS, MAP_OPACITY } from '@/design-system/foundation/map-colours';
+
+import type { StopKind } from '../model/stops';
 
 /**
  * Colours the editor and the public map both paint with. They live apart from

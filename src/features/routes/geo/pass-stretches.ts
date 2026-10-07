@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef } from 'react';
 import type { GeoJSONSource, LineLayerSpecification, MapLibreMap } from 'maplibre-gl';
-import type { VariantSummary } from '../model/routes';
-import type { StopSummary } from '../model/stops';
+import { useEffect, useMemo, useRef } from 'react';
+
 import {
   passBoxes,
   publishedStretches,
@@ -9,11 +8,13 @@ import {
   type PassBox,
   type PassFeature,
 } from './line-pass';
+import { useLayerSwitch } from '../map/layer-switch';
+import { applyHidden, useLayerReady } from '../map/layers';
 import { PASS_COLOUR, litWidth } from '../map/line-style';
 import { litOpacity, useLighting } from '../map/saved-routes-layers';
 import { ROUTES_HIT_LAYER } from '../map/tap';
-import { applyHidden, useLayerReady } from '../map/layers';
-import { useLayerSwitch } from '../map/layer-switch';
+import type { VariantSummary } from '../model/routes';
+import type { StopSummary } from '../model/stops';
 
 /**
  * Where a lit direction passes a hintuan, the line turns orange for that

@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
 import type { MapLibreMap } from 'maplibre-gl';
-import { HintuanCard } from '@/features/routes/cards/hintuan-card';
-import { placeKey } from '@/features/routes/model/places';
+import { useMemo, useState } from 'react';
+
+import { VisitorLocation, useGazeHush } from '@/features/locator';
 import {
   MAP_FILE_TOO_NEW,
   loadLine,
@@ -15,23 +15,25 @@ import {
   useMapAge,
   useOffline,
 } from '@/features/published-map';
-import { METRO_MANILA, MapView } from '@/features/routes/map/map-view';
-import { routesBounds } from '@/features/routes/map/framing';
+import { HintuanCard } from '@/features/routes/cards/hintuan-card';
 import { RouteCardList } from '@/features/routes/cards/route-card-list';
-import { useCardStack } from '@/features/routes/cards/use-card-stack';
+import { TripCard } from '@/features/routes/cards/trip-card';
 import { useCardCamera } from '@/features/routes/cards/use-card-camera';
-import { routeTimeline } from '@/features/routes/model/ride';
+import { useCardStack } from '@/features/routes/cards/use-card-stack';
+import { EndTitles } from '@/features/routes/map/end-titles';
+import { routesBounds } from '@/features/routes/map/framing';
+import { HintuanPin } from '@/features/routes/map/hintuan-pin';
+import { METRO_MANILA, MapView } from '@/features/routes/map/map-view';
+import { StationLabels } from '@/features/routes/map/station-labels';
 import { useLitRides } from '@/features/routes/map/use-lit-rides';
 import { useSavedRoutes } from '@/features/routes/map/use-saved-routes';
 import { useSavedStops } from '@/features/routes/map/use-saved-stops';
-import { HintuanPin } from '@/features/routes/map/hintuan-pin';
-import { StationLabels } from '@/features/routes/map/station-labels';
-import { EndTitles } from '@/features/routes/map/end-titles';
-import { TripCard } from '@/features/routes/cards/trip-card';
-import { useStatusBarColour } from './status-bar';
-import { VisitorLocation, useGazeHush } from '@/features/locator';
-import { useTurn } from '@/shared/hooks/commit-turn';
+import { placeKey } from '@/features/routes/model/places';
+import { routeTimeline } from '@/features/routes/model/ride';
 import { variantLine } from '@/features/routes/model/routes';
+import { useTurn } from '@/shared/hooks/commit-turn';
+
+import { useStatusBarColour } from './status-bar';
 
 /**
  * The routes' framing the map opens on (the owner's Q1, 2026-10-04): their

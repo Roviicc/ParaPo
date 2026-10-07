@@ -1,9 +1,10 @@
-import { useEffect, type RefObject } from 'react';
 import type { MapLibreMap, MapMouseEvent } from 'maplibre-gl';
-import { directionToOpen } from '../model/departures';
-import type { VariantSummary } from '../model/routes';
+import { useEffect, type RefObject } from 'react';
+
 import { ROUTES_HIT_LAYER, bindHover, resolveTap, tapTargets } from './tap';
 import type { Highlight } from './use-saved-routes';
+import { directionToOpen } from '../model/departures';
+import type { VariantSummary } from '../model/routes';
 
 /*
  * A tap on the saved directions: what it opens, lists or lets go. Split from

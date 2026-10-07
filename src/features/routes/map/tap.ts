@@ -1,4 +1,5 @@
 import type { MapLibreMap, MapMouseEvent } from 'maplibre-gl';
+
 import { LAYERS } from './layers';
 
 /**

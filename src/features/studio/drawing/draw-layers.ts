@@ -1,12 +1,14 @@
-import { useEffect } from 'react';
 import type { GeoJSONSource, MapLibreMap } from 'maplibre-gl';
-import type { LngLat, Segment } from '@/shared/utils/geo';
-import { HOTSPOT_COLOUR } from '@/features/routes/map/colours';
+import { useEffect } from 'react';
+
 import { MAP_PAINT } from '@/design-system/foundation/map-colours';
+import { HOTSPOT_COLOUR } from '@/features/routes/map/colours';
 import { LAYERS } from '@/features/routes/map/layers';
 import { variantLine } from '@/features/routes/model/routes';
-import type { UTurn } from './uturns';
+import type { LngLat, Segment } from '@/shared/utils/geo';
+
 import type { AreaTarget, Picking } from './use-drawing';
+import type { UTurn } from './uturns';
 
 /**
  * What the drawing paints on the map: its sources and layers, laid once, and

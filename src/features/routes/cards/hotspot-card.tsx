@@ -1,13 +1,15 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { Departures } from './departures';
-import type { Livery } from '../model/liveries';
-import { RouteCardStack, type PickedPlace } from './route-card-stack';
-import { departures, drawnDepartures } from '../model/departures';
-import type { VariantSummary } from '../model/routes';
+
 import { BottomSheet, SheetHeader, type SheetHeight } from '@/shared/ui/bottom-sheet';
-import { placeSummary, siblingsOf } from '../model/places';
-import { stopLabel, type StopSummary } from '../model/stops';
+
+import { Departures } from './departures';
+import { RouteCardStack, type PickedPlace } from './route-card-stack';
 import { SwitchIcon } from './switch-icon';
+import { departures, drawnDepartures } from '../model/departures';
+import type { Livery } from '../model/liveries';
+import { placeSummary, siblingsOf } from '../model/places';
+import type { VariantSummary } from '../model/routes';
+import { stopLabel, type StopSummary } from '../model/stops';
 
 type Props = {
   stop: StopSummary;

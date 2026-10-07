@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MapLibreMap } from 'maplibre-gl';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import { zoomForScale, type LngLat } from '@/shared/utils/geo';
+
 import { APP_MOVE } from './map-view';
 import { rideCut, travelLine } from '../model/ride';
 import type { VariantSummary } from '../model/routes';
 import { stopLabel, type StopSummary } from '../model/stops';
-import { zoomForScale, type LngLat } from '@/shared/utils/geo';
 
 /** How close a picked hintuan is brought in: the scale bar reading this. */
 const PICKED_SCALE_M = 500;

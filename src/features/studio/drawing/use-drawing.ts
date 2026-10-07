@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MapLibreMap } from 'maplibre-gl';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import { coarsePointer } from '@/features/routes/map/tap';
+import type { VariantDrawing } from '@/features/routes/model/routes';
 import {
   joinSegments,
   lineLength,
@@ -7,15 +10,14 @@ import {
   type Segment,
   type SnapMode,
 } from '@/shared/utils/geo';
-import { straightSegment } from './snap';
-import { findUTurns } from './uturns';
-import type { VariantDrawing } from '@/features/routes/model/routes';
+
 import { cutAt, nearestSpot, reverseDrawing, type BorrowPart, type LineSpot } from './borrow';
 import { readDraft, useDraftSaving } from './draft';
 import { useDrawLayers, useDrawRendering } from './draw-layers';
-import { useDrawEvents } from './use-draw-events';
 import { useGapResolver } from './gap-resolver';
-import { coarsePointer } from '@/features/routes/map/tap';
+import { straightSegment } from './snap';
+import { useDrawEvents } from './use-draw-events';
+import { findUTurns } from './uturns';
 
 /**
  * The drawing tool: a route's control points and the road between them, or a

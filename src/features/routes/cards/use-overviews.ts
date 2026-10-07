@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import type { MapLibreMap } from 'maplibre-gl';
+import { useEffect, useMemo, useRef, type RefObject } from 'react';
+
 import { clearOfSheet, roomBeside } from '@/shared/ui/bottom-sheet';
-import type { Framed } from './card-stack';
 import { shownAt, type Snap } from '@/shared/ui/sheet-gesture';
 import { bboxOf, zoomForScale, type LngLat } from '@/shared/utils/geo';
+
+import type { Framed } from './card-stack';
 import { APP_MOVE } from '../map/map-view';
 import type { Highlight } from '../map/use-saved-routes';
 import { variantLine, type VariantSummary } from '../model/routes';

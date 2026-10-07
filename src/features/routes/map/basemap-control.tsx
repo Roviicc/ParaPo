@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
 import type { MapLibreMap } from 'maplibre-gl';
+import { useEffect, useRef, useState } from 'react';
+
 import { BASEMAPS, applyBasemap, rememberBasemap, type Basemap } from './basemap';
 import { MapControlButton } from './map-control-button';
 

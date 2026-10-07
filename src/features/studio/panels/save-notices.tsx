@@ -1,6 +1,7 @@
-import type { Drawing } from '../drawing/use-drawing';
-import { routeStreets } from '../drawing/streets';
 import type { VariantRow } from '@/features/routes/model/routes';
+
+import { routeStreets } from '../drawing/streets';
+import type { Drawing } from '../drawing/use-drawing';
 
 /**
  * What the save panel says about the line before it is saved: the streets it

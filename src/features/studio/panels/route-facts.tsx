@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+
 import {
   hasFareRule,
   manilaDate,
@@ -7,8 +8,8 @@ import {
   ruleOn,
   fareFor,
 } from '@/features/routes/model/fares';
-import { lineLength } from '@/shared/utils/geo';
 import { MODES, variantLine, type VariantSummary } from '@/features/routes/model/routes';
+import { lineLength } from '@/shared/utils/geo';
 
 /**
  * What only the editor sees of a direction, under the trip card the public

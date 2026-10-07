@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react';
 import type { CircleLayerSpecification, GeoJSONSource, MapLibreMap } from 'maplibre-gl';
+import { useEffect, useMemo, useRef } from 'react';
+
+import { MAP_CLEAR, MAP_COLOURS, MAP_PAINT } from '@/design-system/foundation/map-colours';
 import { haversine, metresPerPixel, type LngLat } from '@/shared/utils/geo';
+
 import {
   INSET_PX,
   SPEED_PX_PER_S,
@@ -12,11 +15,10 @@ import {
   type Measured,
   type View,
 } from './chevrons';
-import { MAP_CLEAR, MAP_COLOURS, MAP_PAINT } from '@/design-system/foundation/map-colours';
+import { LAYERS, TILE_BUFFER, useLayerReady } from './layers';
 import { endRadius, litWidthAt } from './line-style';
 import type { LineLook } from './livery-line';
 import { ROUTES_HIT_LAYER } from './tap';
-import { LAYERS, TILE_BUFFER, useLayerReady } from './layers';
 import { warmSoon, type Twin } from './warm-programs';
 
 /**

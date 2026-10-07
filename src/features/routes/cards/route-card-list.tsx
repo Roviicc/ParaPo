@@ -1,10 +1,11 @@
-import type { Livery } from '../model/liveries';
+import { BottomSheet, type SheetHeight } from '@/shared/ui/bottom-sheet';
+
 import { RouteCardHeader } from './route-card-header';
 import { RouteCardStack, type PickedPlace } from './route-card-stack';
-import { BottomSheet, type SheetHeight } from '@/shared/ui/bottom-sheet';
 import { drawnDepartures } from '../model/departures';
-import type { VariantSummary } from '../model/routes';
+import type { Livery } from '../model/liveries';
 import { hotspotCount } from '../model/places';
+import type { VariantSummary } from '../model/routes';
 import { stopLabel, type StopSummary } from '../model/stops';
 
 type Props = {

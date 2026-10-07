@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { getSupabase, supabaseConfigError } from '../data/supabase';
+
 import { coarse } from '@/features/routes/map/map-view';
+
+import { getSupabase, supabaseConfigError } from '../data/supabase';
 import { FIELD_TEXT } from '../panels/sheet';
 
 /**
