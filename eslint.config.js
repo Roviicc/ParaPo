@@ -94,7 +94,7 @@ export default defineConfig([
       // no deep imports into another feature. Until the move lands these match
       // nothing; scripts/checks/check-boundaries.mjs is the gate meanwhile.
       'no-restricted-imports': [
-        'warn',
+        'error',
         {
           patterns: [
             {
@@ -138,7 +138,7 @@ export default defineConfig([
     files: ['src/shared/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
-        'warn',
+        'error',
         {
           patterns: [
             {
