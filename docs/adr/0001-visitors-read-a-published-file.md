@@ -23,3 +23,10 @@ and git history keeps every published version.
   new column (links, ends, informal names), the publish script grows with it.
 - The publish script refuses a file that lost more than 30% of a table's
   rows, since an empty answer from the database is a normal HTTP 200.
+
+## Amendment, 2026-10-07
+
+The one file became a set, the published map: `index.v4.json`, a line file
+per direction under `lines/`, and the signboards. `map.json` is still written
+for installed apps that have not updated. The decision stands: visitors read
+static files, never the database.

@@ -138,10 +138,20 @@ _Avoid_: admin, dashboard, editor (that is a person)
 The map at `/`, read by visitors from the published file.
 _Avoid_: visitor map, commuter map, the site
 
-**Published file**:
-The one file the public map reads, rebuilt nightly from the studio's data.
-Visitors never read the database.
-_Avoid_: export, snapshot, API
+**Published map**:
+The set of files the public map reads, rebuilt nightly from the studio's
+data: the index, one line file per direction, and the signboards. Visitors
+never read the database.
+_Avoid_: export, snapshot, API, published file (the word from when it was one
+file)
+
+**Index**:
+The first file the public map reads: every route with its ends and names,
+every hotspot, the links, and an overview line per direction. It carries a
+schema number; an app reads only the shape it knows.
+
+**Line file**:
+One direction's full line, read when the direction is lit or opened.
 
 ### Planned, decided, not built
 
