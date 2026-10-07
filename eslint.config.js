@@ -80,7 +80,7 @@ export default defineConfig([
       'import-x/no-unresolved': 'off',
       'import-x/no-default-export': 'error',
       'import-x/order': [
-        'warn',
+        'error',
         {
           groups: ['builtin', 'external', 'internal', ['parent', 'sibling', 'index'], 'unknown'],
           pathGroups: [{ pattern: '@/**', group: 'internal' }],
