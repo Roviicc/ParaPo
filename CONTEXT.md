@@ -17,7 +17,7 @@ _Avoid_: line, service
 **Direction**:
 One way of riding a route — `Tala → SM Fairview` or `SM Fairview → Tala`.
 Every route has exactly two. A direction owns its line; the route owns the ends.
-_Avoid_: variant, trip, leg
+_Avoid_: variant, leg; trip (a direction is a trip only while its card is open — see Trip)
 
 **Outbound** / **Return**:
 The direction from head to tail (papunta), and the direction from tail to
@@ -116,6 +116,15 @@ A row is the place; when the place has several boxes and the box has a name
 of its own, the row reads both — `SM Fairview – Main Babaan`.
 _Avoid_: stop list, itinerary, sequence
 
+**Ride**:
+A direction as it is ridden: its line in travel order from the place it
+leaves, whichever way it was drawn, and what that order gives — the hintuans
+in the order reached, the metres, the fare. A ride may be cut short at a
+hintuan: the ride to there, priced from where the direction leaves. On the
+map a lit direction is drawn as its ride: its arrows, its ends named, the
+stretch to a picked hintuan.
+_Avoid_: journey, leg, run; trip (that is the card a ride is shown on)
+
 ### People and surfaces
 
 **Owner**:
@@ -137,6 +146,16 @@ _Avoid_: admin, dashboard, editor (that is a person)
 **Public map**:
 The map at `/`, read by visitors from the published file.
 _Avoid_: visitor map, commuter map, the site
+
+**Trip**:
+A direction opened as a card, on the public map or in the studio: the ride's
+timeline, kilometres and fare, SWITCH to the other direction, the other
+routes out of where it leaves. One trip is open at a time; the card keeps
+its colour and its height until it closes. A hintuan picked on the trip
+prices the ride to there.
+_Avoid_: ride (that is what the trip shows), selected route, variant; and
+never for a direction that is not open — the studio's "Draw the return trip"
+means the return direction
 
 **Published map**:
 The set of files the public map reads, rebuilt nightly from the studio's
