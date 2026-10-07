@@ -71,11 +71,13 @@
 //    same, only later: no suite would say so (review of the owner's Q1,
 //    2026-10-05).
 //
-//   npm run build        (runs this at the end)
+//   npm run build        (runs this at the end, with --experimental-strip-types
+//                         for the one .ts module it imports)
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { gzipSync } from 'node:zlib'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { mapFileConstants } from '../node/map-file-constants.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const dist = join(root, 'dist')
@@ -251,13 +253,20 @@ for (const page of ['index.html', 'studio/index.html']) {
 
 // --------------------------------------------------- the early map file (8)
 
-const mapFileSource = readFileSync(join(root, 'src', 'features', 'published-map', 'map-file.ts'), 'utf8')
-const MAP_FILE_URL = mapFileSource.match(/^export const MAP_FILE_URL = '([^']+)'$/m)?.[1]
-const EARLY_MAP_FILE = mapFileSource.match(/^export const EARLY_MAP_FILE = '([^']+)'$/m)?.[1]
+// Read off the file's text by the reader vite.config.ts uses (scripts/node/
+// map-file-constants.ts), which throws naming what is missing.
+let MAP_FILE_URL = null
+let EARLY_MAP_FILE = null
+let constantsError = ''
+try {
+  ;({ MAP_FILE_URL, EARLY_MAP_FILE } = mapFileConstants(readFileSync(join(root, 'src', 'features', 'published-map', 'map-file.ts'), 'utf8')))
+} catch (e) {
+  constantsError = e instanceof Error ? e.message : String(e)
+}
 check(
   'map-file.ts names the map file and where the root page leaves its request for it — the search below works',
   !!MAP_FILE_URL && !!EARLY_MAP_FILE,
-  `MAP_FILE_URL ${MAP_FILE_URL ?? 'not found'}, EARLY_MAP_FILE ${EARLY_MAP_FILE ?? 'not found'}`,
+  constantsError || `MAP_FILE_URL ${MAP_FILE_URL}, EARLY_MAP_FILE ${EARLY_MAP_FILE}`,
 )
 if (MAP_FILE_URL && EARLY_MAP_FILE) {
   const head = html('index.html').slice(0, html('index.html').indexOf('</head>'))
