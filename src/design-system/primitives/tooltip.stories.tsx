@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Tooltip } from './tooltip'
 
 const meta = {
-  title: 'Primitives/Tooltip',
+  title: 'DesignSystem/Primitives/Tooltip',
   component: Tooltip,
   args: { label: 'Where am I' },
   // Room on every side for the arrow.

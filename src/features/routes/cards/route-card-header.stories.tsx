@@ -10,7 +10,7 @@ import { RouteCardHeader } from './route-card-header'
  * make one set of args.
  */
 const meta: Meta = {
-  title: 'Shared/RouteCardHeader',
+  title: 'Features/Routes/RouteCardHeader',
   decorators: [
     // Marked @container, as the apps' roots are, and wide enough inside its padding for
     // `@float:` (64rem): there the header has 12 above it, as over the corner

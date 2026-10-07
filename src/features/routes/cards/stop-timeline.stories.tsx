@@ -18,7 +18,7 @@ const timeline: Timeline = {
 }
 
 const meta = {
-  title: 'Shared/StopTimeline',
+  title: 'Features/Routes/StopTimeline',
   component: StopTimeline,
   decorators: [
     (Story) => (

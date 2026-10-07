@@ -33,7 +33,7 @@ const standIn = (): SignboardCalls => ({
 })
 
 const meta = {
-  title: 'Studio/SignboardEditor',
+  title: 'Features/Studio/SignboardEditor',
   component: SignboardEditor,
   parameters: { layout: 'padded' },
   args: { variant: direction(['a.svg', 'b.svg']), onChanged: fn() },

@@ -46,7 +46,7 @@ function outline(kind: 'terminal' | 'hintuan', stopId: string | null = null): Dr
 }
 
 const meta = {
-  title: 'Studio/HotspotPanel',
+  title: 'Features/Studio/HotspotPanel',
   component: HotspotPanel,
   // The panel covers the map it sits over, so give it a map-sized box.
   decorators: [

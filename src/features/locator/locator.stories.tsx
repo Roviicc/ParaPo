@@ -40,7 +40,7 @@ function Specimen({ snap, state, wide = false }: Args) {
 }
 
 const meta = {
-  title: 'Commuter/Locator',
+  title: 'Features/Locator/Locator',
   component: Specimen,
   parameters: { layout: 'fullscreen' },
   args: { snap: 'middle', state: locator() },

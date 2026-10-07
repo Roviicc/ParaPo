@@ -31,7 +31,7 @@ const openFold: Story['play'] = async ({ canvasElement }) => {
 }
 
 const meta = {
-  title: 'Shared/TripTimeline',
+  title: 'Features/Routes/TripTimeline',
   component: TripTimeline,
   decorators: [
     (Story) => (

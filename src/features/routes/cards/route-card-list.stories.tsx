@@ -105,7 +105,7 @@ function Picking(props: ComponentProps<typeof RouteCardList>) {
 }
 
 const meta = {
-  title: 'Shared/RouteCardList',
+  title: 'Features/Routes/RouteCardList',
   component: RouteCardList,
   render: (args) => <Picking {...args} />,
   // A map-sized box, marked @container as the apps' roots are: the list docks

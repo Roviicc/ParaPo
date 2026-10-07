@@ -3,7 +3,7 @@ import { fn } from 'storybook/test'
 import { LocatorButton } from './locator-button'
 
 const meta = {
-  title: 'Commuter/LocatorButton',
+  title: 'Features/Locator/LocatorButton',
   component: LocatorButton,
   decorators: [
     (Story) => (

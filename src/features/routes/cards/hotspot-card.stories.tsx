@@ -71,7 +71,7 @@ function Picking(props: ComponentProps<typeof HotspotCard>) {
 const routeCards = { selected: null, onSelect: fn(), onShown: fn() }
 
 const meta = {
-  title: 'Shared/HotspotCard',
+  title: 'Features/Routes/HotspotCard',
   component: HotspotCard,
   render: (args) => <Picking {...args} />,
   // The card is placed against the map, so give it a map-sized box to sit in.

@@ -3,7 +3,7 @@ import { BEAM_DRAWN_DEG, LocatorIndicatorOverlay } from './locator-indicator-ove
 import type { Face, Mood } from './locator-mood'
 
 const meta = {
-  title: 'Commuter/LocatorIndicatorOverlay',
+  title: 'Features/Locator/LocatorIndicatorOverlay',
   component: LocatorIndicatorOverlay,
   decorators: [
     (Story) => (

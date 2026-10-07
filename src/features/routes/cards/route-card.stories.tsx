@@ -4,7 +4,7 @@ import { RouteCard } from './route-card'
 import { LIVERIES } from '../model/liveries'
 
 const meta = {
-  title: 'Shared/RouteCard',
+  title: 'Features/Routes/RouteCard',
   component: RouteCard,
   // As wide as the list in the top-left corner: the card fills whatever holds it.
   decorators: [(Story) => <div className="w-96"><Story /></div>],

@@ -160,7 +160,7 @@ export function RouteCard({ route, isSelected = false, onSelect }: RouteCardProp
 
 - Every `shared/ui` component has a story. Feature components get one when they have meaningful visual states.
 - Stories sit next to the component: `route-card.tsx` + `route-card.stories.tsx`.
-- Story titles mirror the feature: `Features/Routes/RouteCard`, `Features/Studio/SavePanel`, `DesignSystem/Primitives/Button`. (Today's titles predate this rule and change in their own pass.)
+- Story titles mirror the feature: `Features/Routes/RouteCard`, `Features/Studio/SavePanel`, `DesignSystem/Primitives/Button`.
 - Cover the real states: default, loading, empty, error, disabled, long content.
 
 ## TypeScript

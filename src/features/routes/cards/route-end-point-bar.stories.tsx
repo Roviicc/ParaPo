@@ -4,7 +4,7 @@ import { RouteEndPointBar } from './route-end-point-bar'
 import { CARD_SURFACE, CARD_TEXT } from './livery-card'
 
 const meta = {
-  title: 'Shared/RouteEndPointBar',
+  title: 'Features/Routes/RouteEndPointBar',
   component: RouteEndPointBar,
   args: { routeDirection: 'SM Fairview', on: 'surface', onClick: fn() },
   decorators: [(Story) => <div className="w-96 bg-surface p-3"><Story /></div>],

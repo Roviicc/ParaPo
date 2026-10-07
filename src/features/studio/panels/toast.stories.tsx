@@ -3,7 +3,7 @@ import { fn } from 'storybook/test'
 import { Toast } from './toast'
 
 const meta = {
-  title: 'Studio/Toast',
+  title: 'Features/Studio/Toast',
   component: Toast,
   decorators: [
     (Story) => (

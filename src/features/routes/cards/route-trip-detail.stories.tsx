@@ -64,7 +64,7 @@ const FRAME = {
 const frameOf = (p: { frame?: Frame }) => FRAME[p.frame ?? 'phone']
 
 const meta = {
-  title: 'Shared/RouteTripDetail',
+  title: 'Features/Routes/RouteTripDetail',
   component: RouteTripDetail,
   // Keyed on the picks, so the controls panel's `picked` starts it afresh.
   render: (args) => <Picking key={`${args.picked}:${args.endPicked}`} {...args} />,

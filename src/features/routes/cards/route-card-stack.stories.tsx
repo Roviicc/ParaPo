@@ -50,7 +50,7 @@ function Picking(props: ComponentProps<typeof RouteCardStack>) {
 }
 
 const meta = {
-  title: 'Shared/RouteCardStack',
+  title: 'Features/Routes/RouteCardStack',
   component: RouteCardStack,
   render: (args) => <Picking {...args} />,
   decorators: [

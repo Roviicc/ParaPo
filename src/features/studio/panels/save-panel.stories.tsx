@@ -57,7 +57,7 @@ const routed = (streets?: Segment['streets']): Segment => ({
 })
 
 const meta = {
-  title: 'Studio/SavePanel',
+  title: 'Features/Studio/SavePanel',
   component: SavePanel,
   // The panel covers the map it sits over, so give it a map-sized box.
   decorators: [

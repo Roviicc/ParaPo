@@ -109,7 +109,7 @@ function Picking(props: ComponentProps<typeof HintuanCard>) {
 }
 
 const meta = {
-  title: 'Shared/HintuanCard',
+  title: 'Features/Routes/HintuanCard',
   component: HintuanCard,
   render: (args) => <Picking {...args} />,
   // A map-sized box to sit in; `phone` shrinks it to a handset, where the

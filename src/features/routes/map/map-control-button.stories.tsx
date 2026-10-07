@@ -10,7 +10,7 @@ const needle = (
 )
 
 const meta = {
-  title: 'Shared/MapControlButton',
+  title: 'Features/Routes/MapControlButton',
   component: MapControlButton,
   decorators: [
     (Story) => (

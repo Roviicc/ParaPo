@@ -10,7 +10,7 @@ const NavIcon = (
 )
 
 const meta = {
-  title: 'Primitives/IconButton',
+  title: 'DesignSystem/Primitives/IconButton',
   component: IconButton,
   args: { icon: NavIcon, label: 'Go', onClick: fn() },
 } satisfies Meta<typeof IconButton>
