@@ -7,13 +7,16 @@
     "dev": "vite",
     "dev:phone": "vite --host",
     "build": "node scripts/checks/check-boundaries.mjs && tsc --noEmit && vite build && node scripts/checks/check-build.mjs",
+    "typecheck": "tsc --noEmit",
     "check": "npm run build && npm run test:unit",
     "test": "npm run test:unit",
     "test:unit": "node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs --test \"tests/unit/*-test.mjs\"",
     "check:data": "node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs scripts/checks/check-map-data.mjs",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "repository": {
     "type": "git",
@@ -43,6 +46,8 @@
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "playwright": "^1.63.0",
+    "prettier": "^3.9.9",
+    "prettier-plugin-tailwindcss": "^0.8.1",
     "storybook": "^10.6.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",

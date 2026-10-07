@@ -1,0 +1,15 @@
+# Build output and dependencies
+node_modules
+dist
+storybook-static
+.vite
+
+# Generated and published data
+public/data
+package-lock.json
+
+# Prose keeps its own line breaks
+*.md
+
+# Local issue tracker
+.scratch
