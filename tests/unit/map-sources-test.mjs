@@ -327,7 +327,7 @@ test('read once as the hooks mount: twice in development under StrictMode was on
   // Both hooks run their mount's read through it, keyed on the loader; a reload is the hook's own and reads afresh.
   for (const file of ['use-saved-routes.ts', 'use-saved-stops.ts']) {
     const src = readFileSync(new URL(`../../src/features/routes/map/${file}`, import.meta.url), 'utf8')
-    assert.match(src, /useEffect\(\(\) => \{\n\s*loadOnce\(loadedBy, load, \(\) => void reload\(\)\)\n\s*\}, \[load, reload\]\)/, file)
+    assert.match(src, /useEffect\(\(\) => \{\n\s*loadOnce\(loadedBy, load, \(\) => void reload\(\)\);?\n\s*\}, \[load, reload\]\);?/, file)
     assert.equal((src.match(/void reload\(\)/g) ?? []).length, 1, `${file}: the mount's read only through loadOnce`)
   }
 })

@@ -17,8 +17,8 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 test('map-view.tsx starts the worker as it is read, after giving MapLibre its address', () => {
   const src = read('../../src/features/routes/map/map-view.tsx')
   // At the top of the module, unindented: not in the component or an effect.
-  const set = src.search(/^setWorkerUrl\(maplibreWorkerUrl\)$/m)
-  const warm = src.search(/^prewarm\(\)$/m)
+  const set = src.search(/^setWorkerUrl\(maplibreWorkerUrl\);?$/m)
+  const warm = src.search(/^prewarm\(\);?$/m)
   assert.ok(set >= 0, 'setWorkerUrl(maplibreWorkerUrl) at the top of the module')
   assert.ok(warm >= 0, 'prewarm() at the top of the module')
   assert.ok(set < warm, 'prewarm() comes after setWorkerUrl: the worker reads its address as it starts')

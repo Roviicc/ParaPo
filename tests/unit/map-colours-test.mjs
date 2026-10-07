@@ -86,7 +86,7 @@ test('every Map/… token has its hex, and every hex its token', () => {
 
 test('each is a utility too: bg-map-…', () => {
   for (const name of aliases.keys()) {
-    assert.match(tokens, new RegExp(`--color-${name}:\\s*var\\(--${name}\\);`), name)
+    assert.match(tokens, new RegExp(`--color-${name}:\\s*var\\(\\s*--${name}\\s*\\);`), name)
   }
 })
 

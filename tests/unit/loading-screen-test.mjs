@@ -30,12 +30,14 @@ const declarations = (style) =>
     .filter(Boolean)
     .map((d) => {
       const at = d.indexOf(':')
-      return [d.slice(0, at).trim(), d.slice(at + 1).trim()]
+      // Spaces folded: Prettier breaks a long value, the font list, over lines.
+      return [d.slice(0, at).trim(), d.slice(at + 1).trim().replace(/\s+/g, ' ')]
     })
 /** The last value given to `property`: the one a browser that reads it all keeps. */
 const last = (decls, property) => decls.filter(([p]) => p === property).at(-1)?.[1]
 
-const root = /<div id="root"><div style="([^"]+)"><p style="([^"]+)">Loading map…<\/p><\/div><\/div>/.exec(page)
+// Prettier breaks the tags and their style attributes over lines; the markup is the same.
+const root = /<div id="root">\s*<div\s+style="([^"]+)"\s*>\s*<p\s+style="([^"]+)"\s*>\s*Loading map…\s*<\/p>\s*<\/div>\s*<\/div>/.exec(page)
 
 test('the root page holds "Loading map…" inside #root, the only thing there, for React to replace', () => {
   assert.ok(root, 'index.html: <div id="root"><div style=…><p style=…>Loading map…</p></div></div>')
