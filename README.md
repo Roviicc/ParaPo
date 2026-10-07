@@ -82,34 +82,17 @@ goes out with the map and is written up. One issue, **"The map needs a
 look"**, is opened or brought up to date by a run that failed or published
 with warnings, and closed by the first run with nothing to report.
 
-## Walking links (a trial)
-
-A try at walking features, 2026-10-06, on Caloocan's hotspots only:
-`scripts/walk/walk-links.mjs` takes every pair of hotspots in an area within
-450 m of each other in a straight line, asks a pedestrian router (Valhalla on
-FOSSGIS's public server, from OpenStreetMap) for the walk between them and
-what it is on (road, footpath, a crossing, stairs, a footbridge), and writes
-`src/studio/walk/walkLinks.trial.json`. The studio draws them, dotted, with
-the walk and the straight line side by side ("319 m walk · 4 min", "117 m
-apart"); the public map does not. Nothing is in the database or the
-published file, and no walk is checked on the ground yet. The walks are
-OpenStreetMap data (© OpenStreetMap contributors, ODbL), as the routes'
-roads are. It reads the published file, never the database:
-
-    node --experimental-strip-types --import ./scripts/node/ts-resolve.mjs \
-      scripts/walk/walk-links.mjs --area Caloocan --within 450
-
 ## Where things are
 
 | | |
 | --- | --- |
 | `src/commuter/` | the public map: its shell, the published-file reader (`mapFile.ts`), "Where am I" and the service worker |
-| `src/studio/` | the editor: `StudioApp.tsx`, then `auth/` (sign-in, passwords, the session), `data/` (the Supabase client, reads and writes), `drawing/` (drawing, snapping, borrowing), `panels/` (save, hotspot, the card's actions), `walk/` (the walking-link trial) |
+| `src/studio/` | the editor: `StudioApp.tsx`, then `auth/` (sign-in, passwords, the session), `data/` (the Supabase client, reads and writes), `drawing/` (drawing, snapping, borrowing), `panels/` (save, hotspot, the card's actions) |
 | `src/shared/` | what both draw: `model/` (routes, stops, fares, liveries — no React, no MapLibre), `geo/` (geometry), `map/` (the map and what is painted on it, the routes and hotspots hooks), `cards/` (the cards, sheets and timelines, with their stories; `useCardStack`, which card is up, and `useCardCamera`, the camera with them: the map and the cards together, for both apps), `styles/` (the one stylesheet) |
 | `src/design-system/` | the tokens, fonts and primitives (foundation ← primitives) |
 | `public/data/` | the published map, every version kept in history: `index.v4.json` (what the app reads), a line per direction in `lines/` (with its orange stretches, worked out as it is published), and for apps not yet updated `index.v3.json` (without the ferry), `index.json` and the older single file `map.json` (without any line) |
 | `supabase/migrations/` | the schema and its policies, in order |
-| `scripts/` | tools: the build guards and the data check (`checks/`), the publish (`publish/`), Node's TypeScript hook (`node/`), the research screenshots and the cheap-phone timer, `phone-speed.mjs` with its parts (`research/`), the icons' lossless PNG recompressor, `recompress-png.mjs` (`assets/`), the walking-link trial, `walk-links.mjs` with its parts (`walk/`) |
+| `scripts/` | tools: the build guards and the data check (`checks/`), the publish (`publish/`), Node's TypeScript hook (`node/`), the research screenshots and the cheap-phone timer, `phone-speed.mjs` with its parts (`research/`), the icons' lossless PNG recompressor, `recompress-png.mjs` (`assets/`) |
 | `tests/unit/` | the unit checks, Node's own test runner (`npm run test:unit`) |
 | `tests/e2e/` | the headless suites, and their README |
 
