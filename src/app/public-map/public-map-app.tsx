@@ -148,13 +148,18 @@ export function PublicMapApp() {
       */}
       {/*
         Opened framed on the routes, and handed over to draw them as soon as
-        its style is in (`openOn`, the owner's Q1 of 2026-10-04).
+        its style is in (`openOn`, the owner's Q1 of 2026-10-04). The credits
+        start folded to their ⓘ, as the studio's do: the owner asked for the
+        bar out of the way on 2026-10-16 ("can we remove this for now? I'm
+        planning to move them somewhere in tha map"); the licences need them on
+        the map, so ⓘ still opens them until they have a place of their own.
       */}
       <MapView
         onReady={setMap}
         zoomButtons={false}
         maxBounds={METRO_MANILA}
         openOn={openOnRoutes}
+        foldCredits
       />
       {/*
         The visitor's own position, and the camera with them, kept clear of

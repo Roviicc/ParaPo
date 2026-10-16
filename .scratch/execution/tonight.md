@@ -43,3 +43,48 @@ That change stops at what's done, says why in its PR, and the run goes on to the
 ## In the morning
 
 A report at the end of this file: every PR in merge order, its checks, and anything waiting on the owner.
+
+## The morning report (2026-10-16)
+
+Every change in scope is up as a pull request. Nothing has merged: `staging` and `main` are as you left them (`staging` at 4852d03, #168). Three of the changes were built by parallel sessions (#166, #170, #172); the last one (#173) is a draft that brings them together.
+
+### Merge order
+
+Merge top to bottom. Each PR's base is the branch above it, so after each merge either let GitHub delete the merged branch (it then moves the next PR's base on to `staging`) or edit the next PR's base to `staging` by hand.
+
+| # | PR | Branch | What it does | CI on its head |
+| --- | --- | --- | --- | --- |
+| 0 | #162 | `claude/plans` | The plans in `.scratch/`, this report among them | green (docs only: the suites skip) |
+| 1 | #163 | `claude/figma-names` | RouteTripDetail → TimelineRouteDetailCard, TripTimeline → TimelineRouteDetail | green, every suite |
+| 2 | #164 | `claude/distance-tile` | "Kilometer" → "Distance" | green, every suite |
+| 3 | #167 | `claude/train-bound-words` | SWITCH says Northbound / Southbound on the LRT-1 and MRT-3, Eastbound / Westbound on the LRT-2 | green, every suite |
+| 4 | #169 | `claude/jeep-switch-keeps-pick` | Papunta / Pabalik keeps a jeep's picked hintuan; trains reset | green, every suite |
+| 5 | #171 | `claude/fold-says-stations` | "N more stations" on trains | green, every suite |
+| 6 | #166 | `claude/button-primary-small` | The Button gains Primary Small (base: `claude/plans`) | green, every suite |
+| 7 | #170 | `claude/ride-pill` | RouteTripLineDetailPill: the code and the pesos as two halves (base: `claude/figma-names`) | green, after the branch took in #168's fix for the GL-program flake in visitor-test part 1 |
+| 8 | #172 | `claude/timeline-rail-pieces` | TimelineStick's pieces; the rail runs only along the ride (base: `claude/figma-names`) | green, every suite |
+| 9 | #173 | `claude/ride-start-and-end` | **Draft.** Set as start, × Remove as start, an end before the start ridden the other way, trains reset and jeeps keep the start on SWITCH | green on 3993866. On f5cb733 everything had passed but one visitor-test check, whose reader still took the map's pale stretches as one line per feature: that reader is fixed |
+
+#166, #170 and #172 don't depend on each other or on 2–5: merge them any time after #163 (#166 after #162). #173 already contains all of them, so merging it last brings nothing new in twice.
+
+### Waiting on you
+
+Collected from the PRs; each PR says more.
+
+- **#173, the ride's start (draft):** ten questions in its "For the owner", the main ones:
+  - Set as start's colour: Figma's instance fills it with the card's surface; the code draws the set's Primary Small in brand blue (#166 asks the same).
+  - The pill on the start row: shown only while no end is picked (Variant3); Variant4 and Variant5 draw one on both rows.
+  - The map's start label has no Figma frame: a stand-in, End's look with the S.
+  - SWITCH on a jeep with a start and an end keeps each in place, so the way back serves the ride the other way round. Swapping them is one line.
+  - Letting a ride go opens the whole list (so nothing folds under the finger).
+  - Set as start is 32 px tall; the rules ask for 44 px touch targets.
+- **#170, the pill:** on trains the code keeps the line's Timeline/surface colour; should it be the line's surface?
+- **#172, the rail:** what Top should draw when the ride's end is folded away. With #173 this can't happen any more (a picked row is in the ride and never folds).
+- **#166, the button:** `shadow-primary-button-rest` has drifted from Figma (0.4 alphas against 0.24 and 0.32): a `/sync-tokens` job.
+- **#169 and #173, the ferry:** it keeps its picks over SWITCH, as jeeps do. The rule named trains only.
+- **#171, the ferry's fold** still reads "hintuans".
+- **Figma, untouched tonight as agreed:** the Distance tile still reads "Kilometer" (3778:3183); the first card frames still say "Student fare".
+
+### Not tonight, as agreed
+
+The commuter rename, the driver app, the studio maps and train tracking. Their specs are in `.scratch/`.

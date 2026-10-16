@@ -7,8 +7,8 @@ import type {
 
 import { MAP_PAINT } from '@/design-system/foundation/map-colours';
 
+import { daylightStyle } from './daylight';
 import { monochromeStyle } from './monochrome';
-import { mutedStyle } from './muted';
 import { maskedStyle } from './station-mask';
 import { terrainStyle } from './terrain';
 
@@ -20,8 +20,9 @@ import { terrainStyle } from './terrain';
  *
  * Monochrome is the default: Positron, as detailed as its tiles allow and
  * still only grays, so the routes and hotspots painted on top carry all the
- * colour (monochrome.ts). Colour is Liberty, muted so the routes still carry
- * the strongest colour (muted.ts). Fiord, dark blue-gray, is for night.
+ * colour (monochrome.ts). Colour is Liberty in Apple Maps' light palette, the
+ * rest of it muted so the routes still carry the strongest colour
+ * (daylight.ts). Fiord, dark blue-gray, is for night.
  *
  * Satellite and Terrain are the studio's only (the owner, 2026-10-15): the
  * studio adds them to these (features/studio), so the hosts of the photo and
@@ -40,8 +41,8 @@ export interface Basemap {
   elevation?: Elevation;
 }
 
-/** Monochrome's detail on Positron, or Liberty's colours muted. */
-export type Dressing = 'monochrome' | 'muted';
+/** Monochrome's detail on Positron, or Liberty in Apple Maps' light palette. */
+export type Dressing = 'monochrome' | 'daylight';
 
 export interface Elevation {
   /** Terrarium-encoded elevation tiles, with `{z}`, `{x}` and `{y}`. */
@@ -76,7 +77,7 @@ export const COLOUR: Basemap = {
   id: 'liberty',
   label: 'Colour',
   url: `${OPENFREEMAP}/styles/liberty`,
-  dressing: 'muted',
+  dressing: 'daylight',
 };
 const FIORD: Basemap = { id: 'fiord', label: 'Fiord', url: `${OPENFREEMAP}/styles/fiord` };
 
@@ -156,10 +157,10 @@ const isPlain = (b: Basemap): boolean => !b.dressing && !b.imagery && !b.elevati
 
 const DRESSINGS: Record<Dressing, (style: StyleSpecification) => StyleSpecification> = {
   monochrome: monochromeStyle,
-  muted: mutedStyle,
+  daylight: daylightStyle,
 };
 
-/** What a design does to the style it fetches: the photo, Monochrome's detail, Colour's muting, or Terrain's hills. */
+/** What a design does to the style it fetches: the photo, Monochrome's detail, Colour's palette, or Terrain's hills. */
 function dressed(b: Basemap, style: StyleSpecification): StyleSpecification {
   if (b.imagery) return satelliteStyle(style, b.imagery);
   const drawn = b.dressing ? DRESSINGS[b.dressing](style) : style;

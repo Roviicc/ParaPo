@@ -35,6 +35,7 @@ import {
   SavePanel,
   SaveToasts,
   STUDIO_BASEMAPS,
+  STUDIO_BASEMAP_THUMBNAILS,
   TripCardExtras,
   type SaveToast,
   type usePasswordRecovery,
@@ -223,7 +224,12 @@ export function Workshop({ session, recovery }: WorkshopProps) {
 
   return (
     <div ref={root} className="@container relative h-full w-full overflow-clip">
-      <MapView onReady={setMap} foldCredits basemaps={STUDIO_BASEMAPS} />
+      <MapView
+        onReady={setMap}
+        foldCredits
+        basemaps={STUDIO_BASEMAPS}
+        basemapThumbnails={STUDIO_BASEMAP_THUMBNAILS}
+      />
 
       {/* A config or load problem is a banner, never a blank page. */}
       {(supabaseConfigError || saved.error || hotspots.error) && (

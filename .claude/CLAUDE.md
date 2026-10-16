@@ -291,7 +291,7 @@ Never put secrets in the frontend. Only the Supabase URL and the publishable key
 - Use ARIA only when native semantics can't express the pattern.
 - Colour is never the only signal. A route colour needs a label, pattern or icon beside it.
 - Anything shown only on the map must also be available as text for screen-reader users.
-- Touch targets are at least 44×44px.
+- Touch targets are the size the owner's Figma draws them. There is no 44×44px floor (the owner, 2026-10-16: "I want more free and follow the figma").
 
 ## Performance
 

@@ -1,0 +1,41 @@
+/*
+ * The Map Style card pops like the hintuan pins (hintuan-pin.css): from
+ * 40% and clear to whole (the owner, 2026-10-16: "pop like the pins"), out
+ * of the button's corner, over duration/gentle with ease/enter, a card's
+ * timing on his Motion page (3748:2585). It leaves the way his tooltip
+ * does, over duration/quick with ease/exit, shrinking back into the corner.
+ */
+.map-style {
+  transform-origin: top right;
+  animation: map-style-pop var(--transition-duration-gentle) var(--ease-enter) both;
+}
+.map-style[data-closing] {
+  animation: map-style-leave var(--transition-duration-quick) var(--ease-exit) both;
+}
+@keyframes map-style-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes map-style-leave {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+}
+/* Shown and gone at once; BasemapControl unmounts it without waiting (afterClose). */
+@media (prefers-reduced-motion: reduce) {
+  .map-style,
+  .map-style[data-closing] {
+    animation: none;
+  }
+}

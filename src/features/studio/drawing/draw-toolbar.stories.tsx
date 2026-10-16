@@ -116,8 +116,7 @@ const drawn = (state: Partial<Drawing> = {}) =>
 
 /**
  * Matches `(pointer: coarse)` for one story, so the toolbar takes the
- * finger's path: its hint in a pill, ✕ asking first. The Tailwind
- * `pointer-coarse:` sizes are CSS and still follow the real pointer.
+ * finger's path: its hint in a pill, ✕ asking first.
  */
 const asFinger = () => {
   const real = window.matchMedia;

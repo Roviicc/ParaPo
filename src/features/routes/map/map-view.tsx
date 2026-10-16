@@ -13,6 +13,7 @@ import { noop } from '@/shared/utils/noop';
 
 import { BASEMAPS, DEFAULT_BASEMAP, initialStyle, readBasemap, type Basemap } from './basemap';
 import { BasemapControl } from './basemap-control';
+import { BASEMAP_THUMBNAILS } from './basemap-thumbnails';
 import { diagnose, type Diagnosis } from './diagnose';
 import {
   OPENING_WAIT_MS,
@@ -166,6 +167,8 @@ interface Props {
    * made.
    */
   basemaps?: readonly Basemap[];
+  /** Each design's picture on the Map Style card, by its id: BASEMAP_THUMBNAILS, and the studio's. */
+  basemapThumbnails?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -185,6 +188,7 @@ export function MapView({
   foldCredits = false,
   openOn,
   basemaps = BASEMAPS,
+  basemapThumbnails = BASEMAP_THUMBNAILS,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   // Kept from an effect declared before the map's own: the map hands itself
@@ -439,8 +443,8 @@ export function MapView({
         <BasemapControl
           map={ready}
           basemaps={basemaps}
+          thumbnails={basemapThumbnails}
           initial={basemap}
-          under={coarse ? 'attribution' : zoomButtons ? 'zoom' : 'nothing'}
         />
       )}
 

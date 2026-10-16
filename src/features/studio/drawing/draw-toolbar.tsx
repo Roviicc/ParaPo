@@ -270,7 +270,7 @@ function Toolbar({ draw, onDone, keys }: { draw: Drawing; onDone: () => void; ke
               onClick={onDone}
               disabled={!canDone}
               title={doneReason ?? (area ? 'Save this hotspot (Enter)' : 'Save this route (Enter)')}
-              className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 pointer-coarse:min-h-11"
+              className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
             >
               ✓ Done
             </button>
@@ -279,7 +279,7 @@ function Toolbar({ draw, onDone, keys }: { draw: Drawing; onDone: () => void; ke
               type="button"
               onClick={finger && points > 0 ? () => setConfirming(true) : draw.cancel}
               title={area ? 'Discard this hotspot' : 'Discard this route'}
-              className={TOOL + ' text-neutral-500 pointer-coarse:min-w-11'}
+              className={TOOL + ' text-neutral-500'}
             >
               ✕
             </button>
@@ -290,9 +290,12 @@ function Toolbar({ draw, onDone, keys }: { draw: Drawing; onDone: () => void; ke
   );
 }
 
-/** A tool button: 44 px tall under a finger, as small as ever under a mouse. */
+/**
+ * A tool button, the same size under a finger as under a mouse: the owner
+ * dropped the 44 px floor (2026-10-16) and the toolbar isn't drawn in Figma yet.
+ */
 const TOOL =
-  'rounded-full px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 pointer-coarse:min-h-11 disabled:cursor-not-allowed disabled:opacity-40';
+  'rounded-full px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40';
 
 /**
  * Tap | Draw (the owner's pick, 2026-10-02, after AllTrails' route builder):
@@ -308,7 +311,7 @@ function TapDraw({ draw }: { draw: Drawing }) {
       onClick={() => draw.setFreehand(straight)}
       title={title}
       className={
-        'rounded-full px-4 py-1.5 text-sm font-medium transition-colors pointer-coarse:min-h-11 ' +
+        'rounded-full px-4 py-1.5 text-sm font-medium transition-colors ' +
         (draw.freehand === straight
           ? 'bg-neutral-900 text-white'
           : 'text-neutral-600 hover:bg-neutral-100')

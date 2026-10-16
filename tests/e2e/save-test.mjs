@@ -1426,13 +1426,17 @@ check(
   '  and covers neither New button',
   !overlap(toastAt, newRoute) && !overlap(toastAt, newHotspot),
 );
-const tooSmall = await phone.evaluate(
+// The owner dropped the 44 px floor (2026-10-16): the toast's buttons are
+// sized by their padding and text, the same under a finger as under a mouse.
+const floored = await phone.evaluate(
   () =>
     [...document.querySelectorAll('[data-testid=toast] button')]
-      .map((e) => e.getBoundingClientRect())
-      .filter((r) => r.height < 44).length,
+      .map((e) => getComputedStyle(e))
+      .filter(
+        (c) => !['auto', '0px'].includes(c.minHeight) || !['auto', '0px'].includes(c.minWidth),
+      ).length,
 );
-check('  its buttons are finger-sized', tooSmall === 0, `${tooSmall} under 44 px`);
+check('  its buttons have no size floor for a finger', floored === 0, `${floored} floored`);
 check(
   'phone: nothing scrolls sideways',
   await phone.evaluate(() => document.documentElement.scrollWidth <= innerWidth),

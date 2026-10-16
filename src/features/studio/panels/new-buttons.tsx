@@ -35,7 +35,7 @@ export function NewButtons({
               setMenu(false);
               onNewHotspot('terminal');
             }}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-neutral-50 pointer-coarse:min-h-11"
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-neutral-50"
           >
             <span className="h-3 w-3 rounded-sm bg-sky-500" />
             <span>
@@ -50,7 +50,7 @@ export function NewButtons({
               setMenu(false);
               onNewHotspot('hintuan');
             }}
-            className="flex w-full items-center gap-2 border-t border-neutral-100 px-4 py-2.5 text-left hover:bg-neutral-50 pointer-coarse:min-h-11"
+            className="flex w-full items-center gap-2 border-t border-neutral-100 px-4 py-2.5 text-left hover:bg-neutral-50"
           >
             <span className="h-3 w-3 rounded-sm bg-orange-500" />
             <span>

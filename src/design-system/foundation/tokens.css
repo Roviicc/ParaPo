@@ -73,7 +73,8 @@
 
   /* Primitive: the train lines' own colours (2026-10-13), one family a line,
      only the four steps its Map/Rail/… semantics use: 200 the pale, 600 the
-     surface, 700 the border, 800 the timeline. */
+     surface, 700 the border, 800 the timeline. MRT-3's 200 and 600 brightened
+     on 2026-10-16 (the owner's, from #fae385 and #e2b709). */
   --color-light-rail-way-one-200: #b7f5ca;
   --color-light-rail-way-one-600: #1d7739;
   --color-light-rail-way-one-700: #12612a;
@@ -84,8 +85,8 @@
   --color-light-rail-way-two-700: #382859;
   --color-light-rail-way-two-800: #372b4f;
 
-  --color-metro-rail-way-three-200: #fae385;
-  --color-metro-rail-way-three-600: #e2b709;
+  --color-metro-rail-way-three-200: #fff1b8;
+  --color-metro-rail-way-three-600: #edc319;
   --color-metro-rail-way-three-700: #ac8b0b;
   --color-metro-rail-way-three-800: #967906;
 }
@@ -401,6 +402,10 @@
    * owner's redrawing of 2026-10-12, those along an open trip's line until his labels of
    * 2026-10-13 (HintuanLabel, 4068:4791) drew them flat. Mirrored from Figma; nothing wears it now. */
   --shadow-selected-hintuan-route-title: 0 2px 8px 0 rgb(0 0 0 / 0.32);
+
+  /* A card floating over the map: the Map Style card (shadow-sm, 4179:10790, 2026-10-16).
+   * Figma's own shadow-sm, in place of Tailwind's, which nothing wore. */
+  --shadow-sm: 0 3px 12px 0 rgb(43 43 43 / 0.12);
 
   /* The visitor's dot, lifted off the map in a deep blue (LocatorDotShadow, 3870:5242, 2026-10-01). */
   --shadow-locator-dot-shadow: 0 2px 8px 0 rgb(1 27 85 / 0.48);

@@ -95,7 +95,7 @@ export function SignboardEditor({
             <li
               key={n}
               data-testid="signboard-item"
-              className="flex items-center gap-1 rounded-lg bg-surface-secondary p-1 pointer-coarse:gap-3"
+              className="flex items-center gap-1 rounded-lg bg-surface-secondary p-1"
             >
               <img
                 src={signboardUrl(n)}
@@ -108,7 +108,7 @@ export function SignboardEditor({
                   disabled={busy}
                   onClick={() => void run((now) => moveSignboardEarlier(direction.id, now, n))}
                   aria-label={`Move signboard ${i + 1} earlier`}
-                  className="rounded-md px-1.5 py-1 text-sm text-content-tertiary hover:bg-surface-tertiary disabled:opacity-60 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+                  className="rounded-md px-1.5 py-1 text-sm text-content-tertiary hover:bg-surface-tertiary disabled:opacity-60"
                 >
                   ‹
                 </button>
@@ -118,7 +118,7 @@ export function SignboardEditor({
                 disabled={busy}
                 onClick={() => void run((now) => removeSignboard(direction.id, now, n))}
                 aria-label={`Remove signboard ${i + 1}`}
-                className="rounded-md px-1.5 py-1 text-sm text-content-error hover:bg-surface-error disabled:opacity-60 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+                className="rounded-md px-1.5 py-1 text-sm text-content-error hover:bg-surface-error disabled:opacity-60"
               >
                 ✕
               </button>
@@ -133,7 +133,7 @@ export function SignboardEditor({
           type="button"
           disabled={busy}
           onClick={() => input.current?.click()}
-          className="rounded-lg px-3 py-2 text-sm text-content-primary ring-1 ring-border-primary hover:bg-surface-secondary disabled:opacity-60 pointer-coarse:min-h-11"
+          className="rounded-lg px-3 py-2 text-sm text-content-primary ring-1 ring-border-primary hover:bg-surface-secondary disabled:opacity-60"
         >
           {busy ? 'Saving…' : 'Add SVG'}
         </button>

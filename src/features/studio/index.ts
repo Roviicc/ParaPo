@@ -11,7 +11,7 @@ export { lineOf, listDirections, loadHotspotsFromSupabase } from './data/live';
 export { signboardUrl } from './data/signboards';
 export { getSupabase, setSupabase, supabaseConfig, supabaseConfigError } from './data/supabase';
 export { DrawToolbar } from './drawing/draw-toolbar';
-export { STUDIO_BASEMAPS } from './drawing/studio-basemaps';
+export { STUDIO_BASEMAPS, STUDIO_BASEMAP_THUMBNAILS } from './drawing/studio-basemaps';
 export { useDrawing } from './drawing/use-drawing';
 export { useFollow } from './drawing/use-follow';
 export { AccountPill } from './panels/account-pill';

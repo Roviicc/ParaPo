@@ -597,12 +597,18 @@ check(
   'Keep keeps the drawing',
   (await cp()).length > 0 && (await page.getByRole('button', { name: /Done/ }).count()) === 1,
 );
-const small = await page.evaluate(() =>
+// The owner dropped the 44 px floor (2026-10-16): a drawing button is sized by
+// its padding and text, the same under a finger as under a mouse.
+const floored = await page.evaluate(() =>
   [...document.querySelectorAll('[data-testid="draw-toolbar"] button')]
-    .map((b) => [b.textContent.trim(), Math.round(b.getBoundingClientRect().height)])
-    .filter(([, h]) => h < 44),
+    .map((b) => [b.textContent.trim(), getComputedStyle(b).minHeight, getComputedStyle(b).minWidth])
+    .filter(([, h, w]) => !['auto', '0px'].includes(h) || !['auto', '0px'].includes(w)),
 );
-check('every drawing button is at least 44 px tall', small.length === 0, JSON.stringify(small));
+check(
+  'no drawing button has a size floor for a finger',
+  floored.length === 0,
+  JSON.stringify(floored),
+);
 
 // ---------------------------------------------------------------- follow by finger
 // A tap on a saved line, away from the drawing, offers to follow it; taking

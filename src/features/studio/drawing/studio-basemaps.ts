@@ -6,6 +6,10 @@ import {
   type Elevation,
   type Imagery,
 } from '@/features/routes/map/basemap';
+import { BASEMAP_THUMBNAILS } from '@/features/routes/map/basemap-thumbnails';
+
+import satellite from './basemap-thumbnails/satellite.webp';
+import terrain from './basemap-thumbnails/terrain.webp';
 
 /*
  * Satellite and Terrain are the studio's only (the owner, 2026-10-15): a
@@ -41,9 +45,16 @@ const AWS_TERRAIN_TILES: Elevation = {
     '<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noreferrer">Terrain Tiles</a>',
 };
 
-/** The public map's designs, then Terrain (the muted Colour with the hills) and Satellite. */
+/** The public map's designs, then Terrain (Colour with the hills) and Satellite. */
 export const STUDIO_BASEMAPS: readonly Basemap[] = [
   ...BASEMAPS,
   { ...COLOUR, id: 'terrain', label: 'Terrain', elevation: AWS_TERRAIN_TILES },
   { id: 'satellite', label: 'Satellite', url: MONOCHROME.url, imagery: ESRI_WORLD_IMAGERY },
 ];
+
+/** The Map Style card's pictures: the public map's, then Terrain's and Satellite's, cropped as they are. */
+export const STUDIO_BASEMAP_THUMBNAILS: Readonly<Record<string, string>> = {
+  ...BASEMAP_THUMBNAILS,
+  terrain,
+  satellite,
+};

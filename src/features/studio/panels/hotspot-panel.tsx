@@ -265,7 +265,7 @@ export function HotspotPanel({
                     <ul className="mt-1 space-y-1">
                       {g.directions.map((v) => (
                         <li key={v.id}>
-                          <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700 pointer-coarse:min-h-11">
+                          <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
                             <input
                               type="checkbox"
                               checked={ticked.has(v.id)}

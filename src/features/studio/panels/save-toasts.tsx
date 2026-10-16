@@ -54,7 +54,7 @@ export function SaveToasts({
             <button
               type="button"
               onClick={() => onDrawReturnTrip(toast.v.routeId)}
-              className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900 pointer-coarse:min-h-11 pointer-coarse:px-4 pointer-coarse:text-sm"
+              className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-900"
             >
               Draw the return trip
             </button>

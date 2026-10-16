@@ -15,9 +15,8 @@ interface CardActionsProps {
  *
  * The design system's Button in three voices (the owner, 2026-10-13): Edit
  * Primary, Extend Secondary, Delete Error, each a pill at its word's width as
- * the Button set draws them. Base size is 40 px tall, under the 44 px the
- * hand-made row kept on phones; the owner took the design's height as it is
- * until a phone size is drawn.
+ * the Button set draws them, Base size, 40 px tall, on phones too: touch
+ * targets are the size Figma draws them (the owner, 2026-10-16).
  */
 export function CardActions({ editLabel, onEdit, onDelete, onExtend }: CardActionsProps) {
   return (

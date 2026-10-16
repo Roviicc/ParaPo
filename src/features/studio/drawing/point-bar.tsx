@@ -8,8 +8,10 @@ import type { Drawing } from './use-drawing';
  */
 
 const BAR = 'rounded-2xl bg-white p-1.5 text-sm shadow-lg ring-1 ring-black/10';
+// Sized by padding, the same under a finger as under a mouse: the owner
+// dropped the 44 px floor (2026-10-16) and the point bar isn't drawn in Figma.
 const BUTTON =
-  'min-h-11 rounded-xl px-3 text-sm text-neutral-800 ring-1 ring-neutral-200 hover:bg-neutral-50 disabled:opacity-40';
+  'rounded-xl px-3 py-2 text-sm text-neutral-800 ring-1 ring-neutral-200 hover:bg-neutral-50 disabled:opacity-40';
 
 /**
  * The selected point's actions: Delete, and for a route each stretch beside it
@@ -52,7 +54,7 @@ export function PointBar({ draw }: { draw: Drawing }) {
           type="button"
           onClick={() => draw.select(null)}
           aria-label="Close"
-          className="min-h-11 min-w-11 rounded-xl text-neutral-500 hover:bg-neutral-100"
+          className="rounded-xl px-3 py-2 text-neutral-500 hover:bg-neutral-100"
         >
           ✕
         </button>
@@ -106,7 +108,7 @@ export function FollowChip({ draw }: { draw: Drawing }) {
       type="button"
       data-testid="follow-chip"
       onClick={draw.takeFollowOffer}
-      className="min-h-11 rounded-full bg-white px-4 text-sm font-medium text-neutral-900 shadow-lg ring-1 ring-black/10 hover:bg-neutral-50"
+      className="rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-900 shadow-lg ring-1 ring-black/10 hover:bg-neutral-50"
     >
       Follow this line to its end ›
     </button>
