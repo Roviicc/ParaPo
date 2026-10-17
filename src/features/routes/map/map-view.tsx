@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { noop } from '@/shared/utils/noop';
 
 import { BASEMAPS, DEFAULT_BASEMAP, initialStyle, readBasemap, type Basemap } from './basemap';
-import { BasemapControl } from './basemap-control';
+import { BasemapControl, type MapButtonStyle } from './basemap-control';
 import { BASEMAP_THUMBNAILS } from './basemap-thumbnails';
 import { diagnose, type Diagnosis } from './diagnose';
 import {
@@ -162,6 +162,17 @@ interface Props {
   basemaps?: readonly Basemap[];
   /** Each design's picture on the Map Style card, by its id: BASEMAP_THUMBNAILS, and the studio's. */
   basemapThumbnails?: Readonly<Record<string, string>>;
+  /**
+   * The map-style button's look: the public map's round 48 px one, or Figma's
+   * 40 px IconButton, 16 px in from the corner (the contributor page's).
+   */
+  buttonStyle?: MapButtonStyle;
+  /**
+   * The credits always at the bottom right, where a phone would put them top
+   * right, under the button: the contributor page keeps that corner for
+   * Figma's button. Read once, as the map is made.
+   */
+  creditsAtBottom?: boolean;
 }
 
 /**
@@ -182,6 +193,8 @@ export function MapView({
   openOn,
   basemaps = BASEMAPS,
   basemapThumbnails = BASEMAP_THUMBNAILS,
+  buttonStyle = 'round',
+  creditsAtBottom = false,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   // Kept from an effect declared before the map's own: the map hands itself
@@ -327,7 +340,7 @@ export function MapView({
       map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-left');
       map.addControl(
         new AttributionControl({ compact: true, customAttribution: ATTRIBUTION }),
-        coarse ? 'top-right' : 'bottom-right',
+        coarse && !creditsAtBottom ? 'top-right' : 'bottom-right',
       );
       // What MapLibre itself does to them on the first drag.
       if (foldCredits)
@@ -434,6 +447,7 @@ export function MapView({
           basemaps={basemaps}
           thumbnails={basemapThumbnails}
           initial={basemap}
+          buttonStyle={buttonStyle}
         />
       )}
 

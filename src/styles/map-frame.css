@@ -1,0 +1,43 @@
+/*
+ * The page and the map's corners: html, body and #root fill the screen, and MapLibre's
+ * four control corners keep inside the safe area. Shared by every page that holds a map
+ * (global.css, and the contribute page's own stylesheet).
+ */
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/*
+ * `viewport-fit=cover` lets the page paint under a notch and under the home
+ * indicator, so MapLibre's own corners have to be pushed back inside the safe
+ * area. Otherwise the zoom buttons hide behind the notch and the OpenStreetMap
+ * attribution — which the licence requires to stay visible — sits under the
+ * home indicator. On a desktop every inset is 0, so nothing moves.
+ */
+.maplibregl-ctrl-top-left {
+  top: env(safe-area-inset-top);
+  left: env(safe-area-inset-left);
+}
+/*
+ * The top-right corner holds the design button and its Map Style card
+ * (BasemapControl), which hangs down the map's right edge: above the
+ * LocatorButton's dock (z 5), so a card is never under a button that would
+ * take its taps. MapLibre's own 2 would put it under.
+ */
+.maplibregl-ctrl-top-right {
+  top: env(safe-area-inset-top);
+  right: env(safe-area-inset-right);
+  z-index: 10;
+}
+.maplibregl-ctrl-bottom-left {
+  bottom: env(safe-area-inset-bottom);
+  left: env(safe-area-inset-left);
+}
+.maplibregl-ctrl-bottom-right {
+  bottom: env(safe-area-inset-bottom);
+  right: env(safe-area-inset-right);
+}

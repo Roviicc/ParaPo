@@ -13,6 +13,8 @@ export interface RecordingFile {
   endPointName: string;
   description: string;
   rideKind: string | null;
+  /** Each tap on the way button and the way (outbound is papunta, return is pabalik) the recording was on from then. */
+  switches: { time: string; to: 'outbound' | 'return' }[];
   /** Fixes the phone reported but could not keep, so the file is missing that many. */
   failedFixWrites: number;
   summary: {
@@ -49,6 +51,7 @@ export function recordingFile(
     endPointName: recording.endPointName,
     description: recording.description,
     rideKind: recording.rideKind,
+    switches: (recording.switches ?? []).map((s) => ({ time: iso(s.time), to: s.to })),
     failedFixWrites: recording.failedFixWrites ?? 0,
     summary: {
       distanceM: Math.round(summary.distanceM),
@@ -86,7 +89,7 @@ export function downloadRecording(file: RecordingFile): void {
   const link = document.createElement('a');
   link.href = url;
   const day = MANILA_DAY.format(new Date(file.startedAt));
-  link.download = `parapo-ride-${day}-${file.id.slice(0, 8)}.json`;
+  link.download = `parapo-contribution-${day}-${file.id.slice(0, 8)}.json`;
   link.click();
   // The browser reads the blob after the click returns, so it is let go a moment later.
   setTimeout(() => URL.revokeObjectURL(url), 60_000);

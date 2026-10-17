@@ -2,8 +2,18 @@ import type { IControl, MapLibreMap } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import { IconButton } from '@/design-system/primitives/icon-button';
+
 import { applyBasemap, rememberBasemap, type Basemap } from './basemap';
 import { MapStyle } from './map-style';
+
+/** The public map's round 48 px button, or Figma's 40 px IconButton at 16 px from the corner. */
+export type MapButtonStyle = 'round' | 'icon-button';
+
+export const CORNER_MARGIN = {
+  round: 'mt-2.5 mr-2.5',
+  'icon-button': 'mt-4 mr-4',
+} satisfies Record<MapButtonStyle, string>;
 
 interface BasemapControlProps {
   map: MapLibreMap;
@@ -13,6 +23,8 @@ interface BasemapControlProps {
   thumbnails: Readonly<Record<string, string>>;
   /** The design the map was built with. */
   initial: Basemap;
+  /** Which button opens the card. */
+  buttonStyle?: MapButtonStyle;
 }
 
 /** Between the button and the card (gap-2), and kept clear under the card, as the corner's margin. */
@@ -39,12 +51,12 @@ const afterClose = (): CardState =>
  * the safe area itself (global.css). React draws into it, as the hintuan pins
  * do into their markers.
  */
-function useTopRightControl(map: MapLibreMap): HTMLElement {
+export function useTopRightControl(map: MapLibreMap, margin = CORNER_MARGIN.round): HTMLElement {
   const [element] = useState(() => {
     const div = document.createElement('div');
     // Placed as MapLibre places a .maplibregl-ctrl in the corner, without
     // the class: its button rules (a grey hover) would paint over ours.
-    div.className = 'pointer-events-auto float-right clear-both mt-2.5 mr-2.5';
+    div.className = `pointer-events-auto float-right clear-both ${margin}`;
     return div;
   });
   useEffect(() => {
@@ -64,26 +76,33 @@ function useTopRightControl(map: MapLibreMap): HTMLElement {
  * the map itself — `applyBasemap` does the switch and carries the routes and
  * hotspots across — so both pages get it from MapView for free.
  */
-export function BasemapControl({ map, basemaps, thumbnails, initial }: BasemapControlProps) {
-  const corner = useTopRightControl(map);
+export function BasemapControl({
+  map,
+  basemaps,
+  thumbnails,
+  initial,
+  buttonStyle = 'round',
+}: BasemapControlProps) {
+  const corner = useTopRightControl(map, CORNER_MARGIN[buttonStyle]);
   const [current, setCurrent] = useState<Basemap>(initial);
   const [card, setCard] = useState<CardState>('closed');
   const [cardRoom, setCardRoom] = useState<number | undefined>(undefined);
   const isOpen = card === 'open';
   const rootRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  // The button that opens the card is the first in the root, whichever look it has.
+  const toggleButton = () => rootRef.current?.querySelector('button') ?? null;
 
   // The keyboard goes back where it was: on the button that opened the card.
   const close = () => {
     setCard(afterClose());
-    buttonRef.current?.focus();
+    toggleButton()?.focus();
   };
 
   // The card may grow down to the map's foot and no further: the map clips
   // what is past it (MapLibre's overflow), and the button sits as low as the
   // corner stacks it, under the open credits on a phone. Read as it opens.
   const open = () => {
-    const button = buttonRef.current?.getBoundingClientRect();
+    const button = toggleButton()?.getBoundingClientRect();
     const mapFoot = map.getContainer().getBoundingClientRect().bottom;
     setCardRoom(button ? mapFoot - button.bottom - CARD_GAP_PX - CARD_FOOT_PX : undefined);
     setCard('open');
@@ -109,7 +128,7 @@ export function BasemapControl({ map, basemaps, thumbnails, initial }: BasemapCo
       if (e.key !== 'Escape') return;
       e.stopPropagation();
       setCard(afterClose());
-      buttonRef.current?.focus();
+      toggleButton()?.focus();
     };
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
@@ -124,27 +143,38 @@ export function BasemapControl({ map, basemaps, thumbnails, initial }: BasemapCo
 
   return createPortal(
     <div ref={rootRef} className="flex flex-col items-end gap-2">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => (isOpen ? close() : open())}
-        aria-label="Map design"
-        aria-expanded={isOpen}
-        aria-haspopup="dialog"
-        title={`Map design: ${current.label}`}
-        data-testid="basemap"
-        className={
-          'group relative grid size-12 shrink-0 place-items-center rounded-full bg-surface-tertiary text-content-primary ' +
-          'outline-none [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-brand-surface'
-        }
-      >
-        <MapTypeIcon />
-        {/* Figma's shadow lies over what the button holds, as on the LocatorButton. */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-full shadow-special-button-rest group-active:shadow-special-button-pressed"
+      {buttonStyle === 'icon-button' ? (
+        <IconButton
+          tooltip="left"
+          label="Map design"
+          icon={<MapTypeIcon />}
+          onClick={() => (isOpen ? close() : open())}
+          aria-expanded={isOpen}
+          aria-haspopup="dialog"
+          data-testid="basemap"
         />
-      </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => (isOpen ? close() : open())}
+          aria-label="Map design"
+          aria-expanded={isOpen}
+          aria-haspopup="dialog"
+          title={`Map design: ${current.label}`}
+          data-testid="basemap"
+          className={
+            'group relative grid size-12 shrink-0 place-items-center rounded-full bg-surface-tertiary text-content-primary ' +
+            'outline-none [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-brand-surface'
+          }
+        >
+          <MapTypeIcon />
+          {/* Figma's shadow lies over what the button holds, as on the LocatorButton. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-full shadow-special-button-rest group-active:shadow-special-button-pressed"
+          />
+        </button>
+      )}
       {card !== 'closed' && (
         <MapStyle
           basemaps={basemaps}

@@ -2,3 +2,5 @@
 @import '../src/styles/global.css';
 /* …plus the classes the stories themselves use, which the site's sheet leaves out. */
 @source '../src/**/*.stories.tsx';
+/* The contribute feature's classes, which the site's sheet leaves out for the page's own. */
+@source '../src/features/contribute/*.tsx';

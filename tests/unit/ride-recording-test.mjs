@@ -7,13 +7,20 @@ import assert from 'node:assert/strict';
 
 import { haversine } from '../../src/shared/utils/geo.ts';
 import {
+  AUTO_STOP_ARM_M,
+  AUTO_STOP_RADIUS_M,
+  BEARING_WINDOW_S,
+  courseBearing,
+  currentWay,
   distanceM,
   hintosOf,
   keptFixes,
   mergeGaps,
   pathLengthM,
+  shouldAutoStop,
   silentGaps,
   summarize,
+  waysOf,
 } from '../../src/features/routes/model/ride-recording.ts';
 
 const T0 = Date.UTC(2026, 9, 17, 6, 0, 0);
@@ -304,4 +311,354 @@ test('the distance agrees with shared/utils/geo, whose haversine it repeats', ()
     ],
   ];
   for (const [a, b] of pairs) assert.equal(distanceM(a, b), haversine(a, b));
+});
+
+// ---------------------------------------------------------------- ways, auto-stop, bearing
+
+/** Metres east per `fix` unit, measured, so a distance below is the distance haversine gives. */
+const PER_METRE = distanceM(fix(0).at, fix(0, 1000).at) / 1000;
+/** A fix `s` seconds in, exactly `m` metres east (and `north` metres north) of the start by haversine. */
+const at = (s, m, north = 0) => fix(s, m / PER_METRE, north);
+/** Out along the road to `farM` and back to `backM`, a fix every 10 s and every 100 m. */
+function loop(farM, backM = 0) {
+  const fixes = [];
+  let s = 0;
+  for (let m = 0; m <= farM; m += 100, s += 10) fixes.push(at(s, m));
+  for (let m = farM - 100; m >= backM; m -= 100, s += 10) fixes.push(at(s, m));
+  return fixes;
+}
+const fromStart = (fixes, f) => Math.round(distanceM(fixes[0].at, f.at));
+/** The contributor taps Pabalik 5 s after the fix at the far end of loop(farM). */
+const returnAtFar = (farM) => ({ time: T0 + (farM / 100) * 10_000 + 5_000, to: 'return' });
+
+test('a loop arms past 1 km with a switch to the return, and stops at the first fix within 300 m', () => {
+  const fixes = loop(1500);
+  const switches = [returnAtFar(1500)];
+  const far = fixes.findIndex((f) => fromStart(fixes, f) === 1500);
+  assert.equal(shouldAutoStop(fixes.slice(0, far + 1), switches), false);
+  // On the way back: 400 m from the start has not stopped it.
+  const at400 = fixes.findIndex((f, i) => i > far && fromStart(fixes, f) === 400);
+  assert.equal(shouldAutoStop(fixes.slice(0, at400 + 1), switches), false);
+  // The next fix, just inside 300 m of the start, stops it.
+  const inside = at(fixes[at400].time / 1000 - T0 / 1000 + 10, 299.9);
+  assert.equal(shouldAutoStop([...fixes.slice(0, at400 + 1), inside], switches), true);
+  assert.equal(shouldAutoStop(fixes, switches), true);
+});
+
+test('a one-way ride never stops, and neither does a ride that returns without switching', () => {
+  const oneWay = [];
+  for (let i = 0; i <= 40; i++) oneWay.push(at(i * 10, i * 100));
+  assert.equal(shouldAutoStop(oneWay, []), false);
+  assert.equal(shouldAutoStop(loop(1500), []), false);
+});
+
+test('a switch to the return without ever being 1 km away never stops', () => {
+  assert.equal(shouldAutoStop(loop(900), [returnAtFar(900)]), false);
+  assert.equal(AUTO_STOP_ARM_M, 1000);
+});
+
+test('arming needs more than 1 km: 999.5 m is not enough, 1001 m is', () => {
+  const near = [at(0, 0), at(10, 999.5), at(20, 100), at(30, 50)];
+  const far = [at(0, 0), at(10, 1001), at(20, 100), at(30, 50)];
+  const switches = [{ time: T0 + 15_000, to: 'return' }];
+  assert.equal(shouldAutoStop(near, switches), false);
+  assert.equal(shouldAutoStop(far, switches), true);
+});
+
+test('it arms when the switch comes after the 1 km, and not for a fix before the switch', () => {
+  const fixes = [at(0, 0), at(10, 1200), at(20, 1100), at(30, 200)];
+  // Switched only after the fix at 200 m: that fix came before the switch and must not stop it.
+  assert.equal(shouldAutoStop(fixes, [{ time: T0 + 35_000, to: 'return' }]), false);
+  assert.equal(shouldAutoStop(fixes, [{ time: T0 + 25_000, to: 'return' }]), true);
+});
+
+test('a late tap on the way back still stops, measured from the start and not from the tap', () => {
+  const fixes = loop(1500);
+  const far = fixes.findIndex((f) => fromStart(fixes, f) === 1500);
+  const at600 = fixes.findIndex((f, i) => i > far && fromStart(fixes, f) === 600);
+  const switches = [{ time: fixes[at600].time + 5_000, to: 'return' }];
+  const at500 = fixes.findIndex((f, i) => i > far && fromStart(fixes, f) === 500);
+  assert.equal(shouldAutoStop(fixes.slice(0, at500 + 1), switches), false);
+  const inside = at(fixes[at500].time / 1000 - T0 / 1000 + 10, 299.9);
+  assert.equal(shouldAutoStop([...fixes.slice(0, at500 + 1), inside], switches), true);
+});
+
+test('flipping back is an undo: a mistaken tap flipped back arms nothing and leaves no end point', () => {
+  const fixes = loop(1500);
+  const mistaken = [
+    { time: T0 + 5_000, to: 'return' },
+    { time: T0 + 6_000, to: 'outbound' },
+  ];
+  assert.equal(shouldAutoStop(fixes, mistaken), false);
+  const ways = waysOf(fixes, mistaken);
+  assert.equal(ways.endPoint, null);
+  assert.deepEqual(
+    ways.markers.map((m) => m.to),
+    ['return', 'outbound'],
+  );
+  // Flipped back after the far end: the way is outbound again, so the return no longer counts.
+  assert.equal(
+    shouldAutoStop(fixes, [returnAtFar(1500), { time: T0 + 200_000, to: 'outbound' }]),
+    false,
+  );
+});
+
+test('switching to the return again arms it again, from the latest switch', () => {
+  const fixes = loop(1500);
+  const switches = [
+    returnAtFar(1500),
+    { time: T0 + 170_000, to: 'outbound' },
+    { time: T0 + 175_000, to: 'return' },
+  ];
+  assert.equal(shouldAutoStop(fixes, switches), true);
+  // The latest switch comes after every fix: nothing after it can stop the ride yet.
+  assert.equal(
+    shouldAutoStop(fixes, [
+      ...switches,
+      { time: T0 + 900_000, to: 'outbound' },
+      { time: T0 + 901_000, to: 'return' },
+    ]),
+    false,
+  );
+});
+
+test('switches given out of order are applied in time order', () => {
+  const fixes = loop(1500);
+  const backToOutbound = { time: T0 + 200_000, to: 'outbound' };
+  assert.equal(shouldAutoStop(fixes, [backToOutbound, returnAtFar(1500)]), false);
+  const six = [at(0, 0), at(10, 100), at(20, 200), at(30, 300), at(40, 400), at(50, 500)];
+  const ways = waysOf(six, [
+    { time: T0 + 35_000, to: 'outbound' },
+    { time: T0 + 25_000, to: 'return' },
+  ]);
+  assert.deepEqual(
+    ways.markers.map((m) => m.to),
+    ['return', 'outbound'],
+  );
+  assert.equal(ways.endPoint, null);
+});
+
+test('a return tapped already inside 300 m stops on the next fix', () => {
+  const out = [at(0, 0), at(10, 1200), at(20, 250)];
+  const switches = [{ time: T0 + 25_000, to: 'return' }];
+  assert.equal(shouldAutoStop(out, switches), false);
+  assert.equal(shouldAutoStop([...out, at(30, 240)], switches), true);
+});
+
+test('the fix a switch is made on does not stop the ride, and neither do fixes before it is 1 km out', () => {
+  const out = [at(0, 0), at(10, 1200), at(20, 250)];
+  const atFix = [{ time: T0 + 20_000, to: 'return' }];
+  assert.equal(shouldAutoStop(out, atFix), false);
+  assert.equal(shouldAutoStop([...out, at(30, 240)], atFix), true);
+  // Pabalik tapped at the start: the early fixes near it are not the way home.
+  const early = [{ time: T0 + 5_000, to: 'return' }];
+  const fixes = [at(0, 0), at(10, 100), at(20, 1200)];
+  assert.equal(shouldAutoStop(fixes, early), false);
+  assert.equal(shouldAutoStop([...fixes, at(30, 250)], early), true);
+});
+
+test('299 m stops, 301 m does not, and the edge sits at 300 m', () => {
+  const out = [at(0, 0), at(10, 500), at(20, 1100)];
+  const switches = [{ time: T0 + 25_000, to: 'return' }];
+  const backTo = (m) => [...out, at(30, 700), at(40, m)];
+  assert.equal(shouldAutoStop(backTo(299), switches), true);
+  assert.equal(shouldAutoStop(backTo(AUTO_STOP_RADIUS_M - 0.01), switches), true);
+  assert.equal(shouldAutoStop(backTo(AUTO_STOP_RADIUS_M + 0.01), switches), false);
+  assert.equal(shouldAutoStop(backTo(301), switches), false);
+});
+
+test('ways: the outbound and return lines meet at the switch fix, which is the route end', () => {
+  const fixes = [at(0, 0), at(10, 100), at(20, 200), at(30, 100), at(40, 0)];
+  const ways = waysOf(fixes, [{ time: T0 + 24_000, to: 'return' }]);
+  assert.equal(ways.outboundLines.length, 1);
+  assert.equal(ways.returnLines.length, 1);
+  assert.deepEqual(ways.outboundLines[0], [fixes[0].at, fixes[1].at, fixes[2].at]);
+  assert.deepEqual(ways.returnLines[0], [fixes[2].at, fixes[3].at, fixes[4].at]);
+  assert.deepEqual(ways.markers, [{ time: T0 + 24_000, at: fixes[2].at, to: 'return' }]);
+  assert.deepEqual(ways.endPoint, fixes[2].at);
+});
+
+test('ways: no switch is all outbound with no marker and no end point', () => {
+  const fixes = [at(0, 0), at(10, 100), at(20, 200)];
+  assert.deepEqual(waysOf(fixes, []), {
+    outboundLines: [[fixes[0].at, fixes[1].at, fixes[2].at]],
+    returnLines: [],
+    markers: [],
+    endPoint: null,
+  });
+});
+
+test('ways: switching back makes a second outbound line, and the end point is the latest switch to the return', () => {
+  const fixes = [at(0, 0), at(10, 100), at(20, 200), at(30, 300), at(40, 400), at(50, 500)];
+  const ways = waysOf(fixes, [
+    { time: T0 + 20_000, to: 'return' },
+    { time: T0 + 40_000, to: 'outbound' },
+    { time: T0 + 45_000, to: 'outbound' }, // already outbound: no marker
+  ]);
+  assert.equal(ways.outboundLines.length, 2);
+  assert.equal(ways.returnLines.length, 1);
+  assert.deepEqual(ways.returnLines[0], [fixes[2].at, fixes[3].at, fixes[4].at]);
+  assert.deepEqual(ways.outboundLines[1], [fixes[4].at, fixes[5].at]);
+  assert.deepEqual(
+    ways.markers.map((m) => m.to),
+    ['return', 'outbound'],
+  );
+  // On the outbound way now, so there is no end point.
+  assert.equal(ways.endPoint, null);
+  const again = waysOf(fixes, [
+    { time: T0 + 20_000, to: 'return' },
+    { time: T0 + 30_000, to: 'outbound' },
+    { time: T0 + 40_000, to: 'return' },
+  ]);
+  assert.deepEqual(again.endPoint, fixes[4].at);
+});
+
+test('ways: a switch between fixes sits on the last fix before it, and one before any sits on the first', () => {
+  const fixes = [at(0, 0), at(10, 100), at(20, 200)];
+  assert.deepEqual(waysOf(fixes, [{ time: T0 + 19_000, to: 'return' }]).endPoint, fixes[1].at);
+  assert.deepEqual(waysOf(fixes, [{ time: T0 - 5_000, to: 'return' }]).endPoint, fixes[0].at);
+  assert.equal(waysOf([], [{ time: T0, to: 'return' }]).endPoint, null);
+  // A switch at the very time of a fix sits on that fix.
+  assert.deepEqual(waysOf(fixes, [{ time: T0 + 10_000, to: 'return' }]).endPoint, fixes[1].at);
+});
+
+/** A repeatable stream of independent normal numbers (mulberry32 and Box-Muller). */
+function gaussians(seed) {
+  let state = seed;
+  const uniform = () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  return () => Math.sqrt(-2 * Math.log(1 - uniform())) * Math.cos(2 * Math.PI * uniform());
+}
+/** The smallest angle between two bearings, in degrees. */
+const angleBetween = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+/** Walk `bearingFn` along growing prefixes of the fixes, as the screen does, one call per fix. */
+function headings(fixes, start = null) {
+  const out = [];
+  let heading = start;
+  for (let i = 1; i <= fixes.length; i++) {
+    heading = courseBearing(fixes.slice(0, i), heading);
+    out.push(heading);
+  }
+  return out;
+}
+
+test('currentWay: outbound with no switch, the last real flip otherwise', () => {
+  assert.equal(currentWay([]), 'outbound');
+  assert.equal(currentWay([{ time: T0, to: 'return' }]), 'return');
+  // A flip and a flip back is outbound again; a switch to the way already on changes nothing.
+  assert.equal(
+    currentWay([
+      { time: T0, to: 'return' },
+      { time: T0 + 1000, to: 'outbound' },
+    ]),
+    'outbound',
+  );
+  assert.equal(
+    currentWay([
+      { time: T0, to: 'return' },
+      { time: T0 + 1000, to: 'return' },
+    ]),
+    'return',
+  );
+  // Out of order: sorted by time first.
+  assert.equal(
+    currentWay([
+      { time: T0 + 2000, to: 'outbound' },
+      { time: T0, to: 'return' },
+    ]),
+    'outbound',
+  );
+  assert.equal(
+    currentWay([
+      { time: T0 + 2000, to: 'return' },
+      { time: T0, to: 'outbound' },
+    ]),
+    'return',
+  );
+  // It agrees with where the ride is armed to stop.
+  assert.equal(currentWay([{ time: T0, to: 'outbound' }]), 'outbound');
+});
+
+test('bearing: straight at 15 km/h gives the true heading in every direction', () => {
+  const metresPerSecond = 15 / 3.6;
+  const ride = (dx, dy) => {
+    const fixes = [];
+    for (let s = 0; s <= 30; s++)
+      fixes.push(at(s, dx * s * metresPerSecond, dy * s * metresPerSecond));
+    return courseBearing(fixes, null);
+  };
+  assert.ok(Math.abs(ride(1, 0) - 90) < 0.5);
+  assert.ok(Math.abs(ride(-1, 0) - 270) < 0.5);
+  assert.ok(Math.abs(ride(0, 1) - 0) < 0.5 || Math.abs(ride(0, 1) - 360) < 0.5);
+  assert.ok(Math.abs(ride(0, -1) - 180) < 0.5);
+});
+
+test('bearing: a 15 km/h ride with 2 m of noise stays within 10 degrees of the true heading', () => {
+  // The first seed tried (6.8 degrees); over 200 seeds about 7% of 90 s rides stray past 10 once.
+  const noise = gaussians(1);
+  const metresPerSecond = 15 / 3.6;
+  const fixes = [];
+  for (let s = 0; s <= 90; s++) {
+    fixes.push(at(s, s * metresPerSecond + 2 * noise(), 2 * noise()));
+  }
+  const all = headings(fixes);
+  const worst = Math.max(...all.slice(11).map((h) => angleBetween(h, 90)));
+  assert.ok(worst < 10, `worst error ${worst.toFixed(1)} degrees`);
+});
+
+test('bearing: a 90 degree corner at 20 km/h reaches the new direction within 10 s', () => {
+  const metresPerSecond = 20 / 3.6;
+  const fixes = [];
+  for (let s = 0; s <= 30; s++) fixes.push(at(s, s * metresPerSecond));
+  for (let s = 1; s <= 20; s++) fixes.push(at(30 + s, 30 * metresPerSecond, s * metresPerSecond));
+  const all = headings(fixes);
+  const bearingAt = (secondsPastCorner) => all[30 + secondsPastCorner];
+  assert.ok(angleBetween(bearingAt(0), 90) < 1);
+  assert.ok(angleBetween(bearingAt(10), 0) < 10, `${bearingAt(10)} 10 s after the corner`);
+  assert.ok(angleBetween(bearingAt(20), 0) < 1);
+});
+
+test('bearing: standing still with 8 m of noise per axis keeps the heading it had', () => {
+  // Two minutes at a fix a second, independent noise of 8 m per axis, and a creep of 0.1 m/s. The
+  // seed is the first one tried; it is not picked.
+  const noise = gaussians(1);
+  const fixes = [];
+  for (let s = 0; s <= 120; s++) fixes.push(at(s, 0.1 * s + 8 * noise(), 8 * noise()));
+  const all = headings(fixes, 77);
+  let turns = 0;
+  let before = 77;
+  for (const heading of all) {
+    if (angleBetween(heading, before) > 10) turns++;
+    before = heading;
+  }
+  assert.ok(turns <= 1, `${turns} turns over 10 degrees`);
+});
+
+test('bearing: with too few fixes in the window, or a half short of two, the heading is the previous', () => {
+  // Three fixes in the window, however far apart they are.
+  assert.equal(courseBearing([at(0, 0), at(5, 50), at(10, 100)], 7), 7);
+  // Four fixes, but one in the older half.
+  assert.equal(courseBearing([at(0, 0), at(8, 80), at(9, 90), at(10, 100)], 7), 7);
+  // Two and two: a heading.
+  assert.ok(Math.abs(courseBearing([at(0, 0), at(1, 0), at(9, 100), at(10, 100)], 7) - 90) < 0.5);
+  assert.equal(courseBearing([], 45), 45);
+  assert.equal(courseBearing([at(0, 0)], null), null);
+});
+
+test('bearing: the halves must sit 20 m apart, and only fixes from the last 10 s count', () => {
+  const halves = (apartM) => [at(0, 0), at(1, 0), at(9, apartM), at(10, apartM)];
+  assert.equal(BEARING_WINDOW_S, 10);
+  assert.equal(courseBearing(halves(19), 7), 7);
+  assert.ok(Math.abs(courseBearing(halves(20.5), 7) - 90) < 0.5);
+  // A fix 14 s old is outside the window: the four recent ones are all standing.
+  const stale = [at(0, 0), at(11, 100), at(12, 100), at(13, 100), at(14, 100)];
+  assert.equal(courseBearing(stale, 7), 7);
+  // A fix exactly 10 s old is inside it.
+  const edge = [at(0, 0), at(1, 0), at(9, 30), at(10, 30)];
+  assert.ok(Math.abs(courseBearing(edge, 7) - 90) < 0.5);
+  assert.equal(courseBearing([at(0, 0), at(1, 0), at(11, 30), at(12, 30)], 7), 7);
 });

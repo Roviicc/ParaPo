@@ -1,8 +1,9 @@
 // Proves, from the production build, that the public page carries no editor.
 // Runs as the last step of `npm run build`, so a deploy that would leak fails.
 // The contributors' page (contribute/index.html) is held to the same: it loads
-// no editor, no Supabase, no MapLibre and not the shared chunk, it is not
-// installable, and the public page loads none of its code.
+// no editor and no Supabase, it draws its map with the chunks the public page
+// loads (MapLibre, the shared code) and a copy of none, it is not installable,
+// and the public page loads none of its code.
 //
 // 1. Modules. Walks Vite's manifest from each HTML entry through every chunk it
 //    imports, statically or dynamically, and reads which source files went
@@ -202,14 +203,18 @@ check(
   contributeLeaked.length === 0,
   contributeLeaked.join(', '),
 );
-// A contributor's phone records a ride and needs no map: the page may not
-// load MapLibre, nor our shared chunk that carries it.
-const mapCodeInContribute = contributeFiles.filter((f) => /\/(maplibre|shared)/.test('/' + f));
+// The contributors' page draws the ride on the public map's own view, so it
+// loads MapLibre and the shared chunk; but only the chunks the public page
+// already loads, never a copy of its own, and its own code carries no package
+// of MapLibre's.
+const contributeMapChunks = contributeFiles.filter((f) => /\/(maplibre|shared)/.test('/' + f));
+const contributeOnlyFiles = contributeFiles.filter((f) => !commuterFiles.includes(f));
 check(
-  'contribute page loads no MapLibre and not the shared chunk',
-  mapCodeInContribute.length === 0 &&
-    !packageModules(contributeFiles).some((p) => p.startsWith('maplibre-gl')),
-  mapCodeInContribute.join(', '),
+  'contribute page loads MapLibre and the shared code only as the public page loads them, with no copy of its own',
+  contributeMapChunks.length > 0 &&
+    contributeMapChunks.every((f) => commuterFiles.includes(f)) &&
+    !packageModules(contributeOnlyFiles).some((p) => p.startsWith('maplibre-gl')),
+  contributeOnlyFiles.join(', '),
 );
 const studioInContribute = contributeModules.filter((m) =>
   STUDIO_AREAS.some((a) => m.startsWith(a)),
@@ -581,10 +586,21 @@ check(
   `${(groupsGz / 1024).toFixed(1)} kB`,
 );
 
+// The contribute page's own weight: what it loads beyond the public page's
+// chunks: its script only (its stylesheet is not counted), so it stays a page
+// for a phone in the field. The map it draws on is the public page's, already counted above.
+const CONTRIBUTE_OWN_MAX_GZ_KB = 30;
+const contributeOwnGz = gzipBytes(dist, contributeOnlyFiles);
+check(
+  `the contribute page's own chunks are under ${CONTRIBUTE_OWN_MAX_GZ_KB} kB gzipped`,
+  contributeOnlyFiles.length > 0 && contributeOwnGz < CONTRIBUTE_OWN_MAX_GZ_KB * 1024,
+  `${contributeOnlyFiles.join(', ')}: ${(contributeOwnGz / 1024).toFixed(1)} kB`,
+);
+
 // 6. Stylesheet order. The rules each page's stylesheets hold, in the order
 // the page links them; a rule inside an at-rule is read as if outside it.
 const CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
-for (const page of ['index.html', 'studio/index.html']) {
+for (const page of ['index.html', 'studio/index.html', 'contribute/index.html']) {
   const sheets = [...html(page).matchAll(/<link rel="stylesheet"[^>]*href="\/([^"]+)"/g)].map(
     (m) => m[1],
   );

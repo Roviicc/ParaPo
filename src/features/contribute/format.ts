@@ -1,13 +1,11 @@
-/** Metres as kilometres to two decimals: `1.25`. */
-export const kmText = (metres: number): string => (metres / 1000).toFixed(2);
+/** Whole minutes of a span, the way the stats strip says them: `42`. */
+export const minutesText = (seconds: number): string => String(Math.floor(seconds / 60));
 
-/** Seconds as minutes to one decimal: `3.5`. */
-export const minutesText = (seconds: number): string => (seconds / 60).toFixed(1);
+/** Metres as kilometres to one decimal: `4.2`. */
+export const kilometresText = (metres: number): string => (metres / 1000).toFixed(1);
 
-/** The time of day of an instant, in the phone's own clock. */
-export const clockText = (ms: number): string =>
-  new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-/** The day and time of an instant, in the phone's own clock. */
-export const dayText = (ms: number): string =>
-  new Date(ms).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+/** Seconds as a clock: `1:42`. */
+export function countdownText(seconds: number): string {
+  const whole = Math.max(0, Math.ceil(seconds));
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
+}

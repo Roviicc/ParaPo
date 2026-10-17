@@ -49,7 +49,9 @@ flowchart TD
   subgraph styles_layer["styles"]
     styles["styles"]
   end
+  app_contribute --> design_system_foundation
   app_contribute --> features_contribute
+  app_contribute --> styles
   app_public_map --> features_locator
   app_public_map --> features_published_map
   app_public_map --> features_routes_cards
@@ -62,7 +64,12 @@ flowchart TD
   app_studio --> features_routes_model
   app_studio --> features_studio
   app_studio --> styles
+  features_contribute --> design_system_primitives
+  features_contribute --> features_routes_cards
+  features_contribute --> features_routes_map
   features_contribute --> features_routes_model
+  features_contribute --> shared_ui
+  features_contribute --> shared_utils
   features_locator --> features_routes_map
   features_locator --> features_routes_model
   features_locator --> shared_hooks
@@ -119,12 +126,12 @@ flowchart TD
 
 | Unit | Imports |
 | --- | --- |
-| `app/contribute` | `features/contribute` |
+| `app/contribute` | `design-system/foundation`, `features/contribute`, `styles` |
 | `app/public-map` | `features/locator`, `features/published-map`, `features/routes/cards`, `features/routes/map`, `features/routes/model`, `shared/hooks`, `styles` |
 | `app/studio` | `features/routes/cards`, `features/routes/map`, `features/routes/model`, `features/studio`, `styles` |
 | `design-system/foundation` | — |
 | `design-system/primitives` | — |
-| `features/contribute` | `features/routes/model` |
+| `features/contribute` | `design-system/primitives`, `features/routes/cards`, `features/routes/map`, `features/routes/model`, `shared/ui`, `shared/utils` |
 | `features/locator` | `features/routes/map`, `features/routes/model`, `shared/hooks`, `shared/ui`, `shared/utils` |
 | `features/published-map` | `design-system/primitives`, `features/routes/map`, `features/routes/model`, `shared/utils` |
 | `features/routes/cards` | `design-system/primitives`, `features/routes/model`, `shared/ui`, `shared/utils` |

@@ -23,6 +23,9 @@ export const MAP_COLOURS = {
   'Map/HotspotsCard/Terminal/border-primary': '#024a70', // sky/900
   'Map/LocatorIndicatorOverlay/surface': '#8ec5ff', // blue/300, at 15%
   'Map/LocatorIndicatorOverlay/border': '#155dfc', // blue/600, at 75%
+  // Provisional: not named in Figma yet. A contributor's trail, as /contribute/ draws it live.
+  'Map/Trail/papunta': '#1447e6', // blue/700, the blue of brand-surface
+  'Map/Trail/pabalik': '#ca3500', // orange/700, the orange of Card/orange/surface
   'Map/Rail/LightRailWayOne/surface': '#1d7739', // light-rail-way-one/600
   'Map/Rail/LightRailWayOne/surface-pale': '#b7f5ca', // light-rail-way-one/200
   'Map/Rail/LightRailWayOne/border-primary': '#12612a', // light-rail-way-one/700

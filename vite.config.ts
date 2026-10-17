@@ -71,32 +71,6 @@ function onlyTheMapHasAManifest(): Plugin {
 }
 
 /**
- * Vite starts every page's script with `import "vite/modulepreload-polyfill"`.
- * It is a module with side effects that every page imports, so the build puts
- * it in the shared chunk, and a page that imports that chunk loads MapLibre and
- * the rest of our shared code with it. The contribute page uses none of that,
- * and a contributor's phone should not download a map to record a ride, so its
- * copy of the import resolves to an empty module. The polyfill only helps a
- * browser that cannot preload modules; this page works without the hint.
- * check-build.mjs proves what the page loads.
- */
-function contributeWithoutPreloadPolyfill(): Plugin {
-  const empty = '\0parapo:empty-module';
-  return {
-    name: 'parapo:contribute-without-preload-polyfill',
-    apply: 'build',
-    enforce: 'pre',
-    resolveId(source, importer) {
-      if (source !== 'vite/modulepreload-polyfill') return null;
-      return importer?.replaceAll('\\', '/').endsWith('/contribute/index.html') ? empty : null;
-    },
-    load(id) {
-      return id === empty ? 'export {};' : null;
-    },
-  };
-}
-
-/**
  * Each page asks for its stylesheets before its scripts (2026-10-05, for
  * the cheap-phone plan's steps 12 and 14). Vite writes the page's module
  * script, then a modulepreload for every chunk it imports, then the
@@ -241,7 +215,6 @@ const BACKGROUND_COLOUR = '#f5f1ee';
 export default defineConfig({
   plugins: [
     maplibreWorkerWithThePage(),
-    contributeWithoutPreloadPolyfill(),
     react(),
     tailwindcss(),
     chunkModules(),

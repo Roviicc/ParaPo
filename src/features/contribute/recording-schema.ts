@@ -22,6 +22,14 @@ export const gapSchema = z.object({
   reasons: z.array(z.enum(GAP_REASONS)),
 });
 
+/** A tap on the way button: when it was, and the way the recording was on from then. */
+export const switchSchema = z.object({
+  time: z.number(),
+  to: z.enum(['outbound', 'return']),
+});
+
+export type SwitchRow = z.infer<typeof switchSchema>;
+
 /** A recording as IndexedDB keeps it, apart from its fixes. */
 export const recordingSchema = z.object({
   version: z.literal(RECORDING_VERSION),
@@ -33,6 +41,10 @@ export const recordingSchema = z.object({
   savedAt: z.nullable(z.number()),
   /** The gaps the page saw happen: hidden, paused, and resumed after a reload. The silent ones come from the fixes. */
   gaps: z.array(gapSchema),
+  /** Each tap on the leg button, in order: the first is the start of pabalik. */
+  switches: z.optional(z.array(switchSchema)),
+  /** Set when the ride stopped itself on coming back to its start, so a Resume does not stop it again. */
+  hasAutoStopped: z.optional(z.boolean()),
   /** Fixes the phone reported but could not write to IndexedDB; absent when none failed. */
   failedFixWrites: z.optional(z.number()),
   startPointName: z.string(),

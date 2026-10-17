@@ -200,6 +200,11 @@
   --map-locator-indicator-overlay-surface: var(--color-blue-300);
   /* Its circle's hairline, at 75%, and the beam's colour (3870:5247). */
   --map-locator-indicator-overlay-border: var(--color-blue-600);
+  /* The trail a contributor's recording draws as they ride (/contribute/): papunta in the
+     blue the brand surface wears, pabalik in the orange of Card/orange/surface, so the
+     leg button and the line agree. Provisional: not named in Figma yet. */
+  --map-trail-papunta: var(--color-blue-700);
+  --map-trail-pabalik: var(--color-orange-700);
   /* The train lines, each in its own colour: LRT-1, LRT-2 and MRT-3 as Figma
      names them, LightRailWayOne… Their RouteCards (4074:7402, 4080:4124,
      4080:4241) wear surface and border-primary, as a livery's card does. */
@@ -298,6 +303,8 @@
   );
   --color-map-locator-indicator-overlay-surface: var(--map-locator-indicator-overlay-surface);
   --color-map-locator-indicator-overlay-border: var(--map-locator-indicator-overlay-border);
+  --color-map-trail-papunta: var(--map-trail-papunta);
+  --color-map-trail-pabalik: var(--map-trail-pabalik);
   --color-map-rail-light-rail-way-one-surface: var(--map-rail-light-rail-way-one-surface);
   --color-map-rail-light-rail-way-one-surface-pale: var(--map-rail-light-rail-way-one-surface-pale);
   --color-map-rail-light-rail-way-one-border-primary: var(
