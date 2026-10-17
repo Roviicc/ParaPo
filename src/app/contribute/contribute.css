@@ -1,0 +1,10 @@
+/*
+ * The contribute page's own stylesheet: Tailwind, for the files of this page
+ * and its feature only. It does not import styles/global.css, whose rules and
+ * MapLibre's stylesheet are the map's, so a contributor's phone loads neither.
+ * global.css leaves these two folders out for the same reason, which keeps the
+ * public page's stylesheet exactly what it was.
+ */
+@import 'tailwindcss' source(none);
+@source './';
+@source '../../features/contribute/';

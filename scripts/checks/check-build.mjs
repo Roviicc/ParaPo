@@ -1,5 +1,8 @@
 // Proves, from the production build, that the public page carries no editor.
 // Runs as the last step of `npm run build`, so a deploy that would leak fails.
+// The contributors' page (contribute/index.html) is held to the same: it loads
+// no editor, no Supabase, no MapLibre and not the shared chunk, it is not
+// installable, and the public page loads none of its code.
 //
 // 1. Modules. Walks Vite's manifest from each HTML entry through every chunk it
 //    imports, statically or dynamically, and reads which source files went
@@ -138,6 +141,7 @@ function chunksOf(entryKey) {
 
 const commuterFiles = chunksOf('index.html');
 const studioFiles = chunksOf('studio/index.html');
+const contributeFiles = chunksOf('contribute/index.html');
 
 // ------------------------------------------------------------------ modules
 
@@ -155,6 +159,7 @@ function sourceModules(files) {
 
 const commuterModules = sourceModules(commuterFiles);
 const studioModules = sourceModules(studioFiles);
+const contributeModules = sourceModules(contributeFiles);
 
 // The design system is domain-free and imports only itself, so it is the
 // public page's as much as the studio's: the route list brought its first
@@ -180,6 +185,41 @@ check(
   STUDIO_AREAS.every((a) => studioModules.some((m) => m.startsWith(a))),
 );
 
+// The contributors' page (contribute/index.html) is a third front door. The
+// public page loads none of its code (leakedModules above already fails any
+// module outside PUBLIC_AREAS; this names it), and it loads none of the
+// studio's and no Supabase client: a recording stays on the phone.
+const CONTRIBUTE_AREAS = ['src/app/contribute/', 'src/features/contribute/'];
+check(
+  'contribute chunks hold src/app/contribute/ and src/features/contribute/ modules — the module search works',
+  CONTRIBUTE_AREAS.every((a) => contributeModules.some((m) => m.startsWith(a))),
+);
+const contributeLeaked = commuterModules.filter((m) =>
+  CONTRIBUTE_AREAS.some((a) => m.startsWith(a)),
+);
+check(
+  'public page loads no contribute code',
+  contributeLeaked.length === 0,
+  contributeLeaked.join(', '),
+);
+// A contributor's phone records a ride and needs no map: the page may not
+// load MapLibre, nor our shared chunk that carries it.
+const mapCodeInContribute = contributeFiles.filter((f) => /\/(maplibre|shared)/.test('/' + f));
+check(
+  'contribute page loads no MapLibre and not the shared chunk',
+  mapCodeInContribute.length === 0 &&
+    !packageModules(contributeFiles).some((p) => p.startsWith('maplibre-gl')),
+  mapCodeInContribute.join(', '),
+);
+const studioInContribute = contributeModules.filter((m) =>
+  STUDIO_AREAS.some((a) => m.startsWith(a)),
+);
+check(
+  'contribute page loads no studio code',
+  studioInContribute.length === 0,
+  studioInContribute.join(', '),
+);
+
 /** Package modules (under node_modules/) inside the given chunks. */
 function packageModules(files) {
   const out = new Set();
@@ -201,6 +241,14 @@ check(
   'studio chunks carry the Supabase client — the package search works',
   packageModules(studioFiles).some((p) => p.startsWith('@supabase/')),
 );
+const supabaseInContribute = packageModules(contributeFiles).filter((p) =>
+  p.startsWith('@supabase/'),
+);
+check(
+  'contribute page carries no Supabase client',
+  supabaseInContribute.length === 0,
+  supabaseInContribute.join(', '),
+);
 
 // ------------------------------------------------------------------ strings
 
@@ -209,9 +257,17 @@ const text = (files) => files.map((f) => readFileSync(join(dist, f), 'utf8')).jo
 // it would be the public page asking the database (2026-10-03).
 const commuter = text([...commuterFiles, ...(existsSync(join(dist, 'sw.js')) ? ['sw.js'] : [])]);
 const studio = text(studioFiles);
+const contribute = text(contributeFiles);
 
 const leaked = EDITOR_ONLY.filter((s) => commuter.includes(s));
 check('public page contains no editor-only string', leaked.length === 0, leaked.join(', '));
+
+const leakedToContribute = EDITOR_ONLY.filter((s) => contribute.includes(s));
+check(
+  'contribute page contains no editor-only string',
+  leakedToContribute.length === 0,
+  leakedToContribute.join(', '),
+);
 
 const missing = EDITOR_ONLY.filter((s) => !studio.includes(s));
 check(
@@ -267,13 +323,19 @@ check(
   !/rel="manifest"/.test(html('studio/index.html')),
 );
 check(
-  'neither page carries a registration script',
-  !/registerSW|vite-plugin-pwa:/.test(html('index.html') + html('studio/index.html')),
+  'contribute/index.html links no manifest — /contribute/ is not installable',
+  !/rel="manifest"/.test(html('contribute/index.html')),
+);
+check(
+  'no page but the map carries a registration script',
+  !/registerSW|vite-plugin-pwa:/.test(
+    html('index.html') + html('studio/index.html') + html('contribute/index.html'),
+  ),
 );
 // Over HTTP/1.1 the scripts ahead of a stylesheet can take all six of a
 // host's connections, and the first paint waits a round trip
 // (vite.config.ts, stylesheetsBeforeScripts, 2026-10-05).
-for (const page of ['index.html', 'studio/index.html']) {
+for (const page of ['index.html', 'studio/index.html', 'contribute/index.html']) {
   const head = html(page).slice(0, html(page).indexOf('</head>'));
   const sheets = [...head.matchAll(/<link rel="stylesheet"/g)].map((m) => m.index);
   const scripts = [...head.matchAll(/<script type="module"|<link rel="modulepreload"/g)].map(
@@ -326,6 +388,11 @@ if (MAP_FILE_URL && EARLY_MAP_FILE) {
   check(
     'studio/index.html asks for no map file',
     !studioPage.includes(EARLY_MAP_FILE) && !studioPage.includes(MAP_FILE_URL),
+  );
+  const contributePage = html('contribute/index.html');
+  check(
+    'contribute/index.html asks for no map file',
+    !contributePage.includes(EARLY_MAP_FILE) && !contributePage.includes(MAP_FILE_URL),
   );
 }
 
@@ -412,17 +479,23 @@ if (existsSync(swPath)) {
     ),
   );
   const studioOnly = studioFiles.filter((f) => !commuterFiles.includes(f));
+  const contributeOnly = contributeFiles.filter((f) => !commuterFiles.includes(f));
   const leakedPrecache = precached.filter(
-    (u) => studioOnly.includes(u) || /^(studio\/|\.vite\/|data\/|branding\/|_headers)/.test(u),
+    (u) =>
+      studioOnly.includes(u) ||
+      contributeOnly.includes(u) ||
+      /^(studio\/|contribute\/|\.vite\/|data\/|branding\/|_headers)/.test(u),
   );
   check(
-    `precache holds no studio chunk (${studioOnly.length} to keep out), nothing from studio/, .vite/, data/, branding/, no _headers`,
-    studioOnly.length > 0 && leakedPrecache.length === 0,
+    `precache holds no studio or contribute chunk (${studioOnly.length + contributeOnly.length} to keep out), nothing from studio/, contribute/, .vite/, data/, branding/, no _headers`,
+    studioOnly.length > 0 && contributeOnly.length > 0 && leakedPrecache.length === 0,
     leakedPrecache.join(', '),
   );
   check(
-    'sw.js answers only / from the stored page, and never /studio',
-    sw.includes('/^\\/(\\?.*)?$/') && sw.includes('/^\\/studio(\\/|$)/'),
+    'sw.js answers only / from the stored page, and never /studio or /contribute',
+    sw.includes('/^\\/(\\?.*)?$/') &&
+      sw.includes('/^\\/studio(\\/|$)/') &&
+      sw.includes('/^\\/contribute(\\/|$)/'),
   );
   check(
     'sw.js caches /data/index.v4.json NetworkFirst (stamping what it serves from the store), the lines under /data/lines/, the signboards under /data/signboards/, and OpenFreeMap tiles CacheFirst',

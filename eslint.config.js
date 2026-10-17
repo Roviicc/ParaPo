@@ -115,11 +115,12 @@ export default defineConfig([
       // design-system, never upward; inside the design system foundation ←
       // primitives ← patterns; among the features routes first, then locator,
       // published-map and studio, which never import each other; the public
-      // shell never imports the studio. Each zone is an importer (target) and
-      // what it may not import (from). CSS is not linted: the only CSS
+      // shell never imports the studio; contribute imports routes and shared
+      // only, and only its own shell imports it. Each zone is an importer
+      // (target) and what it may not import (from). CSS is not linted: the only CSS
       // @imports are src/styles/global.css's, of the design system's tokens
-      // and fonts, and a stylesheet imported from TypeScript is checked
-      // through that import.
+      // and fonts, and src/app/contribute/contribute.css's, of Tailwind alone;
+      // a stylesheet imported from TypeScript is checked through that import.
       'import-x/no-restricted-paths': [
         'error',
         {
@@ -180,6 +181,48 @@ export default defineConfig([
               target: './src/features/studio',
               from: ['./src/features/locator', './src/features/published-map'],
               message: 'locator, published-map and studio never import each other.',
+            },
+            {
+              // The contributors' page records a ride on the phone and sends nothing, so
+              // it needs routes and the shared code, and no other feature. Only its own
+              // shell may import it (check-build.mjs proves what its chunks carry).
+              target: './src/features/contribute',
+              from: [
+                './src/features/locator',
+                './src/features/published-map',
+                './src/features/studio',
+                './src/app',
+              ],
+              message:
+                'contribute imports routes, shared and the design system only: never studio, locator or published-map.',
+            },
+            {
+              target: [
+                './src/features/routes',
+                './src/features/locator',
+                './src/features/published-map',
+                './src/features/studio',
+                './src/shared',
+                './src/design-system',
+                './src/styles',
+                './src/app/public-map',
+                './src/app/studio',
+              ],
+              from: ['./src/features/contribute', './src/app/contribute'],
+              message:
+                'Nothing imports contribute except the contribute shell (src/app/contribute).',
+            },
+            {
+              target: './src/app/contribute',
+              from: [
+                './src/app/public-map',
+                './src/app/studio',
+                './src/features/locator',
+                './src/features/published-map',
+                './src/features/studio',
+              ],
+              message:
+                'The contribute shell imports contribute, routes, shared, styles and the design system only.',
             },
             {
               target: './src/app/public-map',
