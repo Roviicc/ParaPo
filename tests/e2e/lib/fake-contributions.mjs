@@ -11,6 +11,13 @@
 // `fake.logouts`), get_profile, and set_profile, which refuses a user that is not an account,
 // as migration 01 does. `fake.users` holds them, by id.
 //
+// The claim of an anonymous phone's uploads by the account it signs in to, as migration 01's
+// begin_claim and finish_claim answer: a one-time token for an anonymous user, which an account
+// presents to take over that user's contributions (the count moved is the answer; the same token
+// again answers 0; a token already used by another account, or one never made, is bad_token).
+// `fake.claims` lists the calls in order ('begin_claim', 'password', 'finish_claim') and
+// `fake.tokens` holds the tokens by value.
+//
 // Faults, set on `fake.next` before the request they are for:
 //   signupDisabled the sign-in is answered 422, as with sign-ups turned off
 //   passwordSignIn = 'offline'  the password sign-in fails as with no signal
@@ -21,6 +28,11 @@
 //   hold          the save waits until `fake.release()` (an upload in flight)
 //   refuse        the save is refused: 'bad_points' (never taken) or 'day_cap'
 //   removeOffline the delete fails as with no signal
+//   beginClaim = 'notAnonymous' begin_claim is answered 42501 not_anonymous, as for a stale token
+//   finishClaim = 'offline'    finish_claim fails as with no signal, before it acts
+//   finishClaim = 'lostAnswer' finish_claim acts, then the answer is lost on the way back
+//   finishClaim = 'expired'    finish_claim is answered token_expired
+//   finishClaim = 'forgotten'  the server's day-old cleanup has deleted the used tokens first
 
 const json = (route, status, body) =>
   route.fulfill({
@@ -64,6 +76,8 @@ export async function fakeContributions(page) {
     /** The scope of each sign-out the page sent: 'local' signs out this phone only. */
     logouts: [],
     profileRequests: 0,
+    claims: [],
+    tokens: new Map(),
     saveRequests: 0,
     deleteRequests: 0,
     /** Set with `context.setOffline(true)`: Playwright does not stop requests a route answers. */
@@ -162,6 +176,7 @@ export async function fakeContributions(page) {
       }
       if (grant === 'password') {
         fake.passwordSignIns += 1;
+        fake.claims.push('password');
         fake.captchaTokens.push(body.gotrue_meta_security?.captcha_token ?? null);
         const fault = fake.next.passwordSignIn;
         delete fake.next.passwordSignIn;
@@ -212,6 +227,59 @@ export async function fakeContributions(page) {
       const known = fake.users.get(token.id);
       if (known) known.profile = { name, phone };
       return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } });
+    }
+
+    if (url.pathname === '/rest/v1/rpc/begin_claim' && method === 'POST') {
+      fake.claims.push('begin_claim');
+      const token = tokenOf(request);
+      const claimError = (code, message) =>
+        json(route, 403, { code, message, details: null, hint: null });
+      const fault = fake.next.beginClaim;
+      delete fake.next.beginClaim;
+      if (fault === 'notAnonymous') return claimError('42501', 'not_anonymous');
+      if (!token || !fake.users.get(token.id)) return claimError('42501', 'not_signed_in');
+      if (fake.users.get(token.id).isAccount) return claimError('42501', 'not_anonymous');
+      for (const [value, made] of fake.tokens) {
+        if (made.anonymousId === token.id && !made.usedBy) fake.tokens.delete(value);
+      }
+      const value = crypto.randomUUID();
+      fake.tokens.set(value, { anonymousId: token.id, usedBy: null });
+      return json(route, 200, value);
+    }
+    if (url.pathname === '/rest/v1/rpc/finish_claim' && method === 'POST') {
+      fake.claims.push('finish_claim');
+      const caller = tokenOf(request);
+      const claimError = (status, code, message) =>
+        json(route, status, { code, message, details: null, hint: null });
+      const fault = fake.next.finishClaim;
+      delete fake.next.finishClaim;
+      if (fault === 'offline') return route.abort('internetdisconnected');
+      if (!caller || !fake.users.get(caller.id)) return claimError(403, '42501', 'not_signed_in');
+      if (!fake.users.get(caller.id).isAccount) return claimError(403, '42501', 'not_an_account');
+      if (fault === 'forgotten') {
+        for (const [value, made] of fake.tokens) if (made.usedBy) fake.tokens.delete(value);
+      }
+      const made = fake.tokens.get(request.postDataJSON().token);
+      if (!made) return claimError(400, 'P0001', 'bad_token');
+      if (made.usedBy) {
+        return made.usedBy === caller.id
+          ? json(route, 200, 0)
+          : claimError(400, 'P0001', 'bad_token');
+      }
+      if (fault === 'expired') return claimError(400, 'P0001', 'token_expired');
+      if (made.anonymousId === caller.id || fake.users.get(made.anonymousId)?.isAccount) {
+        return claimError(400, 'P0001', 'bad_token');
+      }
+      let moved = 0;
+      for (const row of fake.rows.values()) {
+        if (row.by === made.anonymousId) {
+          row.by = caller.id;
+          moved += 1;
+        }
+      }
+      made.usedBy = caller.id;
+      if (fault === 'lostAnswer') return route.abort('connectionreset');
+      return json(route, 200, moved);
     }
 
     if (url.pathname === '/rest/v1/rpc/save_contribution' && method === 'POST') {

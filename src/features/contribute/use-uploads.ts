@@ -192,7 +192,14 @@ export function useUploads(saved: readonly Recording[], gate: UploadGate): Uploa
     setStatus(recording.id, { state: 'uploading' });
     try {
       const rows = await loadFixes(recording.id);
-      const packed = packRecording(recording, rows.map(toFix), CONSENT_VERSION, Date.now());
+      const packed = packRecording(
+        recording,
+        rows.map(toFix),
+        // Sent under the text it was made with; an earlier recording the person chose to send is
+        // sent under the current one they agreed to.
+        recording.consentVersion ?? CONSENT_VERSION,
+        Date.now(),
+      );
       if (!packed.ok) {
         setStatus(recording.id, { state: 'failed', ...FAILED[packed.reason] });
         return;

@@ -3,7 +3,7 @@ import * as z from 'zod/mini';
 
 import { AccountError, accountProblemOf, type AccountProblem } from './account-problem';
 import { CONTRIBUTOR_AUTH_KEY, type ContributeClient } from './contribute-client';
-import { aroundEarlierIdentity } from './earlier-identity';
+import { aroundEarlierIdentity, finishPendingClaim } from './earlier-identity';
 import { requireClient } from './require-client';
 import { ensureSignedIn } from './upload-contribution';
 import { UploadError } from './upload-problem';
@@ -95,7 +95,10 @@ export async function fetchAccount(): Promise<Account | null> {
   const { data, error } = await client.auth.getSession();
   if (error) return storedAccount();
   const account = accountOf(data.session?.user, true);
-  return account && { ...account, hasProfile: await hasProfileOf(client) };
+  if (!account) return null;
+  // A claim the last sign-in could not finish is tried again at every start, without waiting for it.
+  void finishPendingClaim(client);
+  return { ...account, hasProfile: await hasProfileOf(client) };
 }
 
 /** The error to throw for a failed Auth call, logging one the page does not know. */
@@ -180,7 +183,7 @@ export async function saveProfile(input: Pick<SignUpInput, 'name' | 'phone'>): P
 export async function signIn(input: SignInInput): Promise<Account> {
   try {
     const client = await requireClient();
-    const { data, error } = await aroundEarlierIdentity(() =>
+    const { data, error } = await aroundEarlierIdentity(client, () =>
       client.auth.signInWithPassword({
         email: input.email,
         password: input.password,

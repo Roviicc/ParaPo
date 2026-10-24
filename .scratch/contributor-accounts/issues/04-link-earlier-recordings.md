@@ -1,6 +1,6 @@
 # 04: Linking earlier recordings
 
-Status: blocked
+Status: claimed
 Type: task
 Who: a session
 Blocked by: 02
