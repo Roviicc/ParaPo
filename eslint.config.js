@@ -20,12 +20,16 @@ const SOURCE = [
   'src/**/*.{ts,tsx}',
   '.storybook/**/*.{ts,tsx}',
   'vite.config.ts',
+  'vite.apk.config.ts',
+  'capacitor.config.ts',
   'scripts/**/*.ts',
 ];
 
 export default defineConfig([
   globalIgnores([
     'dist/',
+    'dist-apk/',
+    'android/',
     'storybook-static/',
     'node_modules/',
     'public/',
@@ -300,6 +304,8 @@ export default defineConfig([
       'src/**/*.stories.tsx',
       '.storybook/**/*.{ts,tsx}',
       'vite.config.ts',
+      'vite.apk.config.ts',
+      'capacitor.config.ts',
       'eslint.config.js',
     ],
     rules: {

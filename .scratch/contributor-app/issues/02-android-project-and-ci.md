@@ -1,6 +1,6 @@
 # 02: The Android project and its build
 
-Status: ready-for-agent
+Status: claimed
 Type: task
 Who: a session
 Blocked by: — (the spike, #385, is the reference; copy what worked, not its test-only panel)

@@ -254,6 +254,26 @@ check(
   'studio chunks carry the Supabase client — the package search works',
   packageModules(studioFiles).some((p) => p.startsWith('@supabase/')),
 );
+// The Android app's build (vite.apk.config.ts) is the only one that carries Capacitor, behind
+// `import.meta.env.MODE === 'apk'` in features/contribute/native-app.ts. No web chunk may hold a
+// Capacitor package, nor the bridge's own name ('androidBridge', which only Capacitor's JavaScript
+// mentions), on any page.
+const allChunks = Object.keys(modules);
+const capacitorPackages = packageModules(allChunks).filter((p) => p.startsWith('@capacitor'));
+check(
+  'no web chunk carries a Capacitor package',
+  capacitorPackages.length === 0,
+  capacitorPackages.join(', '),
+);
+const bridgeMentions = allChunks.filter((f) =>
+  readFileSync(join(dist, f), 'utf8').includes('androidBridge'),
+);
+check(
+  'no web chunk mentions the Android bridge',
+  bridgeMentions.length === 0,
+  bridgeMentions.join(', '),
+);
+
 // The contributor page uploads saved recordings, so it carries the client;
 // the strings below hold it to the contributions alone.
 check(

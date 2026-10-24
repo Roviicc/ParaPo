@@ -1,4 +1,4 @@
-import { hasOpenRecording } from '@/features/contribute';
+import { hasOpenRecording, isNativeApp } from '@/features/contribute';
 
 const WORKER_URL = '/contribute/sw.js';
 const SCOPE = '/contribute/';
@@ -69,7 +69,8 @@ async function register(): Promise<void> {
  * open, then takes over and the page reloads once.
  */
 export function registerContributeWorker(): void {
-  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
+  // The app carries its own files, so it has no worker.
+  if (!import.meta.env.PROD || isNativeApp() || !('serviceWorker' in navigator)) return;
   listenForTakeover();
   if (document.readyState === 'complete') {
     void register();

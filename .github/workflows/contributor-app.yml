@@ -1,0 +1,114 @@
+# Builds the contributor app, the Android APK (docs/adr/0006, .scratch/contributor-app/).
+#
+#   - A pull request that touches the app builds a DEBUG APK and attaches it as an artifact.
+#   - A tag `app-v*` (app-v1.2.3) builds a RELEASE APK, UNSIGNED and not published: signing, the
+#     download page and the update file come with ticket 04. The tag sets the version.
+#   - "Run workflow" builds a debug APK from any branch.
+#
+# The runner's own Android SDK is used: android-actions/setup-android failed on it.
+name: Contributor app
+
+on:
+  push:
+    tags: ['app-v*']
+  pull_request:
+    paths:
+      - '.github/workflows/contributor-app.yml'
+      - 'android/**'
+      - 'capacitor.config.ts'
+      - 'vite.apk.config.ts'
+      - '.env.apk'
+      - 'contribute/**'
+      - 'src/app/contribute/**'
+      - 'src/features/contribute/**'
+      - 'src/features/locator/**'
+      - 'src/features/routes/**'
+      - 'src/shared/**'
+      - 'src/design-system/**'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+concurrency:
+  group: contributor-app-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/app-v') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Capacitor 8 needs Java 21.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # The runner image carries the SDK; make sure the platform and build tools Capacitor 8
+      # asks for are there.
+      - name: Install the Android platform and build tools
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: npm ci
+
+      # app-v1.2.3 gives versionName 1.2.3 and versionCode 1002003 (major * 1,000,000 +
+      # minor * 1,000 + patch), so a newer tag is always a higher code.
+      - name: Read the version from the tag
+        if: env.IS_RELEASE == 'true'
+        run: |
+          version="${GITHUB_REF_NAME#app-v}"
+          if [[ ! "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::error::The tag $GITHUB_REF_NAME is not app-v<major>.<minor>.<patch>."
+            exit 1
+          fi
+          code=$(( BASH_REMATCH[1] * 1000000 + BASH_REMATCH[2] * 1000 + BASH_REMATCH[3] ))
+          echo "GRADLE_VERSION=-PappVersionName=$version -PappVersionCode=$code" >> "$GITHUB_ENV"
+          echo "APK_NAME=parapo-contributor-$version-unsigned" >> "$GITHUB_ENV"
+
+      - name: Build the contributor page for the app
+        run: npx vite build -c vite.apk.config.ts --mode apk
+
+      - name: Copy it into the Android project
+        run: npx cap sync android
+
+      - name: Build the debug APK
+        if: env.IS_RELEASE != 'true'
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Build the release APK (unsigned)
+        if: env.IS_RELEASE == 'true'
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon $GRADLE_VERSION
+
+      - uses: actions/upload-artifact@v4
+        if: env.IS_RELEASE != 'true'
+        with:
+          name: parapo-contributor-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: env.IS_RELEASE == 'true'
+        with:
+          name: ${{ env.APK_NAME }}
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: error
+          retention-days: 14

@@ -37,6 +37,7 @@ Much of the codebase predates this file.
 | Storybook | Component development and documentation |
 | vite-plugin-pwa | Installable, offline-capable mobile app |
 | Cloudflare Turnstile | The bot check on a contributor's first save and on the studio's sign-in. Cloudflare's own script, loaded on those two pages only; no npm package |
+| Capacitor 8 | The contributor app: the contributor page's own build inside a native Android shell, with `@capacitor-community/background-geolocation` for recording with the screen off. The web bundle carries none of it (ADR 0006) |
 | Cloudflare R2 | The weekly encrypted backup of contributions, written by a GitHub workflow. Nothing in the app reads it |
 | ESLint 10 + Prettier | Automatic enforcement of these standards. Every rule is an error (since 2026-10-14): a new rule warns only until the tree is clean of it. jsx-a11y's ESLint peer range is overridden in package.json until it declares 10 |
 
@@ -72,6 +73,8 @@ src/
 ├── design-system/              # Domain-free: foundation/ ← primitives/ ← patterns/ (not yet). Imports nothing else. Tokens live here.
 └── assets/                     # Not yet: static images, icons. Today a feature keeps its own beside its code.
 ```
+
+Outside `src/`, `android/` is the contributor app's native Android project (Capacitor; ADR 0006). Edit it with `npx cap`, not by hand where Capacitor generates it. `.github/workflows/contributor-app.yml` builds it, and `vite.apk.config.ts` builds its web side.
 
 Create only the folders a feature actually needs. Don't scaffold empty ones.
 

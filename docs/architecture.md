@@ -216,7 +216,7 @@ A feature's `index.ts` is the only door into it for code outside the feature. Wh
 
 ### `features/contribute`
 
-`ContributePage`, `ContributeLocatorSlot`, `connectContributions`, `hasOpenRecording`, `askForPersistentStorage`
+`ContributePage`, `ContributeLocatorSlot`, `connectContributions`, `hasOpenRecording`, `askForPersistentStorage`, `isNativeApp`, `prepareNativeApp`
 
 ### `features/locator`
 
