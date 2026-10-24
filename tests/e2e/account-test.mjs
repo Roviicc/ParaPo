@@ -43,7 +43,7 @@ async function phone({ fake: shared } = {}) {
   await fakeTurnstile(page);
   await page.addInitScript(() => {
     if (!sessionStorage.getItem('seeded')) {
-      localStorage.setItem('parapo.contribute.consent', '2');
+      localStorage.setItem('parapo.contribute.consent', '3');
       sessionStorage.setItem('seeded', 'yes');
     }
   });

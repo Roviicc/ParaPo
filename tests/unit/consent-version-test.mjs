@@ -13,8 +13,8 @@ import {
   shouldAskAboutEarlier,
 } from '../../src/features/contribute/consent-version.ts';
 
-test('the current text is version 2', () => {
-  assert.equal(CONSENT_VERSION, 2);
+test('the current text is version 3', () => {
+  assert.equal(CONSENT_VERSION, 3);
 });
 
 test('nothing stored is no consent', () => {
@@ -33,7 +33,7 @@ test('the current version stored by the page is consent', () => {
 });
 
 test('a later text than this page knows is not consent to this one', () => {
-  assert.equal(isCurrentConsent(agreedVersionOf('3')), false);
+  assert.equal(isCurrentConsent(agreedVersionOf('4')), false);
 });
 
 test('anything else stored is no consent', () => {
@@ -42,9 +42,14 @@ test('anything else stored is no consent', () => {
   }
 });
 
-test('a recording is earlier unless it was made under the current text', () => {
+test('an agreement to the second text is not consent to the current one', () => {
+  assert.equal(isCurrentConsent(agreedVersionOf('2')), false);
+});
+
+test('a recording is earlier unless it was made under the second text or later', () => {
   assert.equal(isEarlierRecording(undefined), true);
   assert.equal(isEarlierRecording(1), true);
+  assert.equal(isEarlierRecording(2), false);
   assert.equal(isEarlierRecording(CONSENT_VERSION), false);
 });
 

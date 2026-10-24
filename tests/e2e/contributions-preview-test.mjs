@@ -78,7 +78,7 @@ async function phone() {
   });
   const page = await newPage(context);
   await page.addInitScript(GPS);
-  await page.addInitScript(() => localStorage.setItem('parapo.contribute.consent', '2'));
+  await page.addInitScript(() => localStorage.setItem('parapo.contribute.consent', '3'));
   await page.goto(`${BASE}/contribute/`, { waitUntil: 'load' });
   await page.getByRole('button', { name: 'Start recording' }).waitFor({ timeout: 30000 });
   return { context, page };

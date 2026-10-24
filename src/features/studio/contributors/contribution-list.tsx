@@ -39,7 +39,8 @@ export function ContributionList({ contributions, openedId, onOpen }: Contributi
               {minutes(c.movingSeconds + c.standingSeconds)}
             </span>
             <span className="text-xs text-content-quaternary">
-              Phone {c.phoneCode ?? 'unknown'} · {c.pointCount} points
+              {c.contributorName ? `${c.contributorName} · ` : ''}Phone {c.phoneCode ?? 'unknown'} ·{' '}
+              {c.pointCount} points
               {!c.line && !c.box && ' · nothing to draw on the map'}
             </span>
           </button>

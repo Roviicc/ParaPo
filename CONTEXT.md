@@ -268,10 +268,11 @@ One direction's full line, read when the direction is lit or opened.
 ### Contributors
 
 **Contributor**:
-Anyone who makes a contribution on the contributor page. The studio knows a
-contributor only as a phone, an anonymous identity made on the first Save,
-never by name. A commuter who taps the Contributor button and records becomes
-one, on that page only.
+A person with an account on the contributor page: a name, an email, a number
+and a password. The account is the person, not the phone: it keeps its
+recordings across phones. The studio shows a contributor's name; the email and
+number are the owner's, to contact testers, and never reach the studio. A
+commuter becomes one by creating an account on that page only.
 _Avoid_: driver, user, reporter
 
 **Contribution**:

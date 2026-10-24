@@ -1,7 +1,10 @@
 import * as z from 'zod/mini';
 
 /** The consent text's version, sent with every upload; bump it when the consent panel's words change. */
-export const CONSENT_VERSION = 2;
+export const CONSENT_VERSION = 3;
+
+/** The oldest consent text whose recordings still go without a question: 2 only differs by who is named. */
+export const EARLIEST_SENT_VERSION = 2;
 
 /** The first consent text stored a plain 'yes'; every later one stores its version number. */
 const FIRST_VERSION_MARK = 'yes';
@@ -23,9 +26,9 @@ export function isCurrentConsent(agreedVersion: number | null): boolean {
   return agreedVersion === CONSENT_VERSION;
 }
 
-/** Whether a recording was made before the current text was agreed to; one with no stamp was. */
+/** Whether a recording was made under a text too old to send unasked; one with no stamp was. */
 export function isEarlierRecording(consentVersion: number | undefined): boolean {
-  return consentVersion !== CONSENT_VERSION;
+  return consentVersion === undefined || consentVersion < EARLIEST_SENT_VERSION;
 }
 
 /** Whether the earlier-recordings question shows: consent is given, it was not answered, and some are unsent. */

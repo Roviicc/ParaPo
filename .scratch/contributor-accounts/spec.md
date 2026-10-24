@@ -57,14 +57,14 @@ Approved by the owner with the consent text, 2026-10-24:
 
 ## Consent version 3 (approved by the owner, 2026-10-24)
 
-Uploads now carry who the person is, so the consent changes and `CONSENT_VERSION` becomes 3. A recording agreed under 2 is still sent; one agreed under 1 still is not. The changed lines (the others stay):
+Uploads now carry who the person is, so the consent changes and `CONSENT_VERSION` becomes 3. A recording agreed under 2 is still sent. One agreed under 1 never sends on its own, only after the earlier-recordings question's Send, as before. The changed lines (the others stay):
 
 - **What is recorded:** "Your name, email and number when you sign up. While you record: your phone's location about once a second, the times, the gaps, and what you type."
 - **Who sees it:** "ParaPo's editors see your rides and your name, in the studio. Only the owner sees your email and number, to contact you. Never the public."
 - **How long:** "The exact points for 24 months. After that, only the cleaned line, the times and the hintos, cut short at each end and no longer tied to you. Your account stays until you ask the owner to delete it. Backups are kept 60 days."
 - **Deleting:** "Remove an upload in History on any phone you're signed in on, or ask the owner to delete your account."
 
-The consent is asked once per account, after Create account and before the first recording.
+The consent, and the earlier-recordings answer, are kept per account on the phone (`parapo.contribute.consent.<userId>`); what an earlier build stored phone-wide goes to the first account that signs in. Asked once per account, after Create account and before the first recording.
 
 ## Tickets
 

@@ -47,6 +47,7 @@ export function ContributionDetails({
     ['Standing', minutes(c.standingSeconds)],
     ['No signal', minutes(c.lostSeconds)],
     ['Points', String(c.pointCount)],
+    ['Contributor', c.contributorName ?? 'No name'],
     ['Phone', c.phoneCode ?? 'unknown'],
   ];
   return (

@@ -27,6 +27,7 @@ test('the studio decodes the trail the phone packed, point for point', () => {
 const upload = (id, over = {}) => ({
   id,
   phoneCode: 'abcdef',
+  contributorName: null,
   startedAt: T0,
   endedAt: T0 + 60_000,
   receivedAt: T0 + 90_000,

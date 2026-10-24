@@ -109,7 +109,7 @@ auth.users ──1:1── contributor ──1:n── contribution ──1:n─
                                             └──1:n── contribution_use ──▶ a direction or a hotspot (by id)
 ```
 
-### `contributor`: one row per phone
+### `contributor`: one row per account (a phone's first anonymous identity, upgraded)
 
 | Column | Type | Notes |
 | --- | --- | --- |
@@ -118,8 +118,11 @@ auth.users ──1:1── contributor ──1:n── contribution ──1:n─
 | `blocked_at` | timestamptz | Set by an editor. A blocked phone can add nothing |
 | `blocked_by` | uuid, references `auth.users (id)` on delete set null | The editor |
 | `block_note` | text, at most 500 characters | Why |
+| `name` | text, 1 to 80 characters | Set with the account (`set_profile`). Editors read it; the studio shows it |
+| `phone` | text, `+639XXXXXXXXX` | The tester's number, set with the account. Only the owner reads it: no column grant for editors or the contributor's own client reads |
+| `profile_updated_at` | timestamptz | |
 
-Indexes: the primary key; `blocked_by` (partial, where not null). The studio shows a phone as the first six characters of its id, never anything more.
+Indexes: the primary key; `blocked_by` (partial, where not null). The studio shows a phone as the first six characters of its id, and the account's name beside it; never the number.
 
 ### `contribution`: one row per saved recording
 

@@ -23,18 +23,22 @@ const CONSENT_LINES: readonly ConsentLine[] = [
   {
     id: 'recorded',
     label: 'What is recorded',
-    text: "Your phone's location about once a second while you record, the times, the gaps, and what you type.",
+    text: "Your name, email and number when you sign up. While you record: your phone's location about once a second, the times, the gaps, and what you type.",
   },
   {
     id: 'purpose',
     label: 'What for',
     text: 'Drawing and checking routes and hintuans, studying how people ride, and machine learning.',
   },
-  { id: 'who', label: 'Who sees it', text: "ParaPo's editors, in the studio. Never the public." },
+  {
+    id: 'who',
+    label: 'Who sees it',
+    text: "ParaPo's editors see your rides and your name, in the studio. Only the owner sees your email and number, to contact you. Never the public.",
+  },
   {
     id: 'how-long',
     label: 'How long',
-    text: 'The exact points for 24 months. After that, only the cleaned line, the times and the hintos, cut short at each end and no longer tied to your phone. Backups are kept 60 days.',
+    text: 'The exact points for 24 months. After that, only the cleaned line, the times and the hintos, cut short at each end and no longer tied to you. Your account stays until you ask the owner to delete it. Backups are kept 60 days.',
   },
   {
     id: 'where',
@@ -44,7 +48,7 @@ const CONSENT_LINES: readonly ConsentLine[] = [
   {
     id: 'deleting',
     label: 'Deleting',
-    text: 'Remove upload in History while this phone holds it, or ask the owner.',
+    text: "Remove an upload in History on any phone you're signed in on, or ask the owner to delete your account.",
   },
   {
     id: 'responsible',

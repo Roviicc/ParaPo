@@ -14,7 +14,10 @@ The public map still sends nothing. A person's location leaves the phone only
 on the contributor page, a page of its own at `/contribute/`, only after a
 consent screen that says what is recorded, for what (including machine
 learning), who sees it, for how long and where, and only when they tap Save.
-The phone is known by an anonymous identity, never a name. A contribution is
+The phone is known by an anonymous identity, never a name.
+*(Superseded in part on 2026-10-24: a contribution now belongs to its
+contributor's account, and editors see the account's name. Email and number
+stay with the owner.)* A contribution is
 never public and never live: nobody watches anyone move, and editors see a
 recording only after it is saved.
 

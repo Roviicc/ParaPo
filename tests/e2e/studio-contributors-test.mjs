@@ -118,8 +118,14 @@ await bareStyle(page);
 await signInAsEditor(page);
 const db = await fakeStudioDb(page, {
   contributor: [
-    { id: PHONE_A, blocked_at: null, block_note: null },
-    { id: PHONE_B, blocked_at: null, block_note: null },
+    {
+      id: PHONE_A,
+      name: 'Maria Santos',
+      phone: '+639171234567',
+      blocked_at: null,
+      block_note: null,
+    },
+    { id: PHONE_B, name: null, blocked_at: null, block_note: null },
   ],
   contribution: [
     upload(C1, PHONE_A, {
@@ -189,6 +195,13 @@ check(
   'an upload says how many uploads its phone has sent',
   await waitFor(async () => (await body()).includes('Phone aaaaaa has sent 2 uploads.')),
   (await body()).match(/Phone aaaaaa[^.]*\./)?.[0],
+);
+check(
+  "  and shows the contributor's name, never their number",
+  (await body()).includes('Maria Santos') &&
+    !(await body()).includes('09171234567') &&
+    !(await body()).includes('639171234567') &&
+    db.log.every((r) => r.table !== 'contributor' || !/phone|email/.test(r.query)),
 );
 check(
   '  and lists its hintos as text, each with Draw a hintuan here',

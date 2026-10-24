@@ -15,8 +15,9 @@ interface EarlierQuestionState {
 export function useEarlierQuestion(
   saved: readonly Recording[],
   hasConsent: boolean,
+  accountId: string | null,
 ): EarlierQuestionState {
-  const { choice, choose } = useEarlierChoice();
+  const { choice, choose } = useEarlierChoice(accountId);
   const count = saved.filter(
     (recording) => recording.upload === undefined && isEarlierRecording(recording.consentVersion),
   ).length;

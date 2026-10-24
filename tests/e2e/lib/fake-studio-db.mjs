@@ -20,6 +20,7 @@ const TABLES = [
   'route_variant',
   'route_stop',
   'stop',
+  'draft',
 ];
 const SKIPPED = ['select', 'order', 'offset', 'limit', 'columns', 'on_conflict'];
 const now = '2026-10-22T00:00:00+00:00';
