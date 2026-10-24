@@ -5,7 +5,7 @@ import { requireClient } from './require-client';
 import { UploadError, problemOf, signInProblemOf, type DatabaseError } from './upload-problem';
 
 /** The error to throw for a database answer, logging one the page does not know. */
-function answerError(error: DatabaseError, status: number): UploadError {
+export function answerError(error: DatabaseError, status: number): UploadError {
   const problem = problemOf(error, status);
   if (problem === 'not-accepting') {
     console.warn(`ParaPo did not accept the request (HTTP ${status}):`, error.message);
@@ -84,9 +84,17 @@ export async function uploadsStillThere(): Promise<Set<string>> {
 /**
  * Removes an uploaded recording from the database, with its points and hintos.
  * The phone's own copy is untouched. Removing one already gone is not an error.
+ * Only the signed-in contributor's own: an editor's session can delete anyone's, so the filter is
+ * here and not left to row security.
  */
 export async function removeUpload(contributionId: string): Promise<void> {
   const client = await requireClient();
-  const { error, status } = await client.from('contribution').delete().eq('id', contributionId);
+  const { data } = await client.auth.getSession();
+  if (!data.session) throw new UploadError('blocked', 'Removing needs a signed-in contributor.');
+  const { error, status } = await client
+    .from('contribution')
+    .delete()
+    .eq('id', contributionId)
+    .eq('contributor_id', data.session.user.id);
   if (error) throw answerError(error, status);
 }

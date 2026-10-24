@@ -498,9 +498,18 @@ const groupOf = (page, name) =>
   );
   await shot(page, '4-delete-question');
   await row(page, upName).getByRole('button', { name: 'Delete', exact: true }).click();
+  // ParaPo's copy is still the account's, so its card stays, now without a copy on this phone.
   await page.waitForFunction(
-    (n) => ![...document.querySelectorAll('li')].some((li) => li.textContent.includes(n)),
+    (n) =>
+      [...document.querySelectorAll('li')].some(
+        (li) => li.textContent.includes(n) && !li.textContent.includes('Delete this recording'),
+      ),
     upName,
+  );
+  check(
+    "  and its card stays as the account's upload, with only Remove upload behind its dots",
+    (await countOf(page, upName, /^Delete from phone|^Download/)) === 0 &&
+      (await countOf(page, upName, /^Remove upload/)) === 1,
   );
   check(
     '  two recordings waiting at once sent as the account, with no sign-in of their own',
@@ -520,7 +529,7 @@ const groupOf = (page, name) =>
     localQuestion,
   );
   await row(page, localName).getByRole('button', { name: 'Delete', exact: true }).click();
-  await page.waitForFunction(() => document.querySelectorAll('li').length === 0);
+  await page.waitForFunction(() => document.querySelectorAll('li').length === 1);
   check(
     "  focus lands on History's heading, not the page",
     (await page.evaluate(() => document.activeElement?.textContent)) === 'History',

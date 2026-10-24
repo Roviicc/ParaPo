@@ -1,24 +1,16 @@
 import { useState } from 'react';
 
-import { ACCOUNT_MESSAGES, AccountError } from '../api/account-problem';
 import { useSaveProfileMutation } from '../api/use-save-profile-mutation';
 import { useSignInMutation } from '../api/use-sign-in-mutation';
 import { useSignUpMutation } from '../api/use-sign-up-mutation';
 import { BackToMapButton } from '../back-to-map-button';
+import { messageOf } from './account-message';
 import { CreateAccountScreen } from './create-account-screen';
 import { ProfileStepScreen } from './profile-step-screen';
 import { SignInScreen } from './sign-in-screen';
 import { useCaptcha } from './use-captcha';
 
 type Mode = 'sign-in' | 'create-account';
-
-/** The one line to show for a failed request; one the page does not know is ParaPo not accepting it. */
-function messageOf(error: Error | null): string | null {
-  if (!error) return null;
-  if (error instanceof AccountError) return ACCOUNT_MESSAGES[error.problem];
-  console.error('An account request failed.', error);
-  return ACCOUNT_MESSAGES['not-accepting'];
-}
 
 interface AccountGateProps {
   /** The phone is signed in to an account whose name and number are not stored yet. */

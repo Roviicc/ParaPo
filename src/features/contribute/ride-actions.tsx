@@ -15,6 +15,8 @@ interface RideActionsProps {
   fullName: string;
   status: UploadStatus;
   canRemove: boolean;
+  /** False for an upload from another phone: there is no copy here to download or delete. */
+  isOnPhone: boolean;
   isMenuOpen: boolean;
   /** The id the card's dots button controls. */
   menuId: string;
@@ -31,6 +33,7 @@ export function RideActions({
   fullName,
   status,
   canRemove,
+  isOnPhone,
   isMenuOpen,
   menuId,
   onDownload,
@@ -56,13 +59,15 @@ export function RideActions({
         </div>
       )}
       <div id={menuId} hidden={!isMenuOpen} className="flex flex-wrap gap-2">
-        <Button
-          variant="secondary"
-          size="small"
-          label="Download"
-          aria-label={`Download, ${fullName}`}
-          onClick={onDownload}
-        />
+        {isOnPhone && (
+          <Button
+            variant="secondary"
+            size="small"
+            label="Download"
+            aria-label={`Download, ${fullName}`}
+            onClick={onDownload}
+          />
+        )}
         {canRemove && (
           <Button
             variant="secondary"
@@ -72,7 +77,7 @@ export function RideActions({
             onClick={() => onAsk('remove-upload')}
           />
         )}
-        {!isBusy && (
+        {isOnPhone && !isBusy && (
           <Button
             variant="secondary"
             size="small"

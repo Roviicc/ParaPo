@@ -1,6 +1,6 @@
 // The contributor page's slice of Supabase, in memory, for the browser suites:
 // an anonymous sign-in, save_contribution and a phone deleting its own
-// contribution (and reading its own ids back), answered as GoTrue and
+// contribution (and reading its own back, the columns it asks for), answered as GoTrue and
 // PostgREST answer. Every request to
 // *.supabase.co lands here, so no suite ever reaches the live project; one this
 // stand-in does not know is answered 501 and counted in `unknown`.
@@ -21,6 +21,9 @@
 //   hold          the save waits until `fake.release()` (an upload in flight)
 //   refuse        the save is refused: 'bad_points' (never taken) or 'day_cap'
 //   removeOffline the delete fails as with no signal
+//   `isEditor` on a user: row security lets it read and delete every contribution, as an editor's.
+//   list = 'offline' | 'hold'   reading the account's contributions fails as with no signal (until
+//                 `delete fake.next.list`), or waits until `fake.release()`
 
 const json = (route, status, body) =>
   route.fulfill({
@@ -66,6 +69,7 @@ export async function fakeContributions(page) {
     profileRequests: 0,
     saveRequests: 0,
     deleteRequests: 0,
+    listRequests: 0,
     /** Set with `context.setOffline(true)`: Playwright does not stop requests a route answers. */
     isOffline: false,
     unknown: [],
@@ -240,9 +244,25 @@ export async function fakeContributions(page) {
     }
 
     if (url.pathname === '/rest/v1/contribution' && method === 'GET') {
-      // Row security: a phone reads only its own.
+      // The faults are for History's list; the phone's check of its own ids is not it.
+      const isList = url.searchParams.get('select')?.includes('started_at');
+      if (isList) fake.listRequests += 1;
+      const fault = isList ? fake.next.list : undefined;
+      // An outage lasts until the suite clears it: a page may ask twice (a remount) before it ends.
+      if (isList && fault !== 'offline') delete fake.next.list;
+      if (fault === 'offline') return route.abort('internetdisconnected');
+      if (fault === 'hold') await new Promise((resolve) => (fake.held = resolve));
+      // Row security: a contributor reads only its own, from whichever phone sent them; an editor
+      // (a user with `isEditor`) reads everyone's. The page's own `contributor_id` filter narrows.
       const user = userOf(request);
-      const own = [...fake.rows].filter(([, row]) => row.by === user).map(([id]) => ({ id }));
+      const isEditor = fake.users.get(user ?? '')?.isEditor === true;
+      const columns = (url.searchParams.get('select') ?? 'id').split(',').map((c) => c.trim());
+      const wanted = /^eq\.(.+)$/.exec(url.searchParams.get('contributor_id') ?? '')?.[1];
+      const own = [...fake.rows]
+        .filter(([, row]) => (isEditor || row.by === user) && (!wanted || row.by === wanted))
+        .map(([id, row]) => ({ id, contributor_id: row.by, ...row.recording }))
+        .sort((a, b) => (b.started_at ?? '').localeCompare(a.started_at ?? ''))
+        .map((recording) => Object.fromEntries(columns.map((c) => [c, recording[c] ?? null])));
       return json(route, 200, own);
     }
     if (url.pathname === '/rest/v1/contribution' && method === 'DELETE') {
@@ -252,8 +272,14 @@ export async function fakeContributions(page) {
       delete fake.next.remove;
       if (fault === 'removeOffline') return route.abort('internetdisconnected');
       const id = /^eq\.(.+)$/.exec(url.searchParams.get('id') ?? '')?.[1];
-      // Row security: a phone deletes only its own; anyone else's is silently not there.
-      if (id && fake.rows.get(id)?.by === user) fake.rows.delete(id);
+      const wanted = /^eq\.(.+)$/.exec(url.searchParams.get('contributor_id') ?? '')?.[1];
+      // Row security: a phone deletes only its own; an editor's session can delete anyone's, so
+      // what keeps it to its own is the page's `contributor_id` filter. Others' are silently not there.
+      const isEditor = fake.users.get(user ?? '')?.isEditor === true;
+      const row = id ? fake.rows.get(id) : undefined;
+      if (row && (isEditor || row.by === user) && (!wanted || row.by === wanted)) {
+        fake.rows.delete(id);
+      }
       return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } });
     }
 

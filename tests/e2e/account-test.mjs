@@ -78,15 +78,10 @@ async function setOffline(context, fake, isOffline) {
   await context.setOffline(isOffline);
 }
 
-/**
- * Signs out through the page's own signOut (the dev server serves its module, the one the page
- * uses), then reloads: there is no Sign out button until the profile screen has one.
- */
+/** Signs out through Profile's Sign out button. */
 async function signOut(page) {
-  await page.evaluate(() =>
-    import('/src/features/contribute/api/account.ts').then((account) => account.signOut()),
-  );
-  await page.reload({ waitUntil: 'load' });
+  await page.getByRole('button', { name: 'Profile', exact: true }).click();
+  await page.getByRole('button', { name: 'Sign out' }).click();
 }
 
 // ------------------------------------------------ no account: only Sign in

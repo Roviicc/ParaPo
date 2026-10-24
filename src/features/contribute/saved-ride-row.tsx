@@ -19,6 +19,8 @@ interface SavedRideRowProps {
   recording: Recording;
   status: UploadStatus;
   canRemove: boolean;
+  /** False for an upload from another phone, which has no copy here. */
+  isOnPhone?: boolean;
   onDownload: () => void;
   onUpload: () => void;
   onRemoveUpload: () => void;
@@ -37,6 +39,7 @@ export function SavedRideRow({
   recording,
   status,
   canRemove,
+  isOnPhone = true,
   onDownload,
   onUpload,
   onRemoveUpload,
@@ -113,6 +116,7 @@ export function SavedRideRow({
               fullName={fullName}
               status={status}
               canRemove={canRemove}
+              isOnPhone={isOnPhone}
               isMenuOpen={isMenuOpen}
               menuId={menuId}
               onDownload={onDownload}

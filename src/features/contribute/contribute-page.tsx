@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 
 import { AccountGate } from './account/account-gate';
 import { useAccountGate } from './account/use-account-gate';
+import { canUpload } from './api/contribute-client';
 import { ContributeMap, type ContributeLocatorSlot } from './contribute-map';
-import { HistoryScreen } from './history-screen';
 import { MarkButton } from './mark-button';
 import { ReadyScreen } from './ready-screen';
 import { MAX_MARKS } from './recording-marks';
@@ -16,9 +16,18 @@ import { uploadStatusText } from './upload-status';
 import { useConsent } from './use-consent';
 import { useEarlierQuestion } from './use-earlier-question';
 import { useHistoryView } from './use-history-view';
+import { useProfileView } from './use-profile-view';
 import { useRecording } from './use-recording';
 import { useRecordingTrack } from './use-recording-track';
 import { useUploads } from './use-uploads';
+
+// Opened from buttons, so the page's first load does not carry them.
+const HistoryView = lazy(() =>
+  import('./history-view').then((module) => ({ default: module.HistoryView })),
+);
+const ProfileView = lazy(() =>
+  import('./account/profile-view').then((module) => ({ default: module.ProfileView })),
+);
 
 interface ContributePageProps {
   /** The locator on the map: the shell's, since this feature may not import the locator's. */
@@ -42,8 +51,11 @@ export function ContributePage({ locator }: ContributePageProps) {
     recording.current?.marks,
   );
   const history = useHistoryView();
+  const profile = useProfileView();
   const { phase, figures } = recording;
   const isHistoryShown = phase === 'ready' && hasConsent && history.isOpen;
+  const isProfileShown =
+    phase === 'ready' && accountGate === 'ready' && canUpload() && profile.isOpen;
 
   // A stale #history (a reload mid-recording, or before consent was given) must not open History
   // later, when Record again or Okay is pressed.
@@ -53,17 +65,27 @@ export function ContributePage({ locator }: ContributePageProps) {
     }
   }, [phase, hasConsent, history]);
 
-  // Once History has been opened from Ready's button, Ready hands focus back to that button.
-  const [hasOpenedHistory, setHasOpenedHistory] = useState(false);
+  // Signing out, or leaving Ready, must not leave #profile to reopen Profile after the next sign-in.
+  useEffect(() => {
+    const isUsable = accountGate === 'ready' && (phase === 'loading' || phase === 'ready');
+    if (profile.isOpen && !isUsable && accountGate !== 'loading') profile.close();
+  }, [phase, accountGate, profile]);
+
+  // Once History or Profile has been opened from Ready's button, Ready hands focus back to it.
+  const [lastOpened, setLastOpened] = useState<'history' | 'profile' | null>(null);
   const handleOpenHistory = () => {
-    setHasOpenedHistory(true);
+    setLastOpened('history');
     history.open();
+  };
+  const handleOpenProfile = () => {
+    setLastOpened('profile');
+    profile.open();
   };
 
   return (
     <main className="relative h-dvh overflow-hidden bg-surface-secondary font-sn-pro">
-      {/* inert while History covers it: no map control can be tabbed to behind the screen. */}
-      <div inert={isHistoryShown} className="contents">
+      {/* inert while History or Profile covers it: no map control can be tabbed to behind the screen. */}
+      <div inert={isHistoryShown || isProfileShown} className="contents">
         <ContributeMap
           track={track}
           isRecording={phase === 'recording' || phase === 'paused'}
@@ -97,24 +119,32 @@ export function ContributePage({ locator }: ContributePageProps) {
           <p role="status" className="sr-only">
             {recording.announcement}
           </p>
-          {phase === 'ready' && !isHistoryShown && (
+          {phase === 'ready' && !isHistoryShown && !isProfileShown && (
             <ReadyScreen
               hasConsent={hasConsent}
               onConsent={giveConsent}
               earlierQuestion={earlier.question}
               onStart={recording.start}
               onOpenHistory={handleOpenHistory}
-              shouldFocusHistoryButton={hasOpenedHistory}
+              onOpenProfile={canUpload() ? handleOpenProfile : undefined}
+              returnFocusTo={lastOpened}
             />
           )}
+          {isProfileShown && (
+            <Suspense fallback={null}>
+              <ProfileView onBack={profile.close} />
+            </Suspense>
+          )}
           {isHistoryShown && (
-            <HistoryScreen
-              recordings={recording.saved}
-              uploads={uploads}
-              onBack={history.close}
-              onDownload={recording.downloadSaved}
-              onDeleteFromPhone={recording.deleteSaved}
-            />
+            <Suspense fallback={null}>
+              <HistoryView
+                recordings={recording.saved}
+                uploads={uploads}
+                onBack={history.close}
+                onDownload={recording.downloadSaved}
+                onDeleteFromPhone={recording.deleteSaved}
+              />
+            </Suspense>
           )}
           {phase === 'unfinished' && figures && (
             <UnfinishedScreen

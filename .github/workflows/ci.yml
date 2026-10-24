@@ -94,7 +94,7 @@ jobs:
               docs/*|*.md) ;;
               src/app/studio/*|src/features/studio/*|src/shared/ui/turnstile.tsx|tests/e2e/turnstile-test.mjs|tests/e2e/studio-scale-test.mjs|tests/e2e/studio-contributors-test.mjs|tests/e2e/studio-public-view-test.mjs|tests/e2e/save-test.mjs|tests/e2e/group-test.mjs|tests/e2e/regression-gestures.mjs|tests/e2e/hotspot-test.mjs|tests/e2e/snap-test.mjs|tests/e2e/extend-test.mjs|tests/e2e/studio-phone-test.mjs)
                 studio=true ;;
-              src/app/public-map/*|src/features/locator/*|src/features/published-map/*|public/*|tests/e2e/commuter-test.mjs|tests/e2e/phone-test.mjs|tests/e2e/where-test.mjs|tests/e2e/scale-test.mjs|tests/e2e/pwa-test.mjs|tests/e2e/gate-test.mjs|tests/e2e/loop-test.mjs|src/app/contribute/*|src/features/contribute/*|tests/e2e/contribute-test.mjs|tests/e2e/contribute-offline-test.mjs|tests/e2e/upload-test.mjs|tests/e2e/account-test.mjs)
+              src/app/public-map/*|src/features/locator/*|src/features/published-map/*|public/*|tests/e2e/commuter-test.mjs|tests/e2e/phone-test.mjs|tests/e2e/where-test.mjs|tests/e2e/scale-test.mjs|tests/e2e/pwa-test.mjs|tests/e2e/gate-test.mjs|tests/e2e/loop-test.mjs|src/app/contribute/*|src/features/contribute/*|tests/e2e/contribute-test.mjs|tests/e2e/contribute-offline-test.mjs|tests/e2e/upload-test.mjs|tests/e2e/account-test.mjs|tests/e2e/profile-test.mjs)
                 public=true ;;
               *) public=true; studio=true ;;
             esac
@@ -158,6 +158,7 @@ jobs:
             contribute-offline-test,
             upload-test,
             account-test,
+            profile-test,
           ]
         include:
           - { suite: commuter-test, part: 1 }
@@ -184,10 +185,10 @@ jobs:
           # and with the studio saving straight to the approved rows, as they
           # were written for; the review suites run on the isolated preview.
           echo VITE_STUDIO_DRAFTS=0 >> .env.local
-      # upload-test and account-test turn uploads back on for their own dev server, against a
+      # upload-test, account-test and profile-test turn uploads back on for their own dev server, against a
       # stand-in for Supabase.
-      - name: Turn uploads on, for upload-test and account-test
-        if: matrix.suite == 'upload-test' || matrix.suite == 'account-test'
+      - name: Turn uploads on, for upload-test, account-test and profile-test
+        if: matrix.suite == 'upload-test' || matrix.suite == 'account-test' || matrix.suite == 'profile-test'
         run: |
           echo VITE_CONTRIBUTIONS=1 >> .env.local
           echo VITE_TURNSTILE_SITE_KEY=1x00000000000000000000AA >> .env.local
@@ -207,7 +208,7 @@ jobs:
       - name: ${{ matrix.suite }}
         run: node tests/e2e/${{ matrix.suite }}.mjs
         env:
-          PARAPO_TURNSTILE: ${{ (matrix.suite == 'upload-test' || matrix.suite == 'account-test') && '1' || '' }}
+          PARAPO_TURNSTILE: ${{ (matrix.suite == 'upload-test' || matrix.suite == 'account-test' || matrix.suite == 'profile-test') && '1' || '' }}
           COMMUTER_PART: ${{ matrix.part && format('{0}/3', matrix.part) || '' }}
       - name: Keep the screenshots and the dev server log
         if: failure()
