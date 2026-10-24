@@ -13,7 +13,7 @@ const config: StorybookConfig = {
       !!p &&
       typeof p === 'object' &&
       'name' in p &&
-      /^(vite-plugin-pwa|parapo:studio-without-manifest)/.test(String(p.name));
+      /^(vite-plugin-pwa|parapo:contribute-worker)/.test(String(p.name));
     config.plugins = (config.plugins ?? []).flat().filter((p) => !isPwa(p));
     return config;
   },
