@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, type Ref } from 'react';
 
 import { BottomToolbar } from './bottom-toolbar';
+import { HelpButton } from './help-button';
 import { StartBar } from './start-bar';
 import { useStackRoom } from '../common/use-stack-room';
 import { EarlierRecordingsPanel, type EarlierQuestion } from '../consent/earlier-recordings-panel';
@@ -35,12 +36,19 @@ interface ReadyScreenProps {
   onOpenCredits: () => void;
   /** The ⓘ, for focus to come back to when the credits close. */
   creditsButtonRef: Ref<HTMLButtonElement>;
+  /** The ?: opens the tutorial, once there is one to open (HAS_TUTORIAL). */
+  onOpenTutorial?: () => void;
 }
 
+// TODO: true once the tutorial screens exist: the ? at the top left (Figma 4520:3471) opens them.
+// Until then nothing stands there, and nothing else moves for it: the ? is laid over the map.
+const HAS_TUTORIAL = false;
+
 /**
- * Before a recording, Figma's Start (4485:24815): at the foot, the map's ⓘ (Figma 4494:10300)
- * and the Record, History and Account tabs over the Start Tracking bar. The top corners are empty: the
- * top left waits for the tutorial's ?.
+ * Before a recording, Figma's Record (4520:3197): at the foot, Start tracking over the Record,
+ * History and Account tabs, on the map fading into white, and the map's ⓘ (4494:10300) in the
+ * bottom left corner. The map-type and locator column stands at the right, 20 in and 24 over
+ * Start tracking. The top left holds the tutorial's ?, once there is a tutorial (HAS_TUTORIAL).
  */
 export function ReadyScreen({
   earlierQuestion,
@@ -50,6 +58,7 @@ export function ReadyScreen({
   backFrom,
   onOpenCredits,
   creditsButtonRef,
+  onOpenTutorial,
 }: ReadyScreenProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const historyRef = useRef<HTMLButtonElement>(null);
@@ -61,13 +70,26 @@ export function ReadyScreen({
     ((focusTab && tabRefs[focusTab].current) ?? headingRef.current)?.focus();
   }, [focusTab]);
   const stackRef = useStackRoom();
+
+  // Figma's Record stands the right-hand column 20 in and 24 over Start tracking.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--dock-right', '1.25rem');
+    root.style.setProperty('--dock-gap', '1.5rem');
+    return () => {
+      root.style.removeProperty('--dock-right');
+      root.style.removeProperty('--dock-gap');
+    };
+  }, []);
   const startBar = StartGate ? <StartGate onStart={onStart} /> : <StartBar onClick={onStart} />;
 
   return (
     <>
-      {/* TODO: show HelpButton (help-button.tsx) here, at the top left, once the tutorial it opens
-          is designed. Until then the corner is empty, as Figma has no Back to the map on Start:
-          the browser's back is the way to the public map. */}
+      {HAS_TUTORIAL && onOpenTutorial && (
+        <div className="absolute top-[calc(env(safe-area-inset-top)+1.5rem)] left-5 z-20">
+          <HelpButton onClick={onOpenTutorial} />
+        </div>
+      )}
       <section
         ref={stackRef}
         aria-labelledby={earlierQuestion ? undefined : 'ready-heading'}
@@ -78,12 +100,22 @@ export function ReadyScreen({
             Record a route
           </h1>
         )}
-        {/* The tabs stay over the question too: History and Account are always a tap away. The
-            ⓘ at the map's bottom left, 12 in and 12 over what stands under the tabs. */}
-        <div className="relative flex justify-center px-4 pb-4">
-          <div className="absolute bottom-3 left-3 z-10 flex">
+        {/* The map fades into white under Start tracking and the tabs (Figma's Frame 393). The
+            tabs stay over the question too: History and Account are always a tap away. */}
+        <div className="relative flex flex-col gap-3 bg-linear-to-b from-transparent to-surface pb-[max(2rem,env(safe-area-inset-bottom))]">
+          {/* Figma's ⓘ, 12 in from the frame's left and foot; lifted over the gesture bar where
+              the phone has one, so the bar does not take its taps. */}
+          <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 z-10 flex">
             <CreditsButton ref={creditsButtonRef} onClick={onOpenCredits} />
           </div>
+          {/* Nothing stands in for Start while the app's gates load: a plain Start would skip the
+              permissions. */}
+          {!earlierQuestion && AppUpdateGate && (
+            <Suspense fallback={null}>
+              <AppUpdateGate>{startBar}</AppUpdateGate>
+            </Suspense>
+          )}
+          {!earlierQuestion && !AppUpdateGate && startBar}
           <BottomToolbar
             historyRef={historyRef}
             accountRef={accountRef}
@@ -92,13 +124,6 @@ export function ReadyScreen({
           />
         </div>
         {earlierQuestion && <EarlierRecordingsPanel {...earlierQuestion} />}
-        {/* Nothing stands in for Start while the app's gates load: a plain Start would skip the permissions. */}
-        {!earlierQuestion && AppUpdateGate && (
-          <Suspense fallback={null}>
-            <AppUpdateGate>{startBar}</AppUpdateGate>
-          </Suspense>
-        )}
-        {!earlierQuestion && !AppUpdateGate && startBar}
       </section>
     </>
   );

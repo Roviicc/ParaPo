@@ -132,7 +132,7 @@ const centreOff = (page, metres) =>
     [eastOf(metres)[0], M_PER_DEG_LNG],
   );
 const bearing = (page) => page.evaluate(() => (window.__map.getBearing() + 360) % 360);
-/** Ready's History tab, in the toolbar over the Start bar. */
+/** Ready's History tab, in the toolbar under Start tracking. */
 const historyTab = (page) =>
   page.getByRole('navigation', { name: 'Screens' }).getByRole('button', { name: 'History' });
 /** The Record tab, in the toolbar at the foot of History: back to Start. */
@@ -244,25 +244,26 @@ const buttons = (page) =>
     const start = await page.getByRole('button', { name: 'Start Tracking' }).boundingBox();
     const info = await creditsButton(page).boundingBox();
     check(
-      "on a first visit the map's ⓘ sits above the Start bar, and MapLibre's credits are gone",
+      "on a first visit the map's ⓘ sits at the bottom left, under Start tracking, and MapLibre's credits are gone",
       start &&
         info &&
-        info.y + info.height <= start.y + 0.5 &&
+        info.y >= start.y + start.height - 0.5 &&
         !(await page.locator('.maplibregl-ctrl-attrib').isVisible()),
       JSON.stringify([info, start]),
     );
   }
   await page.waitForFunction(() => !!window.__map?.loaded());
   check(
-    'Ready: Start, the top left empty as Figma has it (no Back to the map), no saved-recordings list',
+    'Ready: Start, the top left empty until there is a tutorial (no ?, no Back to the map), no saved-recordings list',
     (await page.getByRole('button', { name: 'Back to the map' }).count()) === 0 &&
+      (await page.getByRole('button', { name: 'How to record' }).count()) === 0 &&
       (await page.getByText('Saved on this phone').count()) === 0 &&
       (await page.getByText('No saved recordings yet.').count()) === 0,
   );
   {
     const history = historyTab(page);
     check(
-      '  with no accounts in the build the tabs over the Start bar are Record and History, no Account; the top right empty, nothing of History shows',
+      '  with no accounts in the build the tabs under Start tracking are Record and History, no Account; the top right empty, nothing of History shows',
       (await history.count()) === 1 &&
         (await page.getByRole('button', { name: 'History' }).count()) === 1 &&
         (await page.getByRole('button', { name: 'Account' }).count()) === 0 &&
@@ -274,13 +275,16 @@ const buttons = (page) =>
     const tabs = await page.getByRole('navigation', { name: 'Screens' }).boundingBox();
     const stack = await page.locator('section[aria-labelledby="ready-heading"]').boundingBox();
     check(
-      '  the stack over the map is the tabs and, at the foot, the Start Tracking bar',
+      "  as Figma's Record has it: Start tracking 32 in each side and 48 tall, the tabs 12 under it, 32 over the foot",
       !!start &&
         !!tabs &&
         !!stack &&
-        Math.abs(stack.y - tabs.y) <= 1 &&
-        tabs.y + tabs.height <= start.y &&
-        Math.abs(stack.y + stack.height - (start.y + start.height)) <= 1,
+        Math.abs(stack.y - start.y) <= 1 &&
+        Math.abs(start.x - 32) <= 0.5 &&
+        Math.abs(start.width - (393 - 64)) <= 0.5 &&
+        Math.abs(start.height - 48) <= 0.5 &&
+        Math.abs(tabs.y - (start.y + start.height) - 12) <= 0.5 &&
+        Math.abs(stack.y + stack.height - (tabs.y + tabs.height) - 32) <= 0.5,
       JSON.stringify([stack, tabs, start]),
     );
     await history.click();
@@ -1551,30 +1555,30 @@ const buttons = (page) =>
   const locatorBox = await locate(page).boundingBox();
   const bars = await page.locator('section[aria-labelledby="ready-heading"]').boundingBox();
   check(
-    "the map-style button sits on the locator button, the public map's 48 px pair, 16 px from the right as Figma has it",
+    "the map-style button sits on the locator button, the public map's 48 px pair, 20 px from the right as Figma has it",
     box &&
       locatorBox &&
       Math.abs(box.width - 48) < 0.5 &&
-      Math.abs(393 - (box.x + box.width) - 16) < 0.5 &&
+      Math.abs(393 - (box.x + box.width) - 20) < 0.5 &&
       Math.abs(locatorBox.x - box.x) < 0.5 &&
       box.y + box.height <= locatorBox.y + 0.5,
     JSON.stringify([box, locatorBox]),
   );
   check(
-    '  and above the Start bar, 16 px over the tabs as Figma has it',
-    bars && locatorBox && Math.abs(bars.y - (locatorBox.y + locatorBox.height) - 16) < 0.5,
+    '  and 24 px over Start tracking as Figma has it',
+    bars && locatorBox && Math.abs(bars.y - (locatorBox.y + locatorBox.height) - 24) < 0.5,
     JSON.stringify([locatorBox, bars]),
   );
   {
     const info = await creditsButton(page).boundingBox();
     const bar = await page.getByRole('button', { name: 'Start Tracking' }).boundingBox();
     check(
-      "  the map's ⓘ is 32 px, at the bottom left, 12 px in and 12 px over the Start bar",
+      "  the map's ⓘ is 32 px, at the bottom left, 12 px in and 12 px over the screen's foot",
       info &&
         bar &&
         Math.abs(info.width - 32) < 0.5 &&
         Math.abs(info.x - 12) < 0.5 &&
-        Math.abs(bar.y - (info.y + info.height) - 12) < 0.5,
+        Math.abs(852 - (info.y + info.height) - 12) < 0.5,
       JSON.stringify([info, bar]),
     );
   }
@@ -1699,7 +1703,7 @@ const buttons = (page) =>
     file?.description,
   );
   check(
-    '  History has no Start bar',
+    '  History has no Start tracking',
     (await page.getByRole('button', { name: 'Start Tracking' }).count()) === 0,
   );
   await recordTab(page).click();
@@ -1814,6 +1818,159 @@ const STORE_PROBLEM = 'This phone could not keep the recording.';
   );
   check('no page errors', errors.length === 0, errors.join('; '));
   await page.context().close();
+}
+
+// ------------------------------------- Start tracking becomes the recording card, never holding it up
+/** Every animate() the page starts, with its timing and whether it is the morph's ghost's. */
+const ANIMATIONS = () => {
+  window.__animations = [];
+  const animate = Element.prototype.animate;
+  Element.prototype.animate = function (keyframes, options) {
+    window.__animations.push({
+      isGhost: this.hasAttribute('data-start-morph'),
+      isCard: this.hasAttribute('data-recording-card'),
+      duration: typeof options === 'object' ? options.duration : options,
+      easing: typeof options === 'object' ? (options.easing ?? 'linear') : 'linear',
+      props: Object.keys(Array.isArray(keyframes) ? (keyframes[0] ?? {}) : keyframes),
+      at: performance.now(),
+    });
+    return animate.call(this, keyframes, options);
+  };
+  window.__ghostSeen = false;
+  new MutationObserver(() => {
+    if (document.querySelector('[data-start-morph]')) window.__ghostSeen = true;
+  }).observe(document, { childList: true, subtree: true });
+};
+{
+  const { page, context, errors } = await phone();
+  await page.addInitScript(ANIMATIONS);
+  await page.reload({ waitUntil: 'load' });
+  await page.getByRole('button', { name: 'Start Tracking' }).waitFor({ timeout: 20000 });
+  await page.waitForFunction(() => !!window.__map?.loaded(), null, { timeout: 30000 });
+  const tokens = await page.evaluate(() => {
+    const style = getComputedStyle(document.documentElement);
+    const read = (name) => style.getPropertyValue(name).trim();
+    return {
+      quick: parseFloat(read('--transition-duration-quick')),
+      gentle: parseFloat(read('--transition-duration-gentle')),
+      exit: read('--ease-exit'),
+      move: read('--ease-move'),
+    };
+  });
+  await page.getByRole('button', { name: 'Start Tracking' }).click();
+  const atTap = await page.evaluate(() => ({
+    watchers: window.__watchers(),
+    ghost: !!document.querySelector('[data-start-morph]'),
+  }));
+  check(
+    'Start tracking starts the recording on the tap: the watch is on while the morph has only begun',
+    atTap.watchers === 1 && atTap.ghost,
+    JSON.stringify(atTap),
+  );
+  await page.waitForFunction(() => !document.querySelector('[data-start-morph]'), null, {
+    timeout: 5000,
+  });
+  const ghostAnimations = await page.evaluate(() => window.__animations.filter((a) => a.isGhost));
+  const fold = ghostAnimations[0];
+  const open = ghostAnimations[1];
+  check(
+    '  it folds into a pill on duration-quick and ease-exit, then opens into the card on duration-gentle and ease-move',
+    !!fold &&
+      !!open &&
+      fold.duration === tokens.quick &&
+      fold.easing === tokens.exit &&
+      open.duration === tokens.gentle &&
+      open.easing === tokens.move &&
+      fold.props.join() === 'clipPath' &&
+      open.props.join() === 'clipPath',
+    JSON.stringify({ tokens, ghostAnimations }),
+  );
+  check(
+    '  about 450 ms in all, and only clip-path and opacity move',
+    tokens.quick + tokens.gentle >= 400 &&
+      tokens.quick + tokens.gentle <= 450 &&
+      (await page.evaluate(() =>
+        window.__animations.every((a) => a.props.every((p) => ['clipPath', 'opacity'].includes(p))),
+      )),
+  );
+  check(
+    '  then the card stands in its own place, the ghost gone',
+    (await page.getByRole('group', { name: 'Recording so far' }).isVisible()) &&
+      (await page.locator('[data-start-morph]').count()) === 0 &&
+      (await page.evaluate(
+        () => getComputedStyle(document.querySelector('[data-recording-card]')).opacity,
+      )) === '1',
+  );
+
+  // Pause mid-morph: what the ghost covers takes the tap.
+  await page.getByRole('button', { name: 'Discard recording' }).click();
+  await page.getByRole('button', { name: 'Stop without saving' }).click();
+  await page.getByRole('button', { name: 'Start Tracking' }).click();
+  const isMorphing = await page.evaluate(() => !!document.querySelector('[data-start-morph]'));
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await page.getByRole('button', { name: 'Resume' }).waitFor({ timeout: 5000 });
+  check(
+    '  a tap on Pause mid-morph pauses the recording',
+    isMorphing && (await page.getByRole('button', { name: 'Finish', exact: true }).count()) === 1,
+  );
+  await page.waitForFunction(() => !document.querySelector('[data-start-morph]'), null, {
+    timeout: 5000,
+  });
+  await page.getByRole('button', { name: 'Discard recording' }).click();
+  await page.getByRole('button', { name: 'Stop without saving' }).click();
+  await page.getByRole('button', { name: 'Start Tracking' }).waitFor();
+
+  // A start that fails (a second tab, which records nothing): the card never comes, the button does.
+  const second = await context.newPage();
+  await nodeFetch(second);
+  await bareStyle(second);
+  await second.addInitScript(GPS);
+  await second.addInitScript(ANIMATIONS);
+  await page.getByRole('button', { name: 'Start Tracking' }).click();
+  await page.getByRole('group', { name: 'Recording so far' }).waitFor();
+  await second.goto(`${BASE}/contribute/`, { waitUntil: 'load' });
+  await second.getByText('Para is open in another tab').waitFor({ timeout: 10000 });
+  await second.getByRole('button', { name: 'Start Tracking' }).click();
+  const secondMorphed = await second.evaluate(() => !!document.querySelector('[data-start-morph]'));
+  await second.waitForFunction(() => !document.querySelector('[data-start-morph]'), null, {
+    timeout: 5000,
+  });
+  await second.waitForTimeout(100);
+  check(
+    '  a start that fails: the pill opens back into Start tracking, shown again, and no card comes',
+    secondMorphed &&
+      (await second.getByRole('group', { name: 'Recording so far' }).count()) === 0 &&
+      (await second.getByRole('button', { name: 'Start Tracking' }).isVisible()) &&
+      (await second.evaluate(
+        () => getComputedStyle(document.querySelector('[data-start-tracking]')).opacity,
+      )) === '1',
+  );
+  await second.close();
+  await page.getByRole('button', { name: 'Discard recording' }).click();
+  await page.getByRole('button', { name: 'Stop without saving' }).click();
+
+  // Reduced motion: no ghost, the card only fades in, quickly.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate(() => {
+    window.__animations = [];
+    window.__ghostSeen = false;
+  });
+  await page.getByRole('button', { name: 'Start Tracking' }).click();
+  await page.getByRole('group', { name: 'Recording so far' }).waitFor();
+  await page.waitForTimeout(400);
+  const reduced = await page.evaluate(() => ({
+    ghostSeen: window.__ghostSeen,
+    card: window.__animations.filter((a) => a.isCard),
+  }));
+  check(
+    '  with reduced motion: no fold and no opening, only a quick crossfade of the card',
+    !reduced.ghostSeen &&
+      reduced.card.some((a) => a.duration === tokens.quick && a.props.join() === 'opacity') &&
+      reduced.card.every((a) => a.duration <= tokens.quick && a.props.join() === 'opacity'),
+    JSON.stringify(reduced),
+  );
+  check('  no page errors', errors.length === 0, errors.join('; '));
+  await context.close();
 }
 
 // ------------------------------------------------------------- a second tab

@@ -23,8 +23,10 @@ export type MotionDirection = 'forward' | 'back';
 const MOTION_TOKENS = {
   /** A screen arriving. */
   arrive: ['--transition-duration-base', '--ease-enter'],
-  /** Something already on screen changing place: the toolbar's pill. */
+  /** Something already on screen changing place: the toolbar's pill, the Start pill opening. */
   move: ['--transition-duration-gentle', '--ease-move'],
+  /** Something on its way out, quickly: Start tracking folding into its pill. */
+  leave: ['--transition-duration-quick', '--ease-exit'],
 } as const;
 
 /**

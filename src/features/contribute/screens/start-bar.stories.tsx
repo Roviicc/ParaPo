@@ -9,8 +9,8 @@ const meta = {
   args: { onClick: fn() },
   decorators: [
     (Story) => (
-      // A stand-in for the map above it, so the rounded corners the bar draws on it show.
-      <div className="flex h-60 w-[393px] flex-col justify-end bg-surface-quaternary">
+      // A phone's width, over a stand-in for the map.
+      <div className="flex h-60 w-[393px] flex-col justify-end bg-surface-quaternary pb-8">
         <Story />
       </div>
     ),
@@ -20,5 +20,5 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Start Tracking (4485:24832), rounding the map's bottom corners into the brand's dark. */
+/** Start tracking on Record (4520:3489): the frame's width less 32 each side, 48 tall. */
 export const Default: Story = {};

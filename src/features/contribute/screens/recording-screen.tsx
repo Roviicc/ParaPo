@@ -126,7 +126,7 @@ export function RecordingScreen({
             The screen could not be kept awake, so it may sleep and the location may stop.
           </p>
         )}
-        <div id={cardId} hidden={isCardFolded}>
+        <div id={cardId} hidden={isCardFolded} data-recording-card>
           <RecordingCard
             elapsedSeconds={figures.elapsedSeconds}
             distanceM={figures.distanceM}

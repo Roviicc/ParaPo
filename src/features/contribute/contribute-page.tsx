@@ -25,6 +25,7 @@ import { MAX_MARKS } from './recorder/recording-marks';
 import { useRecording } from './recorder/use-recording';
 import type { FlagStopButtonProps } from './screens/flag-stop-button';
 import { ReadyScreen } from './screens/ready-screen';
+import { START_BUTTON_ATTR, morphStartIntoCard } from './screens/start-morph';
 import { isStopQuestionShown, stopQuestionIn, type StopAskedWhile } from './screens/stop-question';
 import { putThumbnail } from './storage/recording-store';
 import { UploadCheck } from './uploads/upload-check';
@@ -308,7 +309,12 @@ export function ContributePage({ locator }: ContributePageProps) {
                 onStart={() => {
                   // A ride begun: the next Start opens fresh, focus on its heading, not the tab.
                   setOpenedTab(null);
+                  // The button as it stands at the tap, for the morph: read before the
+                  // recording begins, which takes it off the screen.
+                  const startButton = document.querySelector<HTMLElement>(`[${START_BUTTON_ATTR}]`);
                   recording.start();
+                  // After the start, never before it: the morph holds nothing back.
+                  if (startButton) morphStartIntoCard(startButton);
                 }}
                 onOpenHistory={handleOpenHistory}
                 onOpenAccount={hasAccount ? handleOpenAccount : undefined}

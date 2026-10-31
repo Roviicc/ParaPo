@@ -104,7 +104,7 @@ async function phone({ signedIn = true, userId = ACCOUNT_ID } = {}) {
 }
 
 const button = (page, name) => page.getByRole('button', { name, exact: true });
-/** Ready's Account tab, in the toolbar over the Start bar: the way into Account. */
+/** Ready's Account tab, in the toolbar under Start tracking: the way into Account. */
 const accountTab = (page) =>
   page.getByRole('navigation', { name: 'Screens' }).getByRole('button', { name: 'Account' });
 /** The History tab, on Ready or on Account. */
