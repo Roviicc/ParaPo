@@ -132,7 +132,7 @@ const centreOff = (page, metres) =>
     [eastOf(metres)[0], M_PER_DEG_LNG],
   );
 const bearing = (page) => page.evaluate(() => (window.__map.getBearing() + 360) % 360);
-/** Ready's History tab, in the toolbar over the Start bar. */
+/** Ready's History tab, in the toolbar under Start tracking. */
 const historyTab = (page) =>
   page.getByRole('navigation', { name: 'Screens' }).getByRole('button', { name: 'History' });
 /** The Record tab, in the toolbar at the foot of History: back to Start. */
@@ -244,25 +244,26 @@ const buttons = (page) =>
     const start = await page.getByRole('button', { name: 'Start Tracking' }).boundingBox();
     const info = await creditsButton(page).boundingBox();
     check(
-      "on a first visit the map's ⓘ sits above the Start bar, and MapLibre's credits are gone",
+      "on a first visit the map's ⓘ sits at the bottom left, under Start tracking, and MapLibre's credits are gone",
       start &&
         info &&
-        info.y + info.height <= start.y + 0.5 &&
+        info.y >= start.y + start.height - 0.5 &&
         !(await page.locator('.maplibregl-ctrl-attrib').isVisible()),
       JSON.stringify([info, start]),
     );
   }
   await page.waitForFunction(() => !!window.__map?.loaded());
   check(
-    'Ready: Start, the top left empty as Figma has it (no Back to the map), no saved-recordings list',
+    'Ready: Start, the top left empty until there is a tutorial (no ?, no Back to the map), no saved-recordings list',
     (await page.getByRole('button', { name: 'Back to the map' }).count()) === 0 &&
+      (await page.getByRole('button', { name: 'How to record' }).count()) === 0 &&
       (await page.getByText('Saved on this phone').count()) === 0 &&
       (await page.getByText('No saved recordings yet.').count()) === 0,
   );
   {
     const history = historyTab(page);
     check(
-      '  with no accounts in the build the tabs over the Start bar are Record and History, no Account; the top right empty, nothing of History shows',
+      '  with no accounts in the build the tabs under Start tracking are Record and History, no Account; the top right empty, nothing of History shows',
       (await history.count()) === 1 &&
         (await page.getByRole('button', { name: 'History' }).count()) === 1 &&
         (await page.getByRole('button', { name: 'Account' }).count()) === 0 &&
@@ -274,13 +275,16 @@ const buttons = (page) =>
     const tabs = await page.getByRole('navigation', { name: 'Screens' }).boundingBox();
     const stack = await page.locator('section[aria-labelledby="ready-heading"]').boundingBox();
     check(
-      '  the stack over the map is the tabs and, at the foot, the Start Tracking bar',
+      "  as Figma's Record has it: Start tracking 32 in each side and 48 tall, the tabs 12 under it, 32 over the foot",
       !!start &&
         !!tabs &&
         !!stack &&
-        Math.abs(stack.y - tabs.y) <= 1 &&
-        tabs.y + tabs.height <= start.y &&
-        Math.abs(stack.y + stack.height - (start.y + start.height)) <= 1,
+        Math.abs(stack.y - start.y) <= 1 &&
+        Math.abs(start.x - 32) <= 0.5 &&
+        Math.abs(start.width - (393 - 64)) <= 0.5 &&
+        Math.abs(start.height - 48) <= 0.5 &&
+        Math.abs(tabs.y - (start.y + start.height) - 12) <= 0.5 &&
+        Math.abs(stack.y + stack.height - (tabs.y + tabs.height) - 32) <= 0.5,
       JSON.stringify([stack, tabs, start]),
     );
     await history.click();
@@ -1551,30 +1555,30 @@ const buttons = (page) =>
   const locatorBox = await locate(page).boundingBox();
   const bars = await page.locator('section[aria-labelledby="ready-heading"]').boundingBox();
   check(
-    "the map-style button sits on the locator button, the public map's 48 px pair, 16 px from the right as Figma has it",
+    "the map-style button sits on the locator button, the public map's 48 px pair, 20 px from the right as Figma has it",
     box &&
       locatorBox &&
       Math.abs(box.width - 48) < 0.5 &&
-      Math.abs(393 - (box.x + box.width) - 16) < 0.5 &&
+      Math.abs(393 - (box.x + box.width) - 20) < 0.5 &&
       Math.abs(locatorBox.x - box.x) < 0.5 &&
       box.y + box.height <= locatorBox.y + 0.5,
     JSON.stringify([box, locatorBox]),
   );
   check(
-    '  and above the Start bar, 16 px over the tabs as Figma has it',
-    bars && locatorBox && Math.abs(bars.y - (locatorBox.y + locatorBox.height) - 16) < 0.5,
+    '  and 24 px over Start tracking as Figma has it',
+    bars && locatorBox && Math.abs(bars.y - (locatorBox.y + locatorBox.height) - 24) < 0.5,
     JSON.stringify([locatorBox, bars]),
   );
   {
     const info = await creditsButton(page).boundingBox();
     const bar = await page.getByRole('button', { name: 'Start Tracking' }).boundingBox();
     check(
-      "  the map's ⓘ is 32 px, at the bottom left, 12 px in and 12 px over the Start bar",
+      "  the map's ⓘ is 32 px, at the bottom left, 12 px in and 12 px over the screen's foot",
       info &&
         bar &&
         Math.abs(info.width - 32) < 0.5 &&
         Math.abs(info.x - 12) < 0.5 &&
-        Math.abs(bar.y - (info.y + info.height) - 12) < 0.5,
+        Math.abs(852 - (info.y + info.height) - 12) < 0.5,
       JSON.stringify([info, bar]),
     );
   }
@@ -1699,7 +1703,7 @@ const buttons = (page) =>
     file?.description,
   );
   check(
-    '  History has no Start bar',
+    '  History has no Start tracking',
     (await page.getByRole('button', { name: 'Start Tracking' }).count()) === 0,
   );
   await recordTab(page).click();

@@ -38,7 +38,7 @@ const TAB = 'relative flex min-w-18 flex-col items-center rounded-full py-1 text
 
 /**
  * Figma's BottomToolbar (4496:10482): Record, History and Account, the screen showing marked. A
- * pill over the map, centred above the Start bar, and at the foot of History and Account.
+ * pill over the map, centred under Start tracking, and at the foot of History and Account.
  */
 export function BottomToolbar({
   current = 'record',
