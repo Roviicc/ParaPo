@@ -2,6 +2,7 @@ import type { MapLibreMap } from 'maplibre-gl';
 
 import type { RecordingTrail } from '@/features/routes/map/recording-trail';
 
+import { PUBLISHED_LAYERS } from './published-routes-layers';
 import { TRAIL_PICTURE, trailFit, type PictureBox } from './trail-picture-frame';
 
 /** How long the tiles for the trail's view may take to arrive before the picture is given up. */
@@ -101,6 +102,18 @@ export async function captureTrailPicture(
     hasTileFailed = true;
   };
   map.on('error', handleError);
+  // The picture is the rider's own trail on the basemap: the faint published routes, there or
+  // not yet by the time the form opens, are left out of every one alike.
+  // Hidden as the capture starts, and again before the cut for routes that arrived meanwhile.
+  const hiddenRoutes = new Set<string>();
+  const hideRoutes = () => {
+    for (const id of PUBLISHED_LAYERS) {
+      if (!map.getLayer(id) || map.getLayoutProperty(id, 'visibility') === 'none') continue;
+      map.setLayoutProperty(id, 'visibility', 'none');
+      hiddenRoutes.add(id);
+    }
+  };
+  hideRoutes();
   map.fitBounds(fit.bounds, {
     padding: fit.padding,
     bearing: 0,
@@ -114,9 +127,13 @@ export async function captureTrailPicture(
   try {
     const isIdle = await whenIdle(map, TILES_MS, signal);
     if (!isIdle || hasTileFailed || !map.areTilesLoaded() || !isStillFramed()) return null;
+    hideRoutes();
     return await cutInNextRender(map, fit.box, isStillFramed, signal);
   } finally {
     map.off('error', handleError);
+    for (const id of hiddenRoutes) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'visible');
+    }
     if (isStillFramed()) map.jumpTo(camera);
   }
 }

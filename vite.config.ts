@@ -162,12 +162,16 @@ export default defineConfig({
             //  - shared never takes the studio's or the contributor page's own
             //    modules, nor Turnstile, which only those two load: two of
             //    their chunks importing one would otherwise put it on the
-            //    public page.
+            //    public page. Nor the published map's fetchers: the contributor
+            //    page reads them only once its map has settled (its faint
+            //    routes), so in `shared` they would ride along on its opening.
+            //    Left out, they are a chunk of their own that the public page
+            //    opens with and the contributor page fetches later.
             {
               name: 'shared',
               minShareCount: 2,
               test: (id: string) =>
-                !/[\\/]src[\\/]((app|features)[\\/](studio|contribute)[\\/]|shared[\\/]ui[\\/]turnstile)/.test(
+                !/[\\/]src[\\/]((app|features)[\\/](studio|contribute)[\\/]|shared[\\/]ui[\\/]turnstile|features[\\/]routes[\\/]published[\\/](fetch-index|fetch-line|line-file-schema)\.ts$)/.test(
                   id,
                 ),
             },
