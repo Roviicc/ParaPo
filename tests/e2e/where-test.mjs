@@ -169,6 +169,7 @@ const eyesOnScreen = (page) =>
     eyes.style.transition = '';
     return {
       look: dot.dataset.look ?? null,
+      gaze: dot.dataset.gaze ?? null,
       deg:
         off < 0.5 ? null : Math.round(((Math.atan2(ex - dx, dy - ey) * 180) / Math.PI + 360) % 360),
       animation: getComputedStyle(eyes).animationName,
@@ -177,6 +178,21 @@ const eyesOnScreen = (page) =>
       at: [Math.round((ex - dx) * 10) / 10, Math.round((ey - dy) * 10) / 10],
     };
   });
+
+/**
+ * The faces that hold the eyes still of their own (locator.css): dozing, squeezed > <, and
+ * glaring. Their eyes have no animation whether or not anything is looked at.
+ */
+const STILL_EYED_FACES = new Set(['sleepy', 'squee', 'glare', 'huff']);
+/**
+ * The eyes left to the face, as with no heading and no pick: nothing looked at, so not moved,
+ * and looking about as the face does, still only on a face that holds them still.
+ */
+const eyesWander = (eyes) =>
+  eyes?.look === null &&
+  eyes.gaze === null &&
+  eyes.deg === null &&
+  (eyes.animation !== 'none' || STILL_EYED_FACES.has(eyes.face));
 
 // ---------------------------------------------------------- a granted commuter, on a phone
 if (VIDEO) mkdirSync(VIDEO, { recursive: true });
@@ -867,7 +883,7 @@ check(
 const eyesNoCompass = await eyesOnScreen(page4);
 check(
   "  with no heading, no beam: the dot's eyes wander",
-  eyesNoCompass?.look === null && eyesNoCompass.animation !== 'none',
+  eyesWander(eyesNoCompass),
   JSON.stringify(eyesNoCompass),
 );
 // A route tapped with no compass: the gaze, then the wandering again, not a heading.
@@ -896,7 +912,7 @@ if (!onLine4) {
   const after4 = await eyesOnScreen(page4);
   check(
     '  a route tapped with no compass: the dot gazes at it, and after three seconds its eyes wander again',
-    gazed4 && back4 && after4?.look === null && after4.animation !== 'none',
+    gazed4 && back4 && eyesWander(after4),
     JSON.stringify({ gazed4, back4, after4 }),
   );
 }
