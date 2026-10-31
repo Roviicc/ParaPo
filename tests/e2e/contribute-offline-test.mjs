@@ -291,10 +291,10 @@ try {
     (await storeNames(page)).includes(firstStores[0]),
   );
 
-  // Pause and Finish by hand (Skip: no details), then the update takes over.
+  // Pause and Finish by hand, saved with no details, then the update takes over.
   await page.getByRole('button', { name: 'Pause', exact: true }).click();
   await page.getByRole('button', { name: 'Finish', exact: true }).click();
-  await page.getByRole('button', { name: 'Skip' }).click();
+  await page.getByRole('button', { name: 'Save recording' }).click();
   await page.getByRole('button', { name: 'Record again' }).waitFor({ timeout: 10000 });
   await page.waitForTimeout(500);
   const reloaded = page.waitForEvent('load', { timeout: 20000 }).then(

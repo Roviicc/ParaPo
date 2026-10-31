@@ -263,7 +263,7 @@ const retryButton = (page, name) =>
   await page.getByRole('button', { name: 'Pause', exact: true }).click();
   await page.getByRole('button', { name: 'Finish', exact: true }).click();
   await page.getByLabel('Start point name').fill('SM Fairview');
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Save recording' }).click();
   await page.getByRole('heading', { name: 'Successfully recorded' }).waitFor();
   await page.getByText('Uploaded to Para').waitFor({ timeout: 15000 });
   const [stored] = [...fake.rows.values()];
@@ -757,12 +757,13 @@ const retryButton = (page, name) =>
   check('  and it is not asked again', (await SCREENS.earlier(page).count()) === 0);
 }
 
-// ---------------------------------- the new vehicles go up as the database names them
+// ------------------- the ride and the fare go up as the database names them; a bad fare never does
 {
   const { page, fake, errors } = await phone();
-  for (const [kind, vehicle] of [
-    ['E-Jeep', 'e_jeep'],
-    ['UV Express', 'uv_express'],
+  for (const [kind, label, vehicle, fareText, farePhp] of [
+    ['E-Jeep', 'E-Jeep', 'e_jeep', '13.50', 13.5],
+    ['UV Express', 'UV Express', 'uv_express', '', null],
+    ['Others', 'Others', 'other', '2500', null],
   ]) {
     const before = fake.rows.size;
     await page.getByRole('button', { name: 'Start Tracking' }).click();
@@ -775,8 +776,24 @@ const retryButton = (page, name) =>
     await page.getByRole('button', { name: 'Pause', exact: true }).click();
     await page.getByRole('button', { name: 'Finish', exact: true }).click();
     await page.getByLabel('Start point name').fill(`On a ${kind}`);
-    await page.getByLabel('What did you ride?').selectOption(kind);
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'What did you ride?' }).click();
+    await page.getByRole('radio', { name: label }).click();
+    if (fareText) await page.getByLabel('Fare').fill(fareText);
+    await page.getByRole('button', { name: 'Save recording' }).click();
+    if (fareText === '2500') {
+      // A fare out of range is not saved: the form stays, says what it takes, and the field is
+      // put right (here, emptied) before the ride goes.
+      await page.getByText('Enter an amount from ₱0 to ₱2,000').waitFor();
+      check(
+        '  a fare over ₱2,000 keeps the form open with the field in error, focus on it, nothing sent',
+        (await page.getByRole('heading', { name: 'Save Recording' }).count()) === 1 &&
+          (await page.evaluate(() => document.activeElement?.getAttribute('inputmode'))) ===
+            'decimal' &&
+          fake.rows.size === before,
+      );
+      await page.getByLabel('Fare').fill('');
+      await page.getByRole('button', { name: 'Save recording' }).click();
+    }
     await page.getByRole('heading', { name: 'Successfully recorded' }).waitFor();
     const isUploaded = await page
       .getByText('Uploaded to Para')
@@ -789,9 +806,11 @@ const retryButton = (page, name) =>
       (row) => row.recording.start_name === `On a ${kind}`,
     );
     check(
-      `a ride on ${kind} is chosen in the form and uploads as '${vehicle}'`,
-      isUploaded && stored?.recording.vehicle === vehicle,
-      String(stored?.recording.vehicle),
+      `a ride on ${label} is picked in the sheet and uploads as '${vehicle}', its fare as ${farePhp}`,
+      isUploaded &&
+        stored?.recording.vehicle === vehicle &&
+        (stored?.recording.fare_php ?? null) === farePhp,
+      JSON.stringify([stored?.recording.vehicle, stored?.recording.fare_php]),
     );
     await page.getByRole('button', { name: 'Record again' }).click();
   }

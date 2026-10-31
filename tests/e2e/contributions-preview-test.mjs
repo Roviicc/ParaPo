@@ -110,7 +110,7 @@ async function recordAndSave(page, name, lat, seconds = 40) {
   await page.getByRole('button', { name: 'Save' }).click();
   await page.getByLabel('Start point name').fill(`${name} ${RUN}`);
   await page.getByLabel('End point name').fill('Cubao');
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Save recording' }).click();
   await page.getByRole('heading', { name: 'Successfully recorded' }).waitFor();
   await page.getByText(/Uploaded to Para|refused|no signal/).waitFor({ timeout: 20000 });
   return page.getByText('Uploaded to Para').count();

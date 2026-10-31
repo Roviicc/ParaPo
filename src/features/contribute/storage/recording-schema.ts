@@ -10,7 +10,9 @@ export const RECORDING_VERSION = 2;
 
 /**
  * What the contributor says they rode; optional, so a recording may have none. Only ever added
- * to: a recording kept with any of these still reads.
+ * to: a recording kept with any of these still reads. The save form offers RIDE_CHOICES
+ * (ride-choices.ts), which leaves Tricycle out: it is under Others now, and stays here so a
+ * recording kept with it still reads and uploads as a tricycle.
  */
 export const RIDE_KINDS = [
   'Jeep',
@@ -87,6 +89,8 @@ const recordingShape = {
   endPointName: z.string(),
   description: z.string(),
   rideKind: z.nullable(z.enum(RIDE_KINDS)),
+  /** What the ride cost, in pesos, as the contributor typed it; absent when they said nothing. */
+  farePhp: z.optional(z.number()),
   /** The consent text's version agreed to when it began; absent on one made before consent version 2. */
   consentVersion: z.optional(z.number()),
   upload: z.optional(uploadMarkSchema),

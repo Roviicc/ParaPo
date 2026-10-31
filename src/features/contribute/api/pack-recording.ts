@@ -2,6 +2,7 @@ import { keptFixes, mergeGaps, summarize, type Fix } from '@/features/routes/mod
 import { overviewOf, type LngLat } from '@/shared/utils/geo';
 
 import type { ContributionPayload, PointBatch } from './contribution-payload-schema';
+import { uploadedFare } from './upload-fare';
 import { walkRideSplit } from './walk-ride-split';
 import { UPLOAD_LIMITS } from '../recorder/recording-limits';
 import { marksThatFit } from '../recorder/recording-marks';
@@ -183,6 +184,7 @@ export function packRecording(
     ...(recording.savedAt === null ? [] : [{ kind: 'save', at: iso(recording.savedAt) }]),
   ];
   // The start, stop and save go in whatever else is cut: past the limit, the latest between them go.
+  const fare = uploadedFare(recording.farePhp);
   const events = [
     { kind: 'start', at: iso(recording.startedAt) },
     ...between.slice(0, UPLOAD_LIMITS.listEntries - 1 - tail.length),
@@ -212,7 +214,8 @@ export function packRecording(
       ride_m: distanceM - walkM,
       walk_s: walkS,
       ride_s: movingS + standingS - walkS,
-      // TODO: send fare_php: uploadedFare(recording.farePhp) (upload-fare.ts) once the recording keeps the fare the save form will ask for.
+      // Only with a fare: a ride without one goes up as it always has, the column left null.
+      ...(fare === null ? {} : { fare_php: fare }),
       point_count: points.length,
       events,
       gaps: summary.gaps

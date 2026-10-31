@@ -17,6 +17,8 @@ export interface RecordingDetails {
   endPointName: string;
   description: string;
   rideKind: RideKind | null;
+  /** Left out when no fare was typed, or one the form could not read. */
+  farePhp?: number;
 }
 
 export interface RecordingState {

@@ -395,10 +395,12 @@ export function ContributePage({ locator }: ContributePageProps) {
               />
             </Suspense>
           )}
-          {phase === 'form' && (
+          {phase === 'form' && figures && (
             <Suspense fallback={null}>
               <SaveForm
+                figures={figures}
                 failedFixWrites={recording.current?.failedFixWrites ?? 0}
+                onDiscard={recording.cancel}
                 onKeepRecording={recording.keepRecording}
                 onSave={recording.save}
               />

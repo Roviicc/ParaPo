@@ -13,6 +13,11 @@ interface StopRecordingScreenProps {
   figures: RecordingFigures;
   /** Keep recording, and Escape: back to the recording as it was before ✕. */
   onKeep: () => void;
+  /**
+   * The safe answer's words: "Keep recording" over a recording; "Keep it" over the Save form,
+   * whose Discard asks the same question and goes back to the form.
+   */
+  keepLabel?: string;
   /** Stop without saving: the recording is thrown away. */
   onStop: () => void;
 }
@@ -29,7 +34,12 @@ interface StopRecordingScreenProps {
  * its foot. Where they do not both fit (a short phone, a phone on its side) the whole screen
  * scrolls, the figures last, as the owner chose.
  */
-export function StopRecordingScreen({ figures, onKeep, onStop }: StopRecordingScreenProps) {
+export function StopRecordingScreen({
+  figures,
+  onKeep,
+  keepLabel = 'Keep recording',
+  onStop,
+}: StopRecordingScreenProps) {
   const screenRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const textId = useId();
@@ -87,7 +97,7 @@ export function StopRecordingScreen({ figures, onKeep, onStop }: StopRecordingSc
             </div>
           </div>
           <div className="flex flex-col gap-3">
-            <Button variant="primary" label="Keep recording" onClick={onKeep} />
+            <Button variant="primary" label={keepLabel} onClick={onKeep} />
             <Button variant="error" label="Stop without saving" onClick={onStop} />
           </div>
         </div>
